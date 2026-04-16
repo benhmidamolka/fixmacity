@@ -1,0 +1,179 @@
+/* ============================================================
+   DESIGN TOKENS — Editorial Architecturalism
+   Source: Stitch "Curated Digital Design System"
+   ============================================================ */
+
+:root {
+  /* ── Primary Palette ─────────────────────────────────────── */
+  --color-primary:                 #003ca2;
+  --color-primary-container:       #0051d4;
+  --color-primary-fixed:           #dbe1ff;
+  --color-primary-fixed-dim:       #b4c5ff;
+  --color-on-primary:              #ffffff;
+  --color-on-primary-container:    #c8d3ff;
+  --color-on-primary-fixed:        #00174a;
+  --color-on-primary-fixed-variant:#003ea7;
+  --color-inverse-primary:         #b4c5ff;
+
+  /* ── Secondary Palette ───────────────────────────────────── */
+  --color-secondary:               #0051d4;
+  --color-secondary-container:     #1e69ff;
+  --color-secondary-fixed:         #dbe1ff;
+  --color-secondary-fixed-dim:     #b4c5ff;
+  --color-on-secondary:            #ffffff;
+  --color-on-secondary-container:  #fefcff;
+
+  /* ── Tertiary Palette ────────────────────────────────────── */
+  --color-tertiary:                #7b2900;
+  --color-tertiary-container:      #a23900;
+  --color-tertiary-fixed:          #ffdbce;
+  --color-tertiary-fixed-dim:      #ffb599;
+  --color-on-tertiary:             #ffffff;
+  --color-on-tertiary-container:   #ffc8b4;
+
+  /* ── Surface / Neutral Palette ───────────────────────────── */
+  --color-background:              #f7f9fb;
+  --color-surface:                 #f7f9fb;
+  --color-surface-bright:          #f7f9fb;
+  --color-surface-dim:             #d8dadc;
+  --color-surface-container:       #eceef0;
+  --color-surface-container-high:  #e6e8ea;
+  --color-surface-container-highest:#e0e3e5;
+  --color-surface-container-low:   #f2f4f6;
+  --color-surface-container-lowest:#ffffff;
+  --color-surface-variant:         #e0e3e5;
+  --color-surface-tint:            #0954d7;
+
+  /* ── On-Surface ──────────────────────────────────────────── */
+  --color-on-background:           #191c1e;
+  --color-on-surface:              #191c1e;
+  --color-on-surface-variant:      #434654;
+  --color-inverse-on-surface:      #eff1f3;
+  --color-inverse-surface:         #2d3133;
+
+  /* ── Outline ─────────────────────────────────────────────── */
+  --color-outline:                 #737686;
+  --color-outline-variant:         #c3c6d7;
+
+  /* ── Error ───────────────────────────────────────────────── */
+  --color-error:                   #ba1a1a;
+  --color-error-container:         #ffdad6;
+  --color-on-error:                #ffffff;
+  --color-on-error-container:      #93000a;
+
+  /* ── Success (custom) ────────────────────────────────────── */
+  --color-success:                 #1b6e3d;
+  --color-success-container:       #a8f5b7;
+  --color-on-success:              #ffffff;
+
+  /* ── Warning (custom) ────────────────────────────────────── */
+  --color-warning:                 #7c5800;
+  --color-warning-container:       #ffdea6;
+  --color-on-warning:              #ffffff;
+
+  /* ── Typography ──────────────────────────────────────────── */
+  --font-headline:                 'Manrope', sans-serif;
+  --font-body:                     'Inter', sans-serif;
+  --font-label:                    'Inter', sans-serif;
+
+  /* Display */
+  --font-display-lg-size:          3.5rem;
+  --font-display-lg-weight:        700;
+  --font-display-lg-tracking:      -0.02em;
+  --font-display-lg-leading:       1.1;
+
+  --font-display-md-size:          2.75rem;
+  --font-display-md-weight:        700;
+  --font-display-md-tracking:      -0.02em;
+
+  /* Headline */
+  --font-headline-lg-size:         2rem;
+  --font-headline-lg-weight:       700;
+
+  --font-headline-md-size:         1.75rem;
+  --font-headline-md-weight:       600;
+
+  --font-headline-sm-size:         1.5rem;
+  --font-headline-sm-weight:       600;
+
+  /* Title */
+  --font-title-lg-size:            1.375rem;
+  --font-title-lg-weight:          600;
+
+  --font-title-md-size:            1.125rem;
+  --font-title-md-weight:          600;
+
+  --font-title-sm-size:            1rem;
+  --font-title-sm-weight:          500;
+
+  /* Body */
+  --font-body-lg-size:             1rem;
+  --font-body-lg-weight:           400;
+  --font-body-lg-leading:          1.65;
+
+  --font-body-md-size:             0.875rem;
+  --font-body-md-weight:           400;
+  --font-body-md-leading:          1.5;
+
+  --font-body-sm-size:             0.8125rem;
+  --font-body-sm-weight:           400;
+
+  /* Label */
+  --font-label-lg-size:            0.875rem;
+  --font-label-lg-weight:          600;
+
+  --font-label-md-size:            0.75rem;
+  --font-label-md-weight:          500;
+
+  --font-label-sm-size:            0.6875rem;
+  --font-label-sm-weight:          500;
+
+  /* ── Spacing Scale ───────────────────────────────────────── */
+  --spacing-xs:                    0.25rem;   /* 4px  */
+  --spacing-sm:                    0.5rem;    /* 8px  */
+  --spacing-md:                    1rem;      /* 16px */
+  --spacing-lg:                    1.5rem;    /* 24px */
+  --spacing-xl:                    2rem;      /* 32px */
+  --spacing-2xl:                   2.5rem;    /* 40px */
+  --spacing-3xl:                   3rem;      /* 48px */
+  --spacing-4xl:                   4rem;      /* 64px */
+
+  /* ── Border Radius ───────────────────────────────────────── */
+  --radius-sm:                     0.5rem;    /* 8px  */
+  --radius-md:                     1rem;      /* 16px */
+  --radius-lg:                     1.5rem;    /* 24px */
+  --radius-xl:                     2rem;      /* 32px */
+  --radius-2xl:                    3rem;      /* 48px */
+  --radius-full:                   9999px;
+
+  /* ── Elevation & Effects ─────────────────────────────────── */
+  --shadow-ambient:                0px 12px 32px rgba(25, 28, 30, 0.04);
+  --shadow-elevated:               0px 4px 20px -2px rgba(25, 28, 30, 0.04),
+                                   0px 12px 40px -8px rgba(25, 28, 30, 0.08);
+  --shadow-float:                  0px 20px 48px rgba(25, 28, 30, 0.06);
+
+  /* Glass */
+  --glass-bg:                      rgba(255, 255, 255, 0.80);
+  --glass-bg-subtle:               rgba(255, 255, 255, 0.60);
+  --glass-blur:                    blur(20px);
+  --glass-border:                  1px solid rgba(195, 198, 215, 0.20);
+
+  /* Ghost Border */
+  --ghost-border:                  1px solid rgba(195, 198, 215, 0.20);
+  --ghost-border-active:           2px solid var(--color-primary);
+
+  /* Gradient */
+  --gradient-primary:              linear-gradient(135deg, #003ca2, #0051d4);
+  --gradient-primary-hover:        linear-gradient(135deg, #003ca2, #1e69ff);
+  --gradient-hero:                 linear-gradient(135deg, rgba(0, 60, 162, 0.04), rgba(0, 81, 212, 0.08));
+
+  /* ── Transitions ─────────────────────────────────────────── */
+  --transition-fast:               150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-medium:             250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow:               400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Layout ──────────────────────────────────────────────── */
+  --max-width:                     1280px;
+  --sidebar-width:                 260px;
+  --navbar-height:                 64px;
+}
