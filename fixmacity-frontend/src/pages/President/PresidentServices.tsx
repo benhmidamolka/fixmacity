@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import PresidentLayout from '../../layouts/PresidentLayout'
 import { Plus, MoreVertical, X, Users, FileText, TrendingUp, AlertTriangle } from 'lucide-react'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const token = () => localStorage.getItem('fmc_token')
 
 const DEPT_ICONS: Record<string, string> = {

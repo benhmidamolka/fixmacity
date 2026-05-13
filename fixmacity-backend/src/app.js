@@ -21,7 +21,7 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 app.locals.getFileUrl = (filepath) => {
   if (!filepath) return null;
   if (filepath.startsWith('http')) return filepath;
-  const baseUrl = (process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/$/, '');
+  const baseUrl = (process.env.BASE_URL || `http://localhost:${process.env.PORT || 5005}`).replace(/\/$/, '');
   const filename = path.basename(filepath);
   return `${baseUrl}/uploads/${filename}`;
 };
@@ -91,6 +91,7 @@ app.use('/api/agent', require('./routes/agent.routes'));
 app.use('/api/chatbot', require('./routes/chatbot.routes'));
 app.use('/api/notifications', require('./routes/notifications.routes'));
 app.use('/api/propositions', require('./routes/propositions.routes'));
+app.use('/api/tasks', require('./routes/tasks.routes'));
 app.use('/api/public', require('./routes/public.routes'));
 
 // ── Official President Interface ──

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import PresidentLayout from '../../layouts/PresidentLayout'
 import { Bell, Check, CheckCheck, Trash2, Filter, AlertTriangle, UserPlus, FileText, ThumbsUp, Settings, X } from 'lucide-react'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const token = () => localStorage.getItem('fmc_token')
 
 const NOTIF_TYPES: Record<string, { icon: React.ReactNode; color: string; bg: string }> = {

@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import PresidentLayout from '../../layouts/PresidentLayout'
 import { User, Bell, Shield, Globe, Save, Eye, EyeOff, Check, HelpCircle } from 'lucide-react'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const token = () => localStorage.getItem('fmc_token')
 
 const Toggle: React.FC<{ value: boolean; onChange: (v: boolean) => void }> = ({ value, onChange }) => (

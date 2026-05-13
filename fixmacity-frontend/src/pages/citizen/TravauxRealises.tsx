@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Search, ChevronDown, X, MapPin, Clock, CheckCircle, ThumbsUp, Award } from 'lucide-react'
 import CitizenLayout from '../../components/citizen/CitizenLayout'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 const CATEGORIES = ['Toutes', 'Voirie', 'Éclairage', 'Propreté', 'Espaces Verts', 'Réseaux', 'Signalisation']
 
@@ -17,9 +17,11 @@ const MOCK_FIXES = [
 ]
 
 const MOCK_PROJECTS = [
-  { id:'p1', title:'Végétalisation de la Place des Martyrs', category:'Environnement', description:'Transformation de la place centrale en espace vert piétonnier avec 50 arbres et points d\'eau écologiques. Projet approuvé par 73% des citoyens.', pour_pct:73, total_votes:1245, completed_at: new Date(Date.now()-30*86400000).toISOString(), duration:'3 mois', img:'https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=600&q=80' },
-  { id:'p2', title:'Modernisation de l\'Éclairage Public',   category:'Éclairage',     description:'Remplacement de 3000 lampadaires par des LED à détection de mouvement. Réduction de 60% de la consommation énergétique.', pour_pct:89, total_votes:2100, completed_at: new Date(Date.now()-15*86400000).toISOString(), duration:'4 mois', img:'https://images.unsplash.com/photo-1508193638397-1c4234db14d8?w=600&q=80' },
-  { id:'p3', title:'Bacs à Ordures Connectés',               category:'Propreté',      description:'Installation de 200 bacs intelligents avec capteurs IoT pour optimiser les tournées de collecte.', pour_pct:65, total_votes:756, completed_at: new Date(Date.now()-45*86400000).toISOString(), duration:'2 mois', img:'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=600&q=80' },
+  { id:'p1', title:'Végétalisation de la Place des Martyrs', category:'Environnement', description:'Transformation de la place centrale en espace vert piétonnier avec 50 arbres et points d\'eau écologiques. Projet approuvé par 73% des citoyens.', pour_pct:73, total_votes:1245, completed_at: new Date(Date.now()-30*86400000).toISOString(), duration:'3 mois', img:'https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=600&q=80', type: 'voted' },
+  { id:'p2', title:'Modernisation de l\'Éclairage Public',   category:'Éclairage',     description:'Remplacement de 3000 lampadaires par des LED à détection de mouvement. Réduction de 60% de la consommation énergétique.', pour_pct:89, total_votes:2100, completed_at: new Date(Date.now()-15*86400000).toISOString(), duration:'4 mois', img:'https://images.unsplash.com/photo-1508193638397-1c4234db14d8?w=600&q=80', type: 'voted' },
+  { id:'p3', title:'Bacs à Ordures Connectés',               category:'Propreté',      description:'Installation de 200 bacs intelligents avec capteurs IoT pour optimiser les tournées de collecte.', pour_pct:65, total_votes:756, completed_at: new Date(Date.now()-45*86400000).toISOString(), duration:'2 mois', img:'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=600&q=80', type: 'voted' },
+  { id:'p4', title:'Réfection du marché municipal',          category:'Infrastructures', description:'Rénovation complète des toitures et mise aux normes sanitaires du marché central de Sousse. Projet initié et financé par la municipalité.', completed_at: new Date(Date.now()-60*86400000).toISOString(), duration:'6 mois', img:'https://images.unsplash.com/photo-1533900298318-6b8da08a523e?w=600&q=80', type: 'municipal' },
+  { id:'p5', title:'Nouvelle station d\'épuration Sousse Sud', category:'Réseaux',     description:'Création d\'une station d\'épuration de dernière génération pour soulager le réseau sud. Projet mené par la commune.', completed_at: new Date(Date.now()-120*86400000).toISOString(), duration:'12 mois', img:'https://images.unsplash.com/photo-1581093458791-9f3c3900df4b?w=600&q=80', type: 'municipal' },
 ]
 
 function daysAgo(dateStr: string) {
@@ -134,7 +136,7 @@ function ProjectModal({ project, onClose }: { project: any; onClose: () => void 
           </button>
           <div className="absolute bottom-4 left-5">
             <span className="inline-flex items-center gap-1.5 bg-[#1557FF] text-white text-xs font-bold px-2.5 py-1 rounded-full mb-2">
-              <Award className="w-3 h-3" /> Approuvé & Réalisé
+              <Award className="w-3 h-3" /> Approuvé &amp; Réalisé
             </span>
             <h2 className="text-white text-xl font-bold">{project.title}</h2>
           </div>
@@ -154,17 +156,28 @@ function ProjectModal({ project, onClose }: { project: any; onClose: () => void 
           <p className="text-slate-600 leading-relaxed">{project.description}</p>
 
           {/* Vote result */}
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Résultat du vote citoyen</p>
-            <div className="flex justify-between text-xs font-bold mb-2">
-              <span className="text-green-600">Pour ({project.pour_pct}%)</span>
-              <span className="text-red-500">Contre ({100 - project.pour_pct}%)</span>
+          {project.type === 'voted' && (
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Résultat du vote citoyen</p>
+              <div className="flex justify-between text-xs font-bold mb-2">
+                <span className="text-green-600">Pour ({project.pour_pct || 0}%)</span>
+                <span className="text-red-500">Contre ({100 - (project.pour_pct || 0)}%)</span>
+              </div>
+              <div className="h-3 rounded-full bg-red-100 overflow-hidden mb-2">
+                <div className="h-full rounded-full bg-green-500" style={{ width: `${project.pour_pct || 0}%` }} />
+              </div>
+              <p className="text-xs text-slate-400 text-center">{(project.total_votes || 0).toLocaleString()} citoyens ont voté</p>
             </div>
-            <div className="h-3 rounded-full bg-red-100 overflow-hidden mb-2">
-              <div className="h-full rounded-full bg-green-500" style={{ width: `${project.pour_pct}%` }} />
+          )}
+          {project.type === 'municipal' && (
+            <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 flex items-center gap-3">
+              <span className="text-2xl">🏛️</span>
+              <div>
+                <p className="text-sm font-bold text-purple-900">Projet 100% Municipal</p>
+                <p className="text-xs text-purple-700">Ce projet a été planifié, financé et réalisé directement par les services de la municipalité de Sousse.</p>
+              </div>
             </div>
-            <p className="text-xs text-slate-400 text-center">{project.total_votes?.toLocaleString()} citoyens ont voté</p>
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -217,13 +230,20 @@ function ProjectCard({ project, onClick }: { project: any; onClick: () => void }
         <img src={project.img} alt={project.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-        {/* Approved badge */}
-        <span className="absolute top-3 left-3 flex items-center gap-1 bg-[#1557FF] text-white text-[11px] font-bold px-2.5 py-1 rounded-full">
-          <Award className="w-3 h-3" /> Approuvé ✓
-        </span>
-        <span className="absolute top-3 right-3 bg-white/90 text-green-600 text-[11px] font-bold px-2 py-1 rounded-full">
-          {project.pour_pct}% Pour
-        </span>
+        {project.type === 'voted' ? (
+          <>
+            <span className="absolute top-3 left-3 flex items-center gap-1 bg-[#1557FF] text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md">
+              <Award className="w-3 h-3" /> Approuvé ✓
+            </span>
+            <span className="absolute top-3 right-3 bg-white/95 text-green-600 text-[11px] font-bold px-2 py-1 rounded-full shadow-md">
+              {project.pour_pct || 0}% Pour
+            </span>
+          </>
+        ) : (
+          <span className="absolute top-3 left-3 flex items-center gap-1 bg-purple-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md">
+            <CheckCircle className="w-3 h-3" /> Fait par la municipalité
+          </span>
+        )}
       </div>
       <div className="p-4">
         <div className="flex items-center gap-2 mb-2">
@@ -233,11 +253,16 @@ function ProjectCard({ project, onClick }: { project: any; onClick: () => void }
           </span>
         </div>
         <h3 className="font-bold text-[#0A1628] text-sm leading-tight mb-2">{project.title}</h3>
-        {/* Mini vote bar */}
-        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-          <div className="h-full rounded-full bg-green-500" style={{ width: `${project.pour_pct}%` }} />
-        </div>
-        <p className="text-xs text-slate-400 mt-1">{project.total_votes?.toLocaleString()} votes · {project.duration}</p>
+        {project.type === 'voted' ? (
+          <>
+            <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-full rounded-full bg-green-500" style={{ width: `${project.pour_pct || 0}%` }} />
+            </div>
+            <p className="text-xs text-slate-400 mt-1">{(project.total_votes || 0).toLocaleString()} votes · {project.duration}</p>
+          </>
+        ) : (
+          <p className="text-xs text-slate-400 mt-1">Projet municipal · {project.duration}</p>
+        )}
       </div>
     </div>
   )
@@ -253,6 +278,7 @@ const TravauxRealises: React.FC = () => {
   const [search,     setSearch]     = useState('')
   const [catFilter,  setCatFilter]  = useState('Toutes')
   const [showCat,    setShowCat]    = useState(false)
+  const [projFilter, setProjFilter] = useState<'all'|'municipal'|'voted'>('all')
   const token = localStorage.getItem('fmc_token')
 
   useEffect(() => {
@@ -271,7 +297,10 @@ const TravauxRealises: React.FC = () => {
       .then(data => {
         const arr = Array.isArray(data) ? data : data.propositions || []
         const closed = arr.filter((p: any) => p.status === 'closed' || p.is_closed)
-        if (closed.length > 0) setProjects(closed)
+        if (closed.length > 0) {
+          const voted = closed.map((p: any) => ({ ...p, type: 'voted' }))
+          setProjects([...voted, ...MOCK_PROJECTS.filter(m => m.type === 'municipal')])
+        }
       }).catch(() => {})
   }, [])
 
@@ -281,7 +310,8 @@ const TravauxRealises: React.FC = () => {
   )
 
   const filteredProjects = projects.filter(p =>
-    !search || p.title?.toLowerCase().includes(search.toLowerCase())
+    (!search || p.title?.toLowerCase().includes(search.toLowerCase())) &&
+    (projFilter === 'all' || p.type === projFilter)
   )
 
   const stats = tab === 'fixes'
@@ -291,9 +321,9 @@ const TravauxRealises: React.FC = () => {
         { value: fixes.reduce((s, w) => s + (w.votes_count||0), 0), label: 'Soutiens citoyens', color: '#F59E0B' },
       ]
     : [
-        { value: projects.length,                                                       label: 'Projets réalisés',  color: '#1557FF' },
-        { value: projects.filter(p => (p.pour_pct || 0) >= 70).length,                 label: 'Très approuvés',    color: '#16a34a' },
-        { value: projects.reduce((s, p) => s + (p.total_votes||0), 0).toLocaleString(), label: 'Votes citoyens',   color: '#F59E0B' },
+        { value: projects.length,                                                        label: 'Projets réalisés',  color: '#1557FF' },
+        { value: projects.filter(p => (p.pour_pct || 0) >= 70).length,                  label: 'Très approuvés',    color: '#16a34a' },
+        { value: projects.reduce((s, p) => s + (p.total_votes||0), 0).toLocaleString(), label: 'Votes citoyens',    color: '#F59E0B' },
       ]
 
   return (
@@ -356,6 +386,22 @@ const TravauxRealises: React.FC = () => {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+          {tab === 'projects' && (
+            <div className="flex bg-slate-100 p-1 rounded-xl shrink-0 overflow-x-auto no-scrollbar">
+              <button onClick={() => setProjFilter('all')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${projFilter === 'all' ? 'bg-white shadow-sm text-[#0A1628]' : 'text-slate-500 hover:text-slate-700'}`}>
+                Tous les projets
+              </button>
+              <button onClick={() => setProjFilter('municipal')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${projFilter === 'municipal' ? 'bg-white shadow-sm text-[#0A1628]' : 'text-slate-500 hover:text-slate-700'}`}>
+                🏛️ Fait par la municipalité
+              </button>
+              <button onClick={() => setProjFilter('voted')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${projFilter === 'voted' ? 'bg-white shadow-sm text-[#0A1628]' : 'text-slate-500 hover:text-slate-700'}`}>
+                ⭐ Approuvés par vote
+              </button>
             </div>
           )}
         </div>

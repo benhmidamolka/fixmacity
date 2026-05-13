@@ -6,7 +6,7 @@ import { X, Search, ChevronDown, MapPin, Camera, Navigation, Loader2 } from 'luc
 import { useNavigate } from 'react-router-dom'
 import CitizenLayout from '../../components/citizen/CitizenLayout'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 // ─── Fix Leaflet icons ────────────────────────────────────────────────────────
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -16,37 +16,36 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
 
-// ─── Status config ────────────────────────────────────────────────────────────
+// ─── 3 statuses only ──────────────────────────────────────────────────────────
+// soumise = amber  |  en_cours = blue  |  cloturee (= resolue) = green
 const STATUS_CFG: Record<string, { color: string; label: string; heatColor: string }> = {
-  soumise:        { color: '#F59E0B', label: 'Soumise',  heatColor: 'rgba(245,158,11,0.25)'  },
-  assignee_chef:  { color: '#F59E0B', label: 'Soumise',  heatColor: 'rgba(245,158,11,0.25)'  },
-  assignee_agent: { color: '#F59E0B', label: 'Soumise',  heatColor: 'rgba(245,158,11,0.25)'  },
-  refusee_chef:   { color: '#e11d48', label: 'Refusée',  heatColor: 'rgba(225,29,72,0.2)'    },
-  refusee_agent:  { color: '#e11d48', label: 'Refusée',  heatColor: 'rgba(225,29,72,0.2)'    },
-  en_cours:       { color: '#1557FF', label: 'En cours', heatColor: 'rgba(21,87,255,0.2)'    },
-  resolue:        { color: '#16a34a', label: 'Résolue',  heatColor: 'rgba(22,163,74,0.2)'    },
-  cloturee:       { color: '#94a3b8', label: 'Clôturée', heatColor: 'rgba(148,163,184,0.2)'  },
+  soumise:        { color: '#F59E0B', label: 'Soumise',  heatColor: 'rgba(245,158,11,0.25)' },
+  assignee_chef:  { color: '#1557FF', label: 'En cours', heatColor: 'rgba(21,87,255,0.2)'   },
+  assignee_agent: { color: '#1557FF', label: 'En cours', heatColor: 'rgba(21,87,255,0.2)'   },
+  en_cours:       { color: '#1557FF', label: 'En cours', heatColor: 'rgba(21,87,255,0.2)'   },
+  resolue:        { color: '#16a34a', label: 'Résolue',  heatColor: 'rgba(22,163,74,0.2)'   },
+  cloturee:       { color: '#16a34a', label: 'Résolue',  heatColor: 'rgba(22,163,74,0.2)'   },
+  refusee_chef:   { color: '#16a34a', label: 'Résolue',  heatColor: 'rgba(22,163,74,0.2)'   },
 }
 
 const LEGEND = [
   { color: '#F59E0B', label: 'Soumise'  },
   { color: '#1557FF', label: 'En cours' },
   { color: '#16a34a', label: 'Résolue'  },
-  { color: '#94a3b8', label: 'Clôturée' },
-  { color: '#e11d48', label: 'Refusée'  },
 ]
 
-const CATEGORIES     = ['Toutes catégories', 'Voirie', 'Éclairage', 'Propreté', 'Espaces Verts', 'Réseaux', 'Signalisation']
+const CATEGORIES      = ['Toutes catégories', 'Voirie', 'Éclairage', 'Propreté', 'Espaces Verts', 'Réseaux', 'Signalisation']
 const ARRONDISSEMENTS = ['Tout Sousse', 'Sousse Ville', 'Sousse Jawhara', 'Sousse Sidi Abdelhamid']
-const STATUSES       = ['Tous statuts', 'Soumise', 'En cours', 'Résolue', 'Clôturée', 'Refusée']
+const STATUSES        = ['Tous statuts', 'Soumise', 'En cours', 'Résolue']
 const TIMELINE_STEPS  = ['Soumis', 'Assigné', 'Intervention', 'Résolution']
 
 const MOCK: any[] = [
-  { id:'1', title:'Éclairage défectueux - Avenue de la République', description:'Le lampadaire clignote depuis deux nuits.', category:'Éclairage', status:'en_cours', latitude:35.8270, longitude:10.6370, address:'Avenue de la République, Sousse', created_at:'2026-04-20T21:15:00Z', rating:5, rating_comment:'Intervention rapide, merci!', history:[{changed_at:'2026-04-20T21:15:00Z'},{changed_at:'2026-04-21T09:30:00Z'},{changed_at:'2026-04-23T00:00:00Z'},null] },
+  { id:'1', title:'Éclairage défectueux - Avenue de la République', description:'Le lampadaire clignote depuis deux nuits.', category:'Éclairage', status:'en_cours', latitude:35.8270, longitude:10.6370, address:'Avenue de la République, Sousse', created_at:'2026-04-20T21:15:00Z', history:[{changed_at:'2026-04-20T21:15:00Z'},{changed_at:'2026-04-21T09:30:00Z'},null,null] },
   { id:'2', title:'Nid de poule Av. Bourguiba',                    description:'Grand trou dangereux devant le marché.',     category:'Voirie',     status:'soumise',  latitude:35.8256, longitude:10.6346, address:'Av. Habib Bourguiba, Sousse',    created_at:'2026-04-22T10:00:00Z' },
-  { id:'3', title:'Déchets non collectés Cité Ettaamir',           description:'Accumulation de déchets depuis 3 jours.',   category:'Propreté',   status:'resolue',  latitude:35.8220, longitude:10.6300, address:'Cité Ettaamir, Sousse',           created_at:'2026-04-18T08:00:00Z', rating:4 },
-  { id:'4', title:'Fuite d\'eau rue Ibn Khaldoun',                  description:'Fuite importante depuis hier matin.',       category:'Réseaux',    status:'cloturee', latitude:35.8240, longitude:10.6420, address:'Rue Ibn Khaldoun, Sousse',        created_at:'2026-04-10T12:00:00Z' },
-  { id:'5', title:'Panneau stop cassé rond-point nord',             description:'Stop illisible, dangereux.',                category:'Signalisation', status:'refusee_chef', latitude:35.8300, longitude:10.6310, address:'Rond-point Nord, Sousse', created_at:'2026-04-25T09:00:00Z' },
+  { id:'3', title:'Déchets non collectés Cité Ettaamir',           description:'Accumulation de déchets depuis 3 jours.',   category:'Propreté',   status:'cloturee', latitude:35.8220, longitude:10.6300, address:'Cité Ettaamir, Sousse',           created_at:'2026-04-18T08:00:00Z', rating:4, rating_comment:'Ramassage fait rapidement, je suis satisfait.', history:[{changed_at:'2026-04-18T08:00:00Z'},{changed_at:'2026-04-19T10:00:00Z'},{changed_at:'2026-04-20T14:00:00Z'},{changed_at:'2026-04-22T09:00:00Z'}] },
+  { id:'4', title:'Fuite d\'eau rue Ibn Khaldoun',                  description:'Fuite importante depuis hier matin.',       category:'Réseaux',    status:'cloturee', latitude:35.8240, longitude:10.6420, address:'Rue Ibn Khaldoun, Sousse',        created_at:'2026-04-10T12:00:00Z', history:[{changed_at:'2026-04-10T12:00:00Z'},{changed_at:'2026-04-11T08:00:00Z'},{changed_at:'2026-04-13T10:00:00Z'},{changed_at:'2026-04-15T16:00:00Z'}] },
+  { id:'5', title:'Panneau stop cassé rond-point nord',             description:'Stop illisible, dangereux pour les usagers.',category:'Signalisation',status:'soumise',  latitude:35.8300, longitude:10.6310, address:'Rond-point Nord, Sousse',         created_at:'2026-04-25T09:00:00Z' },
+  { id:'6', title:'Arbres dangereux Parc de la Ligue Arabe',       description:'Branches menaçant de tomber sur les passants.',category:'Espaces Verts',status:'cloturee',latitude:35.8278, longitude:10.6389, address:'Parc de la Ligue Arabe, Sousse', created_at:'2026-04-05T11:00:00Z', rating:5, rating_comment:'Excellent travail, très professionnel !', history:[{changed_at:'2026-04-05T11:00:00Z'},{changed_at:'2026-04-06T08:00:00Z'},{changed_at:'2026-04-08T10:00:00Z'},{changed_at:'2026-04-10T15:00:00Z'}] },
 ]
 
 // ─── Pin icon ─────────────────────────────────────────────────────────────────
@@ -110,67 +109,81 @@ function Timeline({ status, history }: { status: string; history?: any[] }) {
 // ─── Side Panel ───────────────────────────────────────────────────────────────
 function SidePanel({ decl, onClose }: { decl: any; onClose: () => void }) {
   const cfg = STATUS_CFG[decl.status] || STATUS_CFG['soumise']
+  const isClosed = decl.status === 'resolue' || decl.status === 'cloturee'
+
   return (
     <div className="absolute top-0 right-0 bottom-0 w-[320px] bg-white shadow-2xl z-[1000] flex flex-col border-l border-slate-100">
-      <div className="px-5 pt-4 pb-0 flex items-center justify-between">
-        <span className="text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider"
-          style={{ color: cfg.color, background: `${cfg.color}18` }}>
-          {cfg.label}
-        </span>
+      {/* Header */}
+      <div className="px-5 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <span className="text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider"
+            style={{ color: cfg.color, background: `${cfg.color}18` }}>
+            {cfg.label}
+          </span>
+          {decl.category && (
+            <span className="ml-2 bg-slate-100 text-slate-600 text-[11px] font-bold px-2.5 py-1 rounded-full">{decl.category}</span>
+          )}
+        </div>
         <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all">
           <X className="w-4 h-4" />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto px-5 py-3">
-        {decl.created_at && (
-          <p className="text-[11px] text-slate-400 mb-1.5">
-            Soumis le {new Date(decl.created_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' })}
-          </p>
-        )}
-        <h3 className="font-bold text-[#0A1628] text-[15px] leading-tight mb-3">{decl.title}</h3>
-        <p className="text-slate-500 text-sm leading-relaxed mb-3">{decl.description}</p>
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          {decl.category && (
-            <span className="bg-slate-100 text-slate-600 text-[11px] font-bold px-2.5 py-1 rounded-full">{decl.category}</span>
+
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        {/* Title + date */}
+        <div>
+          {decl.created_at && (
+            <p className="text-[11px] text-slate-400 mb-1">
+              Soumis le {new Date(decl.created_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' })}
+            </p>
+          )}
+          <h3 className="font-bold text-[#0A1628] text-[15px] leading-tight">{decl.title}</h3>
+          {decl.address && (
+            <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+              <MapPin className="w-3 h-3" />{decl.address}
+            </p>
           )}
         </div>
-        <div className="h-px bg-slate-100 mb-4" />
-        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Suivi de l'intervention</p>
-        <Timeline status={decl.status} history={decl.history} />
-        {decl.rating && (
-          <>
-            <div className="h-px bg-slate-100 my-4" />
-            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-              <div className="flex gap-0.5 mb-1">
-                {[1,2,3,4,5].map(i => (
-                  <span key={i} className={`text-base ${i <= decl.rating ? 'text-amber-400' : 'text-slate-200'}`}>★</span>
-                ))}
-              </div>
-              {decl.rating_comment && <p className="text-xs text-slate-600 italic">"{decl.rating_comment}"</p>}
-            </div>
-          </>
-        )}
-        {(decl.status === 'resolue' || decl.status === 'cloturee') && !decl.rating && (
-          <>
-            <div className="h-px bg-slate-100 my-4" />
-            <div className="bg-slate-50 rounded-xl p-3 text-center">
-              <p className="text-xs text-slate-500 mb-2">Pas encore évalué par le citoyen</p>
-              <div className="flex gap-1 justify-center">
-                {[1,2,3,4,5].map(i => <span key={i} className="text-xl text-slate-200">★</span>)}
-              </div>
-            </div>
-          </>
-        )}
+
+        <p className="text-slate-500 text-sm leading-relaxed">{decl.description}</p>
+
+        {/* Timeline */}
+        <div>
+          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Suivi de l'intervention</p>
+          <Timeline status={decl.status} history={decl.history} />
+        </div>
+
+        {/* Photo */}
         {decl.photo_url && (
-          <>
-            <div className="h-px bg-slate-100 my-4" />
-            <img src={decl.photo_url} alt="" className="w-full h-36 object-cover rounded-xl" />
-          </>
+          <img src={decl.photo_url} alt="" className="w-full h-36 object-cover rounded-xl" />
+        )}
+
+        {/* ── Citizen evaluation (only for closed and if exists) ── */}
+        {isClosed && (decl.rating || decl.rating_comment) && (
+          <div>
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Évaluation du citoyen</p>
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+              {decl.rating && (
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex gap-0.5">
+                    {[1,2,3,4,5].map(i => (
+                      <span key={i} className={`text-lg ${i <= decl.rating ? 'text-amber-400' : 'text-slate-200'}`}>★</span>
+                    ))}
+                  </div>
+                  <span className="text-sm font-bold text-slate-700">{decl.rating}/5</span>
+                </div>
+              )}
+              {decl.rating_comment && (
+                <div className="bg-white rounded-lg px-3 py-2 border border-amber-100">
+                  <p className="text-xs text-slate-600 italic">"{decl.rating_comment}"</p>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
-      <div className="px-5 py-3 border-t border-slate-100">
-        <button className="w-full text-[#1557FF] font-bold text-sm hover:underline">Voir les détails →</button>
-      </div>
+
+
     </div>
   )
 }
@@ -232,9 +245,17 @@ const MapPage: React.FC = () => {
 
   useEffect(() => {
     fetch(`${API}/declarations/map`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(data => { const arr = Array.isArray(data) ? data : data.declarations||[]; if (arr.length) setDecls(arr) })
-      .catch(() => {})
+      .then(r => {
+        if (!r.ok) throw new Error('API Error')
+        return r.json()
+      })
+      .then(data => { 
+        const arr = Array.isArray(data) ? data : (data.declarations || []); 
+        setDecls(arr); 
+      })
+      .catch((err) => {
+        console.error('Failed to fetch map declarations:', err);
+      })
   }, [])
 
   // ── Address search with Nominatim geocoding ───────────────────────────────
@@ -288,12 +309,32 @@ const MapPage: React.FC = () => {
   }
 
   const filtered = decls.filter(d => {
-    const matchCat  = catFilter  === CATEGORIES[0]  || d.category === catFilter
-    const matchStat = statFilter === STATUSES[0]    || STATUS_CFG[d.status]?.label === statFilter
-    return matchCat && matchStat && d.latitude && d.longitude
+    if (!d || !d.status) return false;
+    
+    // Normalize status to lowercase
+    const normalizedStatus = String(d.status).toLowerCase();
+    
+    // Check if it's one of our allowed status groups
+    const cfg = STATUS_CFG[normalizedStatus];
+    if (!cfg) return false;
+
+    // Filters
+    const matchCat  = catFilter  === CATEGORIES[0]  || d.category === catFilter;
+    const matchStat = statFilter === STATUSES[0]    || cfg.label === statFilter;
+    
+    // Notice: declarations from db might use delegation_id. If arrondissement was used, we match it if it exists.
+    // For now we don't strictly hide if arrFilter is set, since DB doesn't have an 'arrondissement' column directly.
+    // But if d.arrondissement exists, we respect it.
+    const matchArr  = arrFilter === ARRONDISSEMENTS[0] || !d.arrondissement || d.arrondissement === arrFilter;
+
+    // Must have coordinates
+    const hasCoords = d.latitude !== null && d.latitude !== undefined && d.longitude !== null && d.longitude !== undefined;
+    
+    return matchCat && matchStat && matchArr && hasCoords;
   })
 
   const handlePin = (d: any) => { setSelected(d); setFlyTo([d.latitude, d.longitude]) }
+
 
   return (
     <CitizenLayout>
@@ -349,7 +390,8 @@ const MapPage: React.FC = () => {
             <FlyTo coords={flyTo} />
 
             {filtered.map(d => {
-              const cfg  = STATUS_CFG[d.status] || STATUS_CFG['soumise']
+              const normalizedStatus = String(d.status).toLowerCase();
+              const cfg  = STATUS_CFG[normalizedStatus] || STATUS_CFG['soumise']
               const icon = createPin(cfg.color, selected?.id === d.id)
               return (
                 <React.Fragment key={d.id}>

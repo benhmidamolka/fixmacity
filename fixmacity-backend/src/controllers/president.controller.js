@@ -18,6 +18,7 @@ exports.listDeclarations = async (req, res) => {
       .select('*', { count: 'exact' })
       .is('deleted_at', null)
       .eq('is_deleted', false)
+      .order('priority_score', { ascending: false })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -1050,6 +1051,53 @@ exports.addComment = async (req, res) => {
     return res.status(201).json({ comment });
   } catch (err) {
     console.error('[President] addComment error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── PATCH /api/president/propositions/:id/respond ──────────── */
+exports.respondToProposition = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, president_response } = req.body;
+
+    const { data, error } = await supabase
+      .from('propositions')
+      .update({ 
+        status, 
+        president_response,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[President] RespondToProp error:', error.message);
+      return res.status(500).json({ error: 'Erreur lors de la réponse.' });
+    }
+
+    return res.status(200).json({ success: true, data });
+  } catch (err) {
+    console.error('[President] RespondToProp error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── GET /api/president/propositions/:id/summary ──────────── */
+exports.getPropositionSummary = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase.rpc('get_proposition_summary', { p_proposition_id: id });
+
+    if (error) {
+      console.error('[President] GetPropSummary error:', error.message);
+      return res.status(500).json({ error: 'Erreur lors de la récupération du résumé.' });
+    }
+
+    return res.status(200).json({ success: true, summary: data[0] || null });
+  } catch (err) {
+    console.error('[President] GetPropSummary error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };

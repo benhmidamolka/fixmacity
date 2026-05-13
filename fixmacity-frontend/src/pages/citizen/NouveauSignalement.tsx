@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, useMapEvents, Rectangle } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { ArrowLeft, ArrowRight, MapPin, Camera, CheckCircle, Copy, AlertCircle, Crosshair, X } from 'lucide-react'
@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 import CitizenLayout from '../../components/citizen/CitizenLayout'
 import { analyzeDeclarationPhoto } from '../../services/Geminivision'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -36,11 +36,38 @@ const URGENCY = [
 ]
 
 const DELEGATIONS = [
-  { id: 'sousse-medina', name: 'Arrondissement Sousse Médina' },
-  { id: 'sousse-riadh', name: 'Arrondissement Sousse Riadh' },
-  { id: 'sousse-jawhara', name: 'Arrondissement Sousse Jawhara' },
-  { id: 'sousse-sidi-abdelhamid', name: 'Arrondissement Sousse Sidi Abdelhamid' },
+  { id: 'sousse-medina',           name: 'Arrondissement Sousse Médina'           },
+  { id: 'sousse-riadh',            name: 'Arrondissement Sousse Riadh'            },
+  { id: 'sousse-jawhara',          name: 'Arrondissement Sousse Jawhara'          },
+  { id: 'sousse-sidi-abdelhamid',  name: 'Arrondissement Sousse Sidi Abdelhamid' },
 ]
+
+// Geographic bounding boxes for each of the 4 arrondissements
+// [minLat, maxLat, minLng, maxLng]
+const ARRONDISSEMENT_BOUNDS: Record<string, [number, number, number, number]> = {
+  'sousse-medina':          [35.817, 35.835, 10.625, 10.650],
+  'sousse-riadh':           [35.775, 35.815, 10.600, 10.640],
+  'sousse-jawhara':         [35.835, 35.870, 10.615, 10.660],
+  'sousse-sidi-abdelhamid': [35.800, 35.840, 10.595, 10.632],
+}
+
+// Returns the arrondissement id if the point is inside, null otherwise
+function detectArrondissement(lat: number, lng: number): string | null {
+  for (const [id, [minLat, maxLat, minLng, maxLng]] of Object.entries(ARRONDISSEMENT_BOUNDS)) {
+    if (lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng) return id
+  }
+  return null
+}
+
+// The overall valid zone bounding box (union of all 4 arrondissements)
+const SOUSSE_BBOX = { minLat: 35.775, maxLat: 35.870, minLng: 10.595, maxLng: 10.660 }
+
+function isInSousseMunicipality(lat: number, lng: number): boolean {
+  return (
+    lat >= SOUSSE_BBOX.minLat && lat <= SOUSSE_BBOX.maxLat &&
+    lng >= SOUSSE_BBOX.minLng && lng <= SOUSSE_BBOX.maxLng
+  )
+}
 
 // ─── Progress bar ─────────────────────────────────────────────────────────────
 function ProgressBar({ step, total }: { step: number; total: number }) {
@@ -86,30 +113,118 @@ function OutOfBoundsModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+// ─── Change Map View ──────────────────────────────────────────────────────────
+function ChangeMapView({ center }: { center: [number, number] }) {
+  const map = useMapEvents({})
+  React.useEffect(() => {
+    map.setView(center, map.getZoom())
+  }, [center, map])
+  return null
+}
+
 // ─── STEP 1: Location ─────────────────────────────────────────────────────────
 function Step1({ data, onChange, onNext }: any) {
   const [loading, setLoading] = useState(false)
-  const [showOutOfBounds, setShowOutOfBounds] = useState(false)
+  const [outOfBoundsMsg, setOutOfBoundsMsg] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [suggestions, setSuggestions] = useState<any[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+
+  const applyLocation = (lat: number, lng: number, displayName: string) => {
+    // Strict bbox validation — must be inside one of the 4 arrondissements
+    if (!isInSousseMunicipality(lat, lng)) {
+      setOutOfBoundsMsg('Ce lieu est en dehors de la municipalité de Sousse.')
+      return false
+    }
+    const detectedArr = detectArrondissement(lat, lng)
+    if (!detectedArr) {
+      setOutOfBoundsMsg(
+        'Ce lieu n\'est pas couvert par l\'un des 4 arrondissements municipaux (Médina, Riadh, Jawhara, Sidi Abdelhamid).'
+      )
+      return false
+    }
+    setOutOfBoundsMsg(null)
+    const shortAddr = displayName.split(',').slice(0, 3).join(',')
+    onChange({ latitude: lat, longitude: lng, address: shortAddr, delegation_id: detectedArr })
+    setSearchQuery(shortAddr)
+    return true
+  }
 
   const reverseGeocode = async (lat: number, lng: number) => {
     setLoading(true)
     try {
-      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+      const r = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=fr`
+      )
       const d = await r.json()
-      const addr = d.display_name || ''
-      
-      // Check if location is in Sousse
-      if (!addr.toLowerCase().includes('sousse') && !addr.toLowerCase().includes('سوسة')) {
-        setShowOutOfBounds(true)
-      }
-      
-      const shortAddr = addr.split(',').slice(0, 3).join(',') || `${lat.toFixed(4)}, ${lng.toFixed(4)}`
-      onChange({ latitude: lat, longitude: lng, address: shortAddr })
+      applyLocation(lat, lng, d.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`)
     } catch {
-      onChange({ latitude: lat, longitude: lng, address: `${lat.toFixed(4)}, ${lng.toFixed(4)}` })
+      applyLocation(lat, lng, `${lat.toFixed(4)}, ${lng.toFixed(4)}`)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query)
+    if (query.trim().length < 3) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+
+    setLoading(true)
+    try {
+      // We append "Sousse" to ensure we search specifically in Sousse
+      // and prevent issues with generic names like "khzema" returning 0 results.
+      const words = query.trim().split(/\s+/)
+      const normalizedQuery = words.join(' ') + ' Sousse'
+
+      // Search within the Sousse municipality viewbox (lon_min,lat_max,lon_max,lat_min)
+      const viewbox = `${SOUSSE_BBOX.minLng},${SOUSSE_BBOX.maxLat},${SOUSSE_BBOX.maxLng},${SOUSSE_BBOX.minLat}`
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(normalizedQuery)}&format=json&limit=10&accept-language=fr&countrycodes=tn&viewbox=${viewbox}&bounded=0`
+
+      const r = await fetch(url)
+      let results = await r.json()
+
+      // Filter to results within (or very near) our bbox
+      const filtered = results.filter((s: any) => {
+        const lat = parseFloat(s.lat)
+        const lng = parseFloat(s.lon)
+        // Accept results within a slightly expanded bbox for suggestions
+        return (
+          lat >= SOUSSE_BBOX.minLat - 0.02 && lat <= SOUSSE_BBOX.maxLat + 0.02 &&
+          lng >= SOUSSE_BBOX.minLng - 0.02 && lng <= SOUSSE_BBOX.maxLng + 0.02
+        )
+      })
+
+      // Dedup by display_name base
+      const deduped: any[] = []
+      const seen = new Set()
+      for (const s of filtered) {
+        const base = s.display_name.split(',').slice(0, 2).join(',')
+        if (!seen.has(base)) {
+          seen.add(base)
+          deduped.push(s)
+        }
+      }
+
+      setSuggestions(deduped.length > 0 ? deduped.slice(0, 5) : results.slice(0, 3))
+      setShowSuggestions(true)
+    } catch (e) {
+      console.error('Search error', e)
+      setSuggestions([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const selectSuggestion = (s: any) => {
+    const lat = parseFloat(s.lat)
+    const lng = parseFloat(s.lon)
+    applyLocation(lat, lng, s.display_name)
+    setShowSuggestions(false)
+    setSuggestions([])
   }
 
   const useMyLocation = () => {
@@ -129,61 +244,159 @@ function Step1({ data, onChange, onNext }: any) {
     onNext()
   }
 
+  const detectedName = DELEGATIONS.find(d => d.id === data.delegation_id)?.name
+
   return (
     <div className="flex flex-col gap-0">
-      {showOutOfBounds && <OutOfBoundsModal onClose={() => setShowOutOfBounds(false)} />}
+
       <div className="bg-white px-4 py-3 border-b border-slate-100">
         <p className="text-xs text-slate-400 font-medium">Étape 1 sur 4 · Localisation</p>
         <p className="text-sm font-semibold text-[#0A1628] mt-0.5">Où se trouve le problème ?</p>
-        <p className="text-xs text-blue-600 mt-1">Uniquement dans les arrondissements de la Municipalité de Sousse</p>
+
+        {/* Search Bar */}
+        <div className="relative mt-3">
+          <div className="relative">
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => handleSearch(e.target.value)}
+              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+              placeholder="Ex: rue Ibn Khaldoun, Bourguiba, Medina..."
+              className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1557FF] transition-all"
+            />
+            {loading && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <div className="w-4 h-4 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+              </div>
+            )}
+          </div>
+
+          {showSuggestions && (
+            <div className="absolute top-full left-0 right-0 z-[1001] mt-1 bg-white border border-slate-100 shadow-xl rounded-xl overflow-hidden">
+              {suggestions.length > 0 ? (
+                suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => selectSuggestion(s)}
+                    className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 border-b border-slate-50 last:border-0 flex items-start gap-3 transition-colors"
+                  >
+                    <MapPin className="w-4 h-4 text-[#1557FF] mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate font-medium text-[#0A1628]">{s.display_name.split(',').slice(0,2).join(',')}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{s.display_name.split(',').slice(2,4).join(',')}</p>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="px-4 py-4 text-center">
+                  <p className="text-sm text-slate-500">Aucun résultat dans les arrondissements de Sousse.</p>
+                  <p className="text-xs text-slate-400 mt-1">Essayez : avenue, rue, quartier, place...</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Out of bounds error */}
+        {outOfBoundsMsg && (
+          <div className="mt-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 flex items-start gap-2">
+            <span className="text-red-500 mt-0.5">⚠️</span>
+            <p className="text-xs text-red-600 font-medium">{outOfBoundsMsg}</p>
+          </div>
+        )}
       </div>
-      <div className="relative h-[400px]">
-        {/* Highlight Sousse roughly by centering there */}
+
+      <div className="relative h-[340px]">
         <MapContainer center={[data.latitude || 35.8245, data.longitude || 10.6346]} zoom={13}
           style={{ width: '100%', height: '100%' }} zoomControl={false}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          
+          {/* Arrondissements highlighting */}
+          {Object.entries(ARRONDISSEMENT_BOUNDS).map(([id, [minLat, maxLat, minLng, maxLng]]) => {
+            const bounds: [[number, number], [number, number]] = [
+              [minLat, minLng],
+              [maxLat, maxLng]
+            ];
+            
+            // Assign different colors based on ID
+            let color = '#3b82f6';
+            if (id === 'sousse-medina') color = '#ef4444';
+            if (id === 'sousse-riadh') color = '#eab308';
+            if (id === 'sousse-jawhara') color = '#22c55e';
+            if (id === 'sousse-sidi-abdelhamid') color = '#a855f7';
+
+            return (
+              <Rectangle 
+                key={id} 
+                bounds={bounds} 
+                pathOptions={{ color, weight: 2, fillOpacity: 0.1 }}
+              />
+            );
+          })}
+
           <MapClickHandler onPick={reverseGeocode} />
-          {data.latitude && <Marker position={[data.latitude, data.longitude]} />}
+          {data.latitude && (
+            <>
+              <Marker position={[data.latitude, data.longitude]} />
+              <ChangeMapView center={[data.latitude, data.longitude]} />
+            </>
+          )}
         </MapContainer>
+
         <button onClick={useMyLocation}
-          className="absolute top-3 left-3 z-[999] flex items-center gap-2 bg-white/95 text-[#1557FF] font-bold text-xs px-3 py-2 rounded-full shadow-md border border-white hover:bg-blue-50 transition-all">
-          <Crosshair className="w-3.5 h-3.5" /> Utiliser ma position actuelle
+          className="absolute top-3 left-3 z-[999] flex items-center gap-2 bg-white/95 text-[#1557FF] font-bold text-[11px] px-3 py-2 rounded-full shadow-md border border-white hover:bg-blue-50 transition-all">
+          <Crosshair className="w-3 h-3" /> Ma position
         </button>
-      </div>
-      <div className="bg-white px-4 py-3 border-t border-slate-100">
-        {data.address ? (
-          <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-3 py-2.5">
-            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
-              <MapPin className="w-4 h-4 text-[#1557FF]" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Adresse détectée</p>
-              <p className="text-sm font-semibold text-[#0A1628]">{data.address}</p>
-            </div>
+
+        {!data.latitude && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[999] bg-white/90 backdrop-blur-sm text-slate-600 text-xs font-medium px-4 py-2 rounded-full shadow-md border border-slate-100">
+            🗺️ Cliquez sur la carte ou recherchez une adresse
           </div>
-        ) : (
-          <p className="text-sm text-slate-400 text-center">
-            {loading ? '📍 Détection en cours...' : "Cliquez sur la carte pour choisir l'emplacement"}
-          </p>
+        )}
+
+        {showSuggestions && (
+          <div className="fixed inset-0 z-[1000]" onClick={() => setShowSuggestions(false)} />
         )}
       </div>
-      <div className="bg-white px-4 pb-3">
-        <select value={data.delegation_id || ''} onChange={e => onChange({ delegation_id: e.target.value })}
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-[#0A1628] outline-none focus:border-[#1557FF] transition-all">
-          <option value="" disabled>Sélectionner votre arrondissement *</option>
-          {DELEGATIONS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
-      </div>
-      <div className="bg-white px-4 pb-4">
-        <button onClick={handleNext}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-white font-bold text-sm transition-all"
+
+      <div className="bg-white px-4 py-4 space-y-3">
+        {data.address && (
+          <div className="flex items-center gap-3 bg-blue-50/60 rounded-xl px-3 py-3 border border-blue-100/60">
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+              <MapPin className="w-4 h-4 text-[#1557FF]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Lieu sélectionné</p>
+              <p className="text-sm font-semibold text-[#0A1628] truncate">{data.address}</p>
+              {detectedName && (
+                <p className="text-[11px] text-green-600 font-semibold mt-0.5">
+                  ✓ {detectedName}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* If arrondissement not auto-detected, show manual selector */}
+        {!detectedName && (
+          <select value={data.delegation_id || ''} onChange={e => onChange({ delegation_id: e.target.value })}
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm text-[#0A1628] outline-none focus:border-[#1557FF] transition-all appearance-none cursor-pointer">
+            <option value="" disabled>Sélectionner l'arrondissement concerné *</option>
+            {DELEGATIONS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+        )}
+
+        <button onClick={handleNext} disabled={!data.latitude || !data.delegation_id}
+          className="w-full flex items-center justify-center gap-2 py-4 rounded-xl text-white font-bold text-sm transition-all shadow-lg shadow-blue-200 disabled:opacity-40 disabled:cursor-not-allowed"
           style={{ background: '#1557FF' }}>
-          Confirmer l'emplacement <ArrowRight className="w-4 h-4" />
+          Confirmer cet emplacement <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </div>
   )
 }
+
 
 // ─── STEP 2: Category ─────────────────────────────────────────────────────────
 function Step2({ data, onChange, onNext, onBack }: any) {

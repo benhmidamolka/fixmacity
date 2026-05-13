@@ -3,7 +3,7 @@ import { X, Send, Minimize2, Camera, AlertTriangle } from 'lucide-react'
 import chatbotImg from '../../assets/chatbot.png'
 import { analyzeChatbotPhoto } from '../../services/Geminivision'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 interface Message {
   role:    'user' | 'assistant'

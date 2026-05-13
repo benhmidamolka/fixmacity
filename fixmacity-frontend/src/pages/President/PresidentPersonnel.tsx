@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import PresidentLayout from '../../layouts/PresidentLayout'
 import { Plus, Search, MapPin, X, ChevronDown } from 'lucide-react'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const token = () => localStorage.getItem('fmc_token')
 
 const AVATARS = ['#1557FF','#10B981','#F59E0B','#8B5CF6','#EF4444','#0891B2','#EC4899']

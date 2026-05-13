@@ -54,6 +54,11 @@ router.post('/propositions', [
 
 router.post('/propositions/:id/confirmer', ctrl.confirmProposition);
 router.post('/propositions/:id/retenu', ctrl.retainProposition);
+router.get('/propositions/:id/summary', ctrl.getPropositionSummary);
+router.patch('/propositions/:id/respond', [
+  body('status').isIn(['a_discuter', 'retenu', 'refuse']).withMessage('Statut invalide.'),
+  body('president_response').optional().isString()
+], ctrl.respondToProposition);
 
 // ── Dashboard & Export ──
 router.get('/dashboard', ctrl.dashboard);

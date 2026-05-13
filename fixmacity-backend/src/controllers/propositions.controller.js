@@ -36,13 +36,10 @@ exports.listPropositions = async (req, res) => {
     let query = supabase.from('propositions').select('*');
 
     // Visibility rules:
-    // Citizens see only their own suggestions.
-    // President sees all suggestions.
-    if (req.user.role === 'citizen') {
-      query = query.eq('created_by', req.user.id);
-    } else if (req.user.role !== 'president') {
-      // Other roles (agents/chefs) shouldn't really see these per requirement, but we'll enforce privacy.
-      return res.status(403).json({ error: 'Accès non autorisé.' });
+    // All roles can see propositions (they are public for voting)
+    // However, we might want to restrict non-president/citizen from taking actions, but viewing is fine.
+    if (!['citizen', 'president'].includes(req.user.role)) {
+      // Other roles (agents/chefs) might see them too if we want, but let's keep it open or restricted as needed.
     }
 
     let { data: propositions, error } = await query
@@ -88,25 +85,34 @@ exports.voteProposition = async (req, res) => {
     }
 
     const { data: proposition } = await supabase.from('propositions')
-      .select('status')
+      .select('status, start_date, end_date')
       .eq('id', id)
       .single();
 
     if (!proposition) return res.status(404).json({ error: 'Proposition introuvable.' });
     if (proposition.status !== 'active') return res.status(400).json({ error: 'Cette proposition est clôturée.' });
 
+    const now = new Date();
+    const startDate = proposition.start_date ? new Date(proposition.start_date) : null;
+    const endDate = proposition.end_date ? new Date(proposition.end_date) : null;
+
+    if (startDate && now < startDate) {
+      return res.status(400).json({ error: 'La période de vote n\'a pas encore commencé.' });
+    }
+    if (endDate && now > endDate) {
+      return res.status(400).json({ error: 'La période de vote est terminée.' });
+    }
+
     // Upsert equivalent: check if exists, then update or insert
     const { data: existing } = await supabase.from('proposition_votes')
-      .select('id')
+      .select('id, voted_at')
       .eq('proposition_id', id)
       .eq('citizen_id', req.user.id)
       .maybeSingle();
 
     if (existing) {
-      const { error } = await supabase.from('proposition_votes')
-        .update({ vote, voted_at: new Date().toISOString() })
-        .eq('id', existing.id);
-      if (error) return res.status(500).json({ error: 'Erreur lors de la mise à jour du vote.' });
+      const voteDate = new Date(existing.voted_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+      return res.status(400).json({ error: `Vous avez déjà voté pour cette proposition le ${voteDate}.` });
     } else {
       const { error } = await supabase.from('proposition_votes')
         .insert({
@@ -158,6 +164,24 @@ exports.respondToProposition = async (req, res) => {
     return res.status(200).json({ message: 'Réponse enregistrée avec succès.', suggestion: updated });
   } catch (err) {
     console.error('[Propositions] Server error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── GET /api/propositions/:id/summary ──────────── */
+exports.getPropositionSummary = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase.rpc('get_proposition_summary', { p_proposition_id: id });
+
+    if (error) {
+      console.error('[Propositions] Summary error:', error);
+      return res.status(500).json({ error: 'Erreur lors de la récupération du résumé.' });
+    }
+
+    return res.status(200).json({ success: true, summary: data[0] || null });
+  } catch (err) {
+    console.error('[Propositions] Catch error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };

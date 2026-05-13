@@ -1,9 +1,9 @@
 // src/layouts/AgentLayout.tsx
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, ClipboardList, BarChart2,
-  Bell, LogOut, Menu, X, Search,
+  Bell, LogOut, Menu, X, Search as SearchIcon,
   ChevronDown, HelpCircle, Settings, MessageSquare
 } from 'lucide-react'
 
@@ -35,9 +35,28 @@ const AgentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => {
   const user     = JSON.parse(localStorage.getItem('fmc_user') || '{}')
   const initials = `${user.first_name?.[0] ?? 'A'}${user.last_name?.[0] ?? 'T'}`
 
+  const [missionCount, setMissionCount] = useState(0)
+
+  useEffect(() => {
+    fetchMissionCount()
+    const interval = setInterval(fetchMissionCount, 30000) // update every 30s
+    return () => clearInterval(interval)
+  }, [])
+
+  const fetchMissionCount = async () => {
+    try {
+      const res = await fetch('http://localhost:5005/api/agent/declarations', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
+      })
+      const data = await res.json()
+      const pending = (data.declarations || []).filter((d: any) => d.status === 'assignee_agent').length
+      setMissionCount(pending)
+    } catch (e) {}
+  }
+
   const logout = async () => {
     try {
-      await fetch('http://localhost:5000/api/auth/logout', {
+      await fetch('http://localhost:5005/api/auth/logout', {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
       })
@@ -118,8 +137,13 @@ const AgentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => {
                     {!isCollapsed && (
                       <span className="text-sm font-bold tracking-tight flex-1 truncate">{item.label}</span>
                     )}
-                    {!isCollapsed && (item as any).badge && !active && (
+                    {!isCollapsed && item.label === 'Dashboard' && missionCount > 0 && !active && (
                       <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">
+                        {missionCount}
+                      </span>
+                    )}
+                    {!isCollapsed && (item as any).badge && !active && (
+                      <span className="w-5 h-5 rounded-full bg-slate-400 text-white text-[9px] font-black flex items-center justify-center">
                         {(item as any).badge}
                       </span>
                     )}
@@ -194,7 +218,7 @@ const AgentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => {
 
           <div className="flex items-center gap-4">
             <div className="hidden lg:flex items-center gap-3 bg-white border border-slate-100 rounded-2xl px-4 py-2.5 w-64 shadow-sm">
-              <Search className="w-4 h-4 text-slate-400" />
+              <SearchIcon className="w-4 h-4 text-slate-400" />
               <input type="text" placeholder="Chercher une tâche..."
                 className="bg-transparent text-sm font-bold text-slate-600 placeholder-slate-300 outline-none w-full" />
             </div>

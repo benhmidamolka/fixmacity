@@ -7,7 +7,7 @@ import {
 import ChefLayout from '../../layouts/ChefLayout'
 import DeclarationCommentsPanel from '../../components/president/DeclarationCommentsPanel'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const token = () => localStorage.getItem('fmc_token')
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {

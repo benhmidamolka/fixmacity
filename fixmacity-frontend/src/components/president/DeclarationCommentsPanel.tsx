@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Send, MessageSquare, Loader2, ChevronDown } from 'lucide-react'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const token = () => localStorage.getItem('fmc_token')
 
 export type Channel = 'president_chef' | 'chef_agent' | 'agent_citizen'

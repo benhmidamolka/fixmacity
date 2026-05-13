@@ -1,74 +1,40 @@
-'use strict';
-
-/**
- * agent.routes.js
- *
- * IMPORTANT — photo upload middleware order:
- *
- * The authenticate middleware makes 2 async DB calls (~50-200ms).
- * During that time, Postman finishes sending the multipart body.
- * Node.js TCP buffers the data but multer's busboy never attaches
- * a 'data' listener in time — so the stream appears empty.
- *
- * FIX: Run multer.memoryStorage() BEFORE authenticate on the photo route.
- * We use memoryStorage so the file is held in memory (req.file.buffer),
- * then write it to disk ourselves in the controller after auth passes.
- *
- * All other routes keep authenticate first as normal.
- */
-
-const router = require('express').Router();
-const { body } = require('express-validator');
+// src/routes/agent.routes.js
+const express = require('express');
+const router = express.Router();
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const ctrl = require('../controllers/agent.controller');
+const { body } = require('express-validator');
 const authenticate = require('../middleware/auth');
 const rbac = require('../middleware/rbac');
+const {
+  getDeclarations,
+  getDeclarationById,
+  acceptDeclaration,
+  refuseDeclaration,
+  uploadPhoto,
+  resolveDeclaration,
+  getComments,
+  addComment,
+} = require('../controllers/agent.controller');
 
 // ── Memory-based multer for photo upload ─────────────────────
-// Runs BEFORE authenticate so the stream is captured immediately
 const memUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (allowed.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Type de fichier non autorisé. Utilisez JPEG, PNG ou WebP.'));
-  },
+  limits: { fileSize: 10 * 1024 * 1024 }
 });
 
-// ── Photo upload — multer FIRST, then auth ────────────────────
-router.post('/declarations/:id/photo',
-  memUpload.single('photo'),  // ← captures stream immediately, stores in memory
-  authenticate,               // ← DB queries happen AFTER file is buffered
-  rbac('agent'),
-  ctrl.uploadPhoto
-);
-
-router.post('/declarations/:id/photos',
-  memUpload.single('photo'),
-  authenticate,
-  rbac('agent'),
-  ctrl.uploadPhoto
-);
-
-// ── All other routes — auth first as normal ───────────────────
+// All routes require authentication and agent role
 router.use(authenticate, rbac('agent'));
 
-router.get('/declarations', ctrl.listDeclarations);
-router.get('/declarations/:id', ctrl.getDeclarationDetail);
-router.post('/declarations/:id/accept', ctrl.acceptDeclaration);
+router.get('/declarations',              getDeclarations);
+router.get('/declarations/:id',          getDeclarationById);
+router.post('/declarations/:id/accept',  acceptDeclaration);
+router.post('/declarations/:id/refuse',  refuseDeclaration);
 
-router.post('/declarations/:id/refuse', [
-  body('reason').notEmpty().trim().withMessage('Motif de refus requis.'),
-], ctrl.refuseDeclaration);
+// Photo upload uses memory storage to allow processing in controller
+router.post('/declarations/:id/photo',   memUpload.single('photo'), uploadPhoto);
 
-router.post('/declarations/:id/resolve', ctrl.resolveDeclaration);
-router.get('/declarations/:id/comments', ctrl.listComments);
-
-router.post('/declarations/:id/comments', [
-  body('content').notEmpty().trim().withMessage('Contenu requis.'),
-], ctrl.addComment);
+router.post('/declarations/:id/resolve', resolveDeclaration);
+router.get('/declarations/:id/comments', getComments);
+router.post('/declarations/:id/comments', addComment);
 
 module.exports = router;

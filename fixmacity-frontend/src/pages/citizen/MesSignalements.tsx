@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import CitizenLayout from '../../components/citizen/CitizenLayout'
 import DeclarationCommentsPanel from '../../components/president/DeclarationCommentsPanel'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
   'SOUMIS': { label: 'Soumis', color: '#F59E0B', bg: '#fffbeb' },

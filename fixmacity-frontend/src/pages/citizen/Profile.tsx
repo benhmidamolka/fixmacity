@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { User, Mail, Phone, MapPin, Lock, Eye, EyeOff, Save, Camera, CheckCircle } from 'lucide-react'
 import CitizenLayout from '../../components/citizen/CitizenLayout'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 const Profile: React.FC = () => {
   const stored = JSON.parse(localStorage.getItem('fmc_user') || '{}')

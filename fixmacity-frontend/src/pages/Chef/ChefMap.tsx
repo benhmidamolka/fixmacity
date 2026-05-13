@@ -6,7 +6,7 @@ import { X, Search, ChevronDown, MapPin, Navigation, Loader2, Tag, Clock, Downlo
 import { useNavigate } from 'react-router-dom'
 import ChefLayout from '../../layouts/ChefLayout'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 // ─── Fix Leaflet icons ────────────────────────────────────────────────────────
 delete (L.Icon.Default.prototype as any)._getIconUrl

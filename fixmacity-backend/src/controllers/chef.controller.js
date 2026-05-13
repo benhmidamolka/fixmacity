@@ -18,6 +18,7 @@ exports.listDeclarations = async (req, res) => {
       .eq('department_id', deptId)
       .is('deleted_at', null)
       .eq('is_deleted', false)
+      .order('priority_score', { ascending: false })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 

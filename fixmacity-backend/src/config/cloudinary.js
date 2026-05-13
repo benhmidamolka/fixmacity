@@ -1,8 +1,16 @@
 'use strict';
 
+const cloudinary = require('cloudinary').v2;
 const Busboy = require('busboy');
 const path = require('path');
 const fs = require('fs');
+
+// Configure Cloudinary from environment variables
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
 
@@ -13,6 +21,9 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 
 const ALLOWED_MIMETYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
+/**
+ * Legacy upload middleware for local storage using Busboy
+ */
 function uploadMiddleware(fieldName) {
   return (req, res, next) => {
     if (!req.is('multipart/form-data')) {
@@ -80,40 +91,11 @@ function uploadMiddleware(fieldName) {
   };
 }
 
-function getLocalFileInfo(file, baseUrl = 'http://localhost:5000') {
-  if (!file) throw new Error('No file provided');
-  const url = `${baseUrl}/uploads/${file.filename}`;
-  const public_id = `local/${file.filename}`;
-  return { url, public_id };
-}
-
-function deleteFromLocal(public_id) {
-  try {
-    const filename = public_id.replace('local/', '');
-    const filepath = path.join(UPLOAD_DIR, filename);
-    if (fs.existsSync(filepath)) {
-      fs.unlinkSync(filepath);
-    }
-  } catch (err) {
-    console.error('[Storage] Delete error:', err.message);
-  }
-}
-
-function uploadToCloudinary(_buffer, _folder) {
-  throw new Error('Use getLocalFileInfo(req.file) instead of uploadToCloudinary()');
-}
-
-function deleteFromCloudinary(public_id) {
-  return deleteFromLocal(public_id);
-}
-
-const upload = { single: () => (req, _res, next) => next() };
+const upload = { single: (fieldName) => (req, res, next) => next() }; // Dummy for backward compatibility
 
 module.exports = {
+  cloudinary, // Export the real v2 instance
   upload,
   uploadMiddleware,
-  uploadToCloudinary,
-  deleteFromCloudinary,
-  getLocalFileInfo,
   UPLOAD_DIR,
 };

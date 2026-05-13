@@ -3,6 +3,7 @@ const { body } = require('express-validator');
 const ctrl = require('../controllers/declarations.controller');
 const authenticate = require('../middleware/auth');
 const rbac = require('../middleware/rbac');
+const exportCtrl = require('../controllers/export.controller');
 
 const multer = require('multer');
 
@@ -23,6 +24,8 @@ router.post('/analyze-photo',
   authenticate,
   ctrl.analyzePhoto
 );
+
+router.get('/:id/export', authenticate, exportCtrl.exportDeclaration);
 
 // POST /api/declarations — Submit new declaration with photo
 router.post('/',

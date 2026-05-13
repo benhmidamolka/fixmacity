@@ -4,7 +4,7 @@ import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import Logo from '../../components/Logo'
 
 const PHOTO = '/sousse-premium.png'
-const API   = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API   = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 const Login: React.FC = () => {
   const navigate = useNavigate()
@@ -25,7 +25,7 @@ const Login: React.FC = () => {
         body:    JSON.stringify({ email, password }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Identifiants incorrects')
+      if (!res.ok) throw new Error(data.error || data.message || 'Identifiants incorrects')
       localStorage.setItem('fmc_token', data.token)
       localStorage.setItem('fmc_user',  JSON.stringify(data.user))
       const role = data.user?.role

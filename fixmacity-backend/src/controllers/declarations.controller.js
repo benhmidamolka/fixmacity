@@ -80,6 +80,8 @@ exports.create = async (req, res) => {
         latitude:      latitude || null,
         longitude:     longitude || null,
         address:       address || null,
+        priority:      req.body.priority || 'moyenne',
+        photo_avant:   publicUrl,
         is_deleted:    false,
       })
       .select('*')
@@ -168,16 +170,26 @@ exports.nearby = async (req, res) => {
 /* ──────────── GET /api/declarations/map ──────────── */
 exports.map = async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('v_map_declarations')
-      .select('*');
+    const { pool } = require('../config/db');
+    
+    // We query declarations directly to ensure we get all statuses (soumise, en_cours, resolue, cloturee)
+    // and join with ratings to get the citizen's score and comment if they exist.
+    const sql = `
+      SELECT 
+        d.*, 
+        r.score as rating, 
+        r.comment as rating_comment
+      FROM declarations d
+      LEFT JOIN ratings r ON d.id = r.declaration_id
+      WHERE d.is_deleted = false
+        AND d.latitude IS NOT NULL
+        AND d.longitude IS NOT NULL
+      ORDER BY d.created_at DESC
+    `;
+    
+    const { rows } = await pool.query(sql);
 
-    if (error) {
-      console.error('[Declarations] Map error:', error.message);
-      return res.status(500).json({ error: 'Erreur serveur.' });
-    }
-
-    return res.status(200).json({ declarations: data });
+    return res.status(200).json({ declarations: rows });
   } catch (err) {
     console.error('[Declarations] Map error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });

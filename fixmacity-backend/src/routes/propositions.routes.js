@@ -41,4 +41,9 @@ router.patch(
   cp.respondToProposition
 );
 
+router.get(
+  '/:id/summary',
+  cp.getPropositionSummary
+);
+
 module.exports = router;

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, CheckCircle, Clock, AlertCircle, ThumbsUp, Star } from 'lucide-react'
 import CitizenLayout from '../../components/citizen/CitizenLayout'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
