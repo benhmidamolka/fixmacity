@@ -6,21 +6,23 @@ const { validationResult } = require('express-validator');
 /* ──────────── POST /api/propositions ──────────── */
 exports.createProposition = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    const { title, description } = req.body;
 
-    const { title, description, start_date, end_date } = req.body;
+    if (!title || title.trim().length < 3) {
+      return res.status(400).json({ error: 'Un titre valide (3 caractères min) est requis pour votre suggestion.' });
+    }
 
     const { data: proposition, error } = await supabase.from('propositions').insert({
       title: title.trim(),
       description: description ? description.trim() : null,
-      start_date,
-      end_date,
       created_by: req.user.id,
       status: 'active'
     }).select('*').single();
 
-    if (error) return res.status(500).json({ error: 'Erreur lors de la création de la proposition.' });
+    if (error) {
+      console.error('[Propositions] DB Error:', error);
+      return res.status(500).json({ error: 'Erreur lors de la création de la suggestion.' });
+    }
     return res.status(201).json({ proposition });
   } catch (err) {
     console.error('[Propositions] Create error:', err);
@@ -31,32 +33,46 @@ exports.createProposition = async (req, res) => {
 /* ──────────── GET /api/propositions ──────────── */
 exports.listPropositions = async (req, res) => {
   try {
-    // Close expired ones automatically before fetching
-    await supabase.rpc('close_expired_propositions').catch(() => {});
+    let query = supabase.from('propositions').select('*');
 
-    // Fetch active/closed propositions
-    const { data: propositions, error } = await supabase.from('propositions')
-      .select('*')
-      .in('status', ['active', 'closed'])
+    // Visibility rules:
+    // Citizens see only their own suggestions.
+    // President sees all suggestions.
+    if (req.user.role === 'citizen') {
+      query = query.eq('created_by', req.user.id);
+    } else if (req.user.role !== 'president') {
+      // Other roles (agents/chefs) shouldn't really see these per requirement, but we'll enforce privacy.
+      return res.status(403).json({ error: 'Accès non autorisé.' });
+    }
+
+    let { data: propositions, error } = await query
       .order('created_at', { ascending: false });
 
-    if (error) return res.status(500).json({ error: 'Erreur lors du chargement des propositions.' });
+    if (error) {
+      console.error('[Propositions] List error:', error);
+      return res.status(500).json({ error: 'Erreur lors du chargement des suggestions.' });
+    }
 
-    // Attach user vote if it exists
     if (propositions && propositions.length > 0) {
-      const propIds = propositions.map(p => p.id);
-      const { data: myVotes } = await supabase.from('proposition_votes')
-        .select('proposition_id, vote')
-        .eq('citizen_id', req.user.id)
-        .in('proposition_id', propIds);
+      const userIds = [...new Set(propositions.map(p => p.created_by))];
+      const { data: usersData } = await supabase.from('users')
+        .select('id, first_name, last_name')
+        .in('id', userIds);
       
-      const voteMap = {};
-      (myVotes || []).forEach(v => { voteMap[v.proposition_id] = v.vote; });
-      propositions.forEach(p => { p.my_vote = voteMap[p.id] || null; });
+      const userMap = {};
+      if (usersData) {
+        usersData.forEach(u => userMap[u.id] = { first_name: u.first_name, last_name: u.last_name });
+      }
+      
+      propositions = propositions.map(p => ({
+        ...p,
+        users: userMap[p.created_by] || null
+      }));
     }
 
     return res.status(200).json({ propositions: propositions || [] });
   } catch (err) {
+    console.error('[Propositions] Catch error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
@@ -108,6 +124,40 @@ exports.voteProposition = async (req, res) => {
     return res.status(200).json({ message: 'A voté avec succès', proposition: updatedProp });
   } catch (err) {
     console.error('[Propositions] Vote error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── PATCH /api/propositions/:id/respond ──────────── */
+exports.respondToProposition = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, president_response } = req.body;
+
+    const validStatuses = ['a_discuter', 'retenu', 'refuse'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Statut invalide.' });
+    }
+
+    const { data: updated, error } = await supabase
+      .from('propositions')
+      .update({
+        status,
+        president_response,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('[Propositions] Respond error:', error);
+      return res.status(500).json({ error: 'Erreur lors de l\'enregistrement de la réponse.' });
+    }
+
+    return res.status(200).json({ message: 'Réponse enregistrée avec succès.', suggestion: updated });
+  } catch (err) {
+    console.error('[Propositions] Server error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };

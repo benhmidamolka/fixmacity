@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FixMaCity - Modern Citizen Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Outfit:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-container": "#101c2e",
+                    "surface-tint": "#535f74",
+                    "inverse-on-surface": "#eff1f3",
+                    "on-secondary-fixed": "#001552",
+                    "surface": "#f7f9fb",
+                    "surface-container-highest": "#e0e3e5",
+                    "on-primary": "#ffffff",
+                    "on-secondary-fixed-variant": "#0038b6",
+                    "secondary-fixed-dim": "#b7c4ff",
+                    "surface-variant": "#e0e3e5",
+                    "on-surface": "#191c1e",
+                    "on-tertiary": "#ffffff",
+                    "on-surface-variant": "#45474c",
+                    "tertiary-fixed-dim": "#ffb95f",
+                    "surface-container": "#eceef0",
+                    "surface-dim": "#d8dadc",
+                    "secondary-fixed": "#dce1ff",
+                    "on-tertiary-fixed": "#2a1700",
+                    "on-tertiary-container": "#b87500",
+                    "on-error-container": "#93000a",
+                    "inverse-primary": "#bbc7df",
+                    "on-secondary-container": "#e4e7ff",
+                    "error-container": "#ffdad6",
+                    "tertiary-fixed": "#ffddb8",
+                    "tertiary": "#000000",
+                    "outline-variant": "#c5c6cd",
+                    "secondary": "#0040cc",
+                    "tertiary-container": "#2a1700",
+                    "inverse-surface": "#2d3133",
+                    "surface-container-low": "#f2f4f6",
+                    "on-primary-fixed": "#101c2e",
+                    "on-background": "#191c1e",
+                    "surface-bright": "#f7f9fb",
+                    "primary": "#000000",
+                    "secondary-container": "#1156fe",
+                    "primary-fixed-dim": "#bbc7df",
+                    "error": "#ba1a1a",
+                    "outline": "#75777d",
+                    "on-error": "#ffffff",
+                    "on-primary-fixed-variant": "#3c475b",
+                    "surface-container-high": "#e6e8ea",
+                    "primary-fixed": "#d7e3fc",
+                    "on-secondary": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-container": "#79849b",
+                    "background": "#f7f9fb",
+                    "on-tertiary-fixed-variant": "#653e00",
+                    "electric-blue": "#1557FF",
+                    "deep-navy": "#0A1628"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px",
+                    "2xl": "1rem",
+                    "3xl": "1.5rem"
+            },
+            "spacing": {
+                    "margin": "32px",
+                    "lg": "24px",
+                    "gutter": "24px",
+                    "xs": "4px",
+                    "md": "16px",
+                    "container-max": "1280px",
+                    "unit": "4px",
+                    "xl": "40px",
+                    "sm": "8px"
+            },
+            "fontFamily": {
+                    "label-md": ["Plus Jakarta Sans"],
+                    "display-lg": ["Outfit"],
+                    "body-md": ["Plus Jakarta Sans"],
+                    "body-lg": ["Plus Jakarta Sans"],
+                    "headline-lg": ["Outfit"],
+                    "label-sm": ["Plus Jakarta Sans"],
+                    "headline-md": ["Outfit"]
+            },
+            "fontSize": {
+                    "label-md": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "label-sm": ["12px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                    "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .font-outfit { font-family: 'Outfit', sans-serif; }
+    </style>
+</head>
+<body class="bg-background text-on-background antialiased min-h-screen pb-20 md:pb-10 font-body-md text-body-md">
+<!-- TopNavBar (Web) -->
+<nav class="hidden md:flex fixed top-0 left-0 right-0 z-50 items-center justify-between px-8 py-3 bg-white/95 backdrop-blur-sm shadow-[0_20px_30px_-10px_rgba(10,22,40,0.08)] rounded-full mt-4 mx-auto w-[95%] max-w-6xl border border-slate-200/60 font-label-md text-label-md">
+<div class="flex items-center gap-2">
+<span class="text-xl font-bold text-deep-navy font-outfit tracking-tight">CityGov</span>
+</div>
+<div class="flex items-center gap-1">
+<a class="px-5 py-2.5 rounded-full text-white bg-electric-blue transition-all duration-200 font-label-md text-label-md shadow-sm" href="#">
+                Mes signalements
+            </a>
+<a class="px-5 py-2.5 rounded-full text-slate-600 hover:text-electric-blue hover:bg-slate-50/50 transition-all duration-200 font-label-md text-label-md" href="#">
+                Propositions
+            </a>
+<a class="px-5 py-2.5 rounded-full text-slate-600 hover:text-electric-blue hover:bg-slate-50/50 transition-all duration-200 font-label-md text-label-md" href="#">
+                Travaux réalisés
+            </a>
+</div>
+<div class="flex items-center gap-2">
+<button aria-label="notifications" class="p-2 text-slate-600 hover:text-electric-blue hover:bg-slate-50/50 rounded-full transition-all duration-200">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button aria-label="account_circle" class="p-2 text-slate-600 hover:text-electric-blue hover:bg-slate-50/50 rounded-full transition-all duration-200">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+</button>
+</div>
+</nav>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-16 bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(10,22,40,0.05)] rounded-t-2xl font-label-sm text-label-sm">
+<a class="flex flex-col items-center justify-center text-slate-400 active:bg-slate-50 w-full h-full" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="home">home</span>
+            Accueil
+        </a>
+<a class="flex flex-col items-center justify-center text-electric-blue active:bg-slate-50 w-full h-full" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="report_problem" style="font-variation-settings: 'FILL' 1;">report_problem</span>
+            Signalements
+        </a>
+<a class="flex flex-col items-center justify-center text-slate-400 active:bg-slate-50 w-full h-full" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="lightbulb">lightbulb</span>
+            Propositions
+        </a>
+<a class="flex flex-col items-center justify-center text-slate-400 active:bg-slate-50 w-full h-full" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="person">person</span>
+            Profil
+        </a>
+</nav>
+<!-- Main Content -->
+<main class="pt-24 md:pt-32 px-4 md:px-8 max-w-container-max mx-auto space-y-12">
+<!-- 1. Mon dernier signalement -->
+<section>
+<div class="flex justify-between items-end mb-6">
+<h2 class="font-headline-md text-headline-md text-deep-navy">Mon dernier signalement</h2>
+<a class="flex items-center gap-1 text-electric-blue hover:underline font-label-md text-label-md" href="#">
+                    Voir plus <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</a>
+</div>
+<div class="bg-white rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgba(10,22,40,0.04)] border border-slate-100 flex flex-col md:flex-row gap-8">
+<div class="flex-1">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-electric-blue font-label-sm text-label-sm mb-4">
+<span class="w-2 h-2 rounded-full bg-electric-blue animate-pulse"></span>
+                        En cours
+                    </div>
+<h3 class="font-headline-lg text-headline-lg text-deep-navy mb-2">Nid-de-poule profond — Av. Bourguiba</h3>
+<p class="text-on-surface-variant font-body-md text-body-md mb-6">Signalé il y a 3 jours. L'équipe technique de la voirie a été dépêchée sur les lieux pour évaluer les dégâts.</p>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">map</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-deep-navy">Avenue Habib Bourguiba, Centre-ville</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant font-normal">Sousse</p>
+</div>
+</div>
+</div>
+<div class="w-full md:w-1/3 bg-surface rounded-2xl p-6 border border-slate-100">
+<h4 class="font-label-md text-label-md text-deep-navy mb-4">Suivi d'intervention</h4>
+<div class="relative pl-6 space-y-6">
+<!-- Vertical line -->
+<div class="absolute left-[11px] top-2 bottom-2 w-0.5 bg-slate-200"></div>
+<div class="absolute left-[11px] top-2 h-1/3 w-0.5 bg-electric-blue"></div>
+<!-- Step 1: Soumis -->
+<div class="relative">
+<div class="absolute -left-6 w-4 h-4 rounded-full bg-electric-blue flex items-center justify-center z-10 border-2 border-surface">
+<span class="material-symbols-outlined text-[10px] text-white">check</span>
+</div>
+<p class="font-label-md text-label-md text-deep-navy">Soumis</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant font-normal">12 Oct, 09:45</p>
+</div>
+<!-- Step 2: Assigné -->
+<div class="relative">
+<div class="absolute -left-6 w-4 h-4 rounded-full bg-white border-2 border-electric-blue z-10"></div>
+<p class="font-label-md text-label-md text-deep-navy">Assigné</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant font-normal">13 Oct, 14:20</p>
+</div>
+<!-- Step 3: Intervention -->
+<div class="relative">
+<div class="absolute -left-6 w-4 h-4 rounded-full bg-surface border-2 border-slate-300 z-10"></div>
+<p class="font-label-md text-label-md text-slate-400">Intervention</p>
+</div>
+<!-- Step 4: Résolution -->
+<div class="relative">
+<div class="absolute -left-6 w-4 h-4 rounded-full bg-surface border-2 border-slate-300 z-10"></div>
+<p class="font-label-md text-label-md text-slate-400">Résolution</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. Dernières propositions -->
+<section>
+<div class="flex justify-between items-end mb-6">
+<h2 class="font-headline-md text-headline-md text-deep-navy">Dernières propositions</h2>
+<a class="flex items-center gap-1 text-electric-blue hover:underline font-label-md text-label-md" href="#">
+                    Voir plus <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</a>
+</div>
+<div class="bg-gradient-to-br from-white to-blue-50/30 rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgba(10,22,40,0.04)] border border-blue-100 flex flex-col md:flex-row items-center gap-8">
+<div class="w-full md:w-1/3 aspect-video md:aspect-square rounded-2xl overflow-hidden relative shadow-sm">
+<img alt="Végétalisation de la Place des Martyrs" class="w-full h-full object-cover" data-alt="vibrant green urban park with modern benches, trees, and walking paths under a clear blue sky, architectural rendering style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKdoK5VQSh8GtmED8IxTA-tPZJQ0ExRocLkbrhIkPFDBQ0bdP0zaw7Zg9rNmJBvLu7sacof7V4JtF_wBvlm7IUmBjApCOiVOEjHGV1h8jip5i9OBO86vyvr7av9aYgBtEMmimz3r9kRFbOJXv5ELg5nxOgs2xyQmUTGbuL3H9CK76OeEv9Fc9b4N-NnRWR3GiDD3wWVW1io_3Tj5X8_8-NF6WN7sCpHMghFiM5UvgoowD0BfbEsAsVXxXcIaixf6lzi0vCZVbybhE"/>
+<div class="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full font-label-sm text-label-sm text-deep-navy flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[14px] text-amber-500">campaign</span>
+                        Projet Municipal
+                    </div>
+</div>
+<div class="flex-1 w-full">
+<h3 class="font-headline-lg text-headline-lg text-deep-navy mb-3">Végétalisation de la Place des Martyrs</h3>
+<p class="text-on-surface-variant font-body-md text-body-md mb-6 line-clamp-2 md:line-clamp-none">Le conseil municipal propose de transformer la place centrale en un espace vert piétonnier, avec l'installation de 50 nouveaux arbres et des points d'eau écologiques.</p>
+<div class="space-y-3 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+<div class="flex justify-between font-label-md text-label-md">
+<span class="text-emerald-600 font-bold">Pour (68%)</span>
+<span class="text-rose-600 font-bold">Contre (32%)</span>
+</div>
+<div class="h-3 w-full rounded-full flex overflow-hidden bg-slate-100">
+<div class="h-full bg-emerald-500 rounded-l-full" style="width: 68%;"></div>
+<div class="h-full bg-rose-500 rounded-r-full" style="width: 32%;"></div>
+</div>
+<p class="text-center font-label-sm text-label-sm text-slate-500 mt-2">1,245 citoyens ont déjà voté</p>
+</div>
+<div class="mt-6 flex gap-3">
+<button class="flex-1 bg-electric-blue hover:bg-blue-700 text-white py-3 rounded-xl font-label-md text-label-md transition-colors flex items-center justify-center gap-2 shadow-sm">
+<span class="material-symbols-outlined">how_to_vote</span>
+                            Voter
+                        </button>
+</div>
+</div>
+</div>
+</section>
+<!-- 3. Récemment résolus -->
+<section>
+<div class="flex justify-between items-end mb-6">
+<h2 class="font-headline-md text-headline-md text-deep-navy">Récemment résolus</h2>
+<a class="flex items-center gap-1 text-electric-blue hover:underline font-label-md text-label-md" href="#">
+                    Voir plus <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</a>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Card 1 -->
+<div class="bg-white rounded-2xl overflow-hidden shadow-[0_4px_20px_rgba(10,22,40,0.03)] border border-slate-100 group hover:shadow-[0_8px_30px_rgba(10,22,40,0.08)] transition-shadow duration-300">
+<div class="aspect-video relative overflow-hidden">
+<img alt="Réparation chaussée" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="freshly paved asphalt road in a sunny urban setting with clear line markings, realistic photography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMyKLk9Nysiq714vws9axU43sDZ7Yfa2r_ckUz4rjU56eAZ3OKkUMwBKGM4LDTRa4W6T-pqZlwaBpX-yyrca7k9Y-pdfQuGc_YN3sUGneJO-0tu_WjM3tYMjYhddVIBXTNYcnJ4TKHBg_en4L5dt-_IwfHbJ7nCjs5zZC9t16iwxo1frtOjouhMD8GMecqlw1ldL7pU0d59iNu6hGr1rlw1q3Spv3qfqbelqzkkOJjEu0oOU0AiPn79Q7S9xURKQIbyQ8tPXCQig8"/>
+<div class="absolute top-3 right-3 bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full font-label-sm text-label-sm flex items-center gap-1 border border-emerald-100 backdrop-blur-md">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                            Résolu
+                        </div>
+</div>
+<div class="p-5">
+<h4 class="font-label-md text-label-md text-deep-navy mb-1 line-clamp-1">Réparation chaussée Rue Ibn Khaldoun</h4>
+<p class="font-label-sm text-label-sm text-slate-500 font-normal">Il y a 2 jours</p>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-white rounded-2xl overflow-hidden shadow-[0_4px_20px_rgba(10,22,40,0.03)] border border-slate-100 group hover:shadow-[0_8px_30px_rgba(10,22,40,0.08)] transition-shadow duration-300">
+<div class="aspect-video relative overflow-hidden">
+<img alt="Éclairage public" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="modern led street lamp post illuminated against a dusk sky in a city square, warm glow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDT382W7D22WcjoMcSMnBVAH7RwtGo4m-sVtm748xNr4qOPKYJ5d52hBw3S0Ozj80v1OemHL__1ve-Q2bsFqQZQf5_keeR3D75a2oa5XrlVrhd9ncmsrvfhKCGHdLCB2CCIDm-90ifsaIwEQz37d0CDyfKzrROXY8hTfOT3JqjhhPCi2EyBVVt_6IHNpSmF7m63FQX9JH0PTrYYPp-jQ3MMAGI-EuAXhCVNmv9wq-6lXHt-5NZ1LLcvSGjJJZKzQS-LNZgOfEzFsAM"/>
+<div class="absolute top-3 right-3 bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full font-label-sm text-label-sm flex items-center gap-1 border border-emerald-100 backdrop-blur-md">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                            Résolu
+                        </div>
+</div>
+<div class="p-5">
+<h4 class="font-label-md text-label-md text-deep-navy mb-1 line-clamp-1">Éclairage public Place Farhat Hached</h4>
+<p class="font-label-sm text-label-sm text-slate-500 font-normal">Il y a 4 jours</p>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-white rounded-2xl overflow-hidden shadow-[0_4px_20px_rgba(10,22,40,0.03)] border border-slate-100 group hover:shadow-[0_8px_30px_rgba(10,22,40,0.08)] transition-shadow duration-300">
+<div class="aspect-video relative overflow-hidden">
+<img alt="Nettoyage Parc" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="clean urban park with trimmed grass, empty trash bins, and sunny pathways, peaceful atmosphere" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCCYqSgw4ArzxbZ77r1eA0DmyvK2eaIyWqE10sn7YEbsas5P_Jiv-b7TD8roAZGkkOJwT4g32RKavRCNrWZq4501Vuzb97QngmpHOSBqpadAymfqHBBBAP55mTAfaA8eSWnQ_kyELYpBqw5REU5aH3le-VpY9RBfy8zUXpLj-3ogl9SxciTvF2BJvkAbwxYabLCha_PdDobLRLvapOaOuuC8xOXYckoj6gpbS4ok2UToFNOFRPXjK4ateTosLx_-aPnjYp_L7o9yk8"/>
+<div class="absolute top-3 right-3 bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full font-label-sm text-label-sm flex items-center gap-1 border border-emerald-100 backdrop-blur-md">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                            Résolu
+                        </div>
+</div>
+<div class="p-5">
+<h4 class="font-label-md text-label-md text-deep-navy mb-1 line-clamp-1">Nettoyage Parc de la Ligue Arabe</h4>
+<p class="font-label-sm text-label-sm text-slate-500 font-normal">Il y a 1 semaine</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+</body></html>

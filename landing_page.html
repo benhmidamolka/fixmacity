@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+
+<html class="light" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FixMaCity Sousse | Améliorez votre ville</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#2d3133",
+                        "on-secondary-fixed": "#001552",
+                        "primary-container": "#101c2e",
+                        "inverse-on-surface": "#eff1f3",
+                        "secondary-fixed": "#dce1ff",
+                        "on-primary-fixed-variant": "#3c475b",
+                        "surface-container-high": "#e6e8ea",
+                        "on-error": "#ffffff",
+                        "on-primary-fixed": "#101c2e",
+                        "background": "#f7f9fb",
+                        "tertiary-fixed-dim": "#ffb95f",
+                        "primary-fixed": "#d7e3fc",
+                        "on-secondary-fixed-variant": "#0038b6",
+                        "on-error-container": "#93000a",
+                        "surface-tint": "#535f74",
+                        "on-tertiary": "#ffffff",
+                        "on-background": "#191c1e",
+                        "inverse-primary": "#bbc7df",
+                        "tertiary-container": "#2a1700",
+                        "surface-dim": "#d8dadc",
+                        "error": "#ba1a1a",
+                        "on-secondary-container": "#e4e7ff",
+                        "on-surface-variant": "#45474c",
+                        "outline": "#75777d",
+                        "secondary-fixed-dim": "#b7c4ff",
+                        "on-surface": "#191c1e",
+                        "surface-container": "#eceef0",
+                        "surface-container-low": "#f2f4f6",
+                        "error-container": "#ffdad6",
+                        "primary": "#000000",
+                        "outline-variant": "#c5c6cd",
+                        "secondary": "#1557FF",
+                        "surface-variant": "#e0e3e5",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed": "#ffddb8",
+                        "primary-fixed-dim": "#bbc7df",
+                        "tertiary": "#F59E0B",
+                        "on-tertiary-fixed": "#2a1700",
+                        "on-primary-container": "#79849b",
+                        "secondary-container": "#1156fe",
+                        "surface-container-lowest": "#ffffff",
+                        "surface": "#f7f9fb",
+                        "surface-bright": "#f7f9fb",
+                        "on-tertiary-container": "#b87500",
+                        "surface-container-highest": "#e0e3e5",
+                        "on-tertiary-fixed-variant": "#653e00"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "margin": "32px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "xl": "40px",
+                        "container-max": "1280px",
+                        "sm": "8px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "label-sm": ["Plus Jakarta Sans"],
+                        "label-md": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "label-sm": ["12px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                        "label-md": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                        "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .bg-glass {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="bg-background font-body-md text-on-surface selection:bg-secondary/30">
+<!-- TopAppBar -->
+<nav class="fixed top-0 w-full z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-[0_4px_20px_-4px_rgba(10,22,40,0.08)]">
+<div class="flex justify-between items-center h-20 px-6 md:px-12 max-w-screen-2xl mx-auto">
+<div class="text-2xl font-black tracking-tighter text-slate-900 dark:text-white">FixMaCity</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="font-['Plus_Jakarta_SANS'] text-sm font-semibold tracking-tight text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 pb-1" href="#">Home</a>
+<a class="font-['Plus_Jakarta_SANS'] text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" href="#">Services</a>
+<a class="font-['Plus_Jakarta_SANS'] text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" href="#">Reports</a>
+<a class="font-['Plus_Jakarta_SANS'] text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" href="#">Map</a>
+<a class="font-['Plus_Jakarta_SANS'] text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" href="#">Community</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-slate-600 dark:text-slate-400 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-all duration-200">notifications</button>
+<button class="material-symbols-outlined text-slate-600 dark:text-slate-400 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-all duration-200">account_circle</button>
+<button class="ml-2 bg-secondary text-white px-6 py-2.5 rounded-lg font-['Plus_Jakarta_SANS'] text-sm font-bold shadow-lg shadow-secondary/20 active:scale-95 transform transition-transform">Report Issue</button>
+</div>
+</div>
+</nav>
+<main class="pt-20">
+<!-- Hero Section -->
+<section class="relative h-[870px] min-h-[600px] flex items-center overflow-hidden">
+<div class="absolute inset-0 z-0">
+<img class="w-full h-full object-cover brightness-50" data-alt="Cinematic aerial view of Sousse Tunisia medina and turquoise coastline during sunset with golden warm lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAoplHvZKOnqkCLO90dNLVGTiZc5rXQqi9fTqcu5w0S3SwpzJ9LCqcwy-C4TYnJGn1lDXyQq__LWbb-CJ_7pzBSN1Hz0at7tE0qbV_fLfJWTPaT2j-2Abw-hdMIOkw7HZb0-kDfOuYSgSwz2suErC7BH7MRETY9MmLUcX97VqApEvBsSyOSo8GZ5qeinigu0Lmm6eUNiJrkTpq3wf2kwQ1wBTJn80QquvQPeO1BKJgglB38yI3AONm1DsQY4fNc0FzUScBgIPfWCsA"/>
+<div class="absolute inset-0 bg-gradient-to-r from-primary-container/80 to-transparent"></div>
+</div>
+<div class="relative z-10 max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12">
+<div class="flex flex-col justify-center">
+<span class="inline-block px-4 py-1.5 rounded-full bg-secondary/20 text-secondary border border-secondary/30 text-label-sm uppercase tracking-widest mb-6 w-fit">Municipalité de Sousse</span>
+<h1 class="text-display-lg font-display-lg text-white mb-6">Signalez. Suivez. Améliorez votre ville.</h1>
+<p class="text-body-lg font-body-lg text-slate-200 mb-10 max-w-lg">FixMaCity connecte les citoyens de Sousse avec leur municipalité pour résoudre les problèmes urbains rapidement et efficacement.</p>
+<div class="flex flex-wrap gap-4">
+<button class="bg-gradient-to-r from-secondary to-secondary-container text-white px-8 py-4 rounded-xl font-headline-md text-sm tracking-wide shadow-xl shadow-secondary/30 hover:translate-y-[-2px] transition-all">Soumettre un signalement</button>
+<button class="bg-white/10 backdrop-blur-md border border-white/30 text-white px-8 py-4 rounded-xl font-headline-md text-sm tracking-wide hover:bg-white/20 transition-all">Suivre ma déclaration</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Stats Bar -->
+<section class="bg-primary-container py-8 border-y border-slate-800">
+<div class="max-w-7xl mx-auto px-6">
+<div class="flex flex-wrap justify-between items-center gap-8 text-white divide-x divide-slate-800">
+<div class="flex-1 text-center px-4">
+<div class="text-headline-lg text-secondary mb-1">1 284</div>
+<div class="text-label-sm text-slate-400">Déclarations</div>
+</div>
+<div class="flex-1 text-center px-4">
+<div class="text-headline-lg text-secondary mb-1">84%</div>
+<div class="text-label-sm text-slate-400">Taux de résolution</div>
+</div>
+<div class="flex-1 text-center px-4">
+<div class="text-headline-lg text-secondary mb-1">47</div>
+<div class="text-label-sm text-slate-400">Agents actifs</div>
+</div>
+<div class="flex-1 text-center px-4 border-r-0">
+<div class="text-headline-lg text-tertiary mb-1">4.8★</div>
+<div class="text-label-sm text-slate-400">Satisfaction</div>
+</div>
+</div>
+</div>
+</section>
+<!-- How it Works -->
+<section class="py-24 bg-surface">
+<div class="max-w-7xl mx-auto px-6">
+<div class="text-center mb-16">
+<h2 class="text-headline-lg font-headline-lg text-on-surface mb-4">Comment ça marche ?</h2>
+<p class="text-body-md font-body-md text-outline max-w-2xl mx-auto">Trois étapes simples pour transformer votre quartier et participer activement à la vie de Sousse.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+<div class="bg-white p-8 rounded-[16px] shadow-[0_20px_30px_-4px_rgba(10,22,40,0.06)] relative group hover:shadow-xl transition-shadow">
+<div class="absolute -top-4 -left-4 w-12 h-12 bg-secondary text-white rounded-full flex items-center justify-center font-bold text-xl shadow-lg">1</div>
+<span class="material-symbols-outlined text-[48px] text-secondary mb-6 block">campaign</span>
+<h3 class="text-headline-md font-headline-md mb-3">Signalez</h3>
+<p class="text-body-md text-outline">Prenez une photo, décrivez le problème (nid de poule, lampe cassée) et géolocalisez-le instantanément.</p>
+</div>
+<div class="bg-white p-8 rounded-[16px] shadow-[0_20px_30px_-4px_rgba(10,22,40,0.06)] relative group hover:shadow-xl transition-shadow border-t-4 border-secondary">
+<div class="absolute -top-4 -left-4 w-12 h-12 bg-secondary text-white rounded-full flex items-center justify-center font-bold text-xl shadow-lg">2</div>
+<span class="material-symbols-outlined text-[48px] text-secondary mb-6 block">engineering</span>
+<h3 class="text-headline-md font-headline-md mb-3">On traite</h3>
+<p class="text-body-md text-outline">La municipalité reçoit l'alerte, l'analyse et dépêche l'équipe technique compétente sur place.</p>
+</div>
+<div class="bg-white p-8 rounded-[16px] shadow-[0_20px_30px_-4px_rgba(10,22,40,0.06)] relative group hover:shadow-xl transition-shadow">
+<div class="absolute -top-4 -left-4 w-12 h-12 bg-tertiary text-white rounded-full flex items-center justify-center font-bold text-xl shadow-lg">3</div>
+<span class="material-symbols-outlined text-[48px] text-tertiary mb-6 block">check_circle</span>
+<h3 class="text-headline-md font-headline-md mb-3">Résolu</h3>
+<p class="text-body-md text-outline">Une fois le problème réglé, vous recevez une notification et une photo de l'intervention terminée.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Services Grid -->
+<section class="py-24 bg-white">
+<div class="max-w-7xl mx-auto px-6">
+<div class="flex items-end justify-between mb-12">
+<div>
+<h2 class="text-headline-lg font-headline-lg mb-2">Domaines d'intervention</h2>
+<p class="text-body-md text-outline">Sélectionnez une catégorie pour voir les interventions en cours.</p>
+</div>
+<button class="text-secondary font-bold flex items-center gap-2 hover:gap-3 transition-all">Tous les services <span class="material-symbols-outlined">arrow_forward</span></button>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+<!-- Service Card -->
+<div class="p-6 rounded-2xl bg-background border border-slate-100 hover:border-secondary/50 hover:shadow-lg transition-all group">
+<div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 mb-4">
+<span class="material-symbols-outlined">construction</span>
+</div>
+<h4 class="font-headline-md text-lg mb-2">Voirie</h4>
+<a class="text-label-md text-secondary group-hover:underline flex items-center gap-1" href="#">Voir les signalements <span class="material-symbols-outlined text-sm">arrow_forward</span></a>
+</div>
+<div class="p-6 rounded-2xl bg-background border border-slate-100 hover:border-secondary/50 hover:shadow-lg transition-all group">
+<div class="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center text-yellow-600 mb-4">
+<span class="material-symbols-outlined">lightbulb</span>
+</div>
+<h4 class="font-headline-md text-lg mb-2">Éclairage</h4>
+<a class="text-label-md text-secondary group-hover:underline flex items-center gap-1" href="#">Voir les signalements <span class="material-symbols-outlined text-sm">arrow_forward</span></a>
+</div>
+<div class="p-6 rounded-2xl bg-background border border-slate-100 hover:border-secondary/50 hover:shadow-lg transition-all group">
+<div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600 mb-4">
+<span class="material-symbols-outlined">delete</span>
+</div>
+<h4 class="font-headline-md text-lg mb-2">Propreté</h4>
+<a class="text-label-md text-secondary group-hover:underline flex items-center gap-1" href="#">Voir les signalements <span class="material-symbols-outlined text-sm">arrow_forward</span></a>
+</div>
+<div class="p-6 rounded-2xl bg-background border border-slate-100 hover:border-secondary/50 hover:shadow-lg transition-all group">
+<div class="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 mb-4">
+<span class="material-symbols-outlined">park</span>
+</div>
+<h4 class="font-headline-md text-lg mb-2">Espaces Verts</h4>
+<a class="text-label-md text-secondary group-hover:underline flex items-center gap-1" href="#">Voir les signalements <span class="material-symbols-outlined text-sm">arrow_forward</span></a>
+</div>
+<div class="p-6 rounded-2xl bg-background border border-slate-100 hover:border-secondary/50 hover:shadow-lg transition-all group">
+<div class="w-12 h-12 rounded-xl bg-cyan-100 flex items-center justify-center text-cyan-600 mb-4">
+<span class="material-symbols-outlined">water_drop</span>
+</div>
+<h4 class="font-headline-md text-lg mb-2">Réseaux</h4>
+<a class="text-label-md text-secondary group-hover:underline flex items-center gap-1" href="#">Voir les signalements <span class="material-symbols-outlined text-sm">arrow_forward</span></a>
+</div>
+<div class="p-6 rounded-2xl bg-background border border-slate-100 hover:border-secondary/50 hover:shadow-lg transition-all group">
+<div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-red-600 mb-4">
+<span class="material-symbols-outlined">traffic</span>
+</div>
+<h4 class="font-headline-md text-lg mb-2">Signalisation</h4>
+<a class="text-label-md text-secondary group-hover:underline flex items-center gap-1" href="#">Voir les signalements <span class="material-symbols-outlined text-sm">arrow_forward</span></a>
+</div>
+<div class="p-6 rounded-2xl bg-background border border-slate-100 hover:border-secondary/50 hover:shadow-lg transition-all group">
+<div class="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 mb-4">
+<span class="material-symbols-outlined">description</span>
+</div>
+<h4 class="font-headline-md text-lg mb-2">Administratif</h4>
+<a class="text-label-md text-secondary group-hover:underline flex items-center gap-1" href="#">Voir les signalements <span class="material-symbols-outlined text-sm">arrow_forward</span></a>
+</div>
+<div class="p-6 rounded-2xl bg-background border border-slate-100 hover:border-secondary/50 hover:shadow-lg transition-all group">
+<div class="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 mb-4">
+<span class="material-symbols-outlined">forum</span>
+</div>
+<h4 class="font-headline-md text-lg mb-2">Suggestions</h4>
+<a class="text-label-md text-secondary group-hover:underline flex items-center gap-1" href="#">Voir les signalements <span class="material-symbols-outlined text-sm">arrow_forward</span></a>
+</div>
+</div>
+</div>
+</section>
+<!-- Chatbot Section -->
+<section class="py-20">
+<div class="max-w-7xl mx-auto px-6">
+<div class="bg-primary-container rounded-[24px] overflow-hidden flex flex-col md:flex-row shadow-2xl">
+<div class="flex-1 p-12 lg:p-16 flex flex-col justify-center border-b md:border-b-0 md:border-r border-slate-800">
+<div class="flex items-center gap-4 mb-6">
+<div class="w-14 h-14 rounded-full bg-tertiary flex items-center justify-center text-2xl">🤖</div>
+<div>
+<h3 class="text-white text-headline-lg">Posez vos questions à Fixy</h3>
+<p class="text-slate-400">Votre assistant intelligent municipal</p>
+</div>
+</div>
+<p class="text-slate-300 text-body-lg mb-8">Notre assistant IA répond 24h/24 à toutes vos interrogations concernant les services municipaux, les procédures administratives et le suivi de vos signalements.</p>
+<button class="bg-tertiary text-primary-container px-8 py-4 rounded-xl font-bold w-fit hover:scale-105 transition-transform flex items-center gap-2">
+                            Discuter avec Fixy
+                            <span class="material-symbols-outlined">send</span>
+</button>
+</div>
+<div class="flex-1 bg-[#0f1b2e] p-8 flex flex-col gap-4">
+<div class="bg-slate-800/50 p-4 rounded-2xl rounded-bl-none max-w-[80%] border border-slate-700/50">
+<p class="text-slate-300 text-sm">Bonjour ! Je suis Fixy. Comment puis-je vous aider aujourd'hui ?</p>
+</div>
+<div class="bg-secondary/20 p-4 rounded-2xl rounded-br-none max-w-[80%] self-end border border-secondary/30">
+<p class="text-white text-sm">Comment signaler un éclairage public défaillant à Sousse Ville ?</p>
+</div>
+<div class="bg-slate-800/50 p-4 rounded-2xl rounded-bl-none max-w-[80%] border border-slate-700/50">
+<p class="text-slate-300 text-sm">C'est très simple ! Cliquez sur "Soumettre un signalement", choisissez la catégorie "Éclairage" et prenez une photo. Je m'occupe de le transmettre au service technique.</p>
+</div>
+<div class="mt-auto pt-8">
+<div class="bg-slate-900 rounded-lg p-3 border border-slate-800 flex items-center gap-3">
+<span class="text-slate-500 text-sm">Écrire un message...</span>
+<div class="ml-auto flex gap-2">
+<span class="material-symbols-outlined text-slate-500">attach_file</span>
+<span class="material-symbols-outlined text-secondary">send</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Map Section -->
+<section class="py-24 bg-surface">
+<div class="max-w-7xl mx-auto px-6">
+<div class="mb-12">
+<h2 class="text-headline-lg font-headline-lg mb-2">Signalements près de chez vous</h2>
+<p class="text-body-md text-outline">Suivez en temps réel les interventions sur la carte interactive de Sousse.</p>
+</div>
+<div class="h-[600px] w-full rounded-[24px] overflow-hidden relative shadow-inner border border-slate-200">
+<div class="absolute inset-0 bg-slate-200 flex items-center justify-center">
+<img class="w-full h-full object-cover grayscale opacity-80" data-alt="Modern high contrast dark themed city map view with stylized pins representing municipal issues" data-location="Sousse, Tunisia" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBjtctPyCMlvqy7fOONGySUNwzaR_dTCn3LlIGiiEtqDkZoBqTmthKhbUw0jIQZFqWYWrcDN8Mqe13pYVc1VsRQ-NMX0tL9AuJuJPH5UJqDV_R25gXUs3irzuLfTZxqbtKHnESXYscZ60_JUnd74WWXnSF1vksbPmjYTrps8nZ_Ucc2Y61UcjBfsUfjPA6BwUuX1qAz1rt2VKF6SzNKbs4lcR0gXPcFcaHPqwOH0o7ZkK0M1czL2nnqaunwd7h_nJGs1o8LtO-PT6Y"/>
+<!-- Mock Pins -->
+<div class="absolute top-1/4 left-1/3 w-6 h-6 bg-tertiary rounded-full border-4 border-white shadow-xl animate-pulse"></div>
+<div class="absolute top-1/2 left-1/2 w-6 h-6 bg-secondary rounded-full border-4 border-white shadow-xl"></div>
+<div class="absolute bottom-1/3 right-1/4 w-6 h-6 bg-green-500 rounded-full border-4 border-white shadow-xl"></div>
+</div>
+<div class="absolute bottom-8 right-8 bg-white/90 backdrop-blur-md p-6 rounded-2xl shadow-2xl border border-white/20 w-80">
+<h4 class="font-bold text-lg mb-4">Légende</h4>
+<div class="space-y-3">
+<div class="flex items-center gap-3">
+<span class="w-3 h-3 rounded-full bg-tertiary"></span>
+<span class="text-sm text-outline">Déclaration récente</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="w-3 h-3 rounded-full bg-secondary"></span>
+<span class="text-sm text-outline">En cours de traitement</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="w-3 h-3 rounded-full bg-green-500"></span>
+<span class="text-sm text-outline">Problème résolu</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Testimonials -->
+<section class="py-24 bg-surface-container-low">
+<div class="max-w-7xl mx-auto px-6">
+<div class="text-center mb-16">
+<h2 class="text-headline-lg font-headline-lg mb-4">Ce que disent les citoyens</h2>
+<p class="text-body-md text-outline">La voix des habitants de Sousse qui utilisent FixMaCity au quotidien.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+<div class="flex text-tertiary mb-4">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="text-body-md text-outline-variant italic mb-6">"J'ai signalé un lampadaire éteint hier soir, et ce matin une équipe était déjà là pour le réparer. Impressionnant de réactivité !"</p>
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center font-bold text-secondary">AB</div>
+<div>
+<h5 class="font-bold">Ahmed B.</h5>
+<p class="text-xs text-slate-400">Sousse Ville</p>
+</div>
+</div>
+</div>
+<div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+<div class="flex text-tertiary mb-4">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">star</span>
+</div>
+<p class="text-body-md text-outline-variant italic mb-6">"Une application simple à utiliser qui permet enfin de se sentir écouté par sa municipalité. Le suivi photo est un vrai plus."</p>
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center font-bold text-purple-600">SM</div>
+<div>
+<h5 class="font-bold">Sonia M.</h5>
+<p class="text-xs text-slate-400">Khezama</p>
+</div>
+</div>
+</div>
+<div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+<div class="flex text-tertiary mb-4">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="text-body-md text-outline-variant italic mb-6">"Très pratique pour les encombrants. On poste la photo et c'est ramassé dans les 48h. Bravo pour ce service !"</p>
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center font-bold text-emerald-600">MK</div>
+<div>
+<h5 class="font-bold">Mohamed K.</h5>
+<p class="text-xs text-slate-400">Sahloul</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#0A1628] dark:bg-black w-full pt-16 pb-8 border-t border-slate-800">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-12 max-w-7xl mx-auto px-6">
+<div class="opacity-90 hover:opacity-100 transition-opacity">
+<span class="text-xl font-bold text-white mb-4 block">FixMaCity</span>
+<p class="font-['Plus_Jakarta_SANS'] text-slate-400 text-sm leading-relaxed mb-6">Plateforme citoyenne officielle de la Municipalité de Sousse pour un environnement urbain plus sain et plus sûr.</p>
+<div class="flex gap-4">
+<div class="bg-white/5 p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-colors">
+<img alt="App Store" class="h-6" data-alt="Apple App Store download badge in white border" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDe3fFAEzJX_e-7OdwCU2OcV-dlxAVJQyWGQIbB_Xvbg9hzwILUWNRKbtc07nvvCSgCZHAM_oLSJYK9of4RyHxfTGe9ML5R5mu8-XCEKpQdv82ymD2nkpKnUa7T3suNIzqN3cDNtwlPg-mxB8d82b1gac4zeIxqQUN6TbtOWzn6uMUlG-jXhUcZ252dGgxcc8c2tinl5WfVZSsYZLrQCk3PEvaQ9PV4sJBiNKcHr2z4cl-ad1qeL-Mu0e587nCbMfr3Ktd-AjfPoc"/>
+</div>
+<div class="bg-white/5 p-2 rounded-lg hover:bg-white/10 cursor-pointer transition-colors">
+<img alt="Google Play" class="h-6" data-alt="Google Play Store download badge in white border" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDv_zlVvRF14fBaVSBLKo5ZLiItTF50ATYI8V-ZmSP9HkerClUeZ9LX1e0cVepvyvAeNnaulSmDc-D8WW8P3Plp3e_NUN1VRAMfkfrtV5g4zmTbF6AwOT5LY3wNtienb7votpLsdYamxWmcAuKpyd2Gz9OSbff07jD8rgHTQkpA_eVYoqxLY1HwRq6NM0MT9Xgwa7FpRvcujueIvi0kLNolSNltAj8XlkORLtiWgaQIqwh_tm2E3FBef1B3x-WmJukh2X1Gi2P8JaQ"/>
+</div>
+</div>
+</div>
+<div>
+<h5 class="text-white font-medium mb-6">Navigation</h5>
+<ul class="space-y-4">
+<li><a class="font-['Plus_Jakarta_SANS'] text-slate-400 text-sm hover:text-white hover:translate-x-1 transition-all duration-200 block" href="#">Accueil</a></li>
+<li><a class="font-['Plus_Jakarta_SANS'] text-slate-400 text-sm hover:text-white hover:translate-x-1 transition-all duration-200 block" href="#">Tous les services</a></li>
+<li><a class="font-['Plus_Jakarta_SANS'] text-slate-400 text-sm hover:text-white hover:translate-x-1 transition-all duration-200 block" href="#">Signaler un problème</a></li>
+<li><a class="font-['Plus_Jakarta_SANS'] text-slate-400 text-sm hover:text-white hover:translate-x-1 transition-all duration-200 block" href="#">Carte interactive</a></li>
+</ul>
+</div>
+<div>
+<h5 class="text-white font-medium mb-6">Support</h5>
+<ul class="space-y-4">
+<li><a class="font-['Plus_Jakarta_SANS'] text-slate-400 text-sm hover:text-white hover:translate-x-1 transition-all duration-200 block" href="#">Privacy Policy</a></li>
+<li><a class="font-['Plus_Jakarta_SANS'] text-slate-400 text-sm hover:text-white hover:translate-x-1 transition-all duration-200 block" href="#">Terms of Service</a></li>
+<li><a class="font-['Plus_Jakarta_SANS'] text-slate-400 text-sm hover:text-white hover:translate-x-1 transition-all duration-200 block" href="#">Contact Support</a></li>
+<li><a class="font-['Plus_Jakarta_SANS'] text-slate-400 text-sm hover:text-white hover:translate-x-1 transition-all duration-200 block" href="#">Open Data Portal</a></li>
+</ul>
+</div>
+<div>
+<h5 class="text-white font-medium mb-6">Municipalité</h5>
+<ul class="space-y-4">
+<li><a class="font-['Plus_Jakarta_SANS'] text-slate-400 text-sm hover:text-white hover:translate-x-1 transition-all duration-200 block" href="#">City Hall</a></li>
+<li><a class="font-['Plus_Jakarta_SANS'] text-slate-400 text-sm hover:text-white hover:translate-x-1 transition-all duration-200 block" href="#">Conseil Municipal</a></li>
+<li><a class="font-['Plus_Jakarta_SANS'] text-slate-400 text-sm hover:text-white hover:translate-x-1 transition-all duration-200 block" href="#">Événements</a></li>
+<li class="flex items-center gap-3 pt-4">
+<span class="material-symbols-outlined text-amber-500">location_on</span>
+<span class="font-['Plus_Jakarta_SANS'] text-slate-400 text-sm">Avenue Habib Bourguiba, Sousse</span>
+</li>
+</ul>
+</div>
+</div>
+<div class="max-w-7xl mx-auto px-6 mt-16 pt-8 border-t border-slate-800 text-center">
+<p class="font-['Plus_Jakarta_SANS'] text-slate-400 text-sm leading-relaxed">© 2024 FixMaCity Municipality. All rights reserved. Built for Civic Pride.</p>
+</div>
+</footer>
+</body></html>

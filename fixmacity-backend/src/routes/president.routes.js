@@ -4,20 +4,28 @@ const ctrl = require('../controllers/president.controller');
 const authenticate = require('../middleware/auth');
 const rbac = require('../middleware/rbac');
 
+// All routes require auth + president role
 router.use(authenticate, rbac('president'));
 
-// ── Declarations ──────────────────────────────────────────────
+// ── Declarations ──
 router.get('/declarations', ctrl.listDeclarations);
+router.get('/declarations/:id', ctrl.getDeclarationDetail);
 
 router.post('/declarations/:id/assign', [
-  body('department_id').isUUID().withMessage('Département invalide.'),
+  body('department_id').isUUID().withMessage('Département invalide (UUID attendu).'),
 ], ctrl.assignDeclaration);
 
 router.post('/declarations/:id/reassign', [
-  body('department_id').isUUID().withMessage('Département invalide.'),
+  body('department_id').isUUID().withMessage('Département invalide (UUID attendu).'),
 ], ctrl.reassignDeclaration);
 
-// ── Users ─────────────────────────────────────────────────────
+// ── Declaration Comments ──
+router.get('/declarations/:id/comments', ctrl.listComments);
+router.post('/declarations/:id/comments', [
+  body('content').notEmpty().trim().withMessage('Contenu requis.'),
+], ctrl.addComment);
+
+// ── Users ──
 router.get('/users', ctrl.listUsers);
 
 router.post('/users', [
@@ -25,43 +33,29 @@ router.post('/users', [
   body('password').isLength({ min: 8 }).withMessage('Mot de passe : 8 caractères minimum.'),
   body('first_name').notEmpty().trim().withMessage('Prénom requis.'),
   body('last_name').notEmpty().trim().withMessage('Nom requis.'),
-  body('role').isIn(['agent', 'chef']).withMessage('Rôle invalide.'),
+  body('role').isIn(['agent', 'chef']).withMessage('Rôle invalide (agent ou chef).'),
+  body('department_id').optional().isUUID().withMessage('Département invalide.'),
+  body('delegation_id').optional().isUUID().withMessage('Délégation invalide.'),
 ], ctrl.createUser);
 
 router.patch('/users/:id', ctrl.updateUser);
 router.delete('/users/:id', ctrl.deleteUser);
 
-// ── Departments ───────────────────────────────────────────────
+// ── Departments ──
 router.get('/departments', ctrl.listDepartments);
+router.patch('/departments/:id/status', ctrl.updateDepartmentStatus);
 
-router.post('/departments', [
-  body('name_fr').notEmpty().trim().withMessage('Nom français requis.'),
-  body('code')
-    .notEmpty().trim()
-    .isLength({ min: 2, max: 5 }).withMessage('Le code doit comporter entre 2 et 5 caractères.')
-    .matches(/^[A-Z0-9]+$/i).withMessage('Le code ne peut contenir que des lettres et chiffres.'),
-  body('name_ar').optional().trim(),
-  body('name_en').optional().trim(),
-  body('description').optional().trim(),
-], ctrl.createDepartment);
-
-router.patch('/departments/:id', [
-  body('name_fr').optional().notEmpty().trim(),
-  body('name_ar').optional().trim(),
-  body('name_en').optional().trim(),
-  body('description').optional().trim(),
-  body('is_active').optional().isBoolean(),
-], ctrl.updateDepartment);
-
-router.delete('/departments/:id', ctrl.deleteDepartment);
-
-// ── Propositions ──────────────────────────────────────────────
+// ── Propositions ──
+router.get('/propositions', ctrl.listPropositions);
 router.post('/propositions', [
   body('title').notEmpty().trim().withMessage('Titre requis.'),
   body('description').notEmpty().trim().withMessage('Description requise.'),
 ], ctrl.createProposition);
 
-// ── Dashboard & Export ────────────────────────────────────────
+router.post('/propositions/:id/confirmer', ctrl.confirmProposition);
+router.post('/propositions/:id/retenu', ctrl.retainProposition);
+
+// ── Dashboard & Export ──
 router.get('/dashboard', ctrl.dashboard);
 router.get('/export', ctrl.exportData);
 

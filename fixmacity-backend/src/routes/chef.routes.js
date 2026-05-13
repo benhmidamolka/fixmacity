@@ -4,10 +4,11 @@ const ctrl = require('../controllers/chef.controller');
 const authenticate = require('../middleware/auth');
 const rbac = require('../middleware/rbac');
 
+// DB role enum value is 'chef' (not 'chef_service')
 router.use(authenticate, rbac('chef'));
 
-// ── Declarations ──────────────────────────────────────────────
 router.get('/declarations', ctrl.listDeclarations);
+router.get('/declarations/:id', ctrl.getDeclarationDetail);
 
 router.post('/declarations/:id/accept', [
   body('agent_id').optional().isUUID().withMessage('Agent ID invalide.'),
@@ -17,22 +18,18 @@ router.post('/declarations/:id/refuse', [
   body('reason').notEmpty().trim().withMessage('Motif de refus requis.'),
 ], ctrl.refuseDeclaration);
 
-// ── Agents ────────────────────────────────────────────────────
+// ── Declaration Comments (chef sees president_chef + chef_agent channels) ──
+router.get('/declarations/:id/comments', ctrl.listComments);
+router.post('/declarations/:id/comments', [
+  body('content').notEmpty().trim().withMessage('Contenu requis.'),
+  body('channel').optional().isIn(['president_chef', 'chef_agent']),
+], ctrl.addComment);
+
 router.get('/agents', ctrl.listAgents);
-router.patch('/agents/:id/deactivate', ctrl.deactivateAgent);
+router.post('/agents', ctrl.addAgent);
+router.put('/agents/:id', ctrl.updateAgent);
+router.patch('/agents/:id/toggle-status', ctrl.toggleAgentStatus);
 
-// ── Department (own department only) ─────────────────────────
-// PRD 3.2.3: Chef can view and modify their département configuration
-router.get('/department', ctrl.getDepartment);
-
-router.patch('/department', [
-  body('name_fr').optional().notEmpty().trim().withMessage('Le nom français ne peut pas être vide.'),
-  body('name_ar').optional().trim(),
-  body('name_en').optional().trim(),
-  body('description').optional().trim(),
-], ctrl.updateDepartment);
-
-// ── Dashboard & Export ────────────────────────────────────────
 router.get('/dashboard', ctrl.dashboard);
 router.get('/export', ctrl.exportData);
 

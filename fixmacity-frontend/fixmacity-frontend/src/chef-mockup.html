@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FixMaCity — Chef de Service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0A1628;--blue:#1557FF;--blue-h:#0F46D6;--blue-soft:#EBF2FF;
+  --bg:#F0F4FA;--surface:#fff;--border:#E2EAF4;--border-2:#CBD5E6;
+  --text:#0A1628;--sub:#4A5E7A;--muted:#8A9AB5;--light:#B8C6D8;
+  --green:#0DB97A;--green-s:#E6FAF3;--orange:#FF6B2B;--orange-s:#FFF1EB;
+  --red:#EF4444;--red-s:#FEF2F2;--yellow:#F59E0B;--yellow-s:#FFFBEB;
+  --purple:#7C3AED;--purple-s:#F3EEFF;--teal:#0891B2;--teal-s:#ECFEFF;
+  --sh-sm:0 1px 3px rgba(10,22,40,.06),0 1px 6px rgba(10,22,40,.04);
+  --sh-md:0 4px 16px rgba(10,22,40,.08);--sh-lg:0 10px 36px rgba(10,22,40,.12);
+  --sh-blue:0 6px 20px rgba(21,87,255,.28);
+  --r:8px;--r-md:12px;--r-lg:16px;--r-xl:20px;--sidebar:220px;
+}
+html{height:100%}
+body{font-family:'Plus Jakarta Sans',sans-serif;color:var(--text);background:var(--bg);display:flex;min-height:100vh;overflow-x:hidden}
+h1,h2,h3,h4,h5,h6{font-family:'Outfit',sans-serif}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+/* ─── SIDEBAR ─── */
+.sidebar{width:var(--sidebar);min-width:var(--sidebar);height:100vh;position:fixed;top:0;left:0;z-index:100;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.sidebar-logo{display:flex;align-items:center;gap:10px;padding:20px 18px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.sidebar-logo-icon{width:32px;height:32px;background:var(--navy);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sidebar-logo-text{font-family:'Outfit',sans-serif;font-weight:800;font-size:16px;color:var(--navy)}
+.sidebar-logo-text span{color:var(--blue)}
+.dept-badge{margin-left:auto;font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;background:var(--blue-soft);color:var(--blue);white-space:nowrap}
+.sidebar-section{padding:16px 12px 8px}
+.sidebar-section-label{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);padding:0 8px;margin-bottom:6px}
+.sidebar-nav{list-style:none;display:flex;flex-direction:column;gap:2px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r);cursor:pointer;transition:background .15s,color .15s;font-size:13px;font-weight:500;color:var(--sub);border:none;background:none;width:100%;text-align:left}
+.sidebar-item:hover{background:var(--bg);color:var(--navy)}
+.sidebar-item.active{background:var(--blue-soft);color:var(--blue);font-weight:700}
+.sidebar-item svg{width:16px;height:16px;flex-shrink:0}
+.sidebar-badge{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--red);color:white;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.sidebar-badge.orange{background:var(--orange-s);color:var(--orange)}
+.sidebar-badge.green{background:var(--green-s);color:var(--green)}
+.sidebar-footer{margin-top:auto;padding:12px;border-top:1px solid var(--border)}
+.sidebar-user{display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--r-md);background:var(--bg);cursor:pointer;margin-bottom:10px}
+.sidebar-avatar{width:34px;height:34px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;color:white;font-family:'Outfit',sans-serif;font-weight:800;font-size:13px;flex-shrink:0}
+.sidebar-user-name{font-size:13px;font-weight:700;color:var(--navy)}
+.sidebar-user-role{font-size:11px;color:var(--muted)}
+
+/* ─── TOPBAR ─── */
+.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 28px;position:sticky;top:0;z-index:50}
+.topbar-search{flex:1;max-width:320px;display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:0 14px;height:36px}
+.topbar-search input{background:none;border:none;outline:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:var(--text);width:100%}
+.topbar-search input::placeholder{color:var(--muted)}
+.topbar-search svg{width:14px;height:14px;color:var(--muted);flex-shrink:0}
+.shortcut{font-size:10px;font-weight:700;color:var(--muted);background:var(--border);padding:2px 6px;border-radius:4px}
+.topbar-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.topbar-btn{width:36px;height:36px;border-radius:var(--r);background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;position:relative}
+.topbar-btn:hover{background:var(--blue-soft)}
+.topbar-btn svg{width:16px;height:16px;color:var(--sub)}
+.notif-dot{position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--red);border:2px solid var(--surface)}
+.topbar-avatar{width:32px;height:32px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;color:white;font-family:'Outfit',sans-serif;font-weight:800;font-size:12px;cursor:pointer}
+
+/* ─── LAYOUT ─── */
+.main-wrapper{margin-left:var(--sidebar);display:flex;flex-direction:column;min-height:100vh;flex:1}
+.page-content{padding:28px;flex:1;display:none}
+.page-content.active{display:block}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.page-title{font-family:'Outfit',sans-serif;font-size:26px;font-weight:900;color:var(--navy);letter-spacing:-0.5px}
+.page-breadcrumb{font-size:12px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:5px}
+.page-actions{display:flex;gap:10px;align-items:center}
+
+/* ─── BTNS ─── */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--r);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;border:none;cursor:pointer;transition:all .15s;text-decoration:none}
+.btn-primary{background:var(--blue);color:white;box-shadow:var(--sh-blue)}.btn-primary:hover{background:var(--blue-h);transform:translateY(-1px)}
+.btn-outline{background:white;color:var(--text);border:1px solid var(--border)}.btn-outline:hover{background:var(--bg)}
+.btn-ghost{background:transparent;color:var(--sub);border:1px solid var(--border)}.btn-ghost:hover{background:var(--bg)}
+.btn-success{background:var(--green);color:white}.btn-success:hover{background:#0aa368;transform:translateY(-1px)}
+.btn-danger{background:var(--red-s);color:var(--red);border:1px solid rgba(239,68,68,.2)}.btn-danger:hover{background:var(--red);color:white}
+.btn svg{width:14px;height:14px}
+.select-pill{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:600;color:var(--sub);background:var(--bg);border:1px solid var(--border);border-radius:99px;padding:5px 12px;cursor:pointer;outline:none;appearance:none}
+
+/* ─── KPI ─── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;box-shadow:var(--sh-sm);display:flex;align-items:flex-start;justify-content:space-between;transition:box-shadow .2s,transform .2s;cursor:default}
+.kpi-card:hover{box-shadow:var(--sh-md);transform:translateY(-2px)}
+.kpi-label{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:8px}
+.kpi-value{font-family:'Outfit',sans-serif;font-size:28px;font-weight:900;color:var(--navy);letter-spacing:-1px;line-height:1}
+.kpi-change{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;margin-top:8px}
+.kpi-up{background:var(--green-s);color:var(--green)}.kpi-down{background:var(--red-s);color:var(--red)}.kpi-warn{background:var(--orange-s);color:var(--orange)}
+.kpi-icon{width:40px;height:40px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+
+/* ─── CARD ─── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--sh-sm);overflow:hidden}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid var(--border)}
+.card-title{font-family:'Outfit',sans-serif;font-size:15px;font-weight:800;color:var(--navy);display:flex;align-items:center;gap:8px}
+.card-body{padding:20px 22px}
+
+/* ─── CHARTS GRID ─── */
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px}
+.chart-container{height:200px;position:relative}
+.chart-hero{font-family:'Outfit',sans-serif;font-size:26px;font-weight:900;color:var(--navy);margin-bottom:4px}
+.chart-sub{font-size:12px;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+/* ─── TABLE ─── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{padding:10px 14px;background:var(--bg);font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;white-space:nowrap}
+thead th:first-child{border-radius:var(--r) 0 0 var(--r)}thead th:last-child{border-radius:0 var(--r) var(--r) 0}
+tbody tr{border-bottom:1px solid var(--border);transition:background .15s;cursor:default}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--bg)}
+td{padding:12px 14px;font-size:13px;color:var(--text);vertical-align:middle;white-space:nowrap}
+.td-ref{font-family:'Courier New',monospace;font-size:11px;color:var(--muted);background:var(--bg);padding:3px 8px;border-radius:4px;border:1px solid var(--border)}
+.td-title{font-weight:600;color:var(--navy);max-width:200px;overflow:hidden;text-overflow:ellipsis;display:block}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:4px 10px;border-radius:99px}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.badge-soumis{background:var(--yellow-s);color:var(--yellow)}.badge-soumis::before{background:var(--yellow)}
+.badge-assignee{background:var(--orange-s);color:var(--orange)}.badge-assignee::before{background:var(--orange)}
+.badge-cours{background:var(--blue-soft);color:var(--blue)}.badge-cours::before{background:var(--blue);animation:blink 1.5s infinite}
+.badge-resolue{background:var(--green-s);color:var(--green)}.badge-resolue::before{background:var(--green)}
+.badge-cloture{background:#F3F4F6;color:#6B7280}.badge-cloture::before{background:#9CA3AF}
+.badge-refus{background:var(--red-s);color:var(--red)}.badge-refus::before{background:var(--red)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.priority{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px}
+.p-haute{background:var(--red-s);color:var(--red)}.p-moyenne{background:var(--yellow-s);color:var(--yellow)}.p-basse{background:var(--green-s);color:var(--green)}
+.action-btns{display:flex;gap:6px}
+.action-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;font-size:12px}
+.action-btn:hover{background:var(--blue-soft);border-color:var(--blue)}
+.action-btn.success:hover{background:var(--green-s);border-color:var(--green)}
+.action-btn.danger:hover{background:var(--red-s);border-color:var(--red)}
+
+/* ─── AGENTS ─── */
+.agents-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.agent-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;box-shadow:var(--sh-sm);transition:box-shadow .2s,transform .2s;cursor:default;position:relative}
+.agent-card:hover{box-shadow:var(--sh-md);transform:translateY(-2px)}
+.agent-status-dot{position:absolute;top:14px;right:14px;width:8px;height:8px;border-radius:50%}
+.agent-avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-weight:900;font-size:18px;color:white;margin-bottom:12px}
+.agent-name{font-family:'Outfit',sans-serif;font-size:15px;font-weight:800;color:var(--navy);margin-bottom:3px}
+.agent-email{font-size:11px;color:var(--muted);margin-bottom:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.agent-stat{background:var(--bg);border-radius:var(--r);padding:8px 10px}
+.agent-stat-num{font-family:'Outfit',sans-serif;font-size:20px;font-weight:900;color:var(--navy)}
+.agent-stat-label{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.8px}
+.agent-workload-bar{height:5px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:14px}
+.agent-workload-fill{height:100%;border-radius:99px;transition:width .6s ease}
+.agent-actions{display:flex;gap:8px}
+.agent-btn{flex:1;padding:8px;border-radius:var(--r);font-size:12px;font-weight:700;border:1px solid var(--border);background:white;cursor:pointer;transition:all .15s}
+.agent-btn:hover{background:var(--blue-soft);border-color:var(--blue);color:var(--blue)}
+.agent-btn.deactivate:hover{background:var(--red-s);border-color:var(--red);color:var(--red)}
+
+/* ─── COMMENTS ─── */
+.comment-thread{display:flex;flex-direction:column;gap:0}
+.comment-item{display:flex;gap:12px;padding:16px 0;border-bottom:1px solid var(--border)}
+.comment-item:last-child{border-bottom:none}
+.comment-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-weight:800;font-size:13px;color:white;flex-shrink:0}
+.comment-bubble{flex:1;background:var(--bg);border-radius:var(--r-md);padding:12px 16px;border:1px solid var(--border)}
+.comment-meta{display:flex;justify-content:space-between;margin-bottom:6px}
+.comment-author{font-size:13px;font-weight:700;color:var(--navy)}
+.comment-time{font-size:11px;color:var(--muted)}
+.comment-text{font-size:13px;color:var(--text);line-height:1.55}
+.comment-input-area{display:flex;gap:12px;margin-top:16px;align-items:flex-end}
+.comment-input{flex:1;padding:12px 14px;border-radius:var(--r-md);border:1.5px solid var(--border);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:var(--text);background:white;outline:none;resize:none;transition:border-color .2s}
+.comment-input:focus{border-color:var(--blue)}
+
+/* ─── NOTIFICATIONS ─── */
+.notif-item{display:flex;align-items:flex-start;gap:12px;padding:14px 22px;border-bottom:1px solid var(--border);transition:background .15s;cursor:pointer}
+.notif-item:hover{background:var(--bg)}.notif-item.unread{background:var(--blue-soft)}
+.notif-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.notif-text{font-size:13px;color:var(--text);line-height:1.4}
+.notif-text strong{font-weight:700;color:var(--navy)}
+.notif-time{font-size:11px;color:var(--muted);margin-top:4px}
+.notif-badge{width:8px;height:8px;border-radius:50%;background:var(--blue);margin-top:6px;flex-shrink:0}
+
+/* ─── FORM ─── */
+.form-group{margin-bottom:18px}
+.form-label{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;display:block}
+.form-label .req{color:var(--red)}
+.form-input{width:100%;padding:11px 14px;border-radius:var(--r);border:1.5px solid var(--border);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:var(--text);background:white;outline:none;transition:border-color .2s}
+.form-input:focus{border-color:var(--blue)}
+.form-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A9AB5' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;cursor:pointer}
+
+/* ─── MODAL ─── */
+.modal-backdrop{position:fixed;inset:0;background:rgba(10,22,40,.5);z-index:500;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-backdrop.open{display:flex}
+.modal{background:white;border-radius:var(--r-xl);width:520px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:var(--sh-lg);animation:modal-in .22s cubic-bezier(.34,1.56,.64,1)}
+@keyframes modal-in{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:22px 24px;border-bottom:1px solid var(--border)}
+.modal-title{font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:var(--navy)}
+.modal-close{width:32px;height:32px;border-radius:50%;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--sub)}
+.modal-body{padding:24px}
+.modal-footer{padding:18px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+
+/* ─── DETAIL LAYOUT ─── */
+.detail-layout{display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start}
+.timeline{display:flex;flex-direction:column;position:relative}
+.timeline::before{content:'';position:absolute;left:16px;top:0;bottom:0;width:2px;background:var(--border)}
+.timeline-item{display:flex;gap:14px;padding:0 0 24px;position:relative}
+.timeline-item:last-child{padding-bottom:0}
+.timeline-icon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;z-index:1;font-size:14px}
+.tl-done{background:var(--navy);color:white}.tl-active{background:var(--blue);color:white;box-shadow:0 0 0 4px rgba(21,87,255,.15)}.tl-upcoming{background:var(--surface);border:2px solid var(--border)}
+.timeline-content{flex:1;padding-top:6px}
+.timeline-label{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.timeline-text{font-size:13px;color:var(--text);line-height:1.5}
+
+/* ─── STATS ─── */
+.status-list{display:flex;flex-direction:column;gap:12px}
+.status-row-header{display:flex;justify-content:space-between;margin-bottom:5px}
+.status-name{font-size:12px;font-weight:600;color:var(--text)}
+.status-count{font-size:12px;font-weight:800;color:var(--navy)}
+.status-bar{height:5px;background:var(--bg);border-radius:99px;overflow:hidden}
+.status-fill{height:100%;border-radius:99px}
+
+/* ─── MISC ─── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px}
+.fade-in{animation:fade-up .4s ease both}
+@keyframes fade-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.d1{animation-delay:.05s}.d2{animation-delay:.1s}.d3{animation-delay:.15s}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.chart-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--sub)}
+.dept-info-card{background:linear-gradient(135deg,var(--navy) 0%,#162B4A 100%);border-radius:var(--r-xl);padding:28px;position:relative;overflow:hidden}
+.dept-info-card::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(21,87,255,.3),transparent 70%)}
+.dept-kpi-row{display:flex;gap:20px;margin-top:20px}
+.dept-kpi{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:var(--r-md);padding:14px 18px;text-align:center;flex:1}
+.dept-kpi-num{font-family:'Outfit',sans-serif;font-size:24px;font-weight:900;color:white}
+.dept-kpi-label{font-size:10px;color:rgba(255,255,255,.5);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-top:3px}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ SIDEBAR ═══════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <rect x="2" y="13" width="5" height="9" rx="1" fill="white" fill-opacity=".9"/>
+        <rect x="9" y="8" width="6" height="14" rx="1" fill="white"/>
+        <rect x="17" y="4" width="5" height="18" rx="1" fill="white" fill-opacity=".7"/>
+        <circle cx="12" cy="3" r="2" fill="#5B9FFF"/>
+      </svg>
+    </div>
+    <span class="sidebar-logo-text">Fix<span>Ma</span>City</span>
+    <span class="dept-badge">Voirie</span>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">General</div>
+    <ul class="sidebar-nav">
+      <li><button class="sidebar-item active" onclick="nav('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </button></li>
+      <li><button class="sidebar-item" onclick="nav('declarations')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Déclarations
+        <span class="sidebar-badge orange">7</span>
+      </button></li>
+      <li><button class="sidebar-item" onclick="nav('agents')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Mon Équipe
+      </button></li>
+      <li><button class="sidebar-item" onclick="nav('notifications')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Notifications
+        <span class="sidebar-badge">3</span>
+      </button></li>
+    </ul>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Département</div>
+    <ul class="sidebar-nav">
+      <li><button class="sidebar-item" onclick="nav('analytics')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Statistiques
+      </button></li>
+      <li><button class="sidebar-item" onclick="nav('dept')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        Mon Département
+      </button></li>
+      <li><button class="sidebar-item" onclick="nav('export')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export CSV
+      </button></li>
+    </ul>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Support</div>
+    <ul class="sidebar-nav">
+      <li><button class="sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 1 4.93 19.07"/></svg>Paramètres</button></li>
+      <li><button class="sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Aide</button></li>
+    </ul>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="sidebar-avatar">KM</div>
+      <div>
+        <div class="sidebar-user-name">Karim Mansour</div>
+        <div class="sidebar-user-role">Chef · Voirie & Routes</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<div class="main-wrapper">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Rechercher une déclaration, un agent…">
+      <span class="shortcut">⌘ F</span>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-btn" onclick="nav('notifications')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div class="notif-dot"></div>
+      </div>
+      <div class="topbar-avatar">KM</div>
+    </div>
+  </div>
+
+  <!-- ════════════════════ DASHBOARD ════════════════════ -->
+  <div class="page-content active" id="page-dashboard">
+    <div class="page-header fade-in">
+      <div>
+        <div class="page-title">Dashboard — Voirie & Routes</div>
+        <div class="page-breadcrumb">🛣️ Département Voirie · Karim Mansour · Chef de Service</div>
+      </div>
+      <div class="page-actions">
+        <select class="select-pill form-select"><option>Ce mois</option><option>Cette semaine</option></select>
+        <button class="btn btn-outline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button>
+        <button class="btn btn-primary" onclick="nav('declarations')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          Traiter les demandes
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI ROW -->
+    <div class="kpi-grid fade-in d1">
+      <div class="kpi-card">
+        <div><div class="kpi-label">Total Déclarations</div><div class="kpi-value">312</div><div class="kpi-change kpi-up">↑ 12% ce mois</div></div>
+        <div class="kpi-icon" style="background:var(--blue-soft);font-size:20px">📋</div>
+      </div>
+      <div class="kpi-card">
+        <div><div class="kpi-label">⚠ En attente chef</div><div class="kpi-value" style="color:var(--orange)">7</div><div class="kpi-change kpi-warn">⚡ Action requise</div></div>
+        <div class="kpi-icon" style="background:var(--orange-s);font-size:20px">⚡</div>
+      </div>
+      <div class="kpi-card">
+        <div><div class="kpi-label">Taux Résolution</div><div class="kpi-value">77%</div><div class="kpi-change kpi-up">↑ 4.2% ce mois</div></div>
+        <div class="kpi-icon" style="background:var(--green-s);font-size:20px">✅</div>
+      </div>
+      <div class="kpi-card">
+        <div><div class="kpi-label">Satisfaction</div><div class="kpi-value">4.7<span style="font-size:13px;color:var(--muted)">/5</span></div><div class="kpi-change kpi-up">↑ 0.2 ce mois</div></div>
+        <div class="kpi-icon" style="background:var(--yellow-s);font-size:20px">⭐</div>
+      </div>
+    </div>
+
+    <!-- SECOND ROW KPI -->
+    <div class="kpi-grid fade-in d2" style="grid-template-columns:repeat(3,1fr)">
+      <div class="kpi-card">
+        <div><div class="kpi-label">Agents actifs</div><div class="kpi-value">6</div><div class="kpi-change" style="background:var(--blue-soft);color:var(--blue)">Sur 8 agents</div></div>
+        <div class="kpi-icon" style="background:var(--purple-s);font-size:20px">👷</div>
+      </div>
+      <div class="kpi-card">
+        <div><div class="kpi-label">Délai Moyen Résolution</div><div class="kpi-value">42h</div><div class="kpi-change kpi-down">↑ 6h vs objectif</div></div>
+        <div class="kpi-icon" style="background:var(--yellow-s);font-size:20px">⏱</div>
+      </div>
+      <div class="kpi-card">
+        <div><div class="kpi-label">Refus ce mois</div><div class="kpi-value">3</div><div class="kpi-change kpi-down">↑ 1 vs mois dernier</div></div>
+        <div class="kpi-icon" style="background:var(--red-s);font-size:20px">↩</div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts-grid fade-in d2">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📊 Évolution des Déclarations — Voirie</div>
+          <select class="select-pill form-select"><option>6 mois</option><option>3 mois</option></select>
+        </div>
+        <div class="card-body">
+          <div class="chart-hero">312</div>
+          <div class="chart-sub"><span style="color:var(--green);font-weight:700">↑ 12%</span><span>vs mois précédent</span></div>
+          <div class="chart-container"><canvas id="chartMain"></canvas></div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#1557FF"></div>Nouvelles</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#10B981"></div>Résolues</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#F59E0B"></div>En cours</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">📊 Par statut</div></div>
+        <div class="card-body">
+          <div style="height:150px;margin-bottom:16px"><canvas id="donutDash"></canvas></div>
+          <div class="status-list">
+            <div><div class="status-row-header"><span class="status-name">Assignée chef</span><span class="status-count">7</span></div><div class="status-bar"><div class="status-fill" style="width:12%;background:var(--orange)"></div></div></div>
+            <div><div class="status-row-header"><span class="status-name">En cours</span><span class="status-count">48</span></div><div class="status-bar"><div class="status-fill" style="width:42%;background:var(--blue)"></div></div></div>
+            <div><div class="status-row-header"><span class="status-name">Résolues</span><span class="status-count">241</span></div><div class="status-bar"><div class="status-fill" style="width:77%;background:var(--green)"></div></div></div>
+            <div><div class="status-row-header"><span class="status-name">Refusées</span><span class="status-count">16</span></div><div class="status-bar"><div class="status-fill" style="width:5%;background:var(--red)"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PENDING DECLARATIONS + AGENT LOAD -->
+    <div class="grid-2 fade-in d3">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title" style="color:var(--orange)">⚡ En Attente de Traitement</div>
+          <button class="btn btn-primary" style="padding:7px 14px;font-size:12px" onclick="nav('declarations')">Traiter →</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Réf.</th><th>Déclaration</th><th>Priorité</th><th>Reçue le</th><th>Actions</th></tr></thead>
+            <tbody id="pending-table"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">👷 Charge de l'Équipe</div><button class="btn btn-ghost" style="padding:7px 14px;font-size:12px" onclick="nav('agents')">Gérer →</button></div>
+        <div class="card-body" id="team-load"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════ DECLARATIONS ════════════════════ -->
+  <div class="page-content" id="page-declarations">
+    <div class="page-header fade-in">
+      <div><div class="page-title">Déclarations du Département</div><div class="page-breadcrumb">Voirie & Routes · 312 déclarations totales</div></div>
+      <div class="page-actions">
+        <input type="text" class="form-input" style="width:220px;padding:7px 12px" placeholder="Rechercher…">
+        <button class="btn btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>Filtrer</button>
+      </div>
+    </div>
+
+    <!-- STATUS TABS -->
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <button class="btn btn-primary" style="font-size:12px;padding:7px 16px" onclick="setTab(this)">Toutes (312)</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:7px 16px" onclick="setTab(this)">⚡ En attente (7)</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:7px 16px" onclick="setTab(this)">🔵 En cours (48)</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:7px 16px" onclick="setTab(this)">✅ Résolues (241)</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:7px 16px" onclick="setTab(this)">↩ Refusées (16)</button>
+    </div>
+
+    <div class="card fade-in">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><input type="checkbox"></th>
+              <th>Réf.</th><th>Titre</th><th>Citoyen</th><th>Statut</th><th>Agent</th><th>Priorité</th><th>Date</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="decl-main-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════ DETAIL DÉCLARATION ════════════════════ -->
+  <div class="page-content" id="page-detail">
+    <div class="page-header fade-in">
+      <div>
+        <button class="btn btn-ghost" style="margin-bottom:12px;padding:7px 14px;font-size:12px" onclick="nav('declarations')">← Retour</button>
+        <div class="page-title" id="detail-title">Nid-de-poule majeur Av. Bourguiba</div>
+        <div class="page-breadcrumb">SV-22-04-26-0042 · Signalé le 22/04/2026</div>
+      </div>
+      <div class="page-actions" id="detail-actions">
+        <button class="btn btn-danger" onclick="openModal('refuse')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          Refuser
+        </button>
+        <button class="btn btn-success" onclick="openModal('accept')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+          Accepter & Assigner
+        </button>
+      </div>
+    </div>
+
+    <div class="detail-layout fade-in">
+      <!-- LEFT -->
+      <div style="display:flex;flex-direction:column;gap:20px">
+        <!-- DESCRIPTION -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">📝 Description du problème</div><span class="badge badge-cours">En cours</span></div>
+          <div class="card-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px">
+              <div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Catégorie</div><div style="font-size:13px;font-weight:600">🛣️ Voirie & Routes</div></div>
+              <div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Délégation</div><div style="font-size:13px;font-weight:600">Sousse Ville</div></div>
+              <div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Votes</div><div style="font-size:13px;font-weight:600">👍 14 soutiens</div></div>
+            </div>
+            <div style="background:var(--bg);border-radius:var(--r-md);padding:16px;border:1px solid var(--border);font-size:14px;line-height:1.65;color:var(--text);margin-bottom:16px">
+              Un nid-de-poule profond s'est formé suite aux dernières pluies sur l'Avenue Léopold Senghor. Risque important pour les deux-roues et dommages aux pneus des véhicules. La fosse mesure environ 60cm de diamètre et 20cm de profondeur.
+            </div>
+            <div style="background:linear-gradient(135deg,#1B3A6B,#2E5B9A);height:160px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:48px">🕳️</div>
+          </div>
+        </div>
+
+        <!-- HISTORIQUE -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">⏳ Historique des Statuts</div></div>
+          <div class="card-body">
+            <div class="timeline">
+              <div class="timeline-item">
+                <div class="timeline-icon tl-done">✓</div>
+                <div class="timeline-content"><div class="timeline-label">Soumise</div><div class="timeline-text">Déclaration soumise par le citoyen Sami Ben Youssef · 22/04/2026 à 09:14</div></div>
+              </div>
+              <div class="timeline-item">
+                <div class="timeline-icon tl-done">✓</div>
+                <div class="timeline-content"><div class="timeline-label">Assignée Chef</div><div class="timeline-text">Assignée au département Voirie par le Président · réf. VR-22-04-26-0042</div></div>
+              </div>
+              <div class="timeline-item">
+                <div class="timeline-icon tl-active">👷</div>
+                <div class="timeline-content"><div class="timeline-label">En cours <span style="background:var(--blue-soft);color:var(--blue);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;margin-left:6px">Actuel</span></div><div class="timeline-text">Agent Aymen Ben Ali a pris en charge · débuté le 22/04/2026 à 14:32</div></div>
+              </div>
+              <div class="timeline-item">
+                <div class="timeline-icon tl-upcoming">4</div>
+                <div class="timeline-content"><div class="timeline-label" style="color:var(--light)">Résolu</div><div class="timeline-text" style="color:var(--light)">En attente de la preuve photo et de la résolution par l'agent.</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- COMMENTAIRES INTERNES -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">💬 Commentaires Internes</div><span style="font-size:12px;color:var(--muted)">Visible équipe uniquement</span></div>
+          <div class="card-body">
+            <div class="comment-thread" id="comments-list">
+              <div class="comment-item">
+                <div class="comment-avatar" style="background:var(--blue)">KM</div>
+                <div class="comment-bubble">
+                  <div class="comment-meta"><span class="comment-author">Karim Mansour (Chef)</span><span class="comment-time">il y a 3h</span></div>
+                  <div class="comment-text">J'ai assigné Aymen sur ce dossier. Priorité haute à cause des risques pour les deux-roues. Prévoir du bitume à chaud.</div>
+                </div>
+              </div>
+              <div class="comment-item">
+                <div class="comment-avatar" style="background:var(--green)">AB</div>
+                <div class="comment-bubble">
+                  <div class="comment-meta"><span class="comment-author">Aymen Ben Ali (Agent)</span><span class="comment-time">il y a 2h</span></div>
+                  <div class="comment-text">Compris. Je serai sur place demain matin avec le matériel. La zone sera sécurisée ce soir.</div>
+                </div>
+              </div>
+            </div>
+            <div class="comment-input-area">
+              <div class="comment-avatar" style="background:var(--blue)">KM</div>
+              <textarea class="comment-input" rows="2" placeholder="Ajouter un commentaire interne…" id="commentInput"></textarea>
+              <button class="btn btn-primary" style="padding:9px 16px" onclick="addComment()">Envoyer</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div class="card-header"><div class="card-title">👷 Agent Assigné</div></div>
+          <div class="card-body" style="text-align:center">
+            <div style="width:64px;height:64px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-weight:900;font-size:22px;color:white;margin:0 auto 12px">AB</div>
+            <div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:var(--navy)">Aymen Ben Ali</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px">a.benali@mairie-sousse.tn</div>
+            <div style="display:flex;justify-content:center;gap:12px;margin-bottom:14px">
+              <div style="background:var(--bg);border-radius:var(--r);padding:8px 14px;text-align:center">
+                <div style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:900;color:var(--navy)">4</div>
+                <div style="font-size:10px;color:var(--muted);font-weight:600">TÂCHES</div>
+              </div>
+              <div style="background:var(--bg);border-radius:var(--r);padding:8px 14px;text-align:center">
+                <div style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:900;color:var(--green)">92%</div>
+                <div style="font-size:10px;color:var(--muted);font-weight:600">RÉSOLUTION</div>
+              </div>
+            </div>
+            <div style="height:5px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:6px"><div style="height:100%;width:60%;background:var(--blue);border-radius:99px"></div></div>
+            <div style="font-size:11px;color:var(--muted)">Charge : 4/7 tâches max</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">📍 Localisation</div></div>
+          <div style="height:140px;background:linear-gradient(160deg,#B8D4E8,#6AABB8);display:flex;align-items:center;justify-content:center;font-size:40px;position:relative">
+            📍
+            <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(255,255,255,.95);padding:10px 14px;font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              Avenue Léopold Senghor, Sousse
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">ℹ Infos Déclaration</div></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Référence Citoyen</span><span class="td-ref">SV-22-04-26-0042</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Référence Service</span><span class="td-ref">VR-22-04-26-0042</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Soumise le</span><span style="font-size:12px;font-weight:600">22 Avr 2026</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Priorité</span><span class="priority p-haute">Haute</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:var(--muted)">Votes citoyens</span><span style="font-size:12px;font-weight:600;color:var(--blue)">👍 14</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════ AGENTS ════════════════════ -->
+  <div class="page-content" id="page-agents">
+    <div class="page-header fade-in">
+      <div><div class="page-title">Mon Équipe</div><div class="page-breadcrumb">Département Voirie & Routes · 8 agents</div></div>
+      <div class="page-actions">
+        <button class="btn btn-outline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>Filtrer</button>
+      </div>
+    </div>
+
+    <!-- TEAM OVERVIEW -->
+    <div class="kpi-grid fade-in d1" style="grid-template-columns:repeat(4,1fr)">
+      <div class="kpi-card"><div><div class="kpi-label">Agents Actifs</div><div class="kpi-value">6</div><div class="kpi-change" style="background:var(--green-s);color:var(--green)">6/8 disponibles</div></div><div class="kpi-icon" style="background:var(--green-s);font-size:20px">✅</div></div>
+      <div class="kpi-card"><div><div class="kpi-label">Tâches en cours</div><div class="kpi-value">28</div><div class="kpi-change kpi-warn">Charge élevée</div></div><div class="kpi-icon" style="background:var(--orange-s);font-size:20px">⚡</div></div>
+      <div class="kpi-card"><div><div class="kpi-label">Tâches ce mois</div><div class="kpi-value">241</div><div class="kpi-change kpi-up">↑ 12%</div></div><div class="kpi-icon" style="background:var(--blue-soft);font-size:20px">📋</div></div>
+      <div class="kpi-card"><div><div class="kpi-label">Meilleur Taux</div><div class="kpi-value">96%</div><div class="kpi-change kpi-up">Aymen B.</div></div><div class="kpi-icon" style="background:var(--yellow-s);font-size:20px">🏆</div></div>
+    </div>
+
+    <!-- AGENTS CARDS -->
+    <div class="agents-grid fade-in d2" id="agents-cards-grid"></div>
+  </div>
+
+  <!-- ════════════════════ NOTIFICATIONS ════════════════════ -->
+  <div class="page-content" id="page-notifications">
+    <div class="page-header fade-in">
+      <div><div class="page-title">Notifications</div><div class="page-breadcrumb">3 non lues</div></div>
+      <button class="btn btn-ghost">Tout marquer comme lu</button>
+    </div>
+    <div class="card fade-in"><div id="notif-list"></div></div>
+  </div>
+
+  <!-- ════════════════════ ANALYTICS ════════════════════ -->
+  <div class="page-content" id="page-analytics">
+    <div class="page-header fade-in">
+      <div><div class="page-title">Statistiques — Voirie</div><div class="page-breadcrumb">Données temps réel · Département Voirie & Routes</div></div>
+      <div class="page-actions">
+        <select class="select-pill form-select"><option>6 derniers mois</option><option>Cette année</option></select>
+        <button class="btn btn-outline" onclick="nav('export')">Export CSV</button>
+      </div>
+    </div>
+
+    <div class="kpi-grid fade-in"><div class="kpi-card"><div><div class="kpi-label">Total ce mois</div><div class="kpi-value">312</div><div class="kpi-change kpi-up">↑ 12%</div></div><div class="kpi-icon" style="background:var(--blue-soft);font-size:20px">📈</div></div><div class="kpi-card"><div><div class="kpi-label">Délai moyen</div><div class="kpi-value">42h</div><div class="kpi-change kpi-down">↑ 6h hors objectif</div></div><div class="kpi-icon" style="background:var(--yellow-s);font-size:20px">⏱</div></div><div class="kpi-card"><div><div class="kpi-label">Satisfaction dept.</div><div class="kpi-value">4.7/5</div><div class="kpi-change kpi-up">↑ 0.2</div></div><div class="kpi-icon" style="background:var(--green-s);font-size:20px">⭐</div></div><div class="kpi-card"><div><div class="kpi-label">Agents disponibles</div><div class="kpi-value">6/8</div><div class="kpi-change" style="background:var(--blue-soft);color:var(--blue)">2 inactifs</div></div><div class="kpi-icon" style="background:var(--purple-s);font-size:20px">👷</div></div></div>
+
+    <div class="charts-grid fade-in d2">
+      <div class="card"><div class="card-header"><div class="card-title">Évolution mensuelle</div></div><div class="card-body"><div class="chart-container"><canvas id="analyticsLine"></canvas></div></div></div>
+      <div class="card"><div class="card-header"><div class="card-title">Performance par Agent</div></div><div class="card-body" id="agent-perf-list" style="display:flex;flex-direction:column;gap:14px"></div></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════ DÉPARTEMENT ════════════════════ -->
+  <div class="page-content" id="page-dept">
+    <div class="page-header fade-in">
+      <div><div class="page-title">Mon Département</div><div class="page-breadcrumb">Voirie & Routes · Configuration & informations</div></div>
+      <button class="btn btn-primary" onclick="openModal('edit-dept')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Modifier
+      </button>
+    </div>
+
+    <!-- DEPT INFO HERO -->
+    <div class="dept-info-card fade-in" style="margin-bottom:20px">
+      <div style="position:relative;z-index:1">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px">
+          <div style="width:56px;height:56px;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.2);border-radius:var(--r-lg);display:flex;align-items:center;justify-content:center;font-size:28px">🛣️</div>
+          <div>
+            <div style="font-family:'Outfit',sans-serif;font-size:24px;font-weight:900;color:white;letter-spacing:-0.5px">Voirie & Routes</div>
+            <div style="font-size:13px;color:rgba(255,255,255,.55)">Code: VR · Sousse Ville, Jawhara, Sidi Abdelhamid</div>
+          </div>
+          <div style="margin-left:auto"><span class="badge badge-resolue" style="background:rgba(13,185,122,.2);color:#10B981;border:1px solid rgba(13,185,122,.3)">Actif</span></div>
+        </div>
+        <div style="font-size:14px;color:rgba(255,255,255,.65);line-height:1.6;max-width:600px">Gestion des nids-de-poule, trottoirs dégradés, affaissements de chaussée et travaux de voirie sur l'ensemble des 3 délégations de Sousse.</div>
+        <div class="dept-kpi-row">
+          <div class="dept-kpi"><div class="dept-kpi-num">312</div><div class="dept-kpi-label">Déclarations</div></div>
+          <div class="dept-kpi"><div class="dept-kpi-num">8</div><div class="dept-kpi-label">Agents</div></div>
+          <div class="dept-kpi"><div class="dept-kpi-num">77%</div><div class="dept-kpi-label">Résolution</div></div>
+          <div class="dept-kpi"><div class="dept-kpi-num">42h</div><div class="dept-kpi-label">Délai moy.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIG CARDS -->
+    <div class="grid-3 fade-in d2">
+      <div class="card">
+        <div class="card-header"><div class="card-title">🌍 Noms Multilingues</div></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+          <div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Français</div><div style="font-size:14px;font-weight:700;color:var(--navy)">Voirie & Routes</div></div>
+          <div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">عربي</div><div style="font-size:14px;font-weight:700;color:var(--navy);direction:rtl">الطرق والأرصفة</div></div>
+          <div><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">English</div><div style="font-size:14px;font-weight:700;color:var(--navy)">Roads & Pavements</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">📋 Catégories de Problèmes</div></div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:8px" id="categories-list">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:var(--r);border:1px solid var(--border)"><span style="font-size:13px;font-weight:600">🕳️ Nids-de-poule</span><span style="font-size:11px;color:var(--blue);font-weight:700">68</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:var(--r);border:1px solid var(--border)"><span style="font-size:13px;font-weight:600">🏚️ Trottoirs dégradés</span><span style="font-size:11px;color:var(--blue);font-weight:700">54</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:var(--r);border:1px solid var(--border)"><span style="font-size:13px;font-weight:600">⬇️ Affaissements</span><span style="font-size:11px;color:var(--blue);font-weight:700">31</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:var(--r);border:1px solid var(--border)"><span style="font-size:13px;font-weight:600">🚧 Travaux urgents</span><span style="font-size:11px;color:var(--blue);font-weight:700">28</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">🔧 Paramètres</div></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px;color:var(--text)">Priorité automatique</span><div style="width:44px;height:24px;background:var(--blue);border-radius:99px;position:relative;cursor:pointer"><div style="width:18px;height:18px;background:white;border-radius:50%;position:absolute;top:3px;right:3px;box-shadow:var(--sh-sm)"></div></div></div>
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px;color:var(--text)">Notifications email</span><div style="width:44px;height:24px;background:var(--blue);border-radius:99px;position:relative;cursor:pointer"><div style="width:18px;height:18px;background:white;border-radius:50%;position:absolute;top:3px;right:3px;box-shadow:var(--sh-sm)"></div></div></div>
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px;color:var(--text)">Auto-clôture 7 jours</span><div style="width:44px;height:24px;background:var(--green);border-radius:99px;position:relative;cursor:pointer"><div style="width:18px;height:18px;background:white;border-radius:50%;position:absolute;top:3px;right:3px;box-shadow:var(--sh-sm)"></div></div></div>
+          <div><div style="font-size:12px;color:var(--muted);margin-bottom:6px">Délai objectif résolution</div><select class="form-input form-select" style="padding:8px 14px"><option>48 heures</option><option>24 heures</option><option>72 heures</option></select></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════ EXPORT ════════════════════ -->
+  <div class="page-content" id="page-export">
+    <div class="page-header fade-in">
+      <div><div class="page-title">Export Données</div><div class="page-breadcrumb">Département Voirie · Téléchargement des rapports</div></div>
+    </div>
+    <div class="card fade-in" style="padding:28px;margin-bottom:20px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;align-items:end">
+        <div class="form-group" style="margin-bottom:0"><label class="form-label">Période — Début</label><input type="date" class="form-input" value="2026-01-01"></div>
+        <div class="form-group" style="margin-bottom:0"><label class="form-label">Période — Fin</label><input type="date" class="form-input" value="2026-04-23"></div>
+        <div class="form-group" style="margin-bottom:0"><label class="form-label">Statut</label><select class="form-input form-select"><option>Tous les statuts</option><option>Résolues uniquement</option><option>En cours</option></select></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px" class="fade-in d1">
+      <div class="card" style="cursor:pointer;transition:all .2s" onmouseenter="this.style.boxShadow='0 10px 36px rgba(10,22,40,.12)'" onmouseleave="this.style.boxShadow=''" onclick="this.querySelector('.export-icon').textContent='✅'">
+        <div class="card-body" style="text-align:center;padding:32px">
+          <div style="font-size:40px;margin-bottom:12px" class="export-icon">📊</div>
+          <div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:var(--navy);margin-bottom:6px">Rapport CSV Déclarations</div>
+          <div style="font-size:13px;color:var(--muted)">Toutes les déclarations avec statuts, agents et dates</div>
+          <button class="btn btn-primary" style="margin-top:16px">Télécharger CSV</button>
+        </div>
+      </div>
+      <div class="card" style="cursor:pointer;transition:all .2s" onmouseenter="this.style.boxShadow='0 10px 36px rgba(10,22,40,.12)'" onmouseleave="this.style.boxShadow=''" onclick="this.querySelector('.export-icon2').textContent='✅'">
+        <div class="card-body" style="text-align:center;padding:32px">
+          <div style="font-size:40px;margin-bottom:12px" class="export-icon2">📈</div>
+          <div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:var(--navy);margin-bottom:6px">Rapport Performances Agents</div>
+          <div style="font-size:13px;color:var(--muted)">Taux résolution, délais et statistiques par agent</div>
+          <button class="btn btn-primary" style="margin-top:16px">Télécharger CSV</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end main-wrapper -->
+
+<!-- MODAL: ACCEPT & ASSIGN -->
+<div class="modal-backdrop" id="modal-accept">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">✅ Accepter & Assigner</div><div class="modal-close" onclick="closeModal('accept')">✕</div></div>
+    <div class="modal-body">
+      <div style="background:var(--blue-soft);border-radius:var(--r-md);padding:14px;margin-bottom:20px;border:1px solid rgba(21,87,255,.2)">
+        <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:4px">DÉCLARATION</div>
+        <div style="font-size:14px;font-weight:700;color:var(--navy)">Nid-de-poule majeur Av. Bourguiba</div>
+        <div style="font-size:12px;color:var(--muted)">SV-22-04-26-0042 · Priorité Haute</div>
+      </div>
+      <div class="form-group"><label class="form-label">Assigner à un Agent <span class="req">*</span></label>
+        <select class="form-input form-select" id="agentSelect">
+          <option value="">— Choisir un agent —</option>
+          <option>Aymen Ben Ali (4 tâches — Charge normale)</option>
+          <option>Sonia Dridi (6 tâches — Charge élevée)</option>
+          <option>Omar Sassi (2 tâches — Disponible)</option>
+          <option>Imen Bouzid (3 tâches — Disponible)</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Note interne</label><textarea class="form-input" rows="3" placeholder="Instructions pour l'agent, matériel requis…"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('accept')">Annuler</button>
+      <button class="btn btn-success" onclick="closeModal('accept')">✓ Confirmer l'assignation</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: REFUSE -->
+<div class="modal-backdrop" id="modal-refuse">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">↩ Refuser la Déclaration</div><div class="modal-close" onclick="closeModal('refuse')">✕</div></div>
+    <div class="modal-body">
+      <div style="background:var(--red-s);border-radius:var(--r-md);padding:14px;margin-bottom:20px;border:1px solid rgba(239,68,68,.2)">
+        <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:4px">⚠ ATTENTION</div>
+        <div style="font-size:13px;color:var(--text)">Le refus sera transmis au Président Municipal avec votre motif. Le citoyen verra le statut "EN ATTENTE" sans voir le détail du refus.</div>
+      </div>
+      <div class="form-group"><label class="form-label">Motif du refus <span class="req">*</span></label>
+        <select class="form-input form-select" style="margin-bottom:10px">
+          <option>Ce problème relève d'un autre département</option>
+          <option>Informations insuffisantes — description incomplète</option>
+          <option>Localisation hors zone de couverture</option>
+          <option>Problème déjà traité / doublon</option>
+          <option>Autre motif (préciser ci-dessous)</option>
+        </select>
+        <textarea class="form-input" rows="3" placeholder="Détails supplémentaires pour le Président…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('refuse')">Annuler</button>
+      <button class="btn btn-danger" onclick="closeModal('refuse')">Confirmer le refus →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: EDIT DEPT -->
+<div class="modal-backdrop" id="modal-edit-dept">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">✏ Modifier le Département</div><div class="modal-close" onclick="closeModal('edit-dept')">✕</div></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Nom Français</label><input class="form-input" value="Voirie & Routes"></div>
+      <div class="form-group"><label class="form-label">Nom Arabe</label><input class="form-input" value="الطرق والأرصفة" dir="rtl"></div>
+      <div class="form-group"><label class="form-label">Nom Anglais</label><input class="form-input" value="Roads & Pavements"></div>
+      <div class="form-group"><label class="form-label">Description</label><textarea class="form-input" rows="3">Gestion des nids-de-poule, trottoirs dégradés, affaissements de chaussée.</textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('edit-dept')">Annuler</button>
+      <button class="btn btn-primary" onclick="closeModal('edit-dept')">Sauvegarder</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──
+const DECLS = [
+  {ref:'SV-22-04-26-0042',title:'Nid-de-poule majeur Av. Bourguiba',citizen:'Sami B.',status:'assignee_chef',agent:'—',priority:'haute',date:'22/04'},
+  {ref:'SV-21-04-26-0038',title:'Trottoir effondré Rue des Oliviers',citizen:'Ines M.',status:'assignee_chef',agent:'—',priority:'haute',date:'21/04'},
+  {ref:'SJ-20-04-26-0029',title:'Affaissement chaussée Av. Taïeb',citizen:'Ahmed K.',status:'assignee_chef',agent:'—',priority:'moyenne',date:'20/04'},
+  {ref:'SV-19-04-26-0025',title:'Bordure de trottoir cassée',citizen:'Fares O.',status:'cours',agent:'Aymen B.',priority:'basse',date:'19/04'},
+  {ref:'SH-18-04-26-0022',title:'Route inondée après pluies',citizen:'Nadia S.',status:'cours',agent:'Sonia D.',priority:'haute',date:'18/04'},
+  {ref:'SV-17-04-26-0018',title:'Signalisation horizontale effacée',citizen:'Mohamed F.',status:'resolue',agent:'Omar S.',priority:'basse',date:'17/04'},
+  {ref:'SJ-16-04-26-0014',title:'Fosse derrière le marché central',citizen:'Leila T.',status:'resolue',agent:'Aymen B.',priority:'moyenne',date:'16/04'},
+  {ref:'SV-15-04-26-0011',title:'Nid-de-poule Rue Ibn Khaldoun',citizen:'Hassan R.',status:'cloture',agent:'Imen B.',priority:'basse',date:'15/04'},
+];
+
+const AGENTS = [
+  {name:'Aymen Ben Ali',email:'a.benali@mairie-sousse.tn',tasks:4,maxTasks:7,resolved:241,color:'#1557FF',active:true},
+  {name:'Sonia Dridi',email:'s.dridi@mairie-sousse.tn',tasks:6,maxTasks:7,resolved:186,color:'#10B981',active:true},
+  {name:'Omar Sassi',email:'o.sassi@mairie-sousse.tn',tasks:2,maxTasks:7,resolved:128,color:'#F59E0B',active:true},
+  {name:'Imen Bouzid',email:'i.bouzid@mairie-sousse.tn',tasks:3,maxTasks:7,resolved:154,color:'#8B5CF6',active:true},
+  {name:'Riadh Hamdi',email:'r.hamdi@mairie-sousse.tn',tasks:5,maxTasks:7,resolved:97,color:'#0891B2',active:true},
+  {name:'Amira Ghrabi',email:'a.ghrabi@mairie-sousse.tn',tasks:7,maxTasks:7,resolved:203,color:'#EF4444',active:true},
+  {name:'Youssef Ben Ahmed',email:'y.benaimed@mairie-sousse.tn',tasks:0,maxTasks:7,resolved:44,color:'#64748B',active:false},
+  {name:'Nour Chakroun',email:'n.chakroun@mairie-sousse.tn',tasks:0,maxTasks:7,resolved:82,color:'#64748B',active:false},
+];
+
+const NOTIFS = [
+  {unread:true,icon:'📋',bg:'#EBF2FF',text:'Nouvelle déclaration assignée par le Président : <strong>SV-22-04-26-0042</strong> — Nid-de-poule majeur.',time:'il y a 5 min'},
+  {unread:true,icon:'⚡',bg:'#E6FAF3',text:'<strong>Aymen Ben Ali</strong> a pris en charge la déclaration SV-22-04-26-0042.',time:'il y a 30 min'},
+  {unread:true,icon:'✅',bg:'#E6FAF3',text:'Déclaration <strong>SV-17-04-26-0018</strong> résolue par Omar Sassi avec photo preuve.',time:'il y a 2h'},
+  {unread:false,icon:'⚠️',bg:'#FFF1EB',text:'Agent <strong>Amira Ghrabi</strong> est à charge maximale (7/7 tâches).',time:'il y a 4h'},
+  {unread:false,icon:'📊',bg:'#F8FAFC',text:'Rapport hebdomadaire disponible. Taux résolution : 77%.',time:'il y a 1 jour'},
+];
+
+const AVATAR_COLORS=['#1557FF','#10B981','#F59E0B','#EF4444','#8B5CF6','#0891B2','#64748B','#E11D48'];
+function initials(n){return n.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase()}
+function statusBadge(s){
+  const m={assignee_chef:'badge-assignee',assignee_agent:'badge-assignee',cours:'badge-cours',resolue:'badge-resolue',cloture:'badge-cloture',refusee:'badge-refus'};
+  const l={assignee_chef:'En attente chef',assignee_agent:'Assignée agent',cours:'En cours',resolue:'Résolue',cloture:'Clôturée',refusee:'Refusée'};
+  return `<span class="badge ${m[s]||'badge-soumis'}">${l[s]||s}</span>`;
+}
+function pBadge(p){const m={haute:'p-haute',moyenne:'p-moyenne',basse:'p-basse'};return `<span class="priority ${m[p]}">${p.charAt(0).toUpperCase()+p.slice(1)}</span>`}
+
+// ── RENDER ──
+function renderPendingTable(){
+  const tb=document.getElementById('pending-table');if(!tb)return;
+  const pending=DECLS.filter(d=>d.status==='assignee_chef');
+  tb.innerHTML=pending.map(d=>`<tr>
+    <td><span class="td-ref">${d.ref}</span></td>
+    <td><span class="td-title">${d.title}</span></td>
+    <td>${pBadge(d.priority)}</td>
+    <td style="font-size:12px;color:var(--muted)">${d.date}/2026</td>
+    <td><div class="action-btns">
+      <div class="action-btn success" onclick="nav('detail');event.stopPropagation()" title="Accepter">✓</div>
+      <div class="action-btn" onclick="nav('detail');event.stopPropagation()" title="Voir">👁</div>
+      <div class="action-btn danger" onclick="openModal('refuse');event.stopPropagation()" title="Refuser">✕</div>
+    </div></td>
+  </tr>`).join('');
+}
+
+function renderTeamLoad(){
+  const c=document.getElementById('team-load');if(!c)return;
+  c.innerHTML=`<div style="display:flex;flex-direction:column;gap:12px">
+  ${AGENTS.filter(a=>a.active).map(a=>{
+    const pct=Math.round(a.tasks/a.maxTasks*100);
+    const color=pct>=85?'var(--red)':pct>=60?'var(--orange)':'var(--blue)';
+    return `<div style="display:flex;align-items:center;gap:12px">
+      <div style="width:32px;height:32px;border-radius:50%;background:${a.color};display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-weight:900;font-size:12px;color:white;flex-shrink:0">${initials(a.name)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:12px;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px">${a.name.split(' ')[0]}</span>
+          <span style="font-size:11px;font-weight:800;color:${color}">${a.tasks}/${a.maxTasks}</span>
+        </div>
+        <div style="height:4px;background:var(--border);border-radius:99px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${color};border-radius:99px;transition:width .6s ease"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('')}
+  </div>`;
+}
+
+function renderDeclTable(){
+  const tb=document.getElementById('decl-main-table');if(!tb)return;
+  tb.innerHTML=DECLS.map(d=>`<tr onclick="nav('detail')" style="cursor:pointer">
+    <td><input type="checkbox" onclick="event.stopPropagation()"></td>
+    <td><span class="td-ref">${d.ref}</span></td>
+    <td><span class="td-title">${d.title}</span></td>
+    <td style="font-size:12px;color:var(--muted)">${d.citizen}</td>
+    <td>${statusBadge(d.status)}</td>
+    <td style="font-size:12px;color:var(--sub)">${d.agent}</td>
+    <td>${pBadge(d.priority)}</td>
+    <td style="font-size:12px;color:var(--muted)">${d.date}/2026</td>
+    <td onclick="event.stopPropagation()"><div class="action-btns">
+      ${d.status==='assignee_chef'?`<div class="action-btn success" onclick="openModal('accept')">✓</div>`:'' }
+      <div class="action-btn" onclick="nav('detail')">👁</div>
+      ${d.status==='assignee_chef'?`<div class="action-btn danger" onclick="openModal('refuse')">✕</div>`:'' }
+    </div></td>
+  </tr>`).join('');
+}
+
+function renderAgents(){
+  const g=document.getElementById('agents-cards-grid');if(!g)return;
+  g.innerHTML=AGENTS.map(a=>{
+    const pct=Math.round(a.tasks/a.maxTasks*100);
+    const barColor=pct>=85?'var(--red)':pct>=60?'var(--orange)':'var(--blue)';
+    const resRate=Math.round(a.resolved/312*100);
+    return `<div class="agent-card">
+      <div class="agent-status-dot" style="background:${a.active?'var(--green)':'var(--light)'}"></div>
+      <div class="agent-avatar" style="background:${a.color}">${initials(a.name)}</div>
+      <div class="agent-name">${a.name}</div>
+      <div class="agent-email">${a.email}</div>
+      <div class="agent-stats">
+        <div class="agent-stat"><div class="agent-stat-num">${a.tasks}</div><div class="agent-stat-label">Tâches</div></div>
+        <div class="agent-stat"><div class="agent-stat-num" style="color:var(--green)">${resRate}%</div><div class="agent-stat-label">Résolution</div></div>
+      </div>
+      <div class="agent-workload-bar"><div class="agent-workload-fill" style="width:${pct}%;background:${barColor}"></div></div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Charge : ${a.tasks}/${a.maxTasks} tâches</div>
+      <div class="agent-actions">
+        <button class="agent-btn" onclick="openModal('accept')">📋 Assigner</button>
+        <button class="agent-btn deactivate">${a.active?'⛔ Désactiver':'✅ Activer'}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderNotifs(){
+  const c=document.getElementById('notif-list');if(!c)return;
+  c.innerHTML=NOTIFS.map(n=>`<div class="notif-item ${n.unread?'unread':''}">
+    <div style="width:8px;height:8px;border-radius:50%;background:${n.unread?'var(--blue)':'transparent'};margin-top:6px;flex-shrink:0"></div>
+    <div class="notif-icon" style="background:${n.bg}">${n.icon}</div>
+    <div><div class="notif-text">${n.text}</div><div class="notif-time">${n.time}</div></div>
+  </div>`).join('');
+}
+
+function renderAgentPerf(){
+  const c=document.getElementById('agent-perf-list');if(!c)return;
+  c.innerHTML=AGENTS.filter(a=>a.active).map(a=>{
+    const rate=Math.round(a.resolved/312*100);
+    return `<div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+        <span style="display:flex;align-items:center;gap:8px">
+          <div style="width:24px;height:24px;border-radius:50%;background:${a.color};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:white">${initials(a.name)}</div>
+          <span style="font-size:12px;font-weight:600;color:var(--navy)">${a.name.split(' ')[0]} ${a.name.split(' ')[1][0]}.</span>
+        </span>
+        <span style="font-size:12px;font-weight:800;color:var(--green)">${rate}%</span>
+      </div>
+      <div style="height:4px;background:var(--border);border-radius:99px;overflow:hidden">
+        <div style="height:100%;width:${rate}%;background:${a.color};border-radius:99px"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── NAVIGATION ──
+function nav(id){
+  document.querySelectorAll('.page-content').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(i=>i.classList.remove('active'));
+  const pg=document.getElementById('page-'+id);
+  if(pg){pg.classList.add('active')}
+  document.querySelectorAll('.sidebar-item').forEach(b=>{
+    if(b.getAttribute('onclick')&&b.getAttribute('onclick').includes("'"+id+"'"))b.classList.add('active');
+  });
+  window.scrollTo(0,0);
+  renderPendingTable();renderTeamLoad();renderDeclTable();renderAgents();renderNotifs();renderAgentPerf();
+  if(id==='analytics')setTimeout(initAnalyticsCharts,100);
+}
+
+function setTab(btn){
+  btn.closest('div').querySelectorAll('.btn').forEach(b=>{b.className=b.className.replace('btn-primary','btn-outline')});
+  btn.className=btn.className.replace('btn-outline','btn-primary');
+}
+
+// ── MODALS ──
+function openModal(id){document.getElementById('modal-'+id).classList.add('open')}
+function closeModal(id){document.getElementById('modal-'+id).classList.remove('open')}
+document.querySelectorAll('.modal-backdrop').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')})});
+
+// ── COMMENT ──
+function addComment(){
+  const inp=document.getElementById('commentInput');
+  if(!inp||!inp.value.trim())return;
+  const list=document.getElementById('comments-list');
+  const div=document.createElement('div');div.className='comment-item';
+  div.innerHTML=`<div class="comment-avatar" style="background:var(--blue)">KM</div><div class="comment-bubble"><div class="comment-meta"><span class="comment-author">Karim Mansour (Chef)</span><span class="comment-time">à l'instant</span></div><div class="comment-text">${inp.value}</div></div>`;
+  list.appendChild(div);inp.value='';
+}
+
+// ── CHARTS ──
+function initCharts(){
+  const c1=document.getElementById('chartMain');
+  if(c1)new Chart(c1,{type:'bar',data:{labels:['Nov','Déc','Jan','Fév','Mar','Avr'],datasets:[
+    {label:'Nouvelles',data:[54,68,80,72,61,78],backgroundColor:'#1557FF',borderRadius:4,barPercentage:.55},
+    {label:'Résolues',data:[40,52,68,60,55,67],backgroundColor:'#10B981',borderRadius:4,barPercentage:.55},
+    {label:'En cours',data:[14,16,12,12,6,11],backgroundColor:'#F59E0B',borderRadius:4,barPercentage:.55},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+    x:{grid:{display:false},border:{display:false},ticks:{font:{size:11},color:'#8A9AB5'}},
+    y:{grid:{color:'#E2EAF4'},border:{display:false},ticks:{font:{size:10},color:'#8A9AB5'}}
+  }}});
+
+  const c2=document.getElementById('donutDash');
+  if(c2)new Chart(c2,{type:'doughnut',data:{labels:['Attente','En cours','Résolues','Refusées'],datasets:[{data:[7,48,241,16],backgroundColor:['#F59E0B','#1557FF','#10B981','#EF4444'],borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false}}}});
+}
+
+function initAnalyticsCharts(){
+  if(window._aCharts)return;window._aCharts=true;
+  const lc=document.getElementById('analyticsLine');
+  if(lc)new Chart(lc,{type:'line',data:{labels:['Nov','Déc','Jan','Fév','Mar','Avr'],datasets:[
+    {label:'Déclarations',data:[54,68,80,72,61,78],borderColor:'#1557FF',backgroundColor:'rgba(21,87,255,.08)',fill:true,tension:.4,pointBackgroundColor:'#1557FF',pointRadius:4},
+    {label:'Résolues',data:[40,52,68,60,55,67],borderColor:'#10B981',backgroundColor:'rgba(13,185,122,.06)',fill:true,tension:.4,pointBackgroundColor:'#10B981',pointRadius:4},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+    x:{grid:{display:false},border:{display:false},ticks:{font:{size:11},color:'#8A9AB5'}},
+    y:{grid:{color:'#E2EAF4'},border:{display:false},ticks:{font:{size:10},color:'#8A9AB5'}}
+  }}});
+}
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded',()=>{
+  renderPendingTable();renderTeamLoad();renderDeclTable();renderAgents();renderNotifs();renderAgentPerf();
+  setTimeout(initCharts,100);
+});
+</script>
+</body>
+</html>

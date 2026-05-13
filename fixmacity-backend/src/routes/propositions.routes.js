@@ -20,16 +20,25 @@ router.post(
   cp.voteProposition
 );
 
-// Create a proposition (President only)
+// Create a suggestion (Citizen & President)
 router.post(
   '/',
-  rbac('president'),
+  rbac('citizen', 'president'),
   [
-    body('title').notEmpty().withMessage('Titre requis.'),
-    body('start_date').isISO8601().withMessage('Date de début valide requise.'),
-    body('end_date').isISO8601().withMessage('Date de fin valide requise.')
+    body('title').notEmpty().withMessage('Titre requis.').isLength({ min: 3 }),
   ],
   cp.createProposition
+);
+
+// Respond to a suggestion (President only)
+router.patch(
+  '/:id/respond',
+  rbac('president'),
+  [
+    body('status').isIn(['a_discuter', 'retenu', 'refuse']).withMessage('Statut invalide.'),
+    body('president_response').optional().isString()
+  ],
+  cp.respondToProposition
 );
 
 module.exports = router;

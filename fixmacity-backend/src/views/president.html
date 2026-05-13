@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FixMaCity — Interface Président</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script>
+  (function() {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (!token || user.role !== 'president') {
+      window.location.href = '/login';
+    }
+  })();
+</script>
+<style>
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0A1628;--blue:#1557FF;--blue-h:#0F46D6;--blue-soft:#EBF2FF;
+  --bg:#F0F4FA;--surface:#fff;--border:#E2EAF4;--border-2:#CBD5E6;
+  --text:#0A1628;--sub:#4A5E7A;--muted:#8A9AB5;--light:#B8C6D8;
+  --green:#0DB97A;--green-s:#E6FAF3;--orange:#FF6B2B;--orange-s:#FFF1EB;
+  --red:#EF4444;--red-s:#FEF2F2;--yellow:#F59E0B;--yellow-s:#FFFBEB;
+  --purple:#7C3AED;--purple-s:#F3EEFF;
+  --sh-sm:0 1px 3px rgba(10,22,40,.06),0 1px 6px rgba(10,22,40,.04);
+  --sh-md:0 4px 16px rgba(10,22,40,.08);
+  --sh-lg:0 10px 36px rgba(10,22,40,.12);
+  --sh-blue:0 6px 20px rgba(21,87,255,.28);
+  --r:8px;--r-md:12px;--r-lg:16px;--r-xl:20px;
+  --sidebar:220px;
+}
+html{height:100%}
+body{font-family:'Plus Jakarta Sans',sans-serif;color:var(--text);background:var(--bg);display:flex;min-height:100vh;overflow-x:hidden}
+h1,h2,h3,h4,h5,h6{font-family:'Outfit',sans-serif}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+/* ─── SIDEBAR ─── */
+.sidebar{
+  width:var(--sidebar);min-width:var(--sidebar);height:100vh;
+  position:fixed;top:0;left:0;z-index:100;
+  background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;
+}
+.sidebar-logo{
+  display:flex;align-items:center;gap:10px;padding:20px 18px 16px;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.sidebar-logo-icon{
+  width:32px;height:32px;background:var(--navy);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.sidebar-logo-text{font-family:'Outfit',sans-serif;font-weight:800;font-size:16px;color:var(--navy)}
+.sidebar-logo-text span{color:var(--blue)}
+.sidebar-collapse{
+  margin-left:auto;width:24px;height:24px;border-radius:6px;
+  background:var(--bg);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;color:var(--muted);
+}
+
+.sidebar-section{padding:16px 12px 8px}
+.sidebar-section-label{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);padding:0 8px;margin-bottom:6px}
+.sidebar-nav{list-style:none;display:flex;flex-direction:column;gap:2px}
+.sidebar-item{
+  display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r);
+  cursor:pointer;transition:background .15s,color .15s;position:relative;
+  font-size:13px;font-weight:500;color:var(--sub);text-decoration:none;
+  border:none;background:none;width:100%;text-align:left;
+}
+.sidebar-item:hover{background:var(--bg);color:var(--navy)}
+.sidebar-item.active{background:var(--blue-soft);color:var(--blue);font-weight:700}
+.sidebar-item svg{width:16px;height:16px;flex-shrink:0}
+.sidebar-badge{
+  margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:99px;
+  background:var(--red);color:white;font-size:10px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+}
+.sidebar-badge.blue{background:var(--blue-soft);color:var(--blue)}
+.sidebar-badge.green{background:var(--green-s);color:var(--green)}
+
+.sidebar-footer{
+  margin-top:auto;padding:12px;border-top:1px solid var(--border);
+}
+.sidebar-user{
+  display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--r-md);
+  background:var(--bg);cursor:pointer;margin-bottom:10px;
+}
+.sidebar-avatar{
+  width:34px;height:34px;border-radius:50%;background:var(--navy);
+  display:flex;align-items:center;justify-content:center;
+  color:white;font-family:'Outfit',sans-serif;font-weight:800;font-size:13px;flex-shrink:0;
+}
+.sidebar-user-info{min-width:0}
+.sidebar-user-name{font-size:13px;font-weight:700;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-user-role{font-size:11px;color:var(--muted)}
+.upgrade-btn{
+  width:100%;background:var(--navy);color:white;font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:12px;font-weight:700;padding:10px;border-radius:var(--r);border:none;cursor:pointer;
+  transition:background .2s;
+}
+.upgrade-btn:hover{background:#162B4A}
+
+/* ─── TOPBAR ─── */
+.topbar{
+  height:60px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;padding:0 28px;
+  position:sticky;top:0;z-index:50;
+}
+.topbar-search{
+  flex:1;max-width:340px;display:flex;align-items:center;gap:10px;
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--r);
+  padding:0 14px;height:36px;cursor:text;
+}
+.topbar-search input{background:none;border:none;outline:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:var(--text);width:100%}
+.topbar-search input::placeholder{color:var(--muted)}
+.topbar-search svg{width:14px;height:14px;color:var(--muted);flex-shrink:0}
+.topbar-shortcut{font-size:10px;font-weight:700;color:var(--muted);background:var(--border);padding:2px 6px;border-radius:4px;white-space:nowrap}
+.topbar-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.topbar-btn{
+  width:36px;height:36px;border-radius:var(--r);background:var(--bg);
+  border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:background .15s;position:relative;
+}
+.topbar-btn:hover{background:var(--blue-soft)}
+.topbar-btn svg{width:16px;height:16px;color:var(--sub)}
+.notif-dot{position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:var(--red);border:2px solid var(--surface)}
+.topbar-user{display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 10px;border-radius:var(--r-md);transition:background .15s}
+.topbar-user:hover{background:var(--bg)}
+.topbar-avatar{width:32px;height:32px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;color:white;font-family:'Outfit',sans-serif;font-weight:800;font-size:12px}
+.topbar-user-info{text-align:right}
+.topbar-user-name{font-size:13px;font-weight:700;color:var(--navy)}
+.topbar-user-role{font-size:11px;color:var(--muted)}
+
+/* ─── MAIN LAYOUT ─── */
+.main-wrapper{margin-left:var(--sidebar);display:flex;flex-direction:column;min-height:100vh;flex:1}
+.page-content{padding:28px;flex:1;display:none}
+.page-content.active{display:block}
+
+/* ─── PAGE HEADER ─── */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.page-header-left{}
+.page-title{font-family:'Outfit',sans-serif;font-size:26px;font-weight:900;color:var(--navy);letter-spacing:-0.5px}
+.page-breadcrumb{font-size:12px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:5px}
+.page-actions{display:flex;gap:10px;align-items:center}
+
+/* ─── BUTTONS ─── */
+.btn{
+  display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--r);
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;
+  border:none;cursor:pointer;transition:all .15s;text-decoration:none;
+}
+.btn-primary{background:var(--blue);color:white;box-shadow:var(--sh-blue)}
+.btn-primary:hover{background:var(--blue-h);transform:translateY(-1px)}
+.btn-outline{background:white;color:var(--text);border:1px solid var(--border)}
+.btn-outline:hover{background:var(--bg);border-color:var(--border-2)}
+.btn-ghost{background:transparent;color:var(--sub);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg)}
+.btn svg{width:14px;height:14px}
+
+/* ─── KPI CARDS ─── */
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.kpi-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:20px 22px;box-shadow:var(--sh-sm);
+  display:flex;align-items:flex-start;justify-content:space-between;
+  transition:box-shadow .2s,transform .2s;cursor:default;
+}
+.kpi-card:hover{box-shadow:var(--sh-md);transform:translateY(-2px)}
+.kpi-label{font-size:12px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.kpi-label svg{width:14px;height:14px}
+.kpi-value{font-family:'Outfit',sans-serif;font-size:30px;font-weight:900;color:var(--navy);letter-spacing:-1px;line-height:1}
+.kpi-change{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:3px 8px;border-radius:99px;margin-top:8px}
+.kpi-up{background:var(--green-s);color:var(--green)}
+.kpi-down{background:var(--red-s);color:var(--red)}
+.kpi-neutral{background:var(--yellow-s);color:var(--yellow)}
+.kpi-icon{width:42px;height:42px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* ─── CHART CARDS ─── */
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--sh-sm);overflow:hidden}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)}
+.card-title{font-family:'Outfit',sans-serif;font-size:15px;font-weight:800;color:var(--navy);display:flex;align-items:center;gap:8px}
+.card-title svg{width:16px;height:16px;color:var(--blue)}
+.card-body{padding:20px 22px}
+.chart-hero{font-family:'Outfit',sans-serif;font-size:28px;font-weight:900;color:var(--navy);margin-bottom:4px}
+.chart-sub{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.chart-sub .pill{display:inline-flex;align-items:center;gap:4px;font-weight:700}
+.pill-green{color:var(--green)}
+.chart-container{height:200px;position:relative}
+
+/* ─── SELECT/DATE ─── */
+.select-pill{
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:600;
+  color:var(--sub);background:var(--bg);border:1px solid var(--border);
+  border-radius:99px;padding:5px 12px;cursor:pointer;outline:none;
+  transition:border-color .2s;
+}
+.select-pill:hover{border-color:var(--blue)}
+.date-range{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--sub);background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:6px 12px;cursor:pointer}
+.date-range svg{width:13px;height:13px}
+
+/* ─── LEGEND ─── */
+.chart-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--sub)}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* ─── STATUS BREAKDOWN ─── */
+.status-list{display:flex;flex-direction:column;gap:14px}
+.status-row{}
+.status-row-header{display:flex;justify-content:space-between;margin-bottom:5px}
+.status-name{font-size:12px;font-weight:600;color:var(--text)}
+.status-count{font-size:12px;font-weight:800;color:var(--navy)}
+.status-bar{height:6px;background:var(--bg);border-radius:99px;overflow:hidden}
+.status-fill{height:100%;border-radius:99px;transition:width .8s ease}
+
+/* ─── BOTTOM GRID ─── */
+.bottom-grid{display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-bottom:24px}
+.bottom-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px}
+
+/* ─── TABLE ─── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{
+  padding:10px 14px;background:var(--bg);font-size:11px;font-weight:700;
+  color:var(--muted);text-transform:uppercase;letter-spacing:1px;
+  text-align:left;white-space:nowrap;
+}
+thead th:first-child{border-radius:var(--r) 0 0 var(--r)}
+thead th:last-child{border-radius:0 var(--r) var(--r) 0}
+tbody tr{border-bottom:1px solid var(--border);transition:background .15s;cursor:default}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--bg)}
+td{padding:13px 14px;font-size:13px;color:var(--text);vertical-align:middle;white-space:nowrap}
+.td-ref{font-family:'Courier New',monospace;font-size:11px;color:var(--muted);background:var(--bg);padding:3px 8px;border-radius:4px;border:1px solid var(--border)}
+.td-title{font-weight:600;color:var(--navy);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.td-dept{font-size:12px;color:var(--sub)}
+
+/* STATUS BADGES */
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:4px 10px;border-radius:99px}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.badge-soumis{background:var(--yellow-s);color:var(--yellow)}.badge-soumis::before{background:var(--yellow)}
+.badge-assignee{background:var(--orange-s);color:var(--orange)}.badge-assignee::before{background:var(--orange)}
+.badge-cours{background:var(--blue-soft);color:var(--blue)}.badge-cours::before{background:var(--blue);animation:blink 1.5s infinite}
+.badge-resolue{background:var(--green-s);color:var(--green)}.badge-resolue::before{background:var(--green)}
+.badge-cloture{background:#F3F4F6;color:#6B7280}.badge-cloture::before{background:#9CA3AF}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* PRIORITY BADGES */
+.priority{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px}
+.priority-haute{background:var(--red-s);color:var(--red)}
+.priority-moyenne{background:var(--yellow-s);color:var(--yellow)}
+.priority-basse{background:var(--green-s);color:var(--green)}
+
+/* ACTION BTNS */
+.action-btns{display:flex;gap:6px}
+.action-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:white;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;font-size:12px}
+.action-btn:hover{background:var(--blue-soft);border-color:var(--blue)}
+.action-btn.danger:hover{background:var(--red-s);border-color:var(--red)}
+
+/* ─── AGENT CARDS ─── */
+.agent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;padding:0}
+.agent-card{background:var(--bg);border-radius:var(--r-md);padding:16px;text-align:center;border:1px solid var(--border);transition:box-shadow .2s,border-color .2s;cursor:default}
+.agent-card:hover{box-shadow:var(--sh-md);border-color:var(--blue)}
+.agent-avatar{width:44px;height:44px;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-weight:800;font-size:16px;color:white}
+.agent-name{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:3px}
+.agent-dept{font-size:11px;color:var(--muted);margin-bottom:8px}
+.agent-tasks{display:flex;justify-content:center;gap:6px}
+.agent-task-chip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px}
+
+/* ─── DEPT CARDS ─── */
+.dept-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.dept-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;box-shadow:var(--sh-sm);transition:box-shadow .2s,transform .2s;cursor:default}
+.dept-card:hover{box-shadow:var(--sh-md);transform:translateY(-2px)}
+.dept-icon{width:44px;height:44px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:14px}
+.dept-name{font-family:'Outfit',sans-serif;font-size:15px;font-weight:800;color:var(--navy);margin-bottom:4px}
+.dept-abbr{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px}
+.dept-stat{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.dept-stat-label{font-size:12px;color:var(--sub)}
+.dept-stat-val{font-size:13px;font-weight:800;color:var(--navy)}
+.dept-bar-bg{height:4px;background:var(--bg);border-radius:99px;overflow:hidden;margin-top:8px}
+.dept-bar-fill{height:100%;border-radius:99px}
+
+/* ─── PROPOSITIONS ─── */
+.prop-table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--sh-sm);overflow:hidden}
+.prop-respond-btn{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:5px 12px;border-radius:99px;border:none;cursor:pointer;transition:all .2s}
+.btn-retenu{background:var(--green-s);color:var(--green)}.btn-retenu:hover{background:var(--green);color:white}
+.btn-discuter{background:var(--yellow-s);color:var(--yellow)}.btn-discuter:hover{background:var(--yellow);color:white}
+.btn-refuse{background:var(--red-s);color:var(--red)}.btn-refuse:hover{background:var(--red);color:white}
+
+/* ─── MODAL ─── */
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(10,22,40,.5);z-index:500;
+  display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);
+}
+.modal-backdrop.open{display:flex}
+.modal{
+  background:white;border-radius:var(--r-xl);width:560px;max-width:95vw;max-height:90vh;
+  overflow-y:auto;box-shadow:var(--sh-lg);animation:modal-in .25s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes modal-in{from{opacity:0;transform:scale(.9) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:22px 24px;border-bottom:1px solid var(--border)}
+.modal-title{font-family:'Outfit',sans-serif;font-size:18px;font-weight:800;color:var(--navy)}
+.modal-close{width:32px;height:32px;border-radius:50%;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--sub)}
+.modal-body{padding:24px}
+.form-group{margin-bottom:18px}
+.form-label{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.form-label .required{color:var(--red)}
+.form-input{
+  width:100%;padding:11px 14px;border-radius:var(--r);border:1.5px solid var(--border);
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:var(--text);
+  background:white;outline:none;transition:border-color .2s;
+}
+.form-input:focus{border-color:var(--blue)}
+.form-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A9AB5' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;cursor:pointer}
+.modal-footer{padding:18px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+
+/* ─── DEPT BADGE CARDS ─── */
+.dept-assign-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:6px}
+.dept-assign-card{
+  border:1.5px solid var(--border);border-radius:var(--r-md);padding:14px 10px;
+  text-align:center;cursor:pointer;transition:all .2s;background:white;
+}
+.dept-assign-card:hover{border-color:var(--blue);background:var(--blue-soft);transform:translateY(-2px)}
+.dept-assign-card.selected{border-color:var(--blue);background:var(--blue-soft)}
+.dept-assign-icon{font-size:22px;margin-bottom:6px}
+.dept-assign-name{font-size:11px;font-weight:700;color:var(--navy)}
+.dept-assign-abbr{font-size:10px;color:var(--muted);margin-top:2px}
+
+/* ─── EXPORT PAGE ─── */
+.export-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.export-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px;box-shadow:var(--sh-sm);cursor:pointer;transition:all .2s;text-align:center}
+.export-card:hover{box-shadow:var(--sh-md);border-color:var(--blue);transform:translateY(-2px)}
+.export-icon{font-size:40px;margin-bottom:12px}
+.export-title{font-family:'Outfit',sans-serif;font-size:16px;font-weight:800;color:var(--navy);margin-bottom:6px}
+.export-desc{font-size:13px;color:var(--muted);line-height:1.5}
+
+/* ─── NOTIFICATION ITEMS ─── */
+.notif-item{display:flex;align-items:flex-start;gap:12px;padding:14px 22px;border-bottom:1px solid var(--border);transition:background .15s;cursor:pointer}
+.notif-item:hover{background:var(--bg)}
+.notif-item.unread{background:var(--blue-soft)}
+.notif-dot-badge{width:8px;height:8px;border-radius:50%;background:var(--blue);margin-top:6px;flex-shrink:0}
+.notif-dot-badge.empty{background:transparent}
+.notif-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.notif-text{font-size:13px;color:var(--text);line-height:1.4}
+.notif-text strong{font-weight:700;color:var(--navy)}
+.notif-time{font-size:11px;color:var(--muted);margin-top:4px}
+
+/* ─── USERS PAGE ─── */
+.users-table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--sh-sm);overflow:hidden}
+.user-pill{display:flex;align-items:center;gap:8px}
+.user-pill-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-weight:800;font-size:11px;color:white;flex-shrink:0}
+.user-pill-name{font-size:13px;font-weight:600;color:var(--navy)}
+.user-pill-email{font-size:11px;color:var(--muted)}
+.role-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px}
+.role-president{background:var(--purple-s);color:var(--purple)}
+.role-chef{background:var(--blue-soft);color:var(--blue)}
+.role-agent{background:var(--green-s);color:var(--green)}
+.role-citoyen{background:var(--bg);color:var(--sub);border:1px solid var(--border)}
+
+/* ─── UTILS ─── */
+.flex-center{display:flex;align-items:center;justify-content:center}
+.flex-between{display:flex;align-items:center;justify-content:space-between}
+.gap-8{gap:8px}.gap-12{gap:12px}
+.fade-in{animation:fade-up .4s ease both}
+@keyframes fade-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.d1{animation-delay:.05s}.d2{animation-delay:.1s}.d3{animation-delay:.15s}.d4{animation-delay:.2s}.d5{animation-delay:.25s}
+
+/* ─── MINI CHART (sparkline) ─── */
+.sparkline{height:40px;width:80px}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ SIDEBAR ═══════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <rect x="2" y="13" width="5" height="9" rx="1" fill="white" fill-opacity=".9"/>
+        <rect x="9" y="8" width="6" height="14" rx="1" fill="white"/>
+        <rect x="17" y="4" width="5" height="18" rx="1" fill="white" fill-opacity=".7"/>
+        <circle cx="12" cy="3" r="2" fill="#5B9FFF"/>
+      </svg>
+    </div>
+    <span class="sidebar-logo-text">Fix<span>Ma</span>City</span>
+    <div class="sidebar-collapse">◀</div>
+  </div>
+
+  <!-- GENERAL -->
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">General</div>
+    <ul class="sidebar-nav">
+      <li><button class="sidebar-item active" onclick="nav('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </button></li>
+      <li><button class="sidebar-item" onclick="nav('declarations')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Déclarations
+        <span class="sidebar-badge">18</span>
+      </button></li>
+      <li><button class="sidebar-item" onclick="nav('users')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Utilisateurs
+      </button></li>
+      <li><button class="sidebar-item" onclick="nav('notifications')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Notifications
+        <span class="sidebar-badge">5</span>
+      </button></li>
+    </ul>
+  </div>
+
+  <!-- TOOLS -->
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Tools</div>
+    <ul class="sidebar-nav">
+      <li><button class="sidebar-item" onclick="nav('departments')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Départements
+      </button></li>
+      <li><button class="sidebar-item" onclick="nav('propositions')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Propositions
+        <span class="sidebar-badge blue">12</span>
+      </button></li>
+      <li><button class="sidebar-item" onclick="nav('analytics')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Analytiques
+      </button></li>
+      <li><button class="sidebar-item" onclick="nav('export')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export Données
+      </button></li>
+    </ul>
+  </div>
+
+  <!-- SUPPORT -->
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Support</div>
+    <ul class="sidebar-nav">
+      <li><button class="sidebar-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 1 4.93 19.07"/></svg>
+        Paramètres
+      </button></li>
+      <li><button class="sidebar-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Sécurité
+      </button></li>
+      <li><button class="sidebar-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Aide
+      </button></li>
+    </ul>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="sidebar-avatar">MA</div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name">Mohamed Ayari</div>
+        <div class="sidebar-user-role">Président Municipal</div>
+      </div>
+    </div>
+    <button class="upgrade-btn">⚙ Paramètres du compte</button>
+  </div>
+</aside>
+
+<!-- ═══════════ MAIN ═══════════ -->
+<div class="main-wrapper">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search...">
+      <span class="topbar-shortcut">⌘ F</span>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      </div>
+      <div class="topbar-btn" onclick="nav('notifications')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div class="notif-dot"></div>
+      </div>
+      <div class="topbar-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+      </div>
+      <div class="topbar-user">
+        <div class="topbar-user-info">
+          <div class="topbar-user-name">Mohamed Ayari</div>
+          <div class="topbar-user-role">Président</div>
+        </div>
+        <div class="topbar-avatar">MA</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ -->
+  <!-- PAGE: DASHBOARD                    -->
+  <!-- ══════════════════════════════════ -->
+  <div class="page-content active" id="page-dashboard">
+    <!-- HEADER -->
+    <div class="page-header fade-in">
+      <div class="page-header-left">
+        <div class="page-title">Dashboard</div>
+        <div class="page-breadcrumb">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Oct 18 – Nov 18 &nbsp;·&nbsp; Mensuel ▾
+        </div>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-ghost">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Filtrer
+        </button>
+        <button class="btn btn-outline">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+        <button class="btn btn-primary" onclick="openModal('assign')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Assigner
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI GRID -->
+    <div class="kpi-grid">
+      <div class="kpi-card fade-in d1">
+        <div>
+          <div class="kpi-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+            Total Déclarations
+          </div>
+          <div class="kpi-value">1,284</div>
+          <div class="kpi-change kpi-up">↑ 15.8% ce mois</div>
+        </div>
+        <div class="kpi-icon" style="background:var(--blue-soft)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+      </div>
+      <div class="kpi-card fade-in d2">
+        <div>
+          <div class="kpi-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            Taux de Résolution
+          </div>
+          <div class="kpi-value">84.2%</div>
+          <div class="kpi-change kpi-down">↓ 3.1% depuis hier</div>
+        </div>
+        <div class="kpi-icon" style="background:var(--green-s)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+      </div>
+      <div class="kpi-card fade-in d3">
+        <div>
+          <div class="kpi-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+            Agents Actifs
+          </div>
+          <div class="kpi-value">47</div>
+          <div class="kpi-change kpi-up">↑ 8.3% cette semaine</div>
+        </div>
+        <div class="kpi-icon" style="background:var(--purple-s)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECOND KPI ROW -->
+    <div class="kpi-grid" style="margin-bottom:24px">
+      <div class="kpi-card fade-in d1">
+        <div>
+          <div class="kpi-label">⚡ En Attente d'Assignation</div>
+          <div class="kpi-value" style="color:var(--orange)">28</div>
+          <div class="kpi-change" style="background:var(--orange-s);color:var(--orange)">⚠ Action requise</div>
+        </div>
+        <div class="kpi-icon" style="background:var(--orange-s);font-size:20px">⚡</div>
+      </div>
+      <div class="kpi-card fade-in d2">
+        <div>
+          <div class="kpi-label">⏱ Délai Moyen Résolution</div>
+          <div class="kpi-value">36h</div>
+          <div class="kpi-change kpi-up">↑ Objectif &lt;48h atteint</div>
+        </div>
+        <div class="kpi-icon" style="background:var(--yellow-s);font-size:20px">⏱</div>
+      </div>
+      <div class="kpi-card fade-in d3">
+        <div>
+          <div class="kpi-label">⭐ Satisfaction Citoyenne</div>
+          <div class="kpi-value">4.8<span style="font-size:16px;color:var(--muted);font-weight:500">/5</span></div>
+          <div class="kpi-change kpi-up">↑ 0.3 ce mois</div>
+        </div>
+        <div class="kpi-icon" style="background:var(--yellow-s);font-size:20px">⭐</div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts-grid fade-in d2">
+      <!-- MAIN CHART -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Aperçu des Déclarations
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-ghost" style="padding:5px 10px;font-size:11px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              Filtrer
+            </button>
+            <button class="btn btn-ghost" style="padding:5px 10px;font-size:11px">↕ Trier</button>
+            <button class="btn btn-ghost" style="padding:5px 10px;font-size:11px">···</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="chart-hero">1,284 Déclarations</div>
+          <div class="chart-sub">
+            <span class="pill pill-green">↑ 15.8%</span>
+            <span>+ 167 signalements de plus ce mois</span>
+          </div>
+          <div class="chart-container">
+            <canvas id="mainChart"></canvas>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#1557FF"></div>Voirie</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#10B981"></div>Éclairage</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#F59E0B"></div>Propreté</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#8B5CF6"></div>Espaces Verts</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#64748B"></div>Autres</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATUS BREAKDOWN -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Statut des Traitements
+          </div>
+          <select class="select-pill">
+            <option>Mensuel</option>
+            <option>Hebdo</option>
+          </select>
+        </div>
+        <div class="card-body">
+          <div class="chart-hero">47,231</div>
+          <div class="chart-sub">
+            <span class="pill pill-green">↑ 8.3%</span>
+            <span>+ 362 résolus</span>
+          </div>
+          <div style="height:130px;position:relative;margin-bottom:20px">
+            <canvas id="barChart"></canvas>
+          </div>
+          <div class="status-list">
+            <div class="status-row">
+              <div class="status-row-header"><span class="status-name">Soumises</span><span class="status-count">312</span></div>
+              <div class="status-bar"><div class="status-fill" style="width:24%;background:var(--yellow)"></div></div>
+            </div>
+            <div class="status-row">
+              <div class="status-row-header"><span class="status-name">En cours</span><span class="status-count">478</span></div>
+              <div class="status-bar"><div class="status-fill" style="width:37%;background:var(--blue)"></div></div>
+            </div>
+            <div class="status-row">
+              <div class="status-row-header"><span class="status-name">Résolues</span><span class="status-count">894</span></div>
+              <div class="status-bar"><div class="status-fill" style="width:70%;background:var(--green)"></div></div>
+            </div>
+            <div class="status-row">
+              <div class="status-row-header"><span class="status-name">Clôturées</span><span class="status-count">156</span></div>
+              <div class="status-bar"><div class="status-fill" style="width:12%;background:var(--muted)"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM GRID -->
+    <div class="bottom-grid fade-in d3">
+      <!-- RECENT DECLARATIONS TABLE -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+            Déclarations Récentes
+          </div>
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 14px" onclick="nav('declarations')">Voir tout →</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Réf.</th><th>Déclaration</th><th>Département</th><th>Statut</th><th>Priorité</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="recent-table">
+              <!-- JS injected -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DISTRIBUTION DONUT -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/></svg>
+            Distribution par Département
+          </div>
+          <select class="select-pill"><option>Mensuel</option><option>Hebdo</option></select>
+        </div>
+        <div class="card-body">
+          <div style="height:180px;position:relative;margin-bottom:20px">
+            <canvas id="donutChart"></canvas>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="flex-between"><span style="display:flex;align-items:center;gap:8px"><div class="legend-dot" style="background:#1557FF;width:10px;height:10px"></div><span style="font-size:12px;color:var(--sub)">Voirie & Routes</span></span><span style="font-size:13px;font-weight:800;color:var(--navy)">$374.82</span></div>
+            <div class="flex-between"><span style="display:flex;align-items:center;gap:8px"><div class="legend-dot" style="background:#10B981;width:10px;height:10px"></div><span style="font-size:12px;color:var(--sub)">Éclairage Public</span></span><span style="font-size:13px;font-weight:800;color:var(--navy)">$241.60</span></div>
+            <div class="flex-between"><span style="display:flex;align-items:center;gap:8px"><div class="legend-dot" style="background:#F59E0B;width:10px;height:10px"></div><span style="font-size:12px;color:var(--sub)">Autres</span></span><span style="font-size:13px;font-weight:800;color:var(--navy)">$213.42</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AGENTS LIST -->
+    <div class="card fade-in d4" style="margin-bottom:24px">
+      <div class="card-header">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          Charge des Agents — Vue Globale
+        </div>
+        <button class="btn btn-ghost" style="font-size:12px;padding:6px 14px" onclick="nav('users')">Gérer →</button>
+      </div>
+      <div class="card-body">
+        <div class="agent-grid" id="agent-grid-mini"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ -->
+  <!-- PAGE: DECLARATIONS                 -->
+  <!-- ══════════════════════════════════ -->
+  <div class="page-content" id="page-declarations">
+    <div class="page-header fade-in">
+      <div class="page-header-left">
+        <div class="page-title">Déclarations</div>
+        <div class="page-breadcrumb">Dashboard › Déclarations · 1,284 total</div>
+      </div>
+      <div class="page-actions">
+        <div class="date-range"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Oct 18 – Nov 18</div>
+        <button class="btn btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>Filtrer</button>
+        <button class="btn btn-primary" onclick="openModal('assign')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          Assigner
+        </button>
+      </div>
+    </div>
+
+    <!-- FILTER TABS -->
+    <div style="display:flex;gap:8px;margin-bottom:20px;overflow-x:auto;padding-bottom:4px">
+      <button class="btn btn-primary" style="padding:7px 18px;font-size:12px" onclick="filterDecl(this,'all')">Toutes (1284)</button>
+      <button class="btn btn-outline" style="padding:7px 18px;font-size:12px" onclick="filterDecl(this,'soumis')">Soumises (312)</button>
+      <button class="btn btn-outline" style="padding:7px 18px;font-size:12px" onclick="filterDecl(this,'cours')">En cours (478)</button>
+      <button class="btn btn-outline" style="padding:7px 18px;font-size:12px" onclick="filterDecl(this,'resolue')">Résolues (894)</button>
+      <button class="btn btn-outline" style="padding:7px 18px;font-size:12px" onclick="filterDecl(this,'cloture')">Clôturées (156)</button>
+    </div>
+
+    <div class="card fade-in">
+      <div class="card-header">
+        <div class="card-title">Toutes les déclarations</div>
+        <div style="display:flex;gap:8px">
+          <input type="text" class="form-input" style="width:220px;padding:7px 12px" placeholder="Rechercher…">
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><input type="checkbox"></th>
+              <th>Réf.</th><th>Déclaration</th><th>Citoyen</th><th>Département</th><th>Chef</th><th>Statut</th><th>Priorité</th><th>Date</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="decl-table-full"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ -->
+  <!-- PAGE: UTILISATEURS                 -->
+  <!-- ══════════════════════════════════ -->
+  <div class="page-content" id="page-users">
+    <div class="page-header fade-in">
+      <div class="page-header-left">
+        <div class="page-title">Utilisateurs</div>
+        <div class="page-breadcrumb">Dashboard › Utilisateurs · 134 membres</div>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-outline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Exporter</button>
+        <button class="btn btn-primary" onclick="openModal('create-user')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Créer Utilisateur
+        </button>
+      </div>
+    </div>
+
+    <div class="users-table-card fade-in">
+      <div class="card-header" style="padding:16px 20px">
+        <div class="card-title">Tous les utilisateurs</div>
+        <div style="display:flex;gap:8px">
+          <input type="text" class="form-input" style="width:200px;padding:7px 12px" placeholder="Rechercher…">
+          <select class="select-pill form-select" style="width:130px">
+            <option>Tous les rôles</option><option>Président</option><option>Chef</option><option>Agent</option><option>Citoyen</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><input type="checkbox"></th>
+              <th>Utilisateur</th><th>Rôle</th><th>Département</th><th>Signalements</th><th>Statut</th><th>Depuis</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ -->
+  <!-- PAGE: DÉPARTEMENTS                 -->
+  <!-- ══════════════════════════════════ -->
+  <div class="page-content" id="page-departments">
+    <div class="page-header fade-in">
+      <div class="page-header-left">
+        <div class="page-title">Départements</div>
+        <div class="page-breadcrumb">Dashboard › Départements · 8 services municipaux</div>
+      </div>
+    </div>
+    <div class="dept-grid fade-in" id="dept-grid"></div>
+  </div>
+
+  <!-- ══════════════════════════════════ -->
+  <!-- PAGE: PROPOSITIONS                 -->
+  <!-- ══════════════════════════════════ -->
+  <div class="page-content" id="page-propositions">
+    <div class="page-header fade-in">
+      <div class="page-header-left">
+        <div class="page-title">Propositions Citoyennes</div>
+        <div class="page-breadcrumb">Dashboard › Propositions · 12 actives</div>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-primary" onclick="openModal('create-prop')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nouvelle Proposition
+        </button>
+      </div>
+    </div>
+
+    <div class="prop-table-card fade-in">
+      <div class="card-header" style="padding:16px 20px">
+        <div class="card-title">Propositions en attente de réponse</div>
+        <span class="badge badge-soumis" style="background:var(--orange-s);color:var(--orange)">5 en attente</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Proposition</th><th>Catégorie</th><th>Pour/Contre</th><th>Participation</th><th>Clôture</th><th>Statut</th><th>Répondre</th>
+            </tr>
+          </thead>
+          <tbody id="prop-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ -->
+  <!-- PAGE: ANALYTIQUES                  -->
+  <!-- ══════════════════════════════════ -->
+  <div class="page-content" id="page-analytics">
+    <div class="page-header fade-in">
+      <div class="page-header-left">
+        <div class="page-title">Analytiques</div>
+        <div class="page-breadcrumb">Dashboard › Analytiques · Données en temps réel</div>
+      </div>
+      <div class="page-actions">
+        <select class="select-pill form-select"><option>6 derniers mois</option><option>Cette année</option></select>
+        <button class="btn btn-outline">Export</button>
+      </div>
+    </div>
+
+    <div class="kpi-grid fade-in">
+      <div class="kpi-card"><div><div class="kpi-label">📈 Signalements ce mois</div><div class="kpi-value" id="ana-total">0</div><div class="kpi-change kpi-up">↑ 15.8%</div></div><div class="kpi-icon" style="background:var(--blue-soft);font-size:22px">📈</div></div>
+      <div class="kpi-card"><div><div class="kpi-label">⚡ Résolues</div><div class="kpi-value" id="ana-resolved">0</div><div class="kpi-change kpi-up">En temps réel</div></div><div class="kpi-icon" style="background:var(--green-s);font-size:22px">⚡</div></div>
+      <div class="kpi-card"><div><div class="kpi-label">👥 Nouveaux Citoyens</div><div class="kpi-value" id="ana-users">0</div><div class="kpi-change kpi-up">↑ 22.1%</div></div><div class="kpi-icon" style="background:var(--purple-s);font-size:22px">👥</div></div>
+    </div>
+
+    <div class="charts-grid fade-in d2">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Évolution mensuelle des déclarations</div></div>
+        <div class="card-body"><div class="chart-container"><canvas id="lineChart"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Satisfaction citoyenne</div></div>
+        <div class="card-body">
+          <div class="chart-hero" style="color:var(--green)" id="ana-rating">4.8/5</div>
+          <div class="chart-sub">⭐ Basé sur les évaluations récentes</div>
+          <div class="chart-container" style="height:160px"><canvas id="ratingChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ -->
+  <!-- PAGE: NOTIFICATIONS                -->
+  <!-- ══════════════════════════════════ -->
+  <div class="page-content" id="page-notifications">
+    <div class="page-header fade-in">
+      <div class="page-header-left">
+        <div class="page-title">Notifications</div>
+        <div class="page-breadcrumb">Alertes système</div>
+      </div>
+      <button class="btn btn-ghost">Tout marquer comme lu</button>
+    </div>
+    <div class="card fade-in">
+      <div id="notif-list"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════ -->
+  <!-- PAGE: EXPORT                       -->
+  <!-- ══════════════════════════════════ -->
+  <div class="page-content" id="page-export">
+    <div class="page-header fade-in">
+      <div class="page-header-left">
+        <div class="page-title">Export Données</div>
+        <div class="page-breadcrumb">Dashboard › Export · Téléchargement des rapports</div>
+      </div>
+    </div>
+    <div class="card fade-in" style="padding:28px;margin-bottom:20px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;align-items:end">
+        <div class="form-group" style="margin-bottom:0">
+          <div class="form-label">Période — Début</div>
+          <input type="date" class="form-input" id="export-start" value="2026-01-01">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <div class="form-label">Période — Fin</div>
+          <input type="date" class="form-input" id="export-end" value="2026-04-23">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <div class="form-label">Format</div>
+          <select class="form-input form-select" id="export-format"><option value="csv">CSV (Excel)</option><option value="json">JSON (Data)</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="export-grid fade-in d1">
+      <div class="export-card" onclick="exportData('csv')">
+        <div class="export-icon">📊</div>
+        <div class="export-title">Rapport CSV</div>
+        <div class="export-desc">Toutes les déclarations avec statuts, dates et agents assignés</div>
+      </div>
+      <div class="export-card" onclick="exportData('json')">
+        <div class="export-icon">📋</div>
+        <div class="export-title">Rapport JSON</div>
+        <div class="export-desc">Données structurées complètes avec historique des statuts</div>
+      </div>
+      <div class="export-card" onclick="exportData('csv')">
+        <div class="export-icon">📈</div>
+        <div class="export-title">Rapport KPIs</div>
+        <div class="export-desc">Indicateurs de performance, taux résolution, satisfaction</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end main-wrapper -->
+
+<!-- ══════════════════════════════════ -->
+<!-- MODAL: ASSIGN                      -->
+<!-- ══════════════════════════════════ -->
+<div class="modal-backdrop" id="modal-assign">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Assigner une Déclaration</div>
+      <div class="modal-close" onclick="closeModal('assign')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <div class="form-label">Déclaration <span class="required">*</span></div>
+        <div class="form-input" id="assign-decl-label" style="background:var(--bg);font-weight:700">Sélectionnez une déclaration</div>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Département <span class="required">*</span></div>
+        <div class="dept-assign-grid">
+          <div class="dept-assign-card" onclick="selectDept(this)"><div class="dept-assign-icon">🛣️</div><div class="dept-assign-name">Voirie</div><div class="dept-assign-abbr">VR</div></div>
+          <div class="dept-assign-card selected" onclick="selectDept(this)"><div class="dept-assign-icon">💡</div><div class="dept-assign-name">Éclairage</div><div class="dept-assign-abbr">EP</div></div>
+          <div class="dept-assign-card" onclick="selectDept(this)"><div class="dept-assign-icon">🌿</div><div class="dept-assign-name">Espaces Verts</div><div class="dept-assign-abbr">EV</div></div>
+          <div class="dept-assign-card" onclick="selectDept(this)"><div class="dept-assign-icon">🗑️</div><div class="dept-assign-name">Propreté</div><div class="dept-assign-abbr">PD</div></div>
+          <div class="dept-assign-card" onclick="selectDept(this)"><div class="dept-assign-icon">💧</div><div class="dept-assign-name">Assainissement</div><div class="dept-assign-abbr">EA</div></div>
+          <div class="dept-assign-card" onclick="selectDept(this)"><div class="dept-assign-icon">🏗️</div><div class="dept-assign-name">Bâtiments</div><div class="dept-assign-abbr">BP</div></div>
+          <div class="dept-assign-card" onclick="selectDept(this)"><div class="dept-assign-icon">🚦</div><div class="dept-assign-name">Signalisation</div><div class="dept-assign-abbr">ST</div></div>
+          <div class="dept-assign-card" onclick="selectDept(this)"><div class="dept-assign-icon">⚙️</div><div class="dept-assign-name">Secrétariat</div><div class="dept-assign-abbr">SG</div></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Note pour le Chef de Service</div>
+        <textarea class="form-input" rows="3" placeholder="Priorité, instructions spécifiques…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('assign')">Annuler</button>
+      <button class="btn btn-primary" onclick="submitAssign()">✓ Assigner</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL: CREATE USER -->
+<div class="modal-backdrop" id="modal-create-user">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Créer un Utilisateur</div>
+      <div class="modal-close" onclick="closeModal('create-user')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="form-group"><div class="form-label">Prénom <span class="required">*</span></div><input class="form-input" id="user-first-name" placeholder="Mohamed"></div>
+        <div class="form-group"><div class="form-label">Nom <span class="required">*</span></div><input class="form-input" id="user-last-name" placeholder="Ayari"></div>
+      </div>
+      <div class="form-group"><div class="form-label">Email <span class="required">*</span></div><input class="form-input" type="email" id="user-email" placeholder="m.ayari@mairie-sousse.tn"></div>
+      <div class="form-group"><div class="form-label">Mot de Passe <span class="required">*</span></div><input class="form-input" type="password" id="user-password" placeholder="••••••••"></div>
+      <div class="form-group"><div class="form-label">Rôle <span class="required">*</span></div>
+        <select class="form-input form-select" id="user-role"><option value="agent">Agent</option><option value="chef">Chef de Service</option></select>
+      </div>
+      <div class="form-group"><div class="form-label">Département</div>
+        <select class="form-input form-select" id="user-dept-select"></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('create-user')">Annuler</button>
+      <button class="btn btn-primary" onclick="submitCreateUser()">Créer l'utilisateur</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CREATE PROP -->
+<div class="modal-backdrop" id="modal-create-prop">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Créer une Proposition</div>
+      <div class="modal-close" onclick="closeModal('create-prop')">✕</div>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><div class="form-label">Titre <span class="required">*</span></div><input class="form-input" id="prop-title" placeholder="Titre de la proposition…"></div>
+      <div class="form-group"><div class="form-label">Description</div><textarea class="form-input" id="prop-desc" rows="3" placeholder="Détails du projet…"></textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="form-group"><div class="form-label">Catégorie</div><select class="form-input form-select" id="prop-cat"><option>Environnement</option><option>Mobilité</option><option>Infrastructure</option></select></div>
+        <div class="form-group"><div class="form-label">Date de clôture</div><input class="form-input" type="date" id="prop-date"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('create-prop')">Annuler</button>
+      <button class="btn btn-primary" onclick="submitCreateProp()">Publier</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG & STATE ──
+const api = axios.create({
+  baseURL: '/api',
+  headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+});
+
+let DECLS = [];
+let USERS = [];
+let DEPTS = [];
+let PROPS = [];
+let NOTIFS = [];
+let STATS = null;
+let charts = {};
+
+// ── UTILS ──
+function statusBadge(s){
+  const m={soumise:'badge-soumis',assignee_chef:'badge-assignee',assignee_agent:'badge-assignee',en_cours:'badge-cours',resolue:'badge-resolue',cloturee:'badge-cloture',refusee_chef:'badge-soumis',refusee_agent:'badge-soumis'};
+  const l={soumise:'Soumise',assignee_chef:'Assignée Chef',assignee_agent:'Assignée Agent',en_cours:'En cours',resolue:'Résolue',cloturee:'Clôturée',refusee_chef:'Refusée Chef',refusee_agent:'Refusée Agent'};
+  return `<span class="badge ${m[s]||'badge-soumis'}">${l[s]||s}</span>`;
+}
+function priorityBadge(p){
+  const m={High:'priority-haute',Medium:'priority-moyenne',Low:'priority-basse',haute:'priority-haute',moyenne:'priority-moyenne',basse:'priority-basse'};
+  return `<span class="priority ${m[p]||'priority-moyenne'}">${p ? (p.charAt(0).toUpperCase()+p.slice(1)) : 'Moyenne'}</span>`;
+}
+function roleBadge(r){
+  const m={president:'role-president',chef:'role-chef',agent:'role-agent',citoyen:'role-citoyen'};
+  const l={president:'Président',chef:'Chef',agent:'Agent',citoyen:'Citoyen'};
+  return `<span class="role-badge ${m[r]}">${l[r]||r}</span>`;
+}
+const AVATAR_COLORS=['#1557FF','#10B981','#F59E0B','#EF4444','#8B5CF6','#06B6D4','#059669','#E11D48'];
+function initials(n){ return n ? n.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase() : '??' }
+
+function selectDept(el) {
+  document.querySelectorAll('.dept-assign-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ── DATA FETCHING ──
+async function fetchDashboard() {
+  try {
+    const res = await api.get('/president/dashboard');
+    STATS = res.data.stats;
+    const recent = res.data.recentDeclarations;
+    
+    // Update KPI Cards (Dashboard)
+    const kpis = document.querySelectorAll('.kpi-value');
+    if(kpis[0]) kpis[0].textContent = STATS.total_declarations.toLocaleString();
+    if(kpis[1]) kpis[1].textContent = (STATS.by_status.resolue || 0).toLocaleString();
+    if(kpis[2]) kpis[2].textContent = STATS.total_users || 0;
+    if(kpis[3]) kpis[3].textContent = STATS.by_status.soumise || 0;
+    if(kpis[5]) kpis[5].textContent = STATS.average_rating ? (STATS.average_rating.toFixed(1)) : '4.8';
+
+    // Update Analytics Page KPIs
+    const anaTotal = document.getElementById('ana-total');
+    if(anaTotal) anaTotal.textContent = STATS.total_declarations.toLocaleString();
+    const anaResolved = document.getElementById('ana-resolved');
+    if(anaResolved) anaResolved.textContent = (STATS.by_status.resolue || 0).toLocaleString();
+    const anaUsers = document.getElementById('ana-users');
+    if(anaUsers) anaUsers.textContent = STATS.total_users || 0;
+    const anaRating = document.getElementById('ana-rating');
+    if(anaRating) anaRating.textContent = STATS.average_rating ? (STATS.average_rating.toFixed(1) + '/5') : '4.8/5';
+
+    // Update Status Bars
+    const bars = document.querySelectorAll('.status-fill');
+    const counts = document.querySelectorAll('.status-count');
+    const statusOrder = ['soumise', 'en_cours', 'resolue', 'cloturee'];
+    statusOrder.forEach((s, i) => {
+      const count = STATS.by_status[s] || 0;
+      if(counts[i]) counts[i].textContent = count;
+      if(bars[i]) bars[i].style.width = STATS.total_declarations > 0 ? (count / STATS.total_declarations * 100) + '%' : '0%';
+    });
+
+    renderRecentTable(recent);
+    updateCharts();
+    renderAgentMini();
+  } catch (err) { console.error('Dashboard error:', err); }
+}
+
+async function fetchDeclarations(status = 'all') {
+  try {
+    const url = status && status !== 'all' ? `/president/declarations?status=${status}` : '/president/declarations';
+    const res = await api.get(url);
+    DECLS = res.data.declarations;
+    renderDeclTable();
+  } catch (err) { console.error('Decls error:', err); }
+}
+
+async function fetchUsers() {
+  try {
+    const res = await api.get('/president/users');
+    USERS = res.data.users;
+    renderUsers();
+    renderAgentMini();
+  } catch (err) { console.error('Users error:', err); }
+}
+
+async function fetchDepartments() {
+  try {
+    const res = await api.get('/president/departments');
+    DEPTS = res.data.departments;
+    renderDepts();
+    
+    // Populate modal select
+    const sel = document.getElementById('user-dept-select');
+    if(sel) {
+      sel.innerHTML = '<option value="">Aucun</option>' + DEPTS.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+    }
+  } catch (err) { console.error('Depts error:', err); }
+}
+
+async function fetchNotifications() {
+  try {
+    const res = await api.get('/notifications');
+    NOTIFS = res.data.notifications || [];
+    renderNotifs();
+  } catch (err) { console.error('Notifs error:', err); }
+}
+
+async function fetchPropositions() {
+  try {
+    const res = await api.get('/propositions');
+    PROPS = res.data;
+    renderProps();
+  } catch (err) { console.error('Props error:', err); }
+}
+
+// ── RENDERERS ──
+function renderRecentTable(data){
+  const tb=document.getElementById('recent-table');
+  if(!tb)return;
+  tb.innerHTML=data.map(d=>`<tr>
+    <td><span class="td-ref">${d.ref_id || d.id.substring(0,8).toUpperCase()}</span></td>
+    <td><span class="td-title">${d.title}</span></td>
+    <td><span class="td-dept">${d.department_name || '—'}</span></td>
+    <td>${statusBadge(d.status)}</td>
+    <td>${priorityBadge(d.priority)}</td>
+    <td><div class="action-btns">
+      <div class="action-btn" onclick="openModal('assign', '${d.id}')" title="Assigner">👤</div>
+      <div class="action-btn" title="Voir">👁</div>
+    </div></td>
+  </tr>`).join('');
+}
+
+function renderDeclTable(){
+  const tb=document.getElementById('decl-table-full');
+  if(!tb)return;
+  tb.innerHTML=DECLS.map((d,i)=>`<tr>
+    <td><input type="checkbox"></td>
+    <td><span class="td-ref">${d.ref_id || d.id.substring(0,8).toUpperCase()}</span></td>
+    <td><span class="td-title" style="max-width:160px">${d.title}</span></td>
+    <td style="font-size:12px;color:var(--muted)">${d.citizen_name || 'Citoyen'}</td>
+    <td><span class="td-dept">${d.department_name || '—'}</span></td>
+    <td style="font-size:12px">${d.chef_name || '—'}</td>
+    <td>${statusBadge(d.status)}</td>
+    <td>${priorityBadge(d.priority)}</td>
+    <td style="font-size:12px;color:var(--muted)">${new Date(d.created_at).toLocaleDateString()}</td>
+    <td><div class="action-btns">
+      <div class="action-btn" onclick="openModal('assign', '${d.id}')">👤</div>
+      <div class="action-btn">👁</div>
+      <div class="action-btn danger" onclick="deleteDecl('${d.id}')">🗑</div>
+    </div></td>
+  </tr>`).join('');
+}
+
+function renderUsers(){
+  const tb=document.getElementById('users-table');
+  if(!tb)return;
+  tb.innerHTML=USERS.map((u,i)=>`<tr>
+    <td><input type="checkbox"></td>
+    <td><div class="user-pill">
+      <div class="user-pill-avatar" style="background:${AVATAR_COLORS[i%8]}">${initials(u.first_name + ' ' + u.last_name)}</div>
+      <div><div class="user-pill-name">${u.first_name} ${u.last_name}</div><div class="user-pill-email">${u.email}</div></div>
+    </div></td>
+    <td>${roleBadge(u.role)}</td>
+    <td style="font-size:13px;color:var(--sub)">${u.department_name || '—'}</td>
+    <td style="font-size:13px;font-weight:700;color:var(--navy)">${u.declarations_count || 0}</td>
+    <td><span class="badge ${u.is_active?'badge-resolue':'badge-cloture'}" style="font-size:10px">${u.is_active?'Actif':'Inactif'}</span></td>
+    <td style="font-size:12px;color:var(--muted)">${new Date(u.created_at).toLocaleDateString()}</td>
+    <td><div class="action-btns">
+      <div class="action-btn">✏️</div>
+      <div class="action-btn danger" onclick="deleteUser('${u.id}')">🗑</div>
+    </div></td>
+  </tr>`).join('');
+}
+
+function renderDepts(){
+  const g=document.getElementById('dept-grid');
+  const modalGrid = document.querySelector('.dept-assign-grid');
+  if(g) {
+    g.innerHTML=DEPTS.map(d=>{
+      const total = d.total_declarations || 0;
+      const resolved = d.resolved_declarations || 0;
+      const pct = total > 0 ? Math.round(resolved / total * 100) : 0;
+      return `<div class="dept-card">
+        <div class="dept-icon" style="background:var(--blue-soft)">🏛️</div>
+        <div class="dept-name">${d.name}</div>
+        <div class="dept-abbr">${d.code || '—'}</div>
+        <div class="dept-stat"><span class="dept-stat-label">Total déclarations</span><span class="dept-stat-val">${total}</span></div>
+        <div class="dept-stat"><span class="dept-stat-label">Résolues</span><span class="dept-stat-val" style="color:var(--green)">${resolved}</span></div>
+        <div class="dept-bar-bg"><div class="dept-bar-fill" style="width:${pct}%;background:var(--blue)"></div></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:right">${pct}% résolues</div>
+      </div>`;
+    }).join('');
+  }
+  if(modalGrid) {
+    modalGrid.innerHTML = DEPTS.map(d => `
+      <div class="dept-assign-card" data-id="${d.id}" onclick="selectDept(this)">
+        <div class="dept-assign-icon">🏛️</div>
+        <div class="dept-assign-name">${d.name}</div>
+        <div class="dept-assign-abbr">${d.code}</div>
+      </div>
+    `).join('');
+  }
+}
+
+function renderNotifs(){
+  const c=document.getElementById('notif-list');
+  if(!c)return;
+  c.innerHTML=NOTIFS.length > 0 ? NOTIFS.map(n=>`
+    <div class="notif-item ${!n.is_read?'unread':''}">
+      <div class="notif-dot-badge ${!n.is_read?'':'empty'}"></div>
+      <div class="notif-icon" style="background:var(--blue-soft)">🔔</div>
+      <div>
+        <div class="notif-text">${n.message}</div>
+        <div class="notif-time">${new Date(n.created_at).toLocaleString()}</div>
+      </div>
+    </div>`).join('') : '<div style="padding:40px;text-align:center;color:var(--muted)">Aucune notification</div>';
+}
+
+function renderAgentMini(){
+  const c=document.getElementById('agent-grid-mini');
+  if(!c)return;
+  const agents = USERS.filter(u=>u.role==='agent' || u.role==='chef');
+  c.innerHTML=agents.slice(0,6).map((a,i)=>`
+    <div class="agent-card">
+      <div class="agent-avatar" style="background:${AVATAR_COLORS[i%8]}">${initials(a.first_name+' '+a.last_name)}</div>
+      <div class="agent-name">${a.first_name} ${a.last_name}</div>
+      <div class="agent-dept">${a.department_name || 'Services'}</div>
+      <div class="agent-tasks">
+        <span class="agent-task-chip" style="background:var(--blue-soft);color:var(--blue)">${a.declarations_count || 0} Actifs</span>
+      </div>
+    </div>`).join('');
+}
+
+function renderProps(){
+  const tb=document.getElementById('prop-table');
+  if(!tb)return;
+  tb.innerHTML=PROPS.map(p=>`<tr>
+    <td><span class="td-title">${p.title}</span></td>
+    <td><span class="td-dept">${p.category || 'Général'}</span></td>
+    <td>
+      <div style="display:flex;align-items:center;gap:8px;min-width:140px">
+        <div style="flex:1;height:4px;background:var(--border);border-radius:99px;overflow:hidden">
+          <div style="height:100%;width:${p.pourcentage_pour || 50}%;background:var(--blue);border-radius:99px"></div>
+        </div>
+        <span style="font-size:11px;font-weight:700;color:var(--blue)">${p.pourcentage_pour || 50}%</span>
+      </div>
+    </td>
+    <td style="font-size:13px;font-weight:700">${p.total_votes || 0}</td>
+    <td style="font-size:12px;color:var(--muted)">${p.end_date ? new Date(p.end_date).toLocaleDateString() : '—'}</td>
+    <td><span class="badge ${p.status==='approved'?'badge-resolue':'badge-soumis'}">${p.status}</span></td>
+    <td><div class="action-btns" style="gap:5px">
+      <button class="prop-respond-btn btn-retenu" onclick="respondProp('${p.id}', 'approved')">✓ Retenu</button>
+      <button class="prop-respond-btn btn-refuse" onclick="respondProp('${p.id}', 'rejected')">✕ Refusé</button>
+    </div></td>
+  </tr>`).join('');
+}
+
+// ── CHARTS ──
+function updateCharts(){
+  if(!STATS) return;
+  
+  // 1. Dashboard Trend Chart
+  const ctxMain = document.getElementById('mainChart');
+  if(ctxMain){
+    if(charts.main) charts.main.destroy();
+    charts.main = new Chart(ctxMain, {
+      type: 'line',
+      data: {
+        labels: STATS.trendData.map(d => d.date),
+        datasets: [{
+          label: 'Déclarations',
+          data: STATS.trendData.map(d => d.count),
+          borderColor: '#1557FF',
+          backgroundColor: 'rgba(21, 87, 255, 0.1)',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+  }
+
+  // 2. Analytics Trend Chart (Identical or more detailed)
+  const ctxLine = document.getElementById('lineChart');
+  if(ctxLine){
+    if(charts.line) charts.line.destroy();
+    charts.line = new Chart(ctxLine, {
+      type: 'line',
+      data: {
+        labels: STATS.trendData.map(d => d.date),
+        datasets: [{
+          label: 'Volume',
+          data: STATS.trendData.map(d => d.count),
+          borderColor: '#1557FF',
+          borderWidth: 3,
+          pointRadius: 4,
+          pointBackgroundColor: '#fff',
+          pointBorderColor: '#1557FF',
+          pointBorderWidth: 2,
+          fill: false,
+          tension: 0.4
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+  }
+
+  // 3. Status Distribution (Bar)
+  const ctxBar = document.getElementById('barChart');
+  if(ctxBar){
+    if(charts.bar) charts.bar.destroy();
+    const statusData = [STATS.by_status.soumise||0, STATS.by_status.en_cours||0, STATS.by_status.resolue||0, STATS.by_status.cloturee||0];
+    charts.bar = new Chart(ctxBar, {
+      type: 'bar',
+      data: {
+        labels: ['Soumises', 'En cours', 'Résolues', 'Clôturées'],
+        datasets: [{
+          data: statusData,
+          backgroundColor: ['#F59E0B', '#1557FF', '#10B981', '#64748B'],
+          borderRadius: 4
+        }]
+      },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+  }
+
+  // 4. Department Distribution (Donut)
+  const ctxDonut = document.getElementById('donutChart');
+  if(ctxDonut){
+    if(charts.donut) charts.donut.destroy();
+    const deptLabels = Object.keys(STATS.by_department).slice(0,5);
+    const deptData = deptLabels.map(l => STATS.by_department[l]);
+    charts.donut = new Chart(ctxDonut, {
+      type: 'doughnut',
+      data: {
+        labels: deptLabels,
+        datasets: [{
+          data: deptData,
+          backgroundColor: ['#1557FF', '#10B981', '#F59E0B', '#8B5CF6', '#64748B']
+        }]
+      },
+      options: { cutout: '70%', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+  }
+
+  // 5. Rating Chart (Analytics)
+  const ctxRating = document.getElementById('ratingChart');
+  if(ctxRating){
+    if(charts.rating) charts.rating.destroy();
+    charts.rating = new Chart(ctxRating, {
+      type: 'bar',
+      data: {
+        labels: ['1★', '2★', '3★', '4★', '5★'],
+        datasets: [{
+          data: [2, 5, 12, 35, 46], // Mock distribution for now if backend doesn't provide granular rating breakdown
+          backgroundColor: '#10B981',
+          borderRadius: 4
+        }]
+      },
+      options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { grid: { display: false } } } }
+    });
+  }
+}
+
+// ── NAVIGATION & MODALS ──
+let activePage = 'dashboard';
+function nav(id){
+  activePage = id;
+  document.querySelectorAll('.page-content').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(i=>i.classList.remove('active'));
+  
+  const pg=document.getElementById('page-'+id);
+  if(pg) pg.classList.add('active');
+  
+  document.querySelectorAll('.sidebar-item').forEach(b=>{
+    if(b.getAttribute('onclick') && b.getAttribute('onclick').includes("'"+id+"'")) b.classList.add('active');
+  });
+  
+  if(id==='dashboard' || id==='analytics') fetchDashboard();
+  if(id==='declarations') fetchDeclarations();
+  if(id==='users') fetchUsers();
+  if(id==='departments') fetchDepartments();
+  if(id==='propositions') fetchPropositions();
+  if(id==='notifications') fetchNotifications();
+}
+
+let currentDeclId = null;
+function openModal(id, declId = null){
+  currentDeclId = declId;
+  if(id === 'assign' && declId) {
+    const d = DECLS.find(x => x.id === declId) || STATS.recentDeclarations.find(x => x.id === declId);
+    if(d) {
+      document.getElementById('assign-decl-label').textContent = `${d.ref_id || d.id.substring(0,8).toUpperCase()} — ${d.title}`;
+    }
+  }
+  document.getElementById('modal-'+id).classList.add('open');
+}
+function closeModal(id){ document.getElementById('modal-'+id).classList.remove('open') }
+
+async function submitAssign() {
+  const deptCard = document.querySelector('.dept-assign-card.selected');
+  if(!deptCard || !currentDeclId) return alert('Sélectionnez un département');
+  const deptId = deptCard.getAttribute('data-id');
+  try {
+    await api.post(`/president/declarations/${currentDeclId}/assign`, { department_id: deptId });
+    closeModal('assign');
+    nav(activePage);
+  } catch (err) { alert('Erreur assignation: ' + (err.response?.data?.error || err.message)); }
+}
+
+async function exportData(format = 'csv') {
+  try {
+    const res = await api.get(`/president/export?format=${format}`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `export_${new Date().getTime()}.${format}`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } catch (err) { alert('Erreur export: ' + err.message); }
+}
+
+async function submitCreateUser() {
+  const data = {
+    first_name: document.getElementById('user-first-name').value,
+    last_name: document.getElementById('user-last-name').value,
+    email: document.getElementById('user-email').value,
+    password: document.getElementById('user-password').value,
+    role: document.getElementById('user-role').value,
+    department_id: document.getElementById('user-dept-select').value || null
+  };
+  
+  if(!data.email || !data.password || !data.first_name) return alert('Veuillez remplir tous les champs obligatoires');
+  
+  try {
+    await api.post('/president/users', data);
+    alert('Utilisateur créé avec succès');
+    closeModal('create-user');
+    fetchUsers();
+  } catch (err) { alert('Erreur création: ' + (err.response?.data?.error || err.message)); }
+}
+
+async function submitCreateProp() {
+  const data = {
+    title: document.getElementById('prop-title').value,
+    description: document.getElementById('prop-desc').value,
+    category: document.getElementById('prop-cat').value,
+    end_date: document.getElementById('prop-date').value
+  };
+  
+  try {
+    await api.post('/president/propositions', data);
+    alert('Proposition publiée');
+    closeModal('create-prop');
+    fetchPropositions();
+  } catch (err) { alert('Erreur proposition: ' + (err.response?.data?.error || err.message)); }
+}
+
+async function deleteUser(id) {
+  if(!confirm('Supprimer cet utilisateur ?')) return;
+  try {
+    await api.delete(`/president/users/${id}`);
+    fetchUsers();
+  } catch (err) { alert('Erreur suppression: ' + (err.response?.data?.error || err.message)); }
+}
+
+async function respondProp(id, status) {
+  try {
+    await api.post(`/propositions/${id}/respond`, { status });
+    alert('Réponse enregistrée');
+    fetchPropositions();
+  } catch (err) { alert('Erreur réponse: ' + (err.response?.data?.error || err.message)); }
+}
+
+function filterDecl(btn, status){
+  btn.closest('div').querySelectorAll('.btn').forEach(b=>{b.className=b.className.replace('btn-primary','btn-outline')});
+  btn.className=btn.className.replace('btn-outline','btn-primary');
+  fetchDeclarations(status);
+}
+
+function logout(){
+  localStorage.clear();
+  window.location.href = '/login';
+}
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded', ()=>{
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  if(user.first_name) {
+    document.querySelectorAll('.sidebar-user-name, .topbar-user-name').forEach(el => el.textContent = user.first_name + ' ' + user.last_name);
+    document.querySelectorAll('.sidebar-avatar, .topbar-avatar').forEach(el => el.textContent = initials(user.first_name + ' ' + user.last_name));
+  }
+  fetchUsers(); 
+  fetchDepartments(); 
+  nav('dashboard');
+});
+</script>
+</body>
+</html>
+

@@ -57,6 +57,7 @@ router.post('/declarations/:id/photos',
 router.use(authenticate, rbac('agent'));
 
 router.get('/declarations', ctrl.listDeclarations);
+router.get('/declarations/:id', ctrl.getDeclarationDetail);
 router.post('/declarations/:id/accept', ctrl.acceptDeclaration);
 
 router.post('/declarations/:id/refuse', [

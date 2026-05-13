@@ -70,6 +70,13 @@ class QB {
     return this;
   }
 
+  upsert(obj, opts = {}) {
+    this._op = 'upsert';
+    this._data = Array.isArray(obj) ? obj : [obj];
+    this._upsertOpts = opts;
+    return this;
+  }
+
   update(obj) {
     this._op = 'update';
     this._data = obj;
@@ -121,6 +128,69 @@ class QB {
     const placeholders = arr.map(() => `$${this._paramIdx++}`).join(', ');
     this._wheres.push({ sql: `"${col}" IN (${placeholders})`, vals: arr });
     this._paramVals.push(...arr);
+    return this;
+  }
+
+  /**
+   * .or('col1.eq.val1,col2.eq.val2') — Supabase-style OR filter
+   * Parses simple Supabase filter strings into SQL OR conditions.
+   * Supported operators: eq, neq, is, gt, gte, lt, lte, ilike, like
+   */
+  or(filterString) {
+    const parts = filterString.split(',').map(s => s.trim());
+    const sqlParts = [];
+    const vals = [];
+
+    for (const part of parts) {
+      // Match: col.op.value  (value may contain dots)
+      const dotIdx1 = part.indexOf('.');
+      if (dotIdx1 === -1) continue;
+      const col = part.slice(0, dotIdx1);
+      const rest = part.slice(dotIdx1 + 1);
+      const dotIdx2 = rest.indexOf('.');
+      if (dotIdx2 === -1) continue;
+      const op  = rest.slice(0, dotIdx2);
+      const val = rest.slice(dotIdx2 + 1);
+
+      switch (op) {
+        case 'eq':
+          if (val === 'null') {
+            sqlParts.push(`"${col}" IS NULL`);
+          } else {
+            sqlParts.push(`"${col}" = $${this._paramIdx++}`);
+            vals.push(val);
+            this._paramVals.push(val);
+          }
+          break;
+        case 'neq':
+          sqlParts.push(`"${col}" != $${this._paramIdx++}`);
+          vals.push(val);
+          this._paramVals.push(val);
+          break;
+        case 'is':
+          sqlParts.push(val === 'null' ? `"${col}" IS NULL` : `"${col}" IS $${this._paramIdx++}`);
+          if (val !== 'null') { vals.push(val); this._paramVals.push(val); }
+          break;
+        case 'gt':  sqlParts.push(`"${col}" > $${this._paramIdx++}`);  vals.push(val); this._paramVals.push(val); break;
+        case 'gte': sqlParts.push(`"${col}" >= $${this._paramIdx++}`); vals.push(val); this._paramVals.push(val); break;
+        case 'lt':  sqlParts.push(`"${col}" < $${this._paramIdx++}`);  vals.push(val); this._paramVals.push(val); break;
+        case 'lte': sqlParts.push(`"${col}" <= $${this._paramIdx++}`); vals.push(val); this._paramVals.push(val); break;
+        case 'ilike': sqlParts.push(`"${col}" ILIKE $${this._paramIdx++}`); vals.push(val); this._paramVals.push(val); break;
+        case 'like':  sqlParts.push(`"${col}" LIKE $${this._paramIdx++}`);  vals.push(val); this._paramVals.push(val); break;
+        default: break;
+      }
+    }
+
+    if (sqlParts.length > 0) {
+      this._wheres.push({ sql: `(${sqlParts.join(' OR ')})`, vals });
+    }
+    return this;
+  }
+
+  /** .ilike(col, pattern) — case-insensitive LIKE */
+  ilike(col, pattern) {
+    this._wheres.push({ sql: `"${col}" ILIKE $${this._paramIdx++}`, vals: [pattern] });
+    this._paramVals.push(pattern);
     return this;
   }
 
@@ -180,10 +250,11 @@ class QB {
   /** Strip PostgREST embed specs like  users!fk(col1, col2)  */
   _stripEmbeds(cols) {
     if (cols === '*') return '*';
-    return cols.split(',').map(c => {
+    const clean = cols.replace(/\([^)]*\)/g, '');
+    return clean.split(',').map(c => {
       const t = c.trim();
-      // skip embed specs (contain '(' or '!')
-      if (t.includes('(') || t.includes('!')) return null;
+      if (t.includes('!')) return null;
+      if (!t) return null;
       return t;
     }).filter(Boolean).join(', ') || '*';
   }
@@ -251,6 +322,34 @@ class QB {
         return { data: results, error: null };
       }
 
+      // ── UPSERT ──
+      if (this._op === 'upsert') {
+        const results = [];
+        const returningCols = this._cols || '*';
+        const onConflict = this._upsertOpts?.onConflict || 'id';
+        const conflictKeys = onConflict.split(',').map(k => escapeId(k.trim())).join(', ');
+
+        for (const row of this._data) {
+          const keys = Object.keys(row).filter(k => row[k] !== undefined);
+          const cols = keys.map(k => escapeId(k)).join(', ');
+          const plc = keys.map((_, i) => `$${i + 1}`).join(', ');
+          const vals = keys.map(k => row[k]);
+          
+          const updateKeys = keys.filter(k => !onConflict.split(',').map(x => x.trim()).includes(k));
+          const setClause = updateKeys.length > 0 
+            ? 'DO UPDATE SET ' + updateKeys.map(k => `${escapeId(k)} = EXCLUDED.${escapeId(k)}`).join(', ')
+            : 'DO NOTHING';
+
+          const res = await pool.query(
+            `INSERT INTO ${tableId} (${cols}) VALUES (${plc}) ON CONFLICT (${conflictKeys}) ${setClause} RETURNING ${returningCols}`, vals
+          );
+          if (res.rows[0]) results.push(res.rows[0]);
+        }
+        if (this._single || this._data.length === 1)
+          return { data: results[0] || null, error: null };
+        return { data: results, error: null };
+      }
+
       // ── UPDATE ──
       if (this._op === 'update') {
         if (!this._wheres.length) {
@@ -285,6 +384,8 @@ class QB {
 
     } catch (err) {
       console.error(`[DB] ${this._op?.toUpperCase()} "${this._table}" error:`, err.message);
+      console.error(`[DB] FAILED SQL:`, this._op === 'select' ? `SELECT ${this._cols} FROM "${this._table}" ${this._whereClause()} ${this._orderClause()}` : '...');
+      console.error(`[DB] PARAMS:`, params);
       return { data: null, error: { message: err.message, code: err.code } };
     }
   }

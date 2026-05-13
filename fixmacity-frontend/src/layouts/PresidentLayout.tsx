@@ -1,0 +1,241 @@
+import React, { useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import {
+  LayoutDashboard, FileText, Map, Users, Building2,
+  Vote, Bell, Settings, LogOut, Menu, X, Mail, HelpCircle,
+  ChevronDown, Plus, Search
+} from 'lucide-react'
+import CreateActionModal from '../components/president/CreateActionModal'
+
+const NAV = [
+  {
+    section: 'Menu',
+    items: [
+      { label: 'Dashboard',      icon: LayoutDashboard, to: '/president/dashboard'     },
+      { label: 'Déclarations',   icon: FileText,        to: '/president/declarations'  },
+      { label: 'Personnel',      icon: Users,           to: '/president/personnel'      },
+      { label: 'Services',       icon: Building2,       to: '/president/services'       },
+      { label: 'Propositions',   icon: Vote,            to: '/president/propositions'   },
+      { label: 'Notifications',  icon: Bell,            to: '/president/notifications', badge: 3 },
+    ]
+  }
+]
+
+interface Props { children: React.ReactNode; title?: string }
+
+const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => {
+  const location = useLocation()
+  const navigate  = useNavigate()
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false)
+
+  const user = JSON.parse(localStorage.getItem('fmc_user') || '{}')
+  const initials = `${user.first_name?.[0] ?? 'M'}${user.last_name?.[0] ?? 'A'}`
+
+  const handleLogout = async () => {
+    try {
+      await fetch('http://localhost:5000/api/auth/logout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
+      })
+    } catch (_) {}
+    localStorage.removeItem('fmc_token')
+    localStorage.removeItem('fmc_user')
+    navigate('/login')
+  }
+
+  const SidebarContent = () => (
+    <div className={`flex flex-col h-full transition-all duration-300 ${isCollapsed ? 'items-center' : ''}`}>
+      {/* Mac Controls */}
+      <div className={`px-5 pt-5 pb-3 flex items-center gap-1.5 ${isCollapsed ? 'justify-center' : ''}`}>
+        <div className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" />
+        <div className="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]" />
+        <div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
+      </div>
+
+      {/* Profile */}
+      <div className={`px-5 py-4 mb-2 flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
+        <div className="relative flex-shrink-0">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-black ring-2 ring-white/50 shadow-sm"
+            style={{ background: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)' }}>
+            {initials}
+          </div>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-sm">
+            <span className="text-[8px]">👋</span>
+          </div>
+        </div>
+        {!isCollapsed && (
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight leading-none mb-0.5">Good Day ✨</p>
+            <p className="text-sm font-black text-[#0A1628] truncate">{user.first_name} {user.last_name[0]}.</p>
+          </div>
+        )}
+        {!isCollapsed && (
+          <button onClick={() => setIsCollapsed(true)} className="ml-auto p-1.5 rounded-lg text-slate-300 hover:text-slate-500 hover:bg-slate-100/50 transition-all">
+            <Menu className="w-4 h-4 rotate-180" />
+          </button>
+        )}
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-4 py-2 no-scrollbar">
+        {NAV.map(group => (
+          <div key={group.section} className="mb-6">
+            {!isCollapsed && (
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400/80 px-2 mb-3 flex items-center justify-between">
+                <span>{group.section}: {group.items.length}</span>
+              </p>
+            )}
+            <div className="space-y-1">
+              {group.items.map(item => {
+                const active = location.pathname === item.to || location.pathname.startsWith(item.to + '/')
+                return (
+                  <Link key={item.to} to={item.to}
+                    onClick={() => setMobileOpen(false)}
+                    title={isCollapsed ? item.label : ''}
+                    className={`group flex items-center gap-3 rounded-2xl transition-all duration-300 ${
+                      isCollapsed ? 'w-10 h-10 justify-center' : 'px-3 py-2.5 w-full'
+                    } ${
+                      active ? 'bg-[#1557FF] text-white shadow-lg shadow-blue-200' : 'text-slate-500 hover:bg-white/60'
+                    }`}>
+                    <item.icon className={`${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'} flex-shrink-0 transition-transform group-hover:scale-110`} />
+                    {!isCollapsed && <span className="text-sm font-bold tracking-tight flex-1 truncate">{item.label}</span>}
+                    {!isCollapsed && item.badge && !active && (
+                      <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center ring-2 ring-white">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+
+      </nav>
+
+      {/* Footer / Settings & Create */}
+      <div className={`px-4 py-6 border-t border-slate-100/50 flex flex-col items-center gap-6`}>
+        {!isCollapsed && (
+          <div className="flex items-center gap-6 text-slate-300">
+            <Link to="/president/settings" className="hover:text-[#1557FF] transition-colors">
+              <Settings className="w-5 h-5" />
+            </Link>
+            <button className="hover:text-slate-500 transition-colors">
+              <HelpCircle className="w-5 h-5" />
+            </button>
+            <button onClick={handleLogout} className="hover:text-red-500 transition-colors">
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+        
+        <button 
+          onClick={() => setIsActionModalOpen(true)}
+          className={`${isCollapsed ? 'w-10 h-10' : 'w-12 h-12'} rounded-full bg-[#1557FF] flex items-center justify-center text-white shadow-xl shadow-blue-200 hover:scale-110 active:scale-95 transition-all`}>
+          <Plus className={isCollapsed ? 'w-5 h-5' : 'w-6 h-6'} />
+        </button>
+
+        {isCollapsed && (
+          <button onClick={() => setIsCollapsed(false)} className="mt-2 p-2 rounded-xl text-slate-300 hover:text-[#1557FF] hover:bg-blue-50 transition-all">
+            <ChevronDown className="w-5 h-5 rotate-90" />
+          </button>
+        )}
+      </div>
+    </div>
+  )
+
+  const sidebarWidth = isCollapsed ? 'w-20' : 'w-[260px]'
+  const mainMargin  = isCollapsed ? 'md:ml-20' : 'md:ml-[260px]'
+
+  return (
+    <div className="min-h-screen flex" style={{ background: '#F8F9FD' }}>
+
+      {/* Sidebar desktop */}
+      <aside className={`hidden md:flex flex-col ${sidebarWidth} flex-shrink-0 fixed top-4 left-4 bottom-4 transition-all duration-300 z-40`}>
+        <div className="flex-1 bg-white/80 backdrop-blur-xl border border-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 overflow-hidden">
+          <SidebarContent />
+        </div>
+      </aside>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute top-4 left-4 bottom-4 w-64 transition-all duration-300 z-50">
+            <div className="h-full bg-white rounded-[2.5rem] shadow-2xl overflow-hidden">
+              <SidebarContent />
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* Main */}
+      <div className={`flex-1 ${mainMargin} flex flex-col min-h-screen transition-all duration-300`}>
+
+        {/* Topbar */}
+        <header className={`fixed top-0 right-0 left-0 ${mainMargin} h-20 bg-[#F8F9FD]/80 backdrop-blur-md z-30 flex items-center gap-4 px-8 transition-all duration-300`}>
+          <button className="md:hidden p-2 text-slate-500 rounded-xl hover:bg-white shadow-sm"
+            onClick={() => setMobileOpen(!mobileOpen)}>
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+
+          <div className="flex-1">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
+              FixMaCity Administration
+            </p>
+            <h1 className="text-xl font-black text-[#0A1628] leading-tight">{title}</h1>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* Search */}
+            <div className="hidden lg:flex items-center gap-3 bg-white border border-slate-100 rounded-2xl px-4 py-2.5 w-64 shadow-sm focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+              <Search className="w-4 h-4 text-slate-400" />
+              <input type="text" placeholder="Rechercher une donnée..."
+                className="bg-transparent text-sm font-bold text-slate-600 placeholder-slate-300 outline-none w-full" />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button className="relative w-11 h-11 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-[#1557FF] hover:border-blue-100 transition-all shadow-sm">
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+              </button>
+              <button className="w-11 h-11 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-[#1557FF] hover:border-blue-100 transition-all shadow-sm">
+                <Mail className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-black text-[#0A1628] leading-none">
+                  {user.first_name} {user.last_name[0]}.
+                </p>
+                <p className="text-[10px] font-bold text-[#1557FF] uppercase tracking-widest mt-1">Maire de la ville</p>
+              </div>
+              <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-white text-sm font-black shadow-lg shadow-blue-100"
+                style={{ background: 'linear-gradient(135deg, #1557FF 0%, #3B82F6 100%)' }}>
+                {initials}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <main className="pt-24 flex-1 p-8">
+          <div className="animate-fade-in">
+            {children}
+          </div>
+        </main>
+      </div>
+
+      {/* Global Modals */}
+      <CreateActionModal 
+        isOpen={isActionModalOpen} 
+        onClose={() => setIsActionModalOpen(false)} 
+      />
+    </div>
+  )
+}
+
+export default PresidentLayout

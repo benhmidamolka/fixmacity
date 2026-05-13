@@ -8,24 +8,20 @@ let _transporter = null;
 function getTransporter() {
   if (_transporter) return _transporter;
 
-  _transporter = nodemailer.createTransport({
+  const config = {
     service: process.env.EMAIL_SERVICE || 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,  // Gmail: use an App Password, not your real password
+      pass: process.env.EMAIL_PASS,
     },
-  });
+  };
 
+  _transporter = nodemailer.createTransport(config);
   return _transporter;
 }
 
 /**
  * Send a transactional email.
- *
- * @param {string} to       Recipient email address
- * @param {string} subject  Email subject
- * @param {string} html     HTML body
- * @param {string} [text]   Plain-text fallback (auto-stripped from html if omitted)
  */
 async function sendEmail(to, subject, html, text = null) {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
@@ -36,14 +32,14 @@ async function sendEmail(to, subject, html, text = null) {
   const transporter = getTransporter();
 
   const info = await transporter.sendMail({
-    from:    `"FixMaCity - Municipalité de Sousse" <${process.env.EMAIL_USER}>`,
+    from: `"FixMaCity" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     html,
-    text:    text || html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+    text: text || html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
   });
 
-  console.log(`[Email] Sent to ${to} — MessageId: ${info.messageId}`);
+  console.log(`[Email] ✅ Sent to ${to} — MessageId: ${info.messageId}`);
   return info;
 }
 

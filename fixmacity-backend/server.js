@@ -4,16 +4,15 @@ const { Server } = require('socket.io');
 const app = require('./src/app');
 const cron = require('node-cron');
 
-// FIX #7: Updated import name to match the renamed export (was autoClosResolvedDeclarations)
 const { autoCloseResolvedDeclarations } = require('./src/services/autoClose.service');
 
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5005;
 
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true,
   },
 });
@@ -42,4 +41,27 @@ cron.schedule('0 2 * * *', async () => {
 server.listen(PORT, () => {
   console.log(`FixMaCity API running on port ${PORT} (${process.env.NODE_ENV || 'development'})`);
   console.log('--- BACKEND READY ---');
+});
+
+// Simple error handler — with retry logic for EADDRINUSE (Windows port release lag)
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.warn(`[Server] Port ${PORT} is in use, retrying in 1s...`);
+    setTimeout(() => {
+      server.close();
+      server.listen(PORT);
+    }, 1000);
+  } else {
+    console.error('[Server] Fatal error:', err);
+    process.exit(1);
+  }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[UnhandledRejection]', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[UncaughtException]', err);
+  process.exit(1);
 });

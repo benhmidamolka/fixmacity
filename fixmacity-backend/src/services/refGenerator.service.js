@@ -1,63 +1,60 @@
-'use strict';
-
 const supabase = require('../config/db');
 
 /**
- * Returns today's date as MM-DD-YY (local time).
- * Including the date in the sequence prefix means the counter
- * resets automatically at midnight each day.
+ * Atomic counter — increments a row in `ref_sequences` and returns the new value.
+ * Uses the existing DB function increment_ref_sequence(p_prefix TEXT) → INTEGER
  */
-function todayKey() {
-  const now = new Date();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const yy = String(now.getFullYear()).slice(-2);
-  return `${mm}-${dd}-${yy}`;
+async function getNextSequence(prefix) {
+  const { data, error } = await supabase.rpc('increment_ref_sequence', {
+    p_prefix: prefix,
+  });
+
+  if (error) {
+    console.error('[RefGenerator] Sequence error:', error.message);
+    throw new Error('Impossible de générer la référence.');
+  }
+
+  return data; // returns the new integer value
 }
 
 /**
- * Generate ref_citoyen at declaration submission.
- * Format: SV-04-08-26-0001 (First 2 letters of delegation code + MM-DD-YY + 4 digits)
+ * Generates ref_citoyen:  {DELEGATION_CODE}-DD-MM-YY-XXXX
+ * @param {string} delegationCode - The 2-letter delegation code (SV, SJ, SA)
  */
-async function generateRefCitoyen(delegationId) {
-  const { data: delegation, error } = await supabase
-    .from('delegations').select('code').eq('id', delegationId).single();
+async function generateRefCitoyen(delegationCode) {
+  if (!delegationCode) throw new Error('Code délégation manquant.');
 
-  if (error || !delegation)
-    throw new Error(`Délégation introuvable pour l'id : ${delegationId}`);
+  const now     = new Date();
+  const dd      = String(now.getDate()).padStart(2, '0');
+  const mm      = String(now.getMonth() + 1).padStart(2, '0');
+  const yy      = String(now.getFullYear()).slice(-2);
+  const dateStr = `${dd}-${mm}-${yy}`;
 
-  const dateKey = todayKey();
-  // Use the 2-letter code from the database (e.g., 'SV' for Sousse Ville)
-  const prefix = `${delegation.code}-${dateKey}`;
+  const prefix = `${delegationCode}-${dateStr}`;
+  const seq    = await getNextSequence(prefix);
+  const seqStr = String(seq).padStart(4, '0');
 
-  // Use raw pool.query to get a reliable scalar integer back.
-  const res = await supabase.pool.query(
-    `SELECT increment_ref_sequence($1) AS seq`, [prefix]
-  );
-  const seq = String(res.rows[0].seq).padStart(4, '0');
-  return `${delegation.code}-${dateKey}-${seq}`;
+  return `${prefix}-${seqStr}`;
 }
 
 /**
- * Generate ref_service when president assigns to a department.
- * Format: VR-04-08-26-0001 (First 2 letters of service code + MM-DD-YY + 4 digits)
+ * Generates ref_service:  {SERVICE_CODE}-DD-MM-YY-XXXX
+ * @param {string} serviceCode - The 2-letter service code (VR, EP, PD, etc.)
  */
-async function generateRefService(departmentId) {
-  const { data: service, error } = await supabase
-    .from('services').select('code').eq('id', departmentId).single();
+async function generateRefService(serviceCode) {
+  if (!serviceCode) throw new Error('Code service manquant.');
 
-  if (error || !service)
-    throw new Error(`Département introuvable pour l'id : ${departmentId}`);
+  const now     = new Date();
+  const dd      = String(now.getDate()).padStart(2, '0');
+  const mm      = String(now.getMonth() + 1).padStart(2, '0');
+  const yy      = String(now.getFullYear()).slice(-2);
+  const dateStr = `${dd}-${mm}-${yy}`;
 
-  const dateKey = todayKey();
-  // Use the 2-letter code from the database (e.g., 'VR' for Voirie & Routes)
-  const prefix = `${service.code}-${dateKey}`;
+  const prefix = `${serviceCode}-${dateStr}`;
+  const seq    = await getNextSequence(prefix);
+  const seqStr = String(seq).padStart(4, '0');
 
-  const res = await supabase.pool.query(
-    `SELECT increment_ref_sequence($1) AS seq`, [prefix]
-  );
-  const seq = String(res.rows[0].seq).padStart(4, '0');
-  return `${service.code}-${dateKey}-${seq}`;
+  return `${prefix}-${seqStr}`;
 }
 
 module.exports = { generateRefCitoyen, generateRefService };

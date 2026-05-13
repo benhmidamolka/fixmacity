@@ -23,12 +23,17 @@ exports.listNotifications = async (req, res) => {
     if (error) return res.status(500).json({ error: 'Erreur lors du chargement des notifications.' });
 
     // Also get unread count
-    const { data: unreadCountResult } = await supabase.rpc('get_unread_notification_count', { p_user_id: req.user.id });
+    const { count: unreadCount, error: unreadError } = await supabase.from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', req.user.id)
+      .eq('is_read', false);
+
+    if (unreadError) console.error('[Notifications] Unread count error:', unreadError);
     
     return res.status(200).json({ 
       notifications, 
       total: count, 
-      unreadCount: unreadCountResult || 0,
+      unreadCount: unreadCount || 0,
       page: +page, 
       limit: +limit 
     });

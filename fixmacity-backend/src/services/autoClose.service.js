@@ -1,32 +1,23 @@
-'use strict';
-
-// FIX #5: This file contained a copy of the declarations CONTROLLER code.
-// Restored to the correct autoClose service implementation.
-
 const supabase = require('../config/db');
 const { logStatusChange } = require('./statusHistory.service');
-const { notifyStatusChange } = require('./notification.service');
 
 /**
- * Auto-close declarations that have been in `resolue` for more than 7 days
- * without receiving a citizen rating. Moves them to `cloturee`.
+ * Auto-close declarations that have been in 'resolue' for more than 7 days
+ * without receiving a citizen rating. Moves them to 'cloturee'.
  *
- * - `closed_at` is NOT used because that column doesn't exist in the schema.
- *   The transition timestamp is captured by logStatusChange() instead.
- * - `changedBy` is null because this is a system-triggered transition.
- *
- * @param {object} app  Express app instance (for Socket.io + email notifications)
- * @returns {number}    Number of declarations auto-closed
+ * @returns {number} Number of declarations closed
  */
-async function autoCloseResolvedDeclarations(app) {
+async function autoCloseResolvedDeclarations() {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
+  // Find 'resolue' declarations whose resolved_at was > 7 days ago
   const { data: candidates, error: fetchErr } = await supabase
     .from('declarations')
-    .select('id, user_id, ref_citoyen')
+    .select('id')
     .eq('status', 'resolue')
     .lte('resolved_at', sevenDaysAgo)
-    .is('deleted_at', null);
+    .is('deleted_at', null)
+    .eq('is_deleted', false);
 
   if (fetchErr) throw fetchErr;
   if (!candidates || candidates.length === 0) return 0;
@@ -34,19 +25,19 @@ async function autoCloseResolvedDeclarations(app) {
   let closedCount = 0;
 
   for (const decl of candidates) {
-    // Skip declarations the citizen already rated
+    // Check if a rating exists
     const { data: rating } = await supabase
       .from('ratings')
       .select('id')
       .eq('declaration_id', decl.id)
       .maybeSingle();
 
-    if (rating) continue;
+    if (rating) continue; // citizen rated — do not auto-close
 
-    // Transition to cloturee
+    // Update to cloturee
     const { error: updateErr } = await supabase
       .from('declarations')
-      .update({ status: 'cloturee' })
+      .update({ status: 'cloturee', updated_at: new Date().toISOString() })
       .eq('id', decl.id);
 
     if (updateErr) {
@@ -54,19 +45,7 @@ async function autoCloseResolvedDeclarations(app) {
       continue;
     }
 
-    // Log the system-triggered transition (changedBy = null for CRON jobs)
-    await logStatusChange(
-      decl.id,
-      'resolue',
-      'cloturee',
-      null,
-      'Auto-clôture après 7 jours sans évaluation.'
-    );
-
-    if (app) {
-      await notifyStatusChange(app, decl, decl.user_id, 'cloturee').catch(() => { });
-    }
-
+    await logStatusChange(decl.id, 'resolue', 'cloturee', null, 'Auto-clôture après 7 jours sans évaluation.');
     closedCount++;
   }
 
