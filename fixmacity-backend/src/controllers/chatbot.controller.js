@@ -152,10 +152,14 @@ exports.sendMessage = async (req, res) => {
     let lastError = null;
     const fullSystemPrompt = `${SYSTEM_PROMPT}\n\nContexte actuel:\n${userContext}`;
 
+    if (attempts === 0) {
+      throw new Error("CONFIGURATION_ERROR: Aucune clé Gemini n'est configurée dans le fichier .env.");
+    }
+
     for (let i = 0; i < attempts; i++) {
       try {
         const genAI = getNextGenAI();
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
         
         const chat = model.startChat({
           history: [
@@ -212,8 +216,12 @@ exports.sendMessage = async (req, res) => {
     console.error('[Chatbot] Error:', err.message);
     
     // Return a fallback message instead of crashing
+    const isQuotaError = err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('Too Many Requests');
+    
     return res.status(200).json({
-      reply: "Je rencontre une difficulté technique. Veuillez réessayer dans quelques instants.",
+      reply: isQuotaError 
+        ? "Le service est temporairement saturé. Veuillez réessayer dans quelques instants."
+        : "Je rencontre une difficulté technique. Veuillez réessayer dans quelques instants.",
       success: false,
       error: err.message
     });

@@ -7,18 +7,20 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
-  'EN ATTENTE': { label: 'En attente', color: '#F59E0B', bg: '#fffbeb' },
-  'EN COURS':   { label: 'En cours',   color: '#1557FF', bg: '#eff6ff' },
-  'TERMINE':    { label: 'Terminé',    color: '#16a34a', bg: '#f0fdf4' },
+  'SOUMISE': { label: 'Soumise', color: '#F59E0B', bg: '#fffbeb' },
+  'EN COURS': { label: 'En cours', color: '#1557FF', bg: '#eff6ff' },
+  'ÉVALUÉ': { label: 'Évalué', color: '#16a34a', bg: '#f0fdf4' },
+  'CLÔTURÉ': { label: 'Clôturé', color: '#64748b', bg: '#f8fafc' },
 }
 
 // ─── Status timeline steps ────────────────────────────────────────────────────
-const TIMELINE_STEPS = ['Soumis', 'Assigné', 'Intervention', 'Résolution']
+const TIMELINE_STEPS = ['Soumise', 'En cours', 'Évalué', 'Clôturé']
 
 function getStepIndex(status: string) {
-  if (status === 'EN ATTENTE') return 1
-  if (status === 'EN COURS')   return 2
-  if (status === 'TERMINE')    return 4
+  if (status === 'SOUMISE') return 1
+  if (status === 'EN COURS') return 2
+  if (status === 'ÉVALUÉ') return 3
+  if (status === 'CLÔTURÉ') return 4
   return 0
 }
 
@@ -59,7 +61,7 @@ function StatusTimeline({ status, history }: { status: string; history: any[] })
 
 // ─── Declaration card ─────────────────────────────────────────────────────────
 function DeclarationCard({ decl, compact = false }: { decl: any; compact?: boolean }) {
-  const s = STATUS_MAP[decl.citizen_status] || STATUS_MAP['EN ATTENTE']
+  const s = STATUS_MAP[decl.citizen_status] || STATUS_MAP['SOUMISE']
   return (
     <div className={`bg-white rounded-2xl border border-slate-100 hover:shadow-md transition-shadow ${compact ? 'p-4' : 'p-6'}`}>
       {!compact && (
@@ -160,7 +162,7 @@ const Dashboard: React.FC = () => {
   }, [])
 
   const latest   = declarations[0]
-  const resolved = declarations.filter(d => d.citizen_status === 'TERMINE').slice(0, 3)
+  const resolved = declarations.filter(d => d.citizen_status === 'RESOLUE' || d.citizen_status === 'CLOTUREE').slice(0, 3)
 
   return (
     <CitizenLayout>

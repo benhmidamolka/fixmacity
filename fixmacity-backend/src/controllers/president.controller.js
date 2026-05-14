@@ -483,6 +483,21 @@ exports.updateUser = async (req, res) => {
     if (delegation_id !== undefined) updates.delegation_id = delegation_id;
     if (is_active !== undefined)     updates.is_active     = is_active;
 
+    if (is_active === false) {
+      // Check for missions in progress
+      const { count: activeMissions } = await supabase
+        .from('declarations')
+        .select('id', { count: 'exact', head: true })
+        .eq('agent_id', id)
+        .in('status', ['assignee_agent', 'en_cours'])
+        .is('deleted_at', null)
+        .eq('is_deleted', false);
+
+      if ((activeMissions || 0) > 0) {
+        return res.status(400).json({ error: 'Impossible de désactiver un agent ayant des missions en cours' });
+      }
+    }
+
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'Aucune donnée à mettre à jour.' });
     }
@@ -512,6 +527,19 @@ exports.updateUser = async (req, res) => {
 exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Exception 3: Impossible de désactiver ou supprimer un agent ayant des missions en cours
+    const { count: activeMissions } = await supabase
+      .from('declarations')
+      .select('id', { count: 'exact', head: true })
+      .eq('agent_id', id)
+      .in('status', ['assignee_agent', 'en_cours'])
+      .is('deleted_at', null)
+      .eq('is_deleted', false);
+
+    if ((activeMissions || 0) > 0) {
+      return res.status(400).json({ error: 'Impossible de désactiver un agent ayant des missions en cours' });
+    }
 
     const { data: user, error } = await supabase
       .from('users')
@@ -697,19 +725,54 @@ exports.listPropositions = async (req, res) => {
 /* ──────────── GET /api/president/dashboard ──────────── */
 exports.dashboard = async (req, res) => {
   try {
-    // -- Total Declarations --
-    const { count: totalDecl } = await supabase
+    const { period, status, department_id, delegation_id } = req.query;
+
+    let baseQuery = supabase
       .from('declarations')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null)
       .eq('is_deleted', false);
 
+    let sqlFilter = ` AND d.deleted_at IS NULL AND d.is_deleted = false`;
+
+    if (period && period !== 'all') {
+      const days = parseInt(period, 10);
+      if (!isNaN(days)) {
+        const dateLimit = new Date();
+        dateLimit.setDate(dateLimit.getDate() - days);
+        baseQuery = baseQuery.gte('created_at', dateLimit.toISOString());
+        sqlFilter += ` AND d.created_at >= NOW() - INTERVAL '${days} days'`;
+      }
+    }
+    if (status && status !== 'all') {
+      baseQuery = baseQuery.eq('status', status);
+      const validStatuses = ['soumise', 'assignee_chef', 'assignee_agent', 'en_cours', 'resolue', 'cloturee', 'refusee_chef', 'refusee_agent'];
+      if (validStatuses.includes(status)) {
+        sqlFilter += ` AND d.status = '${status}'`;
+      }
+    }
+    if (department_id && department_id !== 'all') {
+      baseQuery = baseQuery.eq('department_id', department_id);
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(department_id)) {
+        sqlFilter += ` AND d.department_id = '${department_id}'`;
+      }
+    }
+    if (delegation_id && delegation_id !== 'all') {
+      baseQuery = baseQuery.eq('delegation_id', delegation_id);
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(delegation_id)) {
+        sqlFilter += ` AND d.delegation_id = '${delegation_id}'`;
+      }
+    }
+
+    // -- Total Declarations --
+    const { count: totalDecl } = await baseQuery;
+
     // -- Status Counts --
     const statusCountsRes = await supabase.pool.query(`
-      SELECT status, COUNT(*) as count
-      FROM declarations
-      WHERE deleted_at IS NULL AND is_deleted = false
-      GROUP BY status
+      SELECT d.status, COUNT(*) as count
+      FROM declarations d
+      WHERE 1=1 ${sqlFilter}
+      GROUP BY d.status
     `);
     const byStatus = {
       soumise: 0, assignee_chef: 0, assignee_agent: 0,
@@ -724,14 +787,14 @@ exports.dashboard = async (req, res) => {
 
     // -- Arrondissement (Delegation) Counts --
     const delegCountsRes = await supabase.pool.query(`
-      SELECT dg.name, COUNT(d.id) as count
+      SELECT dg.id, dg.name, COUNT(d.id) as count
       FROM delegations dg
-      LEFT JOIN declarations d ON d.delegation_id = dg.id AND d.deleted_at IS NULL AND d.is_deleted = false
+      LEFT JOIN declarations d ON d.delegation_id = dg.id ${sqlFilter}
       GROUP BY dg.id, dg.name
     `);
     const byArrondissement = {};
     delegCountsRes.rows.forEach(r => {
-      byArrondissement[r.name] = parseInt(r.count, 10);
+      byArrondissement[r.id] = { name: r.name, count: parseInt(r.count, 10) };
     });
 
     // -- Total Users --
@@ -760,7 +823,7 @@ exports.dashboard = async (req, res) => {
         COUNT(d.id) FILTER (WHERE d.created_at >= m.m_start AND d.created_at < m.m_start + interval '1 month') as reports,
         COUNT(d.id) FILTER (WHERE d.status IN ('resolue', 'cloturee') AND (d.resolved_at >= m.m_start OR d.closed_at >= m.m_start) AND (d.resolved_at < m.m_start + interval '1 month' OR d.closed_at < m.m_start + interval '1 month')) as resolved
       FROM months m
-      LEFT JOIN declarations d ON d.is_deleted = false
+      LEFT JOIN declarations d ON 1=1 ${sqlFilter}
       GROUP BY m.name, m.m_start
       ORDER BY m.m_start ASC;
     `);
@@ -779,7 +842,7 @@ exports.dashboard = async (req, res) => {
         COUNT(d.id) as total,
         COUNT(d.id) FILTER (WHERE d.status IN ('resolue', 'cloturee')) as resolved
       FROM services s
-      LEFT JOIN declarations d ON d.department_id = s.id AND d.deleted_at IS NULL AND d.is_deleted = false
+      LEFT JOIN declarations d ON d.department_id = s.id ${sqlFilter}
       GROUP BY s.id, s.name_fr, s.code
       ORDER BY total DESC
     `);
@@ -793,7 +856,7 @@ exports.dashboard = async (req, res) => {
     }));
 
     // ── Recent Declarations ──
-    const { data: recentDecl } = await supabase
+    let recentQuery = supabase
       .from('declarations')
       .select('id, ref_citoyen, status, description, created_at, citizen_id')
       .is('deleted_at', null)
@@ -801,6 +864,40 @@ exports.dashboard = async (req, res) => {
       .order('created_at', { ascending: false })
       .limit(5);
 
+    let crucialQuery = supabase
+      .from('declarations')
+      .select('id, ref_citoyen, status, description, created_at, citizen_id')
+      .is('deleted_at', null)
+      .eq('is_deleted', false)
+      .in('status', ['soumise', 'assignee_chef', 'assignee_agent', 'en_cours'])
+      .order('created_at', { ascending: true })
+      .limit(5);
+
+    if (period && period !== 'all') {
+      const days = parseInt(period, 10);
+      if (!isNaN(days)) {
+        const dateLimit = new Date();
+        dateLimit.setDate(dateLimit.getDate() - days);
+        recentQuery = recentQuery.gte('created_at', dateLimit.toISOString());
+        crucialQuery = crucialQuery.gte('created_at', dateLimit.toISOString());
+      }
+    }
+    if (status && status !== 'all') {
+      recentQuery = recentQuery.eq('status', status);
+      // If filtering by a resolved status, crucial cases might naturally be empty.
+      crucialQuery = crucialQuery.eq('status', status);
+    }
+    if (department_id && department_id !== 'all') {
+      recentQuery = recentQuery.eq('department_id', department_id);
+      crucialQuery = crucialQuery.eq('department_id', department_id);
+    }
+    if (delegation_id && delegation_id !== 'all') {
+      recentQuery = recentQuery.eq('delegation_id', delegation_id);
+      crucialQuery = crucialQuery.eq('delegation_id', delegation_id);
+    }
+
+    const { data: recentDecl } = await recentQuery;
+    
     // Enrich recent with citizen names
     const citizenIds = [...new Set((recentDecl || []).map(d => d.citizen_id).filter(Boolean))];
     let citizenMap = {};
@@ -810,16 +907,7 @@ exports.dashboard = async (req, res) => {
       (citizens || []).forEach(c => { citizenMap[c.id] = `${c.first_name} ${c.last_name}`; });
     }
 
-    // ── Crucial Cases ──
-    const { data: crucialCases } = await supabase
-      .from('declarations')
-      .select('id, ref_citoyen, status, description, created_at, citizen_id')
-      .is('deleted_at', null)
-      .eq('is_deleted', false)
-      .in('status', ['soumise', 'assignee_chef', 'assignee_agent', 'en_cours'])
-      .order('created_at', { ascending: true })
-      .limit(5);
-
+    const { data: crucialCases } = await crucialQuery;
     // ── Top Voted Propositions ──
     const { data: moneyVotes } = await supabase
       .from('propositions')

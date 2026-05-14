@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker, useMapEvents, Rectangle } from 'react-leaflet'
 import L from 'leaflet'
@@ -35,26 +35,22 @@ const URGENCY = [
   { id: 'urgent', label: 'Urgent' },
 ]
 
-const DELEGATIONS = [
-  { id: 'sousse-medina',           name: 'Arrondissement Sousse Médina'           },
-  { id: 'sousse-riadh',            name: 'Arrondissement Sousse Riadh'            },
-  { id: 'sousse-jawhara',          name: 'Arrondissement Sousse Jawhara'          },
-  { id: 'sousse-sidi-abdelhamid',  name: 'Arrondissement Sousse Sidi Abdelhamid' },
-]
-
 // Geographic bounding boxes for each of the 4 arrondissements
 // [minLat, maxLat, minLng, maxLng]
-const ARRONDISSEMENT_BOUNDS: Record<string, [number, number, number, number]> = {
-  'sousse-medina':          [35.817, 35.835, 10.625, 10.650],
-  'sousse-riadh':           [35.775, 35.815, 10.600, 10.640],
-  'sousse-jawhara':         [35.835, 35.870, 10.615, 10.660],
-  'sousse-sidi-abdelhamid': [35.800, 35.840, 10.595, 10.632],
+const ARRONDISSEMENT_BOUNDS_BY_NAME: Record<string, [number, number, number, number]> = {
+  'Sousse Médina':          [35.817, 35.835, 10.625, 10.650],
+  'Sousse Riadh':           [35.775, 35.815, 10.600, 10.640],
+  'Sousse Nord':            [35.835, 35.870, 10.615, 10.660], // Jawhara
+  'Sousse Sud':             [35.800, 35.840, 10.595, 10.632], // Sidi Abdelhamid
 }
 
 // Returns the arrondissement id if the point is inside, null otherwise
-function detectArrondissement(lat: number, lng: number): string | null {
-  for (const [id, [minLat, maxLat, minLng, maxLng]] of Object.entries(ARRONDISSEMENT_BOUNDS)) {
-    if (lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng) return id
+function detectArrondissement(lat: number, lng: number, delegations: any[]): string | null {
+  for (const [name, [minLat, maxLat, minLng, maxLng]] of Object.entries(ARRONDISSEMENT_BOUNDS_BY_NAME)) {
+    if (lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng) {
+      const del = delegations.find(d => d.name === name)
+      return del ? del.id : null
+    }
   }
   return null
 }
@@ -123,7 +119,7 @@ function ChangeMapView({ center }: { center: [number, number] }) {
 }
 
 // ─── STEP 1: Location ─────────────────────────────────────────────────────────
-function Step1({ data, onChange, onNext }: any) {
+function Step1({ data, onChange, onNext, delegations }: any) {
   const [loading, setLoading] = useState(false)
   const [outOfBoundsMsg, setOutOfBoundsMsg] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -136,10 +132,10 @@ function Step1({ data, onChange, onNext }: any) {
       setOutOfBoundsMsg('Ce lieu est en dehors de la municipalité de Sousse.')
       return false
     }
-    const detectedArr = detectArrondissement(lat, lng)
+    const detectedArr = detectArrondissement(lat, lng, delegations)
     if (!detectedArr) {
       setOutOfBoundsMsg(
-        'Ce lieu n\'est pas couvert par l\'un des 4 arrondissements municipaux (Médina, Riadh, Jawhara, Sidi Abdelhamid).'
+        'Ce lieu n\'est pas couvert par l\'un des 4 arrondissements municipaux (Médina, Riadh, Nord, Sud).'
       )
       return false
     }
@@ -244,7 +240,7 @@ function Step1({ data, onChange, onNext }: any) {
     onNext()
   }
 
-  const detectedName = DELEGATIONS.find(d => d.id === data.delegation_id)?.name
+  const detectedName = delegations.find((d: any) => d.id === data.delegation_id)?.name
 
   return (
     <div className="flex flex-col gap-0">
@@ -313,22 +309,22 @@ function Step1({ data, onChange, onNext }: any) {
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           
           {/* Arrondissements highlighting */}
-          {Object.entries(ARRONDISSEMENT_BOUNDS).map(([id, [minLat, maxLat, minLng, maxLng]]) => {
+          {Object.entries(ARRONDISSEMENT_BOUNDS_BY_NAME).map(([name, [minLat, maxLat, minLng, maxLng]]) => {
             const bounds: [[number, number], [number, number]] = [
               [minLat, minLng],
               [maxLat, maxLng]
             ];
             
-            // Assign different colors based on ID
+            // Assign different colors based on name
             let color = '#3b82f6';
-            if (id === 'sousse-medina') color = '#ef4444';
-            if (id === 'sousse-riadh') color = '#eab308';
-            if (id === 'sousse-jawhara') color = '#22c55e';
-            if (id === 'sousse-sidi-abdelhamid') color = '#a855f7';
+            if (name === 'Sousse Médina') color = '#ef4444';
+            if (name === 'Sousse Riadh') color = '#eab308';
+            if (name === 'Sousse Nord') color = '#22c55e';
+            if (name === 'Sousse Sud') color = '#a855f7';
 
             return (
               <Rectangle 
-                key={id} 
+                key={name} 
                 bounds={bounds} 
                 pathOptions={{ color, weight: 2, fillOpacity: 0.1 }}
               />
@@ -383,7 +379,7 @@ function Step1({ data, onChange, onNext }: any) {
           <select value={data.delegation_id || ''} onChange={e => onChange({ delegation_id: e.target.value })}
             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm text-[#0A1628] outline-none focus:border-[#1557FF] transition-all appearance-none cursor-pointer">
             <option value="" disabled>Sélectionner l'arrondissement concerné *</option>
-            {DELEGATIONS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            {delegations.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         )}
 
@@ -669,7 +665,7 @@ function Step3({ data, onChange, onNext, onBack }: any) {
 }
 
 // ─── STEP 4: Review ───────────────────────────────────────────────────────────
-function Step4({ data, onSubmit, onBack, loading }: any) {
+function Step4({ data, onSubmit, onBack, loading, delegations }: any) {
   const catInfo = CATEGORIES.find(c => c.id === data.category)
   
   const handleFinalSubmit = () => {
@@ -693,7 +689,7 @@ function Step4({ data, onSubmit, onBack, loading }: any) {
             <MapPin className="w-3 h-3" /> Localisation
           </p>
           <p className="text-sm font-semibold text-[#0A1628]">{data.address}</p>
-          <p className="text-xs text-slate-400 mt-0.5">{DELEGATIONS.find(d => d.id === data.delegation_id)?.name}</p>
+          <p className="text-xs text-slate-400 mt-0.5">{delegations.find((d: any) => d.id === data.delegation_id)?.name}</p>
         </div>
         <div className="bg-white border border-slate-100 rounded-2xl p-4">
           <p className="text-[10px] font-bold text-[#1557FF] uppercase tracking-wider mb-2">Catégorie & urgence</p>
@@ -805,6 +801,14 @@ const NouveauSignalement: React.FC = () => {
   const [loading,    setLoading]    = useState(false)
   const [refCitoyen, setRefCitoyen] = useState('')
   const [submitted,  setSubmitted]  = useState(false)
+  const [delegations, setDelegations] = useState<any[]>([])
+
+  useEffect(() => {
+    fetch(`${API}/public/delegations`)
+      .then(r => r.json())
+      .then(data => setDelegations(data.delegations || []))
+      .catch(console.error)
+  }, [])
   const [formData,   setFormData]   = useState({
     latitude: 0, longitude: 0, address: '', delegation_id: '',
     category: '', urgency: 'moyen', title: '', description: '',
@@ -859,10 +863,10 @@ const NouveauSignalement: React.FC = () => {
         )}
         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
           {submitted       ? <SuccessScreen ref_citoyen={refCitoyen} onNew={reset} />
-          : step === 1     ? <Step1 data={formData} onChange={update} onNext={() => setStep(2)} />
+          : step === 1     ? <Step1 data={formData} onChange={update} onNext={() => setStep(2)} delegations={delegations} />
           : step === 2     ? <Step2 data={formData} onChange={update} onNext={() => setStep(3)} onBack={() => setStep(1)} />
           : step === 3     ? <Step3 data={formData} onChange={update} onNext={() => setStep(4)} onBack={() => setStep(2)} />
-          : <Step4 data={formData} onSubmit={handleSubmit} onBack={() => setStep(3)} loading={loading} />}
+          : <Step4 data={formData} onSubmit={handleSubmit} onBack={() => setStep(3)} loading={loading} delegations={delegations} />}
         </div>
         {!submitted && step < 4 && (
           <div className="grid grid-cols-2 gap-3 mt-4">

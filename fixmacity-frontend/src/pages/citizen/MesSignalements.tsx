@@ -7,18 +7,19 @@ import DeclarationCommentsPanel from '../../components/president/DeclarationComm
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
-  'SOUMIS': { label: 'Soumis', color: '#F59E0B', bg: '#fffbeb' },
-  'EN ATTENTE': { label: 'Soumis', color: '#F59E0B', bg: '#fffbeb' }, // fallback
+  'SOUMISE': { label: 'Soumise', color: '#F59E0B', bg: '#fffbeb' },
   'EN COURS': { label: 'En cours', color: '#1557FF', bg: '#eff6ff' },
-  'TERMINE': { label: 'Terminé', color: '#16a34a', bg: '#f0fdf4' },
+  'ÉVALUÉ': { label: 'Évalué', color: '#16a34a', bg: '#f0fdf4' },
+  'CLÔTURÉ': { label: 'Clôturé', color: '#64748b', bg: '#f8fafc' },
 }
 
-const TIMELINE_STEPS = ['Soumis', 'Assigné', 'Intervention', 'Résolution']
+const TIMELINE_STEPS = ['Soumise', 'En cours', 'Évalué', 'Clôturé']
 
 function getStepIndex(status: string) {
-  if (status === 'SOUMIS' || status === 'EN ATTENTE') return 1
+  if (status === 'SOUMISE') return 1
   if (status === 'EN COURS') return 2
-  if (status === 'TERMINE') return 4
+  if (status === 'ÉVALUÉ') return 3
+  if (status === 'CLÔTURÉ') return 4
   return 0
 }
 
@@ -228,31 +229,46 @@ function DetailModal({ decl, onClose, onVote, onRate }: {
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Suivi d'intervention</p>
               <Timeline status={decl.citizen_status} history={decl.history} />
             </div>
-            {decl.citizen_status === 'TERMINE' && (
-              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
-                  {rated ? 'Merci pour votre avis !' : "Évaluer l'intervention"}
-                </p>
-                {rated ? (
-                  <div className="text-center">
-                    <p className="text-2xl mb-1">🎉</p>
-                    <p className="text-sm text-slate-600">Note enregistrée : {rating}/5</p>
-                  </div>
-                ) : (
-                  <div className="flex gap-1 justify-center">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <button key={star}
-                        onMouseEnter={() => setHovering(star)}
-                        onMouseLeave={() => setHovering(0)}
-                        onClick={() => handleRate(star)}
-                        className="text-3xl transition-transform hover:scale-110">
-                        <span className={(hovering || rating) >= star ? 'text-amber-400' : 'text-slate-200'}>★</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            {(() => {
+              const isExpired = !rated && decl.status === 'resolue' && decl.resolved_at && (Date.now() - new Date(decl.resolved_at).getTime()) > 7 * 24 * 60 * 60 * 1000;
+              const isClosed = decl.citizen_status === 'CLÔTURÉ' || isExpired;
+              
+              return ['ÉVALUÉ', 'CLÔTURÉ'].includes(decl.citizen_status) && (
+                <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                    {rated || isClosed ? 'Évaluation du signalement' : "Évaluer l'intervention"}
+                  </p>
+                  {rated ? (
+                    <div className="text-center">
+                      <p className="text-2xl mb-1">🎉</p>
+                      <p className="text-sm text-slate-600">Note enregistrée : {rating}/5</p>
+                    </div>
+                  ) : isExpired ? (
+                    <div className="text-center py-2">
+                      <p className="text-sm text-slate-500 italic">Délai d'évaluation de 7 jours dépassé.</p>
+                      <p className="text-[10px] text-slate-400 mt-1">Le signalement est maintenant archivé.</p>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1 justify-center">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button key={star}
+                          onMouseEnter={() => setHovering(star)}
+                          onMouseLeave={() => setHovering(0)}
+                          onClick={() => handleRate(star)}
+                          className="text-3xl transition-transform hover:scale-110">
+                          <span className={(hovering || rating) >= star ? 'text-amber-400' : 'text-slate-200'}>★</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!rated && !isExpired && (
+                    <p className="text-[10px] text-center text-amber-600 mt-3 font-medium">
+                      Temps restant : {Math.max(0, 7 - Math.floor((Date.now() - new Date(decl.resolved_at).getTime()) / (24 * 60 * 60 * 1000)))} jours
+                    </p>
+                  )}
+                </div>
+              )
+            })()}
             {decl.refusal_reason && (
               <div className="bg-red-50 border border-red-100 rounded-2xl p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -265,14 +281,31 @@ function DetailModal({ decl, onClose, onVote, onRate }: {
 
             {/* Comments Panel */}
             <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Notes & Commentaires</p>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Notes & Commentaires</p>
+                {(() => {
+                  const isExpired = !rated && decl.status === 'resolue' && decl.resolved_at && (Date.now() - new Date(decl.resolved_at).getTime()) > 7 * 24 * 60 * 60 * 1000;
+                  const isClosed = decl.citizen_status === 'CLOTUREE' || isExpired;
+                  return isClosed && (
+                    <span className="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full">Lecture seule</span>
+                  )
+                })()}
+              </div>
               <DeclarationCommentsPanel
                 declarationId={decl.id}
                 role="citizen"
                 visibleChannels={['agent_citizen']}
-                writableChannels={['agent_citizen']}
+                writableChannels={(() => {
+                  const isExpired = !rated && decl.status === 'resolue' && decl.resolved_at && (Date.now() - new Date(decl.resolved_at).getTime()) > 7 * 24 * 60 * 60 * 1000;
+                  return (decl.citizen_status === 'CLOTUREE' || isExpired) ? [] : ['agent_citizen'];
+                })()}
                 currentUserId={currentUser.id}
               />
+              {decl.citizen_status === 'CLOTUREE' && decl.ratings?.[0]?.created_at && (
+                <p className="text-[10px] text-slate-400 mt-3 text-center">
+                  Évalué le {new Date(decl.ratings[0].created_at).toLocaleDateString('fr-FR')}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -416,9 +449,9 @@ const MesSignalements: React.FC = () => {
 
   const counts = {
     total: declarations.length,
-    attente: declarations.filter(d => d.citizen_status === 'SOUMIS' || d.citizen_status === 'EN ATTENTE').length,
+    attente: declarations.filter(d => d.citizen_status === 'SOUMISE').length,
     cours: declarations.filter(d => d.citizen_status === 'EN COURS').length,
-    termine: declarations.filter(d => d.citizen_status === 'TERMINE').length,
+    termine: declarations.filter(d => d.citizen_status === 'RESOLUE' || d.citizen_status === 'CLOTUREE').length,
   }
 
   return (
@@ -462,7 +495,7 @@ const MesSignalements: React.FC = () => {
             </button>
             {showFilter && (
               <div className="absolute top-full mt-1 right-0 bg-white border border-slate-200 rounded-xl shadow-lg z-20 min-w-36 py-1">
-                {['Tous', 'Soumis', 'En cours', 'Terminé'].map(s => (
+                {['Tous', 'Soumise', 'En cours', 'Résolue', 'Clôturée'].map(s => (
                   <button key={s} onClick={() => { setStatusFilter(s); setShowFilter(false) }}
                     className={`w-full text-left px-4 py-2 text-sm transition-colors ${statusFilter === s ? 'text-[#1557FF] font-bold bg-blue-50' : 'text-slate-700 hover:bg-slate-50'}`}>
                     {s}

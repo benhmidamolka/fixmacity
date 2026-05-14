@@ -58,8 +58,11 @@ exports.analyzePhoto = async (imagePath) => {
 
   for (let i = 0; i < attempts; i++) {
     try {
+      if (getKeysCount() === 0) {
+        throw new Error("CONFIGURATION_ERROR: Aucune clé Gemini n'est configurée dans le fichier .env.");
+      }
       const genAI = getNextGenAI();
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
 
       result = await model.generateContent([
         {

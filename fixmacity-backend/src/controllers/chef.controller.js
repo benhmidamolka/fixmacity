@@ -179,6 +179,7 @@ exports.acceptDeclaration = async (req, res) => {
     }
 
     // Verify agent belongs to same department
+    let hasSurcharge = false;
     if (agent_id) {
       const { data: agent } = await supabase
         .from('users')
@@ -186,9 +187,23 @@ exports.acceptDeclaration = async (req, res) => {
         .eq('id', agent_id)
         .single();
 
-      if (!agent || agent.role !== 'agent' || !agent.is_active) {
-        return res.status(400).json({ error: 'Agent invalide ou inactif.' });
+      if (!agent || agent.role !== 'agent') {
+        return res.status(400).json({ error: 'Agent invalide.' });
       }
+      if (!agent.is_active) {
+        return res.status(403).json({ error: 'Affectation impossible : cet agent est actuellement désactivé.' });
+      }
+
+      // Check for surcharge (warning only) based on current active tasks
+      const { count: activeCount } = await supabase
+        .from('declarations')
+        .select('id', { count: 'exact', head: true })
+        .eq('agent_id', agent_id)
+        .in('status', ['assignee_agent', 'en_cours'])
+        .is('deleted_at', null)
+        .eq('is_deleted', false);
+
+      hasSurcharge = (activeCount || 0) >= 5; // Simple threshold for "High Workload"
       if (agent.department_id !== req.user.department_id) {
         return res.status(403).json({ error: 'Cet agent n\'appartient pas à votre département.' });
       }
@@ -219,7 +234,11 @@ exports.acceptDeclaration = async (req, res) => {
       await notifyAgentAssigned(req.app, updated, agent_id);
     }
     
-    return res.status(200).json({ declaration: updated });
+    return res.status(200).json({ 
+      declaration: updated,
+      warning: hasSurcharge ? 'Le système détecte qu’un agent possède déjà un nombre important de missions actives ou récentes.' : null
+    });
+
   } catch (err) {
     console.error('[Chef] Accept error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
@@ -292,10 +311,14 @@ exports.listAgents = async (req, res) => {
       return res.status(500).json({ error: 'Erreur serveur.' });
     }
 
-    // Add workload count for each agent
+    // Add workload info for each agent
+    const twoMonthsAgo = new Date();
+    twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+
     const agentsWithWorkload = await Promise.all(
       (agents || []).map(async (agent) => {
-        const { count } = await supabase
+        // Current active tasks
+        const { count: activeCount } = await supabase
           .from('declarations')
           .select('id', { count: 'exact', head: true })
           .eq('agent_id', agent.id)
@@ -303,7 +326,21 @@ exports.listAgents = async (req, res) => {
           .is('deleted_at', null)
           .eq('is_deleted', false);
 
-        return { ...agent, workload: count || 0 };
+        // Total resolved tasks (all time)
+        const { count: resolvedCount } = await supabase
+          .from('declarations')
+          .select('id', { count: 'exact', head: true })
+          .eq('agent_id', agent.id)
+          .in('status', ['resolue', 'cloturee'])
+          .is('deleted_at', null)
+          .eq('is_deleted', false);
+
+        return { 
+          ...agent, 
+          workload: activeCount || 0,
+          resolved_count: resolvedCount || 0,
+          is_overloaded: (activeCount || 0) >= 5
+        };
       })
     );
 
@@ -400,6 +437,21 @@ exports.toggleAgentStatus = async (req, res) => {
 
     if (fetchErr || !agent) return res.status(404).json({ error: 'Agent introuvable.' });
     if (agent.department_id !== departmentId) return res.status(403).json({ error: 'Accès refusé.' });
+
+    // Exception 3: Impossible de désactiver un agent ayant des missions en cours
+    if (agent.is_active) {
+      const { count: activeMissions } = await supabase
+        .from('declarations')
+        .select('id', { count: 'exact', head: true })
+        .eq('agent_id', id)
+        .in('status', ['assignee_agent', 'en_cours'])
+        .is('deleted_at', null)
+        .eq('is_deleted', false);
+
+      if ((activeMissions || 0) > 0) {
+        return res.status(400).json({ error: 'Impossible de désactiver un agent ayant des missions en cours' });
+      }
+    }
 
     const { data: updated, error: updateErr } = await supabase
       .from('users')

@@ -16,13 +16,15 @@ interface Agent {
   last_name: string
   email: string
   phone?: string
-  is_active: boolean
   workload: number
+  recent_tasks: number
+  is_active: boolean
+  is_overloaded: boolean
+  resolved_count: number
   created_at: string
   // Calculated fields for UI
   status: 'available' | 'busy' | 'overloaded' | 'offline'
   rating?: number
-  resolved_count?: number
 }
 
 // ── Modals ──────────────────────────────────────────────────────────────────
@@ -189,7 +191,7 @@ const ChefAgents: React.FC = () => {
         setAgents(data.agents.map((a: any) => ({
           ...a,
           status: !a.is_active ? 'offline' : 
-                  a.workload >= 7 ? 'overloaded' : 
+                  a.is_overloaded ? 'overloaded' : 
                   a.workload >= 4 ? 'busy' : 'available'
         })))
       }
@@ -323,34 +325,28 @@ const ChefAgents: React.FC = () => {
                 {/* Stats Grid */}
                 <div className="grid grid-cols-3 gap-4 p-5 bg-slate-50 rounded-3xl border border-slate-100/50 mb-8">
                   <div className="text-center">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Tâches</p>
-                    <p className={`text-lg font-black ${agent.workload >= 7 ? 'text-red-500' : 'text-[#0A1628]'}`}>{agent.workload}</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Actives</p>
+                    <p className="text-lg font-black text-[#0A1628]">{agent.workload}</p>
                   </div>
                   <div className="text-center border-x border-slate-200/50">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Score</p>
-                    <p className="text-lg font-black text-[#F59E0B]">4.8</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Historique</p>
+                    <p className={`text-lg font-black ${agent.is_overloaded ? 'text-red-500' : 'text-[#F59E0B]'}`}>{agent.recent_tasks}</p>
                   </div>
                   <div className="text-center">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Résolus</p>
-                    <p className="text-lg font-black text-[#10B981]">24</p>
+                    <p className="text-lg font-black text-[#10B981]">{agent.resolved_count}</p>
                   </div>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="space-y-2 mb-8">
-                  <div className="flex justify-between items-center px-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase">Charge de travail</p>
-                    <p className="text-[10px] font-black text-slate-600">{Math.min(Math.round((agent.workload / 7) * 100), 100)}%</p>
-                  </div>
-                  <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-1000 ${
-                        agent.workload >= 7 ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 
-                        agent.workload >= 4 ? 'bg-blue-500 shadow-[0_0_10px_rgba(21,87,255,0.5)]' : 
-                        'bg-green-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
-                      }`}
-                      style={{ width: `${Math.min((agent.workload / 7) * 100, 100)}%` }}
-                    />
+                {/* Workload Indicator */}
+                <div className="mb-8">
+                  <div className="flex justify-between items-center px-4 py-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Charge de travail actuelle</p>
+                    <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full ${
+                      agent.is_overloaded ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {agent.is_overloaded ? 'Élevée' : 'Normale'}
+                    </span>
                   </div>
                 </div>
 

@@ -6,20 +6,20 @@ const { notifyNewDeclaration } = require('../services/notification.service');
 
 /* ── Helper: map DB enum statuses → citizen-facing statuses ── */
 const CITIZEN_STATUS_MAP = {
-  soumise:        'EN ATTENTE',
-  assignee_chef:  'EN ATTENTE',
-  assignee_agent: 'EN ATTENTE',
-  refusee_chef:   'EN ATTENTE',
-  refusee_agent:  'EN ATTENTE',
+  soumise:        'SOUMISE',
+  assignee_chef:  'EN COURS',
+  assignee_agent: 'EN COURS',
+  refusee_chef:   'SOUMISE',
+  refusee_agent:  'EN COURS',
   en_cours:       'EN COURS',
-  resolue:        'TERMINE',
-  cloturee:       'TERMINE',
+  resolue:        'ÉVALUÉ',
+  cloturee:       'CLÔTURÉ',
 };
 
 function mapCitizenStatus(decl) {
   return {
     ...decl,
-    status: CITIZEN_STATUS_MAP[decl.status] || decl.status,
+    citizen_status: CITIZEN_STATUS_MAP[decl.status] || decl.status,
   };
 }
 
@@ -410,8 +410,14 @@ exports.rate = async (req, res) => {
       .eq('citizen_id', req.user.id)
       .maybeSingle();
 
-    if (existingRating) {
-      return res.status(409).json({ error: 'Vous avez déjà évalué cette déclaration.' });
+    if (decl.status === 'resolue' && decl.resolved_at) {
+      const resolvedDate = new Date(decl.resolved_at);
+      const now = new Date();
+      const diffDays = (now.getTime() - resolvedDate.getTime()) / (1000 * 3600 * 24);
+      
+      if (diffDays > 7) {
+        return res.status(403).json({ error: 'Le délai de 7 jours pour évaluer ce signalement est dépassé.' });
+      }
     }
 
     const { error: insertErr } = await supabase
@@ -431,7 +437,19 @@ exports.rate = async (req, res) => {
       return res.status(500).json({ error: 'Erreur serveur.' });
     }
 
-    return res.status(201).json({ message: 'Évaluation enregistrée.' });
+    // Update status to cloturee and set evaluation_date (using current time)
+    await supabase
+      .from('declarations')
+      .update({ 
+        status: 'cloturee', 
+        closed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', id);
+
+    await logStatusChange(id, decl.status, 'cloturee', req.user.id, 'Signalement clôturé après évaluation citoyenne.');
+
+    return res.status(201).json({ message: 'Évaluation enregistrée et signalement clôturé.' });
   } catch (err) {
     console.error('[Declarations] Rate error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });

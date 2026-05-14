@@ -56,3 +56,14 @@ exports.getDeclarationFeedback = async (req, res) => {
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
+
+exports.getPublicDelegations = async (req, res) => {
+  try {
+    const { data: delegations, error } = await supabase.from('delegations').select('*').order('name');
+    if (error) throw error;
+    return res.status(200).json({ delegations: delegations || [] });
+  } catch (err) {
+    console.error('[Public Controller - getPublicDelegations]', err.message);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};

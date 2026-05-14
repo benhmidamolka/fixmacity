@@ -40,7 +40,8 @@ type Channel = 'chef' | 'president' | 'citizen'
 const STEPS = [
   { key: 'assignee_agent', label: 'Assignée',   icon: Lock      },
   { key: 'en_cours',       label: 'En cours',   icon: Unlock    },
-  { key: 'resolue',        label: 'Résolue',    icon: CheckCircle },
+  { key: 'resolue',        label: 'Évalué',     icon: CheckCircle },
+  { key: 'cloturee',       label: 'Clôturé',    icon: Lock      },
 ]
 const stepIdx = (s: string) => STEPS.findIndex(t => t.key === s)
 
@@ -435,8 +436,13 @@ const AgentDeclarationDetail: React.FC = () => {
             {isDone && (
               <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-6 flex flex-col items-center gap-3 text-center">
                 <CheckCircle size={44} className="text-emerald-400" />
-                <p className="font-black text-emerald-800">Mission terminée</p>
+                <p className="font-black text-emerald-800">
+                  {decl.status === 'cloturee' ? 'Mission Archivée' : 'Mission terminée'}
+                </p>
                 <p className="text-xs text-emerald-600">Résolue le {fmt(decl.resolved_at)}</p>
+                {decl.status === 'cloturee' && (
+                  <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest mt-1">✓ Dossier clôturé</p>
+                )}
               </div>
             )}
 

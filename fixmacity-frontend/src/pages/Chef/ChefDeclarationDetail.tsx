@@ -20,7 +20,15 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   refusee_agent:  { label: 'Refusée Agent',  color: '#DC2626', bg: '#FEF2F2', dot: '#DC2626' },
 }
 
-interface Agent { id: string; first_name: string; last_name: string; workload: number; is_active: boolean }
+interface Agent { 
+  id: string; 
+  first_name: string; 
+  last_name: string; 
+  workload: number; 
+  recent_tasks: number;
+  is_active: boolean;
+  is_overloaded: boolean;
+}
 interface Declaration {
   id: string; title: string; ref_citoyen: string; ref_service?: string
   status: string; category: string; priority: string; description?: string
@@ -37,6 +45,8 @@ const ChefDeclarationDetail: React.FC = () => {
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
+  const [success, setSuccess] = useState('')
+  const [warning, setWarning] = useState('')
   const [error, setError] = useState('')
   const [selectedAgentId, setSelectedAgentId] = useState('')
   const [refuseReason, setRefuseReason] = useState('')
@@ -87,6 +97,8 @@ const ChefDeclarationDetail: React.FC = () => {
       if (res.ok) {
         const d = await res.json()
         setDecl(prev => prev ? { ...prev, ...d.declaration, status: 'assignee_agent' } : prev)
+        if (d.warning) setWarning(d.warning)
+        else setSuccess('Signalement assigné avec succès.')
       } else {
         const e = await res.json()
         setError(e.error || 'Erreur lors de l\'acceptation.')
@@ -96,7 +108,11 @@ const ChefDeclarationDetail: React.FC = () => {
   }
 
   const handleRefuse = async () => {
-    if (!id || !refuseReason.trim()) return
+    if (!id) return
+    if (!refuseReason.trim()) {
+      setError('Le motif de refus est obligatoire')
+      return
+    }
     setActing(true)
     try {
       const res = await fetch(`${API}/chef/declarations/${id}/refuse`, {
@@ -292,11 +308,38 @@ const ChefDeclarationDetail: React.FC = () => {
                       >
                         <option value="">Sélectionner un agent...</option>
                         {Array.isArray(agents) && agents.map(a => (
-                          <option key={a.id} value={a.id}>
-                            {a.first_name} {a.last_name}
+                          <option key={a.id} value={a.id} disabled={!a.is_active} className={!a.is_active ? 'text-slate-300' : ''}>
+                            {a.first_name} {a.last_name} 
+                            {a.is_active ? ` (${a.workload} active/s - ${a.is_overloaded ? 'Charge Élevée' : 'Charge Normale'})` : ' (Indisponible)'}
                           </option>
                         ))}
                       </select>
+                      {selectedAgentId && agents.find(a => a.id === selectedAgentId)?.is_overloaded && (
+                        <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                          <p className="text-[10px] font-bold text-amber-700 flex items-center gap-1 uppercase tracking-wider mb-1">
+                            <AlertTriangle className="w-3 h-3" /> Avertissement
+                          </p>
+                          <p className="text-xs text-amber-600 font-medium">L’agent possède une charge de travail élevée. Vous pouvez confirmer ou choisir un autre agent.</p>
+                        </div>
+                      )}
+                      {error && (
+                        <p className="mt-2 text-[10px] font-bold text-red-600 flex items-center gap-1">
+                          <XCircle className="w-3 h-3" /> {error}
+                        </p>
+                      )}
+                      {success && (
+                        <p className="mt-2 text-[10px] font-bold text-green-600 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> {success}
+                        </p>
+                      )}
+                      {warning && (
+                        <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                          <p className="text-[10px] font-bold text-amber-700 flex items-center gap-1 uppercase tracking-wider mb-1">
+                            <AlertTriangle className="w-3 h-3" /> Attention
+                          </p>
+                          <p className="text-xs text-amber-600 font-medium">{warning}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 

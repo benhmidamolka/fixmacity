@@ -13,4 +13,7 @@ router.get('/declarations', publicCtrl.getPublicDeclarations);
 // GET /api/public/declarations/:id/feedback -> For reading comments/score
 router.get('/declarations/:id/feedback', publicCtrl.getDeclarationFeedback);
 
+// GET /api/public/delegations -> For listing all delegations
+router.get('/delegations', publicCtrl.getPublicDelegations);
+
 module.exports = router;

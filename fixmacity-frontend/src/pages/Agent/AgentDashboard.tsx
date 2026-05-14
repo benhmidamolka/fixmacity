@@ -107,7 +107,7 @@ const AgentDashboard: React.FC = () => {
           {[
             { label: 'À accepter',    value: pending.length, icon: Clock,        color: 'text-indigo-600', bg: 'bg-indigo-50', gradient: 'from-indigo-500/5 to-transparent'  },
             { label: 'En cours',      value: ongoing.length, icon: Zap,          color: 'text-amber-600',  bg: 'bg-amber-50',  gradient: 'from-amber-500/5 to-transparent'   },
-            { label: 'Résolues',      value: history.filter(m=>m.status==='resolue').length, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', gradient: 'from-emerald-500/5 to-transparent' },
+            { label: 'Évalués',       value: history.filter(m => ['resolue', 'cloturee'].includes(m.status)).length, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', gradient: 'from-emerald-500/5 to-transparent' },
           ].map(s => (
             <div key={s.label} className={`relative overflow-hidden bg-white rounded-3xl border border-slate-100 p-6 flex items-center gap-4 shadow-sm hover:shadow-md transition-all duration-300 group`}>
               <div className={`absolute inset-0 bg-gradient-to-br ${s.gradient} opacity-0 group-hover:opacity-100 transition-opacity`} />
