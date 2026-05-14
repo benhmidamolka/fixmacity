@@ -139,19 +139,19 @@ function PropositionModal({ prop, onClose, onVote, onShare }: {
               </div>
             )}
 
-            <div className="flex items-center justify-center gap-4 mt-4">
-              <span className="text-slate-400 text-xs font-medium">Partager :</span>
+            <div className="flex items-center justify-center gap-4 mt-4 bg-slate-100/50 py-2 rounded-xl">
+              <span className="text-slate-400 text-xs font-black uppercase tracking-widest">Partager</span>
               <button 
                 onClick={() => onShare('social')}
-                className="p-2 text-slate-400 hover:text-[#1557FF] transition-colors" 
+                className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-slate-500 hover:text-[#1557FF] hover:shadow-md transition-all" 
                 title="Partager">
-                <Share2 className="w-4 h-4" />
+                <Share2 className="w-5 h-5" />
               </button>
               <button 
                 onClick={() => onShare('link')}
-                className="p-2 text-slate-400 hover:text-[#1557FF] transition-colors" 
+                className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-slate-500 hover:text-[#1557FF] hover:shadow-md transition-all" 
                 title="Copier le lien">
-                <LinkIcon className="w-4 h-4" />
+                <LinkIcon className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -162,13 +162,23 @@ function PropositionModal({ prop, onClose, onVote, onShare }: {
 }
 
 // ─── Proposition Card ─────────────────────────────────────────────────────────
-function PropCard({ prop, onClick }: { prop: any; onClick: () => void }) {
+function PropCard({ prop, onClick, onShare }: { prop: any; onClick: () => void; onShare: (e: React.MouseEvent, prop: any) => void }) {
   const c = CATEGORY_COLORS[prop.category] || CATEGORY_COLORS['Environnement']
   const urgent = prop.days_left <= 5
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-lg transition-all cursor-pointer group"
+    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-lg transition-all cursor-pointer group relative flex flex-col h-full"
       onClick={onClick}>
+      
+      {/* Share button overlay */}
+      <div className="absolute top-3 right-3 z-10 flex gap-2">
+        <button 
+          onClick={(e) => onShare(e, prop)}
+          className="w-9 h-9 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center text-slate-600 shadow-sm hover:bg-white hover:text-[#1557FF] transition-all opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 duration-300">
+          <Share2 className="w-4 h-4" />
+        </button>
+      </div>
+
       <div className="relative h-44 overflow-hidden">
         <img src={prop.img} alt={prop.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -180,39 +190,41 @@ function PropCard({ prop, onClick }: { prop: any; onClick: () => void }) {
         </span>
       </div>
 
-      <div className="p-5">
-        <h3 className="font-bold text-[#0A1628] text-base leading-tight mb-2">{prop.title}</h3>
+      <div className="p-5 flex-1 flex flex-col">
+        <h3 className="font-bold text-[#0A1628] text-base leading-tight mb-2 group-hover:text-[#1557FF] transition-colors">{prop.title}</h3>
 
         {/* Countdown */}
         <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full mb-4 ${
           urgent ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
         }`}>
-          ⏳ {prop.days_left} jours restants (Clôture : {prop.closes_at})
+          ⏳ {prop.days_left} jours restants
         </div>
 
         {/* Progress */}
-        <div className="flex justify-between text-xs font-bold mb-1.5">
-          <span className="text-slate-500">Soutien citoyen</span>
-          <span style={{ color: '#16a34a' }}>{prop.pour_pct}%</span>
-        </div>
-        <div className="h-2 rounded-full bg-slate-100 overflow-hidden mb-4">
-          <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${prop.pour_pct}%` }} />
-        </div>
+        <div className="mt-auto">
+          <div className="flex justify-between text-xs font-bold mb-1.5">
+            <span className="text-slate-500">Soutien citoyen</span>
+            <span style={{ color: '#16a34a' }}>{prop.pour_pct}%</span>
+          </div>
+          <div className="h-2 rounded-full bg-slate-100 overflow-hidden mb-4">
+            <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${prop.pour_pct}%` }} />
+          </div>
 
-        {/* Vote buttons */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={e => { e.stopPropagation(); onClick() }}
-            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white font-bold text-sm transition-all hover:opacity-90"
-            style={{ background: '#16a34a' }}>
-            <ThumbsUp className="w-3.5 h-3.5" /> Pour
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); onClick() }}
-            className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-sm transition-all border hover:bg-red-50"
-            style={{ borderColor: '#fca5a5', color: '#e11d48', background: '#fff1f2' }}>
-            <ThumbsDown className="w-3.5 h-3.5" /> Contre
-          </button>
+          {/* Vote buttons */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={e => { e.stopPropagation(); onClick() }}
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white font-bold text-sm transition-all hover:opacity-90"
+              style={{ background: '#16a34a' }}>
+              <ThumbsUp className="w-3.5 h-3.5" /> Pour
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); onClick() }}
+              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-sm transition-all border hover:bg-red-50"
+              style={{ borderColor: '#fca5a5', color: '#e11d48', background: '#fff1f2' }}>
+              <ThumbsDown className="w-3.5 h-3.5" /> Contre
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -303,10 +315,11 @@ const Propositions: React.FC = () => {
     }
   }
 
-  const handleShare = async (type: 'link' | 'social') => {
+  const handleShare = async (type: 'link' | 'social', propToShare?: any) => {
+    const targetProp = propToShare || selected;
     const shareData = {
-      title: selected?.title || 'Proposition FixMaCity',
-      text: selected?.description || 'Découvrez cette proposition pour Sousse !',
+      title: targetProp?.title || 'Proposition FixMaCity',
+      text: targetProp?.description || 'Découvrez cette proposition pour Sousse !',
       url: window.location.href,
     };
 
@@ -361,7 +374,15 @@ const Propositions: React.FC = () => {
         {/* Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {props.map(p => (
-            <PropCard key={p.id} prop={p} onClick={() => setSelected(p)} />
+            <PropCard 
+              key={p.id} 
+              prop={p} 
+              onClick={() => setSelected(p)} 
+              onShare={(e, prop) => {
+                e.stopPropagation();
+                handleShare('social', prop);
+              }}
+            />
           ))}
         </div>
       </div>

@@ -17,14 +17,15 @@ import ChefNotifications     from './pages/Chef/ChefNotifications'
 import ChefSettings          from './pages/Chef/ChefSettings'
 import AgentDeclarationDetail from './pages/Agent/AgentDeclarationDetail'
 import AgentDashboard from './pages/Agent/AgentDashboard'
-import AgentStats from './pages/Agent/AgentStats'
 import AgentNotifications from './pages/Agent/AgentNotifications'
 import AgentSettings from './pages/Agent/AgentSettings'
 
 // Public Pages
-import Landing    from './pages/Public/Landing'
-import Login      from './pages/Public/Login'
-import Register   from './pages/Public/Register'
+import Landing         from './pages/Public/Landing'
+import Login           from './pages/Public/Login'
+import Register        from './pages/Public/Register'
+import ForgotPassword  from './pages/Public/ForgotPassword'
+import ResetPassword   from './pages/Public/ResetPassword'
 
 // Citizen Pages
 import Dashboard         from './pages/Citizen/Dashboard'
@@ -47,9 +48,11 @@ const App: React.FC = () => {
     <>
       <Routes>
         {/* Public Routes */}
-        <Route path="/"         element={<Landing />} />
-        <Route path="/login"    element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/"                element={<Landing />} />
+        <Route path="/login"           element={<Login />} />
+        <Route path="/register"        element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password"  element={<ResetPassword />} />
 
         {/* Citizen Protected Routes */}
         <Route path="/dashboard" element={
@@ -130,9 +133,7 @@ const App: React.FC = () => {
         <Route path="/agent/declarations/:id" element={
           <ProtectedRoute><AgentDeclarationDetail /></ProtectedRoute>
         } />
-        <Route path="/agent/stats" element={
-          <ProtectedRoute><AgentStats /></ProtectedRoute>
-        } />
+
         <Route path="/agent/notifications" element={
           <ProtectedRoute><AgentNotifications /></ProtectedRoute>
         } />

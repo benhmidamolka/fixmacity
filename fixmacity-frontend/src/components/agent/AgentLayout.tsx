@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, BarChart2,
-  Bell, LogOut, Menu, X,
+  LayoutDashboard,
+  Bell, LogOut, Menu,
   Settings, ClipboardList
 } from 'lucide-react'
 
@@ -11,10 +11,9 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 const NAV = [
   {
-    section: 'Menu',
+    section: 'Travail',
     items: [
-      { label: 'Dashboard',     icon: LayoutDashboard, to: '/agent/dashboard'     },
-      { label: 'Mes Stats',     icon: BarChart2,       to: '/agent/stats'         },
+      { label: 'Mes Missions',  icon: LayoutDashboard, to: '/agent/dashboard'     },
       { label: 'Notifications', icon: Bell,            to: '/agent/notifications' },
     ]
   },
@@ -25,6 +24,7 @@ const NAV = [
     ]
   }
 ]
+
 
 interface Props { children: React.ReactNode; title?: string }
 

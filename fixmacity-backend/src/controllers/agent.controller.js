@@ -87,7 +87,7 @@ exports.getDeclarationById = async (req, res) => {
     const { data: comments } = await supabase
       .from('internal_comments')
       .select(`
-        id, content, created_at,
+        id, content, channel, created_at,
         author:user_id (first_name, last_name, role)
       `)
       .eq('declaration_id', id)
@@ -150,7 +150,7 @@ exports.refuseDeclaration = async (req, res) => {
     const { raison } = req.body;
 
     if (!raison || !raison.trim()) {
-      return res.status(400).json({ error: 'Motif de refus obligatoire' });
+      return res.status(400).json({ error: 'Le motif de refus est obligatoire' });
     }
 
     const { data: decl, error: fetchErr } = await supabase
@@ -160,9 +160,9 @@ exports.refuseDeclaration = async (req, res) => {
       .eq('department_id', agentScope(req))
       .single();
 
-    if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable' });
+    if (fetchErr || !decl) return res.status(404).json({ error: 'Signalement introuvable ou non assigné' });
     if (!['assignee_agent', 'en_cours'].includes(decl.status)) {
-      return res.status(400).json({ error: 'Statut invalide pour refus' });
+      return res.status(400).json({ error: 'Ce signalement est déjà clôturé ou dans un état non modifiable' });
     }
 
     const { error: updateErr } = await supabase
@@ -213,7 +213,6 @@ exports.uploadPhoto = async (req, res) => {
       });
     } else {
       // For demo purposes, we can't upload if credentials are missing
-      // But let's check if we have a local file if using a different middleware
       console.warn('[Agent] Cloudinary not configured — photo upload skipped');
       return res.status(501).json({ error: 'Cloudinary non configuré' });
     }
@@ -240,21 +239,30 @@ exports.uploadPhoto = async (req, res) => {
 exports.resolveDeclaration = async (req, res) => {
   try {
     const { id } = req.params;
-    const { report, date_debut, date_fin } = req.body;
+    const { rapport_interne, date_fin } = req.body;
 
     const { data: decl, error: fetchErr } = await supabase
       .from('declarations')
-      .select('id, ref_citoyen, status, citizen_id')
+      .select('id, ref_citoyen, status, citizen_id, started_at')
       .eq('id', id)
       .eq('department_id', agentScope(req))
       .single();
 
-    if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable' });
+    if (fetchErr || !decl) return res.status(404).json({ error: 'Signalement introuvable ou non assigné' });
     if (decl.status !== 'en_cours') {
-      return res.status(400).json({ error: 'Statut invalide pour résolution' });
+      return res.status(400).json({ error: 'Le signalement n\'est pas dans un état permettant la résolution' });
     }
 
-    // Check for proof photos
+    // Exception 4: Date validation
+    if (decl.started_at && date_fin) {
+      const d1 = new Date(decl.started_at);
+      const d2 = new Date(date_fin);
+      if (d2 < d1) {
+        return res.status(400).json({ error: 'La date de fin doit être supérieure à la date de début' });
+      }
+    }
+
+    // Exception 1: Check for proof photos
     const { data: photos } = await supabase
       .from('declaration_photos')
       .select('id')
@@ -262,7 +270,7 @@ exports.resolveDeclaration = async (req, res) => {
       .limit(1);
 
     if (!photos || photos.length === 0) {
-      return res.status(400).json({ error: 'Une photo preuve est obligatoire' });
+      return res.status(400).json({ error: 'Une photo de résolution est obligatoire' });
     }
 
     const { error: updateErr } = await supabase
@@ -270,9 +278,8 @@ exports.resolveDeclaration = async (req, res) => {
       .update({ 
         status: 'resolue', 
         resolved_at: new Date().toISOString(),
-        internal_intervention_report: req.body.rapport_interne || null,
-        intervention_started_at: req.body.date_debut || null,
-        intervention_ended_at: req.body.date_fin || null
+        internal_intervention_report: rapport_interne || null,
+        intervention_ended_at: date_fin || new Date().toISOString()
       })
       .eq('id', id);
 
@@ -296,7 +303,7 @@ exports.getComments = async (req, res) => {
     const { data, error } = await supabase
       .from('internal_comments')
       .select(`
-        id, content, created_at,
+        id, content, channel, created_at,
         author:user_id (first_name, last_name, role)
       `)
       .eq('declaration_id', id)
@@ -314,7 +321,7 @@ exports.getComments = async (req, res) => {
 exports.addComment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { content } = req.body;
+    const { content, channel } = req.body;
 
     if (!content || !content.trim()) return res.status(400).json({ error: 'Contenu requis' });
 
@@ -323,9 +330,10 @@ exports.addComment = async (req, res) => {
       .insert({ 
         declaration_id: id, 
         user_id: req.user.id, 
-        content: content.trim() 
+        content: content.trim(),
+        channel: channel || 'chef'
       })
-      .select(`id, content, created_at, author:user_id (first_name, last_name, role)`)
+      .select(`id, content, channel, created_at, author:user_id (first_name, last_name, role)`)
       .single();
 
     if (error) throw error;
