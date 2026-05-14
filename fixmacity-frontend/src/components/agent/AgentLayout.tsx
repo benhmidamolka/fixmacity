@@ -1,19 +1,21 @@
-// src/layouts/AgentLayout.tsx
+// src/components/agent/AgentLayout.tsx
 import React, { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, ClipboardList, BarChart2,
-  Bell, LogOut, Menu, X, Search as SearchIcon,
-  ChevronDown, HelpCircle, Settings, MessageSquare
+  LayoutDashboard, BarChart2,
+  Bell, LogOut, Menu, X,
+  Settings, ClipboardList
 } from 'lucide-react'
+
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 const NAV = [
   {
     section: 'Menu',
     items: [
-      { label: 'Dashboard',      icon: LayoutDashboard, to: '/agent/dashboard'      },
-      { label: 'Mes Stats',      icon: BarChart2,       to: '/agent/stats'          },
-      { label: 'Notifications',  icon: Bell,            to: '/agent/notifications', badge: 2 },
+      { label: 'Dashboard',     icon: LayoutDashboard, to: '/agent/dashboard'     },
+      { label: 'Mes Stats',     icon: BarChart2,       to: '/agent/stats'         },
+      { label: 'Notifications', icon: Bell,            to: '/agent/notifications' },
     ]
   },
   {
@@ -31,21 +33,20 @@ const AgentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => {
   const navigate   = useNavigate()
   const [mobileOpen,  setMobileOpen]  = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [missionCount, setMissionCount] = useState(0)
 
   const user     = JSON.parse(localStorage.getItem('fmc_user') || '{}')
   const initials = `${user.first_name?.[0] ?? 'A'}${user.last_name?.[0] ?? 'T'}`
 
-  const [missionCount, setMissionCount] = useState(0)
-
   useEffect(() => {
     fetchMissionCount()
-    const interval = setInterval(fetchMissionCount, 30000) // update every 30s
+    const interval = setInterval(fetchMissionCount, 30000)
     return () => clearInterval(interval)
   }, [])
 
   const fetchMissionCount = async () => {
     try {
-      const res = await fetch('http://localhost:5005/api/agent/declarations', {
+      const res = await fetch(`${API}/agent/declarations`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
       })
       const data = await res.json()
@@ -56,95 +57,61 @@ const AgentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => {
 
   const logout = async () => {
     try {
-      await fetch('http://localhost:5005/api/auth/logout', {
+      await fetch(`${API}/auth/logout`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
       })
-    } catch (_) {}
+    } catch (e) {}
     localStorage.removeItem('fmc_token')
     localStorage.removeItem('fmc_user')
     navigate('/login')
   }
 
   const SidebarContent = () => (
-    <div className={`flex flex-col h-full transition-all duration-300 ${isCollapsed ? 'items-center' : ''}`}>
-      {/* Mac Controls */}
-      <div className={`px-5 pt-5 pb-3 flex items-center gap-1.5 ${isCollapsed ? 'justify-center' : ''}`}>
-        <div className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" />
-        <div className="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]" />
-        <div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />
-      </div>
-
-      {/* Profile */}
-      <div className={`px-5 py-4 mb-2 flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
-        <div className="relative flex-shrink-0">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-black ring-2 ring-white/50 shadow-sm"
-            style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}>
-            {initials}
-          </div>
-          <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-sm">
-            <span className="text-[8px]">👷</span>
-          </div>
+    <div className="flex flex-col h-full">
+      {/* Logo */}
+      <div className={`flex items-center gap-3 px-6 py-6 border-b border-slate-100 ${isCollapsed ? 'justify-center' : ''}`}>
+        <div className="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-200 flex-shrink-0">
+          <ClipboardList className="w-5 h-5 text-white" />
         </div>
         {!isCollapsed && (
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight leading-none mb-0.5">Agent Terrain</p>
-            <p className="text-sm font-black text-[#0A1628] truncate">{user.first_name} {user.last_name?.[0]}.</p>
+          <div>
+            <p className="text-sm font-black text-[#0A1628] leading-none">FixMaCity</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Agent</p>
           </div>
         )}
-        {!isCollapsed && (
-          <button onClick={() => setIsCollapsed(true)}
-            className="ml-auto p-1.5 rounded-lg text-slate-300 hover:text-slate-500 hover:bg-slate-100/50 transition-all">
-            <Menu className="w-4 h-4 rotate-180" />
-          </button>
-        )}
       </div>
-
-      {/* Dept badge */}
-      {!isCollapsed && (
-        <div className="mx-4 mb-4 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100">
-          <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Département</p>
-          <p className="text-xs font-black text-emerald-700 mt-0.5 truncate">
-            {user.department_name || 'Voirie & Routes'}
-          </p>
-        </div>
-      )}
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-4 py-2">
-        {NAV.map(group => (
-          <div key={group.section} className="mb-6">
+      <nav className="flex-1 px-4 py-6 space-y-6 overflow-y-auto">
+        {NAV.map(section => (
+          <div key={section.section}>
             {!isCollapsed && (
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400/80 px-2 mb-3">
-                {group.section}
-              </p>
+              <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest px-3 mb-2">{section.section}</p>
             )}
             <div className="space-y-1">
-              {group.items.map(item => {
-                const active = location.pathname === item.to || location.pathname.startsWith(item.to + '/')
+              {section.items.map(item => {
+                const active = location.pathname === item.to
                 return (
-                  <Link key={item.to} to={item.to}
+                  <Link
+                    key={item.to}
+                    to={item.to}
                     onClick={() => setMobileOpen(false)}
-                    title={isCollapsed ? item.label : ''}
-                    className={`group flex items-center gap-3 rounded-2xl transition-all duration-200 ${
-                      isCollapsed ? 'w-10 h-10 justify-center' : 'px-3 py-2.5 w-full'
-                    } ${active
-                        ? 'text-white shadow-lg shadow-emerald-200'
-                        : 'text-slate-500 hover:bg-white/60'
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative ${
+                      active
+                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-[#0A1628]'
                     }`}
-                    style={active ? { background: 'linear-gradient(135deg, #10B981, #059669)' } : {}}>
-                    <item.icon className={`${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'} flex-shrink-0`} />
-                    {!isCollapsed && (
-                      <span className="text-sm font-bold tracking-tight flex-1 truncate">{item.label}</span>
-                    )}
-                    {!isCollapsed && item.label === 'Dashboard' && missionCount > 0 && !active && (
-                      <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">
+                  >
+                    <item.icon className={`w-4.5 h-4.5 flex-shrink-0 ${active ? 'text-white' : 'text-slate-400 group-hover:text-emerald-500'}`} />
+                    {!isCollapsed && <span className="text-sm font-bold">{item.label}</span>}
+
+                    {/* Badge for missions */}
+                    {item.label === 'Dashboard' && missionCount > 0 && (
+                      <span className={`ml-auto text-[10px] font-black px-2 py-0.5 rounded-full ${
+                        active ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-600'
+                      }`}>
                         {missionCount}
-                      </span>
-                    )}
-                    {!isCollapsed && (item as any).badge && !active && (
-                      <span className="w-5 h-5 rounded-full bg-slate-400 text-white text-[9px] font-black flex items-center justify-center">
-                        {(item as any).badge}
                       </span>
                     )}
                   </Link>
@@ -155,99 +122,77 @@ const AgentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="px-4 py-6 border-t border-slate-100/50 flex flex-col items-center gap-4">
+      {/* User + Logout */}
+      <div className="px-4 py-4 border-t border-slate-100">
         {!isCollapsed && (
-          <div className="flex items-center gap-6 text-slate-300">
-            <Link to="/agent/settings" className="hover:text-emerald-500 transition-colors">
-              <Settings className="w-5 h-5" />
-            </Link>
-            <button className="hover:text-slate-500 transition-colors">
-              <HelpCircle className="w-5 h-5" />
-            </button>
-            <button onClick={logout} className="hover:text-red-500 transition-colors">
-              <LogOut className="w-5 h-5" />
-            </button>
+          <div className="flex items-center gap-3 px-3 py-2 mb-2 rounded-xl bg-slate-50">
+            <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-black flex-shrink-0">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-black text-[#0A1628] truncate">{user.first_name} {user.last_name}</p>
+              <p className="text-[10px] text-slate-400 font-bold">Agent terrain</p>
+            </div>
           </div>
         )}
-        {isCollapsed && (
-          <button onClick={() => setIsCollapsed(false)}
-            className="p-2 rounded-xl text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 transition-all">
-            <ChevronDown className="w-5 h-5 rotate-90" />
-          </button>
-        )}
+        <button
+          onClick={logout}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-500 transition-all ${isCollapsed ? 'justify-center' : ''}`}
+        >
+          <LogOut className="w-4 h-4 flex-shrink-0" />
+          {!isCollapsed && <span className="text-sm font-bold">Déconnexion</span>}
+        </button>
       </div>
     </div>
   )
 
-  const sidebarWidth = isCollapsed ? 'w-20' : 'w-[260px]'
-  const mainMargin   = isCollapsed ? 'md:ml-20' : 'md:ml-[260px]'
-
   return (
-    <div className="min-h-screen flex" style={{ background: '#F8F9FD' }}>
-      <aside className={`hidden md:flex flex-col ${sidebarWidth} flex-shrink-0 fixed top-4 left-4 bottom-4 transition-all duration-300 z-40`}>
-        <div className="flex-1 bg-white/80 backdrop-blur-xl border border-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 overflow-hidden">
-          <SidebarContent />
-        </div>
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
+      {/* Desktop sidebar */}
+      <aside className={`hidden lg:flex flex-col bg-white border-r border-slate-100 shadow-sm transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'}`}>
+        {/* Collapse toggle */}
+        <button
+          onClick={() => setIsCollapsed(v => !v)}
+          className="absolute top-6 -right-3 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-emerald-500 z-10 shadow-sm"
+          style={{ position: 'relative', marginLeft: 'auto', marginRight: '-12px', marginTop: '16px', marginBottom: '-22px' }}
+        >
+          {isCollapsed ? '›' : '‹'}
+        </button>
+        <SidebarContent />
       </aside>
 
+      {/* Mobile overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute top-4 left-4 bottom-4 w-64 z-50">
-            <div className="h-full bg-white rounded-[2.5rem] shadow-2xl overflow-hidden">
-              <SidebarContent />
-            </div>
-          </aside>
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <div className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-2xl z-50">
+            <SidebarContent />
+          </div>
         </div>
       )}
 
-      <div className={`flex-1 ${mainMargin} flex flex-col min-h-screen transition-all duration-300`}>
-        <header className={`fixed top-0 right-0 left-0 ${mainMargin} h-20 bg-[#F8F9FD]/80 backdrop-blur-md z-30 flex items-center gap-4 px-8 transition-all duration-300`}>
-          <button className="md:hidden p-2 text-slate-500 rounded-xl hover:bg-white shadow-sm"
-            onClick={() => setMobileOpen(!mobileOpen)}>
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Topbar */}
+        <header className="bg-white border-b border-slate-100 px-6 py-4 flex items-center gap-4 flex-shrink-0">
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="lg:hidden p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all"
+          >
+            <Menu className="w-5 h-5" />
           </button>
-
           <div className="flex-1">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
-              FixMaCity · Agent Terrain
-            </p>
-            <h1 className="text-xl font-black text-[#0A1628] leading-tight">{title}</h1>
+            <h1 className="text-lg font-black text-[#0A1628]">{title}</h1>
           </div>
-
-          <div className="flex items-center gap-4">
-            <div className="hidden lg:flex items-center gap-3 bg-white border border-slate-100 rounded-2xl px-4 py-2.5 w-64 shadow-sm">
-              <SearchIcon className="w-4 h-4 text-slate-400" />
-              <input type="text" placeholder="Chercher une tâche..."
-                className="bg-transparent text-sm font-bold text-slate-600 placeholder-slate-300 outline-none w-full" />
-            </div>
-            <div className="flex items-center gap-2">
-              <Link to="/agent/notifications"
-                className="relative w-11 h-11 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-emerald-500 transition-all shadow-sm">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
-              </Link>
-              <Link to="/agent/messages"
-                className="w-11 h-11 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-emerald-500 transition-all shadow-sm">
-                <MessageSquare className="w-5 h-5" />
-              </Link>
-            </div>
-            <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-black text-[#0A1628] leading-none">{user.first_name} {user.last_name?.[0]}.</p>
-                <p className="text-[10px] font-bold uppercase tracking-widest mt-1 text-emerald-500">Agent Terrain</p>
-              </div>
-              <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-white text-sm font-black shadow-lg"
-                style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}>
-                {initials}
-              </div>
-            </div>
-          </div>
+          <button onClick={logout} className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-500 transition-all text-sm font-bold">
+            <LogOut className="w-4 h-4" />
+            Sortir
+          </button>
         </header>
 
-        <main className="pt-24 flex-1 p-8">
-          <div>{children}</div>
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto p-6">
+          {children}
         </main>
       </div>
     </div>
