@@ -35,7 +35,7 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
 
   const handleLogout = async () => {
     try {
-      await fetch('http://localhost:5005/api/auth/logout', {
+      await fetch(`${import.meta.env.VITE_API_URL}/auth/logout`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
       })

@@ -19,7 +19,12 @@ const {
 // ── Memory-based multer for photo upload ─────────────────────
 const memUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Type de fichier non autorisé.'));
+  },
 });
 
 // All routes require authentication and agent role

@@ -36,8 +36,8 @@ const Profile: React.FC = () => {
     e.preventDefault()
     setSaving(true); setError('')
     try {
-      const res = await fetch(`${API}/auth/profile`, {
-        method: 'PUT',
+      const res = await fetch(`${API}/auth/profil`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),
       })
@@ -66,8 +66,8 @@ const Profile: React.FC = () => {
     }
     setSavingPw(true)
     try {
-      const res = await fetch(`${API}/auth/password`, {
-        method: 'PUT',
+      const res = await fetch(`${API}/auth/mot-de-passe`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ current_password: passwords.current, new_password: passwords.next }),
       })

@@ -25,7 +25,7 @@ const ChefSettings: React.FC = () => {
     if (firstName !== user.first_name || lastName !== user.last_name || email !== user.email) {
       hasChanges = true;
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/profil`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
           method: 'PATCH',
           headers: { 
             'Content-Type': 'application/json',
@@ -53,7 +53,7 @@ const ChefSettings: React.FC = () => {
         return;
       }
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/mot-de-passe`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/password`, {
           method: 'PATCH',
           headers: { 
             'Content-Type': 'application/json',

@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const app = require('./src/app');
 const cron = require('node-cron');
+const supabase = require('./src/config/db');
 
 const { autoCloseResolvedDeclarations } = require('./src/services/autoClose.service');
 
@@ -35,6 +36,21 @@ cron.schedule('0 2 * * *', async () => {
     console.log(`[CRON] Auto-closed ${count} declaration(s).`);
   } catch (err) {
     console.error('[CRON] Auto-close error:', err.message);
+  }
+});
+
+// Purge expired tokens daily at 03:00
+cron.schedule('0 3 * * *', async () => {
+  console.log('[CRON] Purging expired token blacklist...');
+  try {
+    const { error } = await supabase
+      .from('token_blacklist')
+      .delete()
+      .lt('expires_at', new Date().toISOString());
+    if (error) throw error;
+    console.log('[CRON] Token blacklist purged successfully.');
+  } catch (err) {
+    console.error('[CRON] Blacklist purge error:', err.message);
   }
 });
 

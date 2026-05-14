@@ -27,6 +27,7 @@ const Login: React.FC = () => {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || data.message || 'Identifiants incorrects')
       localStorage.setItem('fmc_token', data.token)
+      localStorage.setItem('fmc_refresh_token', data.refreshToken)
       localStorage.setItem('fmc_user',  JSON.stringify(data.user))
       const role = data.user?.role
       if (role === 'citizen')   navigate('/dashboard')

@@ -55,6 +55,7 @@ const Register: React.FC = () => {
       })
       const d2 = await r2.json()
       localStorage.setItem('fmc_token', d2.token)
+      localStorage.setItem('fmc_refresh_token', d2.refreshToken)
       localStorage.setItem('fmc_user', JSON.stringify(d2.user))
       navigate('/dashboard')
     } catch (err: any) {

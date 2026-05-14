@@ -113,19 +113,30 @@ exports.create = async (req, res) => {
 /* ──────────── GET /api/declarations/mine ──────────── */
 exports.mine = async (req, res) => {
   try {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
     // v_declarations_citizen has both citizen_id and user_id columns
-    const { data, error } = await supabase
+    const { data, error, count } = await supabase
       .from('v_declarations_citizen')
-      .select('*')
+      .select('*', { count: 'exact' })
       .or(`user_id.eq.${req.user.id},citizen_id.eq.${req.user.id}`)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
 
     if (error) {
       console.error('[Declarations] Mine error:', error.message);
       return res.status(500).json({ error: 'Erreur serveur.' });
     }
 
-    return res.status(200).json({ declarations: data });
+    return res.status(200).json({ 
+      declarations: data,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit)
+      }
+    });
   } catch (err) {
     console.error('[Declarations] Mine error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
@@ -574,5 +585,39 @@ exports.addComment = async (req, res) => {
   } catch (err) {
     console.error('[Declarations] addComment exception:', err);
     res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+/* ──────────── GET /api/declarations/:id ──────────── */
+exports.getById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: decl, error } = await supabase
+      .from('declarations')
+      .select(`
+        *,
+        delegations ( id, name, code ),
+        declaration_photos ( id, url, uploaded_by, created_at ),
+        status_history ( id, from_status, to_status, user_id, comment, created_at ),
+        ratings ( id, score, comment, created_at )
+      `)
+      .eq('id', id)
+      .is('deleted_at', null)
+      .eq('is_deleted', false)
+      .single();
+
+    if (error || !decl) {
+      return res.status(404).json({ error: 'Déclaration introuvable.' });
+    }
+
+    // Role-based visibility check: 
+    // Citizens/Agents can see any declaration (for cross-referencing), 
+    // but we can add more strict logic if needed later.
+    // For now, allow all authenticated users to GET by ID.
+
+    return res.status(200).json({ declaration: mapCitizenStatus(decl) });
+  } catch (err) {
+    console.error('[Declarations] getById error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };

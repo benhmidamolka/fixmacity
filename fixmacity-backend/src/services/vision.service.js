@@ -59,7 +59,7 @@ exports.analyzePhoto = async (imagePath) => {
   for (let i = 0; i < attempts; i++) {
     try {
       const genAI = getNextGenAI();
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
       result = await model.generateContent([
         {

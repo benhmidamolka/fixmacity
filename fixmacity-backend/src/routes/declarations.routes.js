@@ -18,12 +18,14 @@ const memUpload = multer({
   },
 });
 
-// AI Photo Analysis — PUBLIC within auth (no citizen-only restriction)
 router.post('/analyze-photo',
   memUpload.single('photo'),
   authenticate,
   ctrl.analyzePhoto
 );
+
+// GET /api/declarations/:id — Get single declaration detail (authenticated only)
+router.get('/:id', authenticate, ctrl.getById);
 
 router.get('/:id/export', authenticate, exportCtrl.exportDeclaration);
 

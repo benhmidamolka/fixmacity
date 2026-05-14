@@ -1,2 +1,6 @@
 node_modules/
 .env
+scripts/dev/
+uploads/
+*.log
+.DS_Store

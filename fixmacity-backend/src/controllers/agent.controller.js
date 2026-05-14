@@ -160,9 +160,9 @@ exports.refuseDeclaration = async (req, res) => {
       .eq('department_id', agentScope(req))
       .single();
 
-    if (fetchErr || !decl) return res.status(404).json({ error: 'Signalement introuvable ou non assigné' });
-    if (!['assignee_agent', 'en_cours'].includes(decl.status)) {
-      return res.status(400).json({ error: 'Ce signalement est déjà clôturé ou dans un état non modifiable' });
+    if (fetchErr || !decl) return res.status(404).json({ error: 'Signalement introuvable' });
+    if (decl.status !== 'assignee_agent') {
+      return res.status(400).json({ error: 'Seuls les signalements assignés à l\'agent peuvent être refusés' });
     }
 
     const { error: updateErr } = await supabase
@@ -201,34 +201,49 @@ exports.uploadPhoto = async (req, res) => {
       return res.status(403).json({ error: 'Photos autorisées uniquement en statut "en_cours"' });
     }
 
-    // Try Cloudinary if config is present, otherwise fallback or error
-    let uploadResult;
-    if (process.env.CLOUDINARY_CLOUD_NAME) {
-      uploadResult = await new Promise((resolve, reject) => {
+    const fs = require('fs');
+    const path = require('path');
+
+    let photoUrl;
+    let publicId = null;
+
+    if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY) {
+      const uploadResult = await new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { folder: `fixmacity/${id}`, resource_type: 'image' },
           (error, result) => (error ? reject(error) : resolve(result))
         );
         stream.end(req.file.buffer);
       });
+      photoUrl = uploadResult.secure_url;
+      publicId = uploadResult.public_id;
     } else {
-      // For demo purposes, we can't upload if credentials are missing
-      console.warn('[Agent] Cloudinary not configured — photo upload skipped');
-      return res.status(501).json({ error: 'Cloudinary non configuré' });
+      // Fallback: Local Storage
+      const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
+      if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+      const ext = path.extname(req.file.originalname) || '.jpg';
+      const filename = `agent_${req.user.id}_${Date.now()}${ext}`;
+      const destPath = path.join(UPLOAD_DIR, filename);
+      fs.writeFileSync(destPath, req.file.buffer);
+
+      const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5005}`;
+      photoUrl = `${baseUrl}/uploads/${filename}`;
+      console.warn('[Agent] Cloudinary not configured — using local fallback:', photoUrl);
     }
 
     const { error: insertErr } = await supabase
       .from('declaration_photos')
       .insert({
         declaration_id: id,
-        url: uploadResult.secure_url,
-        public_id: uploadResult.public_id,
+        url: photoUrl,
+        public_id: publicId,
         uploaded_by: req.user.id,
       });
 
     if (insertErr) throw insertErr;
 
-    res.status(201).json({ url: uploadResult.secure_url });
+    res.status(201).json({ url: photoUrl });
   } catch (err) {
     console.error('[Agent] uploadPhoto:', err.message);
     res.status(500).json({ error: 'Erreur lors du téléversement' });

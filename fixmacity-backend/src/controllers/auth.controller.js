@@ -111,23 +111,77 @@ exports.getMe = async (req, res) => {
 // ─── PATCH /api/auth/me ───────────────────────────────────────────────────────
 exports.updateMe = async (req, res) => {
   try {
-    const { lang_pref } = req.body;
-    const allowed = ['fr', 'ar', 'en'];
-    if (!allowed.includes(lang_pref)) {
-      return res.status(400).json({ error: 'lang_pref doit être fr, ar ou en' });
+    const { lang_pref, first_name, last_name, email } = req.body;
+    
+    const updates = {};
+    if (lang_pref) {
+      const allowed = ['fr', 'ar', 'en'];
+      if (!allowed.includes(lang_pref)) {
+        return res.status(400).json({ error: 'lang_pref doit être fr, ar ou en' });
+      }
+      updates.lang_pref = lang_pref;
+    }
+    
+    if (first_name) updates.first_name = first_name;
+    if (last_name) updates.last_name = last_name;
+    if (email) updates.email = email;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'Aucune donnée à mettre à jour' });
     }
 
     const { data, error } = await supabase
       .from('users')
-      .update({ lang_pref })
+      .update(updates)
       .eq('id', req.user.id)
-      .select('id, email, lang_pref')
+      .select('id, email, first_name, last_name, lang_pref, role')
       .single();
 
     if (error) throw error;
     res.json(data);
   } catch (err) {
     console.error('[Auth] updateMe:', err.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// ─── PATCH /api/auth/profil (Alias for updateMe) ───────────────────────────
+exports.updateProfile = exports.updateMe;
+
+// ─── PATCH /api/auth/mot-de-passe ───────────────────────────────────────────
+exports.updatePassword = async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: 'Mot de passe actuel et nouveau requis' });
+    }
+
+    // Get current user with password_hash
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, password_hash')
+      .eq('id', req.user.id)
+      .single();
+
+    if (error || !user) return res.status(404).json({ error: 'Utilisateur introuvable' });
+
+    // Verify current password
+    const valid = await bcrypt.compare(current_password, user.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Mot de passe actuel incorrect' });
+
+    // Hash new password
+    const password_hash = await bcrypt.hash(new_password, SALT_ROUNDS);
+
+    const { error: updateErr } = await supabase
+      .from('users')
+      .update({ password_hash })
+      .eq('id', req.user.id);
+
+    if (updateErr) throw updateErr;
+
+    res.json({ message: 'Mot de passe mis à jour avec succès' });
+  } catch (err) {
+    console.error('[Auth] updatePassword:', err.message);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 };
