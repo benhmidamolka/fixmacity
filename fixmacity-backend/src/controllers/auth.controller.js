@@ -160,7 +160,7 @@ exports.logout = async (req, res) => {
   }
 };
 
-// ─── POST /api/auth/forgot-password  ← NEW ───────────────────────────────────
+// ─── POST /api/auth/forgot-password ─────────────────────────────────────────
 exports.forgotPassword = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -174,27 +174,37 @@ exports.forgotPassword = async (req, res) => {
 
     if (user) {
       const rawToken = crypto.randomBytes(32).toString('hex');
-      const token_hash = crypto.createHash('sha256').update(rawToken).digest('hex');
       const expires_at = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1h
 
-      // Upsert: one reset token per user at a time
-      await supabase.from('password_resets').upsert(
-        { user_id: user.id, token_hash, expires_at },
-        { onConflict: 'user_id' }
-      );
+      // Delete any existing token for this user first, then insert fresh
+      await supabase.from('password_reset_tokens')
+        .delete()
+        .eq('user_id', user.id);
+
+      const { error: insertErr } = await supabase.from('password_reset_tokens').insert({
+        user_id: user.id,
+        token: rawToken,
+        expires_at,
+        used: false,
+      });
+
+      if (insertErr) {
+        console.error('[Auth] forgotPassword insert error:', insertErr.message);
+        return res.status(500).json({ error: 'Erreur serveur' });
+      }
 
       const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${rawToken}`;
       await sendPasswordResetEmail(user.email, user.first_name, resetLink);
     }
 
-    res.json({ message: 'Si cet email existe, un lien de réinitialisation a été envoyé.' });
+    res.json({ message: 'Si cet email existe, un lien de r\u00e9initialisation a \u00e9t\u00e9 envoy\u00e9.' });
   } catch (err) {
     console.error('[Auth] forgotPassword:', err.message);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 };
 
-// ─── POST /api/auth/reset-password  ← NEW ────────────────────────────────────
+// ─── POST /api/auth/reset-password ───────────────────────────────────────────
 exports.resetPassword = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -202,17 +212,16 @@ exports.resetPassword = async (req, res) => {
   try {
     const { token, password } = req.body;
 
-    const token_hash = crypto.createHash('sha256').update(token).digest('hex');
-
     const { data: reset, error } = await supabase
-      .from('password_resets')
-      .select('user_id, expires_at')
-      .eq('token_hash', token_hash)
+      .from('password_reset_tokens')
+      .select('id, user_id, expires_at, used')
+      .eq('token', token)
       .single();
 
-    if (error || !reset) return res.status(400).json({ error: 'Token invalide ou expiré' });
+    if (error || !reset)  return res.status(400).json({ error: 'Token invalide ou expir\u00e9' });
+    if (reset.used)       return res.status(400).json({ error: 'Ce lien a d\u00e9j\u00e0 \u00e9t\u00e9 utilis\u00e9' });
     if (new Date(reset.expires_at) < new Date()) {
-      return res.status(400).json({ error: 'Ce lien de réinitialisation a expiré' });
+      return res.status(400).json({ error: 'Ce lien de r\u00e9initialisation a expir\u00e9' });
     }
 
     const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -221,12 +230,12 @@ exports.resetPassword = async (req, res) => {
       .update({ password_hash })
       .eq('id', reset.user_id);
 
-    // Invalidate the reset token
-    await supabase.from('password_resets')
-      .delete()
-      .eq('user_id', reset.user_id);
+    // Mark token as used (prevents replay)
+    await supabase.from('password_reset_tokens')
+      .update({ used: true })
+      .eq('id', reset.id);
 
-    res.json({ message: 'Mot de passe réinitialisé avec succès' });
+    res.json({ message: 'Mot de passe r\u00e9initialis\u00e9 avec succ\u00e8s' });
   } catch (err) {
     console.error('[Auth] resetPassword:', err.message);
     res.status(500).json({ error: 'Erreur serveur' });

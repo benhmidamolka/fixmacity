@@ -135,21 +135,31 @@ exports.voteProposition = async (req, res) => {
 };
 
 /* ──────────── PATCH /api/propositions/:id/respond ──────────── */
+// NOTE: The DB proposition_status enum only contains 'active' and 'closed'.
+// The president's decision ('a_discuter' | 'retenu' | 'refuse') is stored
+// as text in the president_response column. The DB status becomes:
+//   - 'active'  → a_discuter (still open for discussion)
+//   - 'closed'  → retenu or refuse (final decision)
 exports.respondToProposition = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, president_response } = req.body;
+    const { status: decision, president_response } = req.body;
 
-    const validStatuses = ['a_discuter', 'retenu', 'refuse'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Statut invalide.' });
+    const validDecisions = ['a_discuter', 'retenu', 'refuse'];
+    if (!validDecisions.includes(decision)) {
+      return res.status(400).json({ error: 'Décision invalide. Valeurs acceptées: a_discuter, retenu, refuse.' });
     }
+
+    // Map decision to DB-compatible status enum
+    const dbStatus = decision === 'a_discuter' ? 'active' : 'closed';
 
     const { data: updated, error } = await supabase
       .from('propositions')
       .update({
-        status,
-        president_response,
+        status: dbStatus,
+        president_response: president_response
+          ? `[${decision.toUpperCase()}] ${president_response}`
+          : `[${decision.toUpperCase()}]`,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -161,7 +171,11 @@ exports.respondToProposition = async (req, res) => {
       return res.status(500).json({ error: 'Erreur lors de l\'enregistrement de la réponse.' });
     }
 
-    return res.status(200).json({ message: 'Réponse enregistrée avec succès.', suggestion: updated });
+    return res.status(200).json({
+      message: 'Réponse enregistrée avec succès.',
+      decision,
+      suggestion: updated
+    });
   } catch (err) {
     console.error('[Propositions] Server error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
