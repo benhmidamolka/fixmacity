@@ -27,43 +27,7 @@ const PRIORITY_CONFIG: Record<string, { label:string; color:string; bg:string }>
   basse:   { label:'Normale',  color:'#10B981', bg:'#F0FDF4' },
 }
 
-const DEPT_IDS: Record<string, string> = {
-  'Voirie':           'c3c9d2cd-4b55-481b-b577-92ae1ee7d8d1',
-  'Éclairage public': 'af6c8348-0e2b-40fe-b4aa-54629d483559',
-  'Propreté':         '5ab878b9-2d37-455e-b8cf-7fe91dd5e088',
-  'Espaces Verts':    'f6c86d36-3e26-442f-9e3f-2b745083109f',
-  'Réseaux':          '48256387-922e-4af8-854a-f09738f15fdc',
-  'Signalisation':    'bd7043c9-b2c7-4ca1-b3e9-777a3bdc2dbd',
-}
 
-const MOCK_DECLS = [
-  { id:'1', ref_citoyen:'SR-22-04-26-0042', ref_service:'VR-22-04-26-0042',
-    title:'Nid-de-poule dangereux Av. Bourguiba', category:'Voirie',
-    status:'en_cours', priority:'haute', delegation:'Sousse Riadh',
-    agent:'Aymen Ben Ali', votes:47, date:'22/04/2026', lat: 35.8256, lng: 10.6369, image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&q=80&w=400' },
-  { id:'2', ref_citoyen:'SN-21-04-26-0038', ref_service:null,
-    title:'Câble électrique exposé Rue de Marseille', category:'Éclairage public',
-    status:'refusee_chef', priority:'haute', delegation:'Sousse Nord', address: '14 Rue de Marseille, croisement Bvd',
-    agent:null, votes:38, date:'21/04/2026', lat: 35.8320, lng: 10.6210, image: 'https://images.unsplash.com/photo-1544983050-8b1b6d05ebcd?auto=format&fit=crop&q=80&w=400',
-    rejection_reason: 'Ce poteau appartient à la STEG et non à la municipalité.' },
-  { id:'3', ref_citoyen:'SS-20-04-26-0029', ref_service:'PD-20-04-26-0029',
-    title:'Dépôt sauvage derrière le marché central', category:'Propreté',
-    status:'assignee_agent', priority:'moyenne', delegation:'Sousse Sud',
-    agent:'Riadh Hamdi', votes:14, date:'20/04/2026', lat: 35.8280, lng: 10.6390, image: 'https://images.unsplash.com/photo-1604187351574-c75ca79f5807?auto=format&fit=crop&q=80&w=400' },
-  { id:'4', ref_citoyen:'SM-19-04-26-0025', ref_service:'EV-19-04-26-0025',
-    title:'Arbre tombé bloque la rue principale', category:'Espaces Verts',
-    status:'resolue', priority:'haute', delegation:'Sousse Médina',
-    agent:'Amira Trabelsi', votes:22, date:'19/04/2026', lat: 35.8350, lng: 10.6150, image: 'https://images.unsplash.com/photo-1590680193854-47fca385a484?auto=format&fit=crop&q=80&w=400' },
-  { id:'5', ref_citoyen:'SR-18-04-26-0022', ref_service:null,
-    title:'Fuite d\'eau importante Rue Ibn Sina', category:'Réseaux',
-    status:'soumise', priority:'haute', delegation:'Sousse Riadh',
-    agent:null, votes:29, date:'18/04/2026', lat: 35.8150, lng: 10.6400, image: 'https://images.unsplash.com/photo-1517409217698-3165b4c42407?auto=format&fit=crop&q=80&w=400' },
-  { id:'6', ref_citoyen:'SN-17-04-26-0018', ref_service:'EP-17-04-26-0018',
-    title:'Lampadaires en panne Av. Mohamed V', category:'Éclairage public',
-    status:'cloturee', priority:'basse', delegation:'Sousse Nord', address: 'Avenue Mohamed V, devant le lycée',
-    agent:'Imen Ghrabi', votes:8, date:'17/04/2026', lat: 35.8210, lng: 10.6300, image: 'https://images.unsplash.com/photo-1506804886640-ed0e47018318?auto=format&fit=crop&q=80&w=400',
-    citizen_rating: 5, citizen_comment: 'Intervention rapide et efficace. Merci à l\'équipe.' },
-]
 
 const CATEGORIES = ['Voirie', 'Éclairage public', 'Propreté', 'Espaces Verts', 'Réseaux', 'Signalisation']
 const DELEGATIONS = ['Sousse Riadh', 'Sousse Nord', 'Sousse Sud', 'Sousse Médina']
@@ -72,7 +36,7 @@ interface Decl {
   id:string; ref_citoyen:string; ref_service:string|null
   title:string; category:string; status:string; priority:string
   delegation:string; address?:string; agent:string|null; votes:number; date:string
-  lat: number; lng: number; image?: string;
+  lat: number | null; lng: number | null; image?: string;
   rejection_reason?: string; citizen_rating?: number; citizen_comment?: string;
 }
 
@@ -105,7 +69,8 @@ const MapRecenter = ({ lat, lng }: { lat: number; lng: number }) => {
 }
 
 const PresidentDeclarations: React.FC = () => {
-  const [decls, setDecls]         = useState<Decl[]>(MOCK_DECLS)
+  const [decls, setDecls]         = useState<Decl[]>([])
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([])
   const [search, setSearch]       = useState('')
   const [statusF, setStatusF]     = useState('Tous')
   const [categoryF, setCategoryF] = useState('Tous')
@@ -128,6 +93,20 @@ const PresidentDeclarations: React.FC = () => {
   })()
 
   useEffect(() => {
+    // Load departments for the assign buttons
+    const loadDepts = async () => {
+      try {
+        const res = await fetch(`${API}/president/departments`, {
+          headers: { Authorization: `Bearer ${token()}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setDepartments((data.departments || []).map((d: any) => ({ id: d.id, name: d.name_fr || d.name })))
+        }
+      } catch (_) {}
+    }
+    loadDepts()
+
     const load = async () => {
       try {
         const res = await fetch(`${API}/president/declarations?limit=50`, {
@@ -144,8 +123,8 @@ const PresidentDeclarations: React.FC = () => {
               delegation: d.delegation_name || 'Sousse Riadh',
               agent: d.agent_name || null, votes: d.votes_count || 0,
               date: new Date(d.created_at).toLocaleDateString('fr-FR'),
-              lat: parseFloat(d.latitude) || (35.8256 + (Math.random()-0.5)*0.05),
-              lng: parseFloat(d.longitude) || (10.6369 + (Math.random()-0.5)*0.05),
+              lat: d.latitude ? parseFloat(d.latitude) : null,
+              lng: d.longitude ? parseFloat(d.longitude) : null,
               image: d.image_url || 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&q=80&w=400'
             })))
           }
@@ -287,15 +266,15 @@ const PresidentDeclarations: React.FC = () => {
                   url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                {filtered.map(d => (
+                {filtered.filter(d => d.lat !== null && d.lng !== null).map(d => (
                   <Marker 
                     key={d.id} 
-                    position={[d.lat, d.lng]} 
+                    position={[d.lat!, d.lng!]} 
                     icon={createCustomIcon(STATUS_CONFIG[d.status]?.color || '#1557FF', d.priority === 'haute')}
                     eventHandlers={{ click: () => setSelectedDecl(d) }}
                   />
                 ))}
-                {selectedDecl && <MapRecenter lat={selectedDecl.lat} lng={selectedDecl.lng} />}
+                {selectedDecl && selectedDecl.lat !== null && selectedDecl.lng !== null && <MapRecenter lat={selectedDecl.lat!} lng={selectedDecl.lng!} />}
               </MapContainer>
             </div>
 
@@ -357,10 +336,10 @@ const PresidentDeclarations: React.FC = () => {
                     <div className="border-t border-slate-100 pt-4">
                       <p className="text-xs font-bold text-[#0A1628] mb-3">Assigner au département :</p>
                       <div className="grid grid-cols-2 gap-2">
-                        {Object.entries(DEPT_IDS).map(([name, id]) => (
-                          <button key={id} onClick={() => handleAssign(selectedDecl, id)}
+                        {departments.map(dept => (
+                          <button key={dept.id} onClick={() => handleAssign(selectedDecl, dept.id)}
                             className="py-2 px-2 text-xs font-bold rounded-xl border border-slate-200 text-slate-600 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 transition-all text-left flex items-center justify-between group">
-                            {name}
+                            {dept.name}
                             <span className="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                           </button>
                         ))}
@@ -593,10 +572,10 @@ const PresidentDeclarations: React.FC = () => {
 
                           <p className="text-[10px] font-black text-blue-900/40 uppercase tracking-wider mb-3 text-center">Choisir le département compétent</p>
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {Object.entries(DEPT_IDS).map(([name, id]) => (
-                              <button key={id} onClick={() => handleAssign(selectedDecl, id)}
+                            {departments.map(dept => (
+                              <button key={dept.id} onClick={() => handleAssign(selectedDecl, dept.id)}
                                 className="py-3 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl border border-white bg-white text-slate-600 hover:border-blue-500 hover:text-blue-600 hover:shadow-lg hover:shadow-blue-500/10 transition-all text-center">
-                                {name}
+                                {dept.name}
                               </button>
                             ))}
                           </div>

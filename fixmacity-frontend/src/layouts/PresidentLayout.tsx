@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FileText, Map, Users, Building2,
   Vote, Bell, Settings, LogOut, Menu, X, Mail, HelpCircle,
-  ChevronDown, Plus, Search
+  ChevronDown, Plus, Search, Inbox, GitMerge
 } from 'lucide-react'
 import CreateActionModal from '../components/president/CreateActionModal'
 
@@ -11,12 +11,14 @@ const NAV = [
   {
     section: 'Menu',
     items: [
-      { label: 'Dashboard',      icon: LayoutDashboard, to: '/president/dashboard'     },
-      { label: 'Déclarations',   icon: FileText,        to: '/president/declarations'  },
-      { label: 'Personnel',      icon: Users,           to: '/president/personnel'      },
-      { label: 'Services',       icon: Building2,       to: '/president/services'       },
-      { label: 'Propositions',   icon: Vote,            to: '/president/propositions'   },
-      { label: 'Notifications',  icon: Bell,            to: '/president/notifications', badge: 3 },
+      { label: 'Dashboard',        icon: LayoutDashboard, to: '/president/dashboard'     },
+      { label: 'Déclarations',     icon: FileText,        to: '/president/declarations'  },
+      { label: 'Nouvelles',        icon: Inbox,           to: '/president/incoming'      },
+      { label: 'Suivi',            icon: GitMerge,        to: '/president/suivi'         },
+      { label: 'Personnel',        icon: Users,           to: '/president/personnel'      },
+      { label: 'Services',         icon: Building2,       to: '/president/services'       },
+      { label: 'Propositions',     icon: Vote,            to: '/president/propositions'   },
+      { label: 'Notifications',    icon: Bell,            to: '/president/notifications', badge: 3 },
     ]
   }
 ]

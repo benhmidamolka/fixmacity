@@ -3,6 +3,8 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import PresidentDashboard from './pages/President/PresidentDashboard'
 import PresidentDeclarations from './pages/President/PresidentDeclarations'
+import PresidentIncoming from './pages/President/PresidentIncoming'
+import PresidentSuivi from './pages/President/PresidentSuivi'
 import PresidentPersonnel from './pages/President/PresidentPersonnel'
 import PresidentServices from './pages/President/PresidentServices'
 import PresidentPropositions from './pages/President/PresidentPropositions'
@@ -16,6 +18,7 @@ import ChefAgents            from './pages/Chef/ChefAgents'
 import ChefNotifications     from './pages/Chef/ChefNotifications'
 import ChefSettings          from './pages/Chef/ChefSettings'
 import AgentDeclarationDetail from './pages/Agent/AgentDeclarationDetail'
+import AgentDeclarations from './pages/Agent/AgentDeclarations'
 import AgentDashboard from './pages/Agent/AgentDashboard'
 import AgentNotifications from './pages/Agent/AgentNotifications'
 import AgentSettings from './pages/Agent/AgentSettings'
@@ -85,6 +88,12 @@ const App: React.FC = () => {
         <Route path="/president/declarations" element={
           <ProtectedRoute><PresidentDeclarations /></ProtectedRoute>
         } />
+        <Route path="/president/incoming" element={
+          <ProtectedRoute><PresidentIncoming /></ProtectedRoute>
+        } />
+        <Route path="/president/suivi" element={
+          <ProtectedRoute><PresidentSuivi /></ProtectedRoute>
+        } />
         <Route path="/president/personnel" element={
           <ProtectedRoute><PresidentPersonnel /></ProtectedRoute>
         } />
@@ -129,6 +138,9 @@ const App: React.FC = () => {
         <Route path="/agent" element={<Navigate to="/agent/dashboard" replace />} />
         <Route path="/agent/dashboard" element={
           <ProtectedRoute><AgentDashboard /></ProtectedRoute>
+        } />
+        <Route path="/agent/declarations" element={
+          <ProtectedRoute><AgentDeclarations /></ProtectedRoute>
         } />
         <Route path="/agent/declarations/:id" element={
           <ProtectedRoute><AgentDeclarationDetail /></ProtectedRoute>

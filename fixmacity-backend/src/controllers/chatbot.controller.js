@@ -79,7 +79,7 @@ exports.sendMessage = async (req, res) => {
       .is('deleted_at', null)
       .eq('is_deleted', false)
       .order('created_at', { ascending: false })
-      .limit(5);
+      .limit(10);
 
     // Build context string
     const userName = user ? `${user.first_name} ${user.last_name}` : 'Citoyen';
@@ -159,7 +159,7 @@ exports.sendMessage = async (req, res) => {
     for (let i = 0; i < attempts; i++) {
       try {
         const genAI = getNextGenAI();
-        const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
         
         const chat = model.startChat({
           history: [

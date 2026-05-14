@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   Bell, LogOut, Menu,
-  Settings, ClipboardList
+  Settings, ClipboardList, List
 } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
@@ -13,8 +13,9 @@ const NAV = [
   {
     section: 'Travail',
     items: [
-      { label: 'Mes Missions',  icon: LayoutDashboard, to: '/agent/dashboard'     },
-      { label: 'Notifications', icon: Bell,            to: '/agent/notifications' },
+      { label: 'Tableau de bord', icon: LayoutDashboard, to: '/agent/dashboard'     },
+      { label: 'Mes Missions',    icon: List,            to: '/agent/declarations'  },
+      { label: 'Notifications',   icon: Bell,            to: '/agent/notifications' },
     ]
   },
   {
