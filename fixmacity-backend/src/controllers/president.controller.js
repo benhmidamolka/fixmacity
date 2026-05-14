@@ -17,7 +17,7 @@ exports.listDeclarations = async (req, res) => {
       .from('declarations')
       .select('*', { count: 'exact' })
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      
       .order('priority_score', { ascending: false })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -91,7 +91,7 @@ exports.getDeclarationDetail = async (req, res) => {
       `)
       .eq('id', id)
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      
       .single();
 
     if (error || !decl) {
@@ -176,7 +176,7 @@ exports.assignDeclaration = async (req, res) => {
       .select('id, status')
       .eq('id', id)
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      
       .single();
 
     if (fetchErr || !decl) {
@@ -265,7 +265,7 @@ exports.reassignDeclaration = async (req, res) => {
       .select('id, status')
       .eq('id', id)
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      
       .single();
 
     if (fetchErr || !decl) {
@@ -362,7 +362,7 @@ exports.listUsers = async (req, res) => {
     const agentCountsRes = await supabase.pool.query(`
       SELECT agent_id, COUNT(*) as count 
       FROM declarations 
-      WHERE agent_id IS NOT NULL AND deleted_at IS NULL AND is_deleted = false
+      WHERE agent_id IS NOT NULL AND deleted_at IS NULL
       GROUP BY agent_id
     `);
     const agentCounts = {};
@@ -371,7 +371,7 @@ exports.listUsers = async (req, res) => {
     const deptCountsRes = await supabase.pool.query(`
       SELECT department_id, COUNT(*) as count 
       FROM declarations 
-      WHERE department_id IS NOT NULL AND deleted_at IS NULL AND is_deleted = false
+      WHERE department_id IS NOT NULL AND deleted_at IS NULL
       GROUP BY department_id
     `);
     const deptCounts = {};
@@ -491,7 +491,7 @@ exports.updateUser = async (req, res) => {
         .eq('agent_id', id)
         .in('status', ['assignee_agent', 'en_cours'])
         .is('deleted_at', null)
-        .eq('is_deleted', false);
+        ;
 
       if ((activeMissions || 0) > 0) {
         return res.status(400).json({ error: 'Impossible de désactiver un agent ayant des missions en cours' });
@@ -535,7 +535,7 @@ exports.deleteUser = async (req, res) => {
       .eq('agent_id', id)
       .in('status', ['assignee_agent', 'en_cours'])
       .is('deleted_at', null)
-      .eq('is_deleted', false);
+      ;
 
     if ((activeMissions || 0) > 0) {
       return res.status(400).json({ error: 'Impossible de désactiver un agent ayant des missions en cours' });
@@ -600,7 +600,7 @@ exports.listDepartments = async (req, res) => {
       .from('declarations')
       .select('department_id')
       .is('deleted_at', null)
-      .eq('is_deleted', false);
+      ;
     
     if (declCounts) {
       declCounts.forEach(d => {
@@ -731,9 +731,9 @@ exports.dashboard = async (req, res) => {
       .from('declarations')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null)
-      .eq('is_deleted', false);
+      ;
 
-    let sqlFilter = ` AND d.deleted_at IS NULL AND d.is_deleted = false`;
+    let sqlFilter = ` AND d.deleted_at IS NULL`;
 
     if (period && period !== 'all') {
       const days = parseInt(period, 10);
@@ -821,7 +821,7 @@ exports.dashboard = async (req, res) => {
       SELECT 
         m.name,
         COUNT(d.id) FILTER (WHERE d.created_at >= m.m_start AND d.created_at < m.m_start + interval '1 month') as reports,
-        COUNT(d.id) FILTER (WHERE d.status IN ('resolue', 'cloturee') AND (d.resolved_at >= m.m_start OR d.closed_at >= m.m_start) AND (d.resolved_at < m.m_start + interval '1 month' OR d.closed_at < m.m_start + interval '1 month')) as resolved
+        COUNT(d.id) FILTER (WHERE d.status IN ('resolue', 'cloturee') AND d.resolved_at >= m.m_start AND d.resolved_at < m.m_start + interval '1 month') as resolved
       FROM months m
       LEFT JOIN declarations d ON 1=1 ${sqlFilter}
       GROUP BY m.name, m.m_start
@@ -860,7 +860,7 @@ exports.dashboard = async (req, res) => {
       .from('declarations')
       .select('id, ref_citoyen, status, description, created_at, citizen_id')
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      
       .order('created_at', { ascending: false })
       .limit(5);
 
@@ -868,7 +868,7 @@ exports.dashboard = async (req, res) => {
       .from('declarations')
       .select('id, ref_citoyen, status, description, created_at, citizen_id')
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      
       .in('status', ['soumise', 'assignee_chef', 'assignee_agent', 'en_cours'])
       .order('created_at', { ascending: true })
       .limit(5);
@@ -917,12 +917,19 @@ exports.dashboard = async (req, res) => {
 
     return res.status(200).json({
       success: true,
+      // Aliases matching the frontend field names
+      total:             totalDecl || 0,
       total_declarations: totalDecl || 0,
-      by_status:          byStatus,
-      by_arrondissement:  byArrondissement,
-      by_department:      byDepartment,
-      total_users:        totalUsers || 0,
-      average_rating:     avgRating,
+      byStatus:          byStatus,
+      by_status:         byStatus,
+      byArrondissement:  byArrondissement,
+      by_arrondissement: byArrondissement,
+      byDepartment:      byDepartment,
+      by_department:     byDepartment,
+      totalUsers:        totalUsers || 0,
+      total_users:       totalUsers || 0,
+      avgRating:         avgRating ? parseFloat(avgRating) : 0,
+      average_rating:    avgRating,
       trendData,
       recentDeclarations: (recentDecl || []).map(d => ({
         ...d,
@@ -950,7 +957,7 @@ exports.exportData = async (req, res) => {
       .from('declarations')
       .select('ref_citoyen, ref_service, title, category, status, delegation_id, department_id, created_at, assigned_at, resolved_at')
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -1053,7 +1060,7 @@ exports.listComments = async (req, res) => {
       .select('id')
       .eq('id', id)
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      
       .single();
     if (!decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
 
@@ -1108,7 +1115,7 @@ exports.addComment = async (req, res) => {
       .select('id')
       .eq('id', id)
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      
       .single();
     if (!decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
 

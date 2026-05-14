@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FileText, Users, Bell,
@@ -13,7 +13,8 @@ const NAV = [
       { label: 'Mes Affectations', icon: LayoutDashboard, to: '/chef/dashboard'      },
       { label: 'Déclarations',     icon: FileText,        to: '/chef/declarations'   },
       { label: 'Mon Équipe',       icon: Users,           to: '/chef/agents'         },
-      { label: 'Notifications',    icon: Bell,            to: '/chef/notifications' },
+      { label: 'Messages',         icon: MessageSquare,   to: '/chef/messages'       },
+      { label: 'Notifications',    icon: Bell,            to: '/chef/notifications', badge: 2 },
       { label: 'Paramètres',       icon: Settings,        to: '/chef/settings'       },
     ]
   }
@@ -26,35 +27,13 @@ const ChefLayout: React.FC<Props> = ({ children, title = 'Mes Affectations' }) =
   const navigate   = useNavigate()
   const [mobileOpen,  setMobileOpen]  = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [unreadCount, setUnreadCount] = useState(0)
-
-  const fetchNotifications = async () => {
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/notifications`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const unread = data.notifications?.filter((n: any) => !n.is_read)?.length || 0;
-        setUnreadCount(unread);
-      }
-    } catch (error) {
-      console.error('Failed to fetch notifications', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // refresh every minute
-    return () => clearInterval(interval);
-  }, []);
 
   const user     = JSON.parse(localStorage.getItem('fmc_user') || '{}')
   const initials = `${user.first_name?.[0] ?? 'C'}${user.last_name?.[0] ?? 'S'}`
 
   const logout = async () => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/auth/logout`, {
+      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5005/api'}/auth/logout`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
       })
@@ -136,9 +115,9 @@ const ChefLayout: React.FC<Props> = ({ children, title = 'Mes Affectations' }) =
                     {!isCollapsed && (
                       <span className="text-sm font-bold tracking-tight flex-1 truncate">{item.label}</span>
                     )}
-                    {!isCollapsed && item.to === '/chef/notifications' && unreadCount > 0 && (
+                    {!isCollapsed && (item as any).badge && !active && (
                       <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">
-                        {unreadCount}
+                        {(item as any).badge}
                       </span>
                     )}
                   </Link>
@@ -178,7 +157,7 @@ const ChefLayout: React.FC<Props> = ({ children, title = 'Mes Affectations' }) =
   const mainMargin   = isCollapsed ? 'md:ml-20' : 'md:ml-[260px]'
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#F1F5F9' }}>
+    <div className="min-h-screen flex" style={{ background: '#F8F9FD' }}>
       {/* Sidebar desktop */}
       <aside className={`hidden md:flex flex-col ${sidebarWidth} flex-shrink-0 fixed top-4 left-4 bottom-4 transition-all duration-300 z-40`}>
         <div className="flex-1 bg-white/80 backdrop-blur-xl border border-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 overflow-hidden">
@@ -201,7 +180,7 @@ const ChefLayout: React.FC<Props> = ({ children, title = 'Mes Affectations' }) =
       {/* Main */}
       <div className={`flex-1 ${mainMargin} flex flex-col min-h-screen transition-all duration-300`}>
         {/* Topbar */}
-        <header className={`fixed top-0 right-0 left-0 ${mainMargin} h-20 bg-[#F1F5F9]/80 backdrop-blur-md z-30 flex items-center gap-4 px-8 transition-all duration-300`}>
+        <header className={`fixed top-0 right-0 left-0 ${mainMargin} h-20 bg-[#F8F9FD]/80 backdrop-blur-md z-30 flex items-center gap-4 px-8 transition-all duration-300`}>
           <button className="md:hidden p-2 text-slate-500 rounded-xl hover:bg-white shadow-sm"
             onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -225,9 +204,11 @@ const ChefLayout: React.FC<Props> = ({ children, title = 'Mes Affectations' }) =
               <Link to="/chef/notifications"
                 className="relative w-11 h-11 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-purple-500 hover:border-purple-100 transition-all shadow-sm">
                 <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
-                )}
+                <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+              </Link>
+              <Link to="/chef/messages"
+                className="w-11 h-11 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-purple-500 hover:border-purple-100 transition-all shadow-sm">
+                <MessageSquare className="w-5 h-5" />
               </Link>
             </div>
 
