@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FileText, Map, Users, Building2,
@@ -18,7 +18,7 @@ const NAV = [
       { label: 'Personnel',        icon: Users,           to: '/president/personnel'      },
       { label: 'Services',         icon: Building2,       to: '/president/services'       },
       { label: 'Propositions',     icon: Vote,            to: '/president/propositions'   },
-      { label: 'Notifications',    icon: Bell,            to: '/president/notifications', badge: 3 },
+      { label: 'Notifications',    icon: Bell,            to: '/president/notifications', badge: null },
     ]
   }
 ]
@@ -31,6 +31,22 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isActionModalOpen, setIsActionModalOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/notifications/unread-count`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setUnreadCount(data.count ?? data.unread_count ?? null)
+        }
+      } catch (_) {}
+    }
+    fetchUnread()
+  }, [])
 
   const user = JSON.parse(localStorage.getItem('fmc_user') || '{}')
   const initials = `${user.first_name?.[0] ?? 'M'}${user.last_name?.[0] ?? 'A'}`
@@ -103,9 +119,9 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
                     }`}>
                     <item.icon className={`${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'} flex-shrink-0 transition-transform group-hover:scale-110`} />
                     {!isCollapsed && <span className="text-sm font-bold tracking-tight flex-1 truncate">{item.label}</span>}
-                    {!isCollapsed && item.badge && !active && (
+                    {!isCollapsed && item.to === '/president/notifications' && !active && (unreadCount ?? 0) > 0 && (
                       <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center ring-2 ring-white">
-                        {item.badge}
+                        {unreadCount}
                       </span>
                     )}
                   </Link>

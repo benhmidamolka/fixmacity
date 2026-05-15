@@ -8,18 +8,20 @@ import {
   Clock, X, CheckCircle2, Bell, Filter, RefreshCw, ArrowRight,
   Zap, Eye
 } from 'lucide-react'
+import PresidentLayout from '../../layouts/PresidentLayout'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const token = () => localStorage.getItem('fmc_token')
 
-const DEPT_IDS: Record<string, { id: string; color: string; icon: string }> = {
-  'Voirie':        { id:'c3c9d2cd-4b55-481b-b577-92ae1ee7d8d1', color:'#6366F1', icon:'🛣️'  },
-  'Eclairage':     { id:'af6c8348-0e2b-40fe-b4aa-54629d483559', color:'#F59E0B', icon:'💡'  },
-  'Proprete':      { id:'5ab878b9-2d37-455e-b8cf-7fe91dd5e088', color:'#10B981', icon:'🗑️'  },
-  'Espaces verts': { id:'f6c86d36-3e26-442f-9e3f-2b745083109f', color:'#22C55E', icon:'🌿'  },
-  'Reseaux':       { id:'48256387-922e-4af8-854a-f09738f15fdc', color:'#EC4899', icon:'💧'  },
-  'Signalisation': { id:'bd7043c9-b2c7-4ca1-b3e9-777a3bdc2dbd', color:'#3B82F6', icon:'🚦'  },
-  'Administratif': { id:'090910f9-c9f6-4e84-b7ed-46789d4e4eaf', color:'#8B5CF6', icon:'🏛️'  },
+const DEPT_UI: Record<string, { color: string; icon: string }> = {
+  'Voirie':        { color:'#6366F1', icon:'🛣️' },
+  'Éclairage public': { color:'#F59E0B', icon:'💡' },
+  'Propreté':      { color:'#10B981', icon:'🗑️' },
+  'Espaces Verts': { color:'#22C55E', icon:'🌿' },
+  'Réseaux':       { color:'#EC4899', icon:'💧' },
+  'Signalisation': { color:'#3B82F6', icon:'🚦' },
+  'Administratif': { color:'#8B5CF6', icon:'🏛️' },
+  'Suggestions':   { color:'#64748B', icon:'💡' }
 }
 
 const PRIORITY_MAP: Record<string, { label:string; color:string; bg:string }> = {
@@ -74,8 +76,8 @@ function timeAgo(iso: string) {
 }
 
 // ── Assign Modal ──────────────────────────────────────────────────────────────
-function AssignModal({ decl, onClose, onAssigned }: {
-  decl: Decl; onClose: ()=>void; onAssigned: (id:string)=>void
+function AssignModal({ decl, departments, onClose, onAssigned }: {
+  decl: Decl; departments: {id:string, name:string}[]; onClose: ()=>void; onAssigned: (id:string)=>void
 }) {
   const [selected, setSelected] = useState('')
   const [loading,  setLoading]  = useState(false)
@@ -84,11 +86,10 @@ function AssignModal({ decl, onClose, onAssigned }: {
     if (!selected) return
     setLoading(true)
     try {
-      const deptId = DEPT_IDS[selected]?.id
       await fetch(`${API}/president/declarations/${decl.id}/assign`, {
         method:'POST',
         headers:{'Content-Type':'application/json', Authorization:`Bearer ${token()}`},
-        body: JSON.stringify({ department_id: deptId })
+        body: JSON.stringify({ department_id: selected })
       })
       onAssigned(decl.id)
       onClose()
@@ -130,25 +131,25 @@ function AssignModal({ decl, onClose, onAssigned }: {
         <div className="px-6 pb-3">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Choisir le département</p>
           <div className="grid grid-cols-2 gap-2">
-            {Object.entries(DEPT_IDS).map(([name, cfg]) => (
-              <button key={name} onClick={() => setSelected(name)}
+            {departments.map((dept) => { const cfg = DEPT_UI[dept.name] || { color: '#64748B', icon: '🏢' }; const name = dept.name; return (
+              <button key={dept.id} onClick={() => setSelected(dept.id)}
                 className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left ${
-                  selected===name
+                  selected===dept.id
                     ? 'border-[#1557FF] bg-blue-50'
                     : 'border-slate-100 hover:border-slate-200 bg-white'
                 }`}>
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
-                  style={{ background:`${cfg.color}15` }}>
+                  style={{ background:`${cfg.color}15`, color: cfg.color }}>
                   {cfg.icon}
                 </div>
                 <div className="min-w-0">
-                  <p className={`text-sm font-bold truncate ${selected===name?'text-[#1557FF]':'text-[#0A1628]'}`}>{name}</p>
+                  <p className={`text-sm font-bold truncate ${selected===dept.id?'text-[#1557FF]':'text-[#0A1628]'}`}>{dept.name}</p>
                 </div>
-                {selected===name && (
+                {selected===dept.id && (
                   <CheckCircle2 className="w-4 h-4 text-[#1557FF] ml-auto flex-shrink-0"/>
                 )}
               </button>
-            ))}
+            )})}
           </div>
         </div>
 
@@ -174,7 +175,8 @@ function AssignModal({ decl, onClose, onAssigned }: {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const PresidentIncoming: React.FC = () => {
-  const [decls,      setDecls]      = useState<Decl[]>(MOCK)
+  const [decls,      setDecls]      = useState<Decl[]>([])
+  const [departments, setDepartments] = useState<{id:string, name:string}[]>([])
   const [search,     setSearch]     = useState('')
   const [catF,       setCatF]       = useState('Tous')
   const [priF,       setPriF]       = useState('Tous')
@@ -184,6 +186,19 @@ const PresidentIncoming: React.FC = () => {
   const [loading,    setLoading]    = useState(false)
 
   useEffect(() => {
+    const loadDepts = async () => {
+      try {
+        const res = await fetch(`${API}/president/departments`, {
+          headers: { Authorization: `Bearer ${token()}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setDepartments((data.departments || []).map((d: any) => ({ id: d.id, name: d.name_fr || d.name })))
+        }
+      } catch (_) {}
+    }
+    loadDepts()
+
     const load = async () => {
       setLoading(true)
       try {
@@ -202,8 +217,8 @@ const PresidentIncoming: React.FC = () => {
               address: d.address || '—',
               citizen: d.citizen_name || 'Citoyen',
               submitted_at: d.created_at,
-              lat: parseFloat(d.latitude) || 35.8256,
-              lng: parseFloat(d.longitude) || 10.6369,
+              lat: d.latitude ? parseFloat(d.latitude) : null,
+              lng: d.longitude ? parseFloat(d.longitude) : null,
               image: d.image_url || null
             })))
           }
@@ -237,8 +252,9 @@ const PresidentIncoming: React.FC = () => {
   const urgentCount = filtered.filter(d=>d.priority==='haute').length
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Page header */}
+    <PresidentLayout title="Nouvelles Déclarations">
+      <div className="p-6 max-w-7xl mx-auto">
+        {/* Page header */}
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-black text-[#0A1628]">Nouvelles Déclarations Citoyennes</h1>
@@ -298,7 +314,7 @@ const PresidentIncoming: React.FC = () => {
         </div>
 
         {[
-          { label:'Catégorie', value:catF, set:setCatF, opts:['Tous',...Object.keys(DEPT_IDS)] },
+          { label:'Catégorie', value:catF, set:setCatF, opts:['Tous',...Object.keys(DEPT_UI)] },
           { label:'Priorité',  value:priF, set:setPriF, opts:['Tous','haute','moyenne','basse'] },
           { label:'Délégation',value:delegF,set:setDelegF,opts:['Tous','Sousse Ville','Sousse Jawhara','Sousse SA'] },
         ].map(f => (
@@ -341,7 +357,7 @@ const PresidentIncoming: React.FC = () => {
           <div className="divide-y divide-slate-50">
             {filtered.map((d) => {
               const pri = PRIORITY_MAP[d.priority] || PRIORITY_MAP['moyenne']
-              const dept = DEPT_IDS[d.category]
+              const dept = DEPT_UI[d.category]
               const isUrgent = d.priority === 'haute'
               const waitHours = Math.floor((Date.now()-new Date(d.submitted_at).getTime())/3600000)
 
@@ -447,11 +463,13 @@ const PresidentIncoming: React.FC = () => {
       {assigning && (
         <AssignModal
           decl={assigning}
+          departments={departments}
           onClose={() => setAssigning(null)}
           onAssigned={onAssigned}
         />
       )}
-    </div>
+      </div>
+    </PresidentLayout>
   )
 }
 

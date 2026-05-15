@@ -866,7 +866,7 @@ exports.dashboard = async (req, res) => {
 
     let crucialQuery = supabase
       .from('declarations')
-      .select('id, ref_citoyen, status, description, created_at, citizen_id')
+      .select('id, ref_citoyen, title, status, description, created_at, citizen_id')
       .is('deleted_at', null)
       
       .in('status', ['soumise', 'assignee_chef', 'assignee_agent', 'en_cours'])

@@ -33,13 +33,11 @@ window.fetch = async (...args) => {
           }
           
           // 3. Retry the original request with the new token
-          if (config && config.headers) {
-            const headers = new Headers(config.headers);
-            headers.set('Authorization', `Bearer ${data.token}`);
-            config.headers = headers;
-          }
+          const newConfig = config ? { ...config } : {};
+          newConfig.headers = new Headers((config?.headers as HeadersInit) || {});
+          (newConfig.headers as Headers).set('Authorization', `Bearer ${data.token}`);
           
-          return originalFetch(resource, config);
+          return originalFetch(resource, newConfig);
         } else {
           // Refresh failed, clear storage and redirect
           localStorage.removeItem('fmc_token');

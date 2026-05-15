@@ -79,3 +79,22 @@ exports.markAllAsRead = async (req, res) => {
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
+/* ──────────── GET /api/notifications/unread-count ──────────── */
+exports.getUnreadCount = async (req, res) => {
+  try {
+    const { count, error } = await supabase.from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', req.user.id)
+      .eq('is_read', false);
+
+    if (error) {
+      console.error('[Notifications] Count error:', error);
+      return res.status(500).json({ error: 'Erreur lors du comptage.' });
+    }
+
+    return res.status(200).json({ count: count || 0 });
+  } catch (err) {
+    console.error('[Notifications] Unread count exception:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};

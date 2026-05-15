@@ -235,9 +235,10 @@ exports.forgotPassword = async (req, res) => {
         .delete()
         .eq('user_id', user.id);
 
+      const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
       const { error: insertErr } = await supabase.from('password_reset_tokens').insert({
         user_id: user.id,
-        token: rawToken,
+        token: hashedToken,
         expires_at,
         used: false,
       });
@@ -266,10 +267,12 @@ exports.resetPassword = async (req, res) => {
   try {
     const { token, password } = req.body;
 
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
     const { data: reset, error } = await supabase
       .from('password_reset_tokens')
       .select('id, user_id, expires_at, used')
-      .eq('token', token)
+      .eq('token', hashedToken)
       .single();
 
     if (error || !reset)  return res.status(400).json({ error: 'Token invalide ou expir\u00e9' });

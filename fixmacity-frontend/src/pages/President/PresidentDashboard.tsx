@@ -253,8 +253,8 @@ const PresidentDashboard: React.FC = () => {
   const inProgress = (byStatus.en_cours || 0) + (byStatus.assignee_agent || 0) + (byStatus.assignee_chef || 0)
   const resRate    = totalDecl > 0 ? Math.round((resolved / totalDecl) * 100) : 0
 
-  const maxArrond  = Math.max(...Object.values(byArrond), 1)
-  const arrondEntries = Object.entries(byArrond).sort((a, b) => b[1] - a[1])
+  const maxArrond  = Math.max(...Object.values(byArrond).map((v: any) => v.count), 1)
+  const arrondEntries = Object.values(byArrond).sort((a: any, b: any) => b.count - a.count).map((v: any) => [v.name, v.count])
 
   const ARROND_COLORS = ['#1557FF', '#6366F1', '#10B981', '#F59E0B']
 

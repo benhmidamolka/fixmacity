@@ -8,6 +8,7 @@ import {
   Clock, User, Star, RefreshCw, Plus, Download, Filter,
   CheckCircle, Circle, Loader, XCircle, Archive, MoreHorizontal, Eye
 } from 'lucide-react'
+import PresidentLayout from '../../layouts/PresidentLayout'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const token = () => localStorage.getItem('fmc_token')
@@ -386,6 +387,7 @@ const PresidentSuivi: React.FC = () => {
   }, {} as Record<string,number>)
 
   return (
+    <PresidentLayout title="Suivi des Déclarations">
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
@@ -465,6 +467,7 @@ const PresidentSuivi: React.FC = () => {
         </div>
       )}
     </div>
+    </PresidentLayout>
   )
 }
 

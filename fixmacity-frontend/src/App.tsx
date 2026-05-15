@@ -43,6 +43,26 @@ import TravauxRealises   from './pages/Citizen/TravauxRealises'
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const token = localStorage.getItem('fmc_token')
   if (!token) return <Navigate to="/login" replace />
+
+  const userStr = localStorage.getItem('fmc_user')
+  let role = 'citizen'
+  if (userStr) {
+    try {
+      role = JSON.parse(userStr).role || 'citizen'
+    } catch (e) {}
+  }
+
+  const path = window.location.pathname
+  if (path.startsWith('/president') && role !== 'president') {
+    return <Navigate to="/dashboard" replace />
+  }
+  if (path.startsWith('/chef') && role !== 'chef') {
+    return <Navigate to="/dashboard" replace />
+  }
+  if (path.startsWith('/agent') && role !== 'agent') {
+    return <Navigate to="/dashboard" replace />
+  }
+
   return <>{children}</>
 }
 

@@ -29,7 +29,7 @@ const PRIORITY_CONFIG: Record<string, { label:string; color:string; bg:string }>
 
 
 
-const CATEGORIES = ['Voirie', 'Éclairage public', 'Propreté', 'Espaces Verts', 'Réseaux', 'Signalisation']
+const CATEGORIES = ['Voirie', 'Éclairage public', 'Propreté', 'Espaces Verts', 'Réseaux', 'Signalisation', 'Administratif', 'Suggestions']
 const DELEGATIONS = ['Sousse Riadh', 'Sousse Nord', 'Sousse Sud', 'Sousse Médina']
 
 interface Decl {
