@@ -598,15 +598,13 @@ exports.listDepartments = async (req, res) => {
     const countsMap = {};
     const { data: declCounts } = await supabase
       .from('declarations')
-      .select('department_id')
+      .select('department_id, count:id.count()')
       .is('deleted_at', null)
-      ;
-    
+      .not('department_id', 'is', null);
+      
     if (declCounts) {
       declCounts.forEach(d => {
-        if (d.department_id) {
-          countsMap[d.department_id] = (countsMap[d.department_id] || 0) + 1;
-        }
+        countsMap[d.department_id] = d.count;
       });
     }
 

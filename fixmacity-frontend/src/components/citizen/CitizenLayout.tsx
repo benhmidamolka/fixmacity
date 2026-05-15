@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Map, Vote, CheckSquare, Bell, LogOut,
@@ -65,7 +65,7 @@ function NotificationBell() {
   const [notifs, setNotifs]       = useState(INIT_NOTIFS)
   const panelRef = useRef<HTMLDivElement>(null)
 
-  useSocket((data: any) => {
+  const handleNotif = useCallback((data: any) => {
     setNotifs(ns => [
       {
         id: Date.now().toString(),
@@ -77,7 +77,9 @@ function NotificationBell() {
       },
       ...ns
     ])
-  })
+  }, [])
+
+  useSocket(handleNotif)
 
   const unread = notifs.filter(n => !n.read).length
 

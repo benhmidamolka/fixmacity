@@ -5,7 +5,7 @@ const GEMINI_KEYS = [
   process.env.GEMINI_API_KEY_1,
   process.env.GEMINI_API_KEY_2,
   process.env.GEMINI_API_KEY_3,
-].filter(Boolean);
+].filter(Boolean).map(k => k.trim());
 
 let currentKeyIndex = 0;
 

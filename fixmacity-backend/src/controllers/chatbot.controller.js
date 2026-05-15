@@ -159,24 +159,39 @@ exports.sendMessage = async (req, res) => {
     for (let i = 0; i < attempts; i++) {
       try {
         const genAI = getNextGenAI();
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-        
-        const chat = model.startChat({
-          history: [
-            {
-              role: 'user',
-              parts: [{ text: fullSystemPrompt }]
-            },
-            {
-              role: 'model',
-              parts: [{ text: `Compris. Je suis Baladia, prêt à aider ${userName}.` }]
-            },
-            ...history
-          ]
-        });
+        const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+        let modelSuccess = false;
 
-        result = await chat.sendMessage(message.trim());
-        break; // Success
+        for (const modelName of modelsToTry) {
+          try {
+            const model = genAI.getGenerativeModel({ model: modelName });
+            
+            const chat = model.startChat({
+              history: [
+                {
+                  role: 'user',
+                  parts: [{ text: fullSystemPrompt }]
+                },
+                {
+                  role: 'model',
+                  parts: [{ text: `Compris. Je suis Baladia, prêt à aider ${userName}.` }]
+                },
+                ...history
+              ]
+            });
+
+            result = await chat.sendMessage(message.trim());
+            modelSuccess = true;
+            break; // Success
+          } catch (modelErr) {
+            console.warn(`[Chatbot] Model ${modelName} failed on key ${i+1}:`, modelErr.message);
+            lastError = modelErr;
+            if (modelErr.message?.includes('429')) continue;
+            else throw modelErr;
+          }
+        }
+
+        if (modelSuccess) break; // Success with this key!
       } catch (err) {
         console.error(`[Chatbot] Key ${i+1}/${attempts} failed:`, err.message);
         lastError = err;

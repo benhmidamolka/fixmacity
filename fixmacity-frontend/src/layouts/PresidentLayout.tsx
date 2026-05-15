@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FileText, Map, Users, Building2,
@@ -34,7 +34,8 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
   const [isActionModalOpen, setIsActionModalOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState<number | null>(null)
 
-  useSocket(() => setUnreadCount(n => (n ?? 0) + 1))
+  const handleNotif = useCallback(() => setUnreadCount(n => (n ?? 0) + 1), [])
+  useSocket(handleNotif)
 
   useEffect(() => {
     const fetchUnread = async () => {

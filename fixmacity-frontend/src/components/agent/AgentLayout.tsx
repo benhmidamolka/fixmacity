@@ -1,5 +1,5 @@
 // src/components/agent/AgentLayout.tsx
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -41,7 +41,8 @@ const AgentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => {
   const user     = JSON.parse(localStorage.getItem('fmc_user') || '{}')
   const initials = `${user.first_name?.[0] ?? 'A'}${user.last_name?.[0] ?? 'T'}`
 
-  useSocket(() => setUnreadCount(n => (n ?? 0) + 1))
+  const handleNotif = useCallback(() => setUnreadCount(n => (n ?? 0) + 1), [])
+  useSocket(handleNotif)
 
   useEffect(() => {
     const fetchUnread = async () => {

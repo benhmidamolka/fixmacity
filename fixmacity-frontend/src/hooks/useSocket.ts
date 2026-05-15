@@ -21,5 +21,5 @@ export function useSocket(onNotification: (data: unknown) => void) {
     return () => {
       socket.disconnect();
     };
-  }, [onNotification]);
+  }, []); // connect once on mount, not on every render
 }

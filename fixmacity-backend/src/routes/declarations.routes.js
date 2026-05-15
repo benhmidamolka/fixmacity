@@ -24,9 +24,13 @@ router.post('/analyze-photo',
   ctrl.analyzePhoto
 );
 
-// GET /api/declarations/:id — Get single declaration detail (authenticated only)
-router.get('/:id', authenticate, ctrl.getById);
+// 1. Named static routes FIRST
+router.get('/mine',   authenticate, rbac('citizen'), ctrl.mine);
+router.get('/map',    authenticate, ctrl.map);
+router.get('/nearby', authenticate, ctrl.nearby);
 
+// 2. Wildcard AFTER named routes
+router.get('/:id', authenticate, ctrl.getById);
 router.get('/:id/export', authenticate, exportCtrl.exportDeclaration);
 
 // POST /api/declarations — Submit new declaration with photo
@@ -43,18 +47,8 @@ router.post('/',
   ctrl.create
 );
 
-// All other routes require auth + citizen role
+// 3. Citizen-only mutations
 router.use(authenticate, rbac('citizen'));
-
-// GET /api/declarations/nearby — Find nearby duplicates
-router.get('/nearby', ctrl.nearby);
-
-// GET /api/declarations/mine — My declarations
-router.get('/mine', ctrl.mine);
-
-// GET /api/declarations/map — Map view
-router.get('/map', ctrl.map);
-
 // PUT /api/declarations/:id — Edit (soumise only)
 router.put('/:id', [
   body('title').optional().notEmpty().trim(),

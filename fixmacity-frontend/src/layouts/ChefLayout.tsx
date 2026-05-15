@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FileText, Users, Bell,
@@ -30,7 +30,8 @@ const ChefLayout: React.FC<Props> = ({ children, title = 'Mes Affectations' }) =
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [unreadCount, setUnreadCount] = useState<number | null>(null)
 
-  useSocket(() => setUnreadCount(n => (n ?? 0) + 1))
+  const handleNotif = useCallback(() => setUnreadCount(n => (n ?? 0) + 1), [])
+  useSocket(handleNotif)
 
   React.useEffect(() => {
     const fetchUnread = async () => {
