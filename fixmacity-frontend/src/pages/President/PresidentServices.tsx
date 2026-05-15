@@ -1,6 +1,13 @@
+// src/pages/president/PresidentServices.tsx
 import React, { useState, useEffect } from 'react'
 import PresidentLayout from '../../layouts/PresidentLayout'
-import { Plus, MoreVertical, X, Users, FileText, TrendingUp, AlertTriangle } from 'lucide-react'
+import { 
+  Plus, MoreVertical, X, Users, FileText, TrendingUp, 
+  AlertTriangle, ArrowRight, Activity, Zap, CheckCircle2, 
+  LayoutGrid, List, BarChart3, Clock, ArrowUpRight,
+  Shield, Target, Award, Briefcase, Calendar
+} from 'lucide-react'
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const token = () => localStorage.getItem('fmc_token')
@@ -11,7 +18,7 @@ const DEPT_ICONS: Record<string, string> = {
 }
 
 const DEPT_COLORS: Record<string, string> = {
-  VR: '#3B82F6', EP: '#F59E0B', PD: '#10B981',
+  VR: '#1557FF', EP: '#F59E0B', PD: '#10B981',
   EV: '#22C55E', EA: '#6366F1', ST: '#F97316',
   BP: '#8B5CF6', SG: '#EC4899'
 }
@@ -22,21 +29,58 @@ interface Dept {
   agents: number; rate: number; overloaded?: boolean
 }
 
-const DonutChart: React.FC<{ rate: number; color: string; size?: number }> = ({
-  rate, color, size = 70
-}) => {
-  const r = (size - 10) / 2
-  const circ = 2 * Math.PI * r
-  const dash = (rate / 100) * circ
+// ── UI Components ─────────────────────────────────────────────────────────────
+
+const KpiCard = ({ label, value, sub, color, icon: Icon, trend }: any) => (
+  <div className="group bg-white rounded-[2.5rem] p-8 border border-slate-200/60 hover:border-blue-400/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500 relative overflow-hidden">
+    <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50/50 rounded-bl-[5rem] -mr-10 -mt-10 group-hover:bg-blue-50/50 transition-colors duration-500" />
+    <div className="relative">
+      <div className="flex items-center justify-between mb-6">
+        <div className={`p-4 rounded-2xl ${color.bg} ${color.text} shadow-sm group-hover:scale-110 transition-transform duration-500`}>
+          <Icon className="w-6 h-6" />
+        </div>
+        {trend && (
+          <span className="flex items-center gap-1 text-[10px] font-black text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg">
+            <TrendingUp className="w-3 h-3" /> {trend}
+          </span>
+        )}
+      </div>
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{label}</p>
+      <h3 className="text-4xl font-black text-[#0A1628] tracking-tight">{value}</h3>
+      <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-widest">{sub}</p>
+    </div>
+  </div>
+)
+
+const ServiceDonut: React.FC<{ rate: number; color: string }> = ({ rate, color }) => {
+  const data = [
+    { name: 'Résolu', value: rate },
+    { name: 'Restant', value: 100 - rate }
+  ]
+  
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#F1F5F9" strokeWidth="8"/>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="8"
-        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-        transform={`rotate(-90 ${size/2} ${size/2})`}/>
-      <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle"
-        fontSize="13" fontWeight="700" fill="#0A1628">{rate}%</text>
-    </svg>
+    <div className="w-20 h-20 relative group-hover:scale-110 transition-transform duration-500">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            innerRadius={28}
+            outerRadius={36}
+            paddingAngle={0}
+            dataKey="value"
+            stroke="none"
+            startAngle={90}
+            endAngle={-270}
+          >
+            <Cell fill={color} />
+            <Cell fill="#f1f5f9" />
+          </Pie>
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[12px] font-black text-[#0A1628] leading-none">{rate}%</span>
+      </div>
+    </div>
   )
 }
 
@@ -64,121 +108,122 @@ const DetailModal: React.FC<{ dept: Dept; onClose: () => void }> = ({ dept, onCl
     fetchDecls()
   }, [dept.id])
 
-  const statusColor: Record<string, string> = {
-    'soumise': '#64748B', 'assignee': '#F59E0B', 'en_cours': '#3B82F6', 'resolue': '#10B981', 'cloturee': '#059669'
-  }
-  const statusLabel: Record<string, string> = {
-    'soumise': 'SOUMISE', 'assignee': 'ASSIGNÉE', 'en_cours': 'EN COURS', 'resolue': 'RÉSOLUE', 'cloturee': 'CLÔTURÉE'
-  }
-  const statusBg: Record<string, string> = {
-    'soumise': '#F8FAFC', 'assignee': '#FFFBEB', 'en_cours': '#EFF6FF', 'resolue': '#F0FDF4', 'cloturee': '#ECFDF5'
+  const statusConfig: Record<string, any> = {
+    'soumise': { label: 'SOUMISE', color: 'text-slate-400', bg: 'bg-slate-50' },
+    'assignee': { label: 'ASSIGNÉE', color: 'text-amber-500', bg: 'bg-amber-50' },
+    'en_cours': { label: 'EN COURS', color: 'text-blue-500', bg: 'bg-blue-50' },
+    'resolue': { label: 'RÉSOLUE', color: 'text-emerald-500', bg: 'bg-emerald-50' },
+    'cloturee': { label: 'CLÔTURÉE', color: 'text-emerald-700', bg: 'bg-emerald-100' }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose}/>
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in">
-        {/* Header */}
-        <div className="flex items-center gap-4 p-6 border-b border-slate-100">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-            style={{ background: `${color}15` }}>
-            {DEPT_ICONS[dept.code]}
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-[#0A1628]">{dept.name_fr}</h2>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full border"
-                style={{ color, borderColor: color, background: `${color}10` }}>
-                {dept.code}
-              </span>
-              <span className="w-2 h-2 rounded-full bg-green-500"/>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-[#0A1628]/80 backdrop-blur-xl transition-opacity duration-500" onClick={onClose} />
+      
+      <div className="relative bg-white rounded-[3.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div className="flex flex-col lg:flex-row h-full">
+          {/* Sidebar Info */}
+          <div className="lg:w-80 bg-slate-50/50 p-12 border-r border-slate-100 flex flex-col items-center text-center">
+            <div 
+              className="w-32 h-32 rounded-[3rem] flex items-center justify-center text-5xl font-black mb-8 shadow-2xl ring-[12px] ring-white transition-transform hover:rotate-3"
+              style={{ backgroundColor: `${color}10`, color }}
+            >
+              {DEPT_ICONS[dept.code] || '🏢'}
             </div>
-            <p className="text-sm text-slate-400">Département technique</p>
-          </div>
-          <button onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-all">
-            <X className="w-4 h-4"/>
-          </button>
-        </div>
-
-        <div className="p-6">
-          {/* Chef + Agents */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-slate-50 rounded-xl p-4">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                Chef de Service
-              </p>
-              <p className="text-sm font-bold text-[#0A1628]">{dept.chef}</p>
-            </div>
-            <div className="bg-slate-50 rounded-xl p-4">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                Effectif
-              </p>
-              <p className="text-sm font-bold text-[#0A1628]">{dept.agents} Agents actifs</p>
+            <h2 className="text-2xl font-black text-[#0A1628] leading-tight mb-2">{dept.name_fr}</h2>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#1557FF] bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-full mb-8">
+              Pôle {dept.code}
+            </span>
+            
+            <div className="w-full space-y-3">
+              <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col items-center">
+                <Users className="w-6 h-6 text-slate-400 mb-3" />
+                <p className="text-xl font-black text-[#0A1628]">{dept.agents}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Experts Déployés</p>
+              </div>
+              <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col items-center">
+                <Target className="w-6 h-6 text-[#1557FF] mb-3" />
+                <p className="text-xl font-black text-[#0A1628]">{dept.rate}%</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Performance Pôle</p>
+              </div>
             </div>
           </div>
 
-          {/* Workload */}
-          <div className="bg-slate-50 rounded-xl p-4 mb-6">
-            <div className="flex items-center justify-between mb-2">
+          {/* Main Content */}
+          <div className="flex-1 p-12 flex flex-col overflow-hidden">
+            <div className="flex justify-between items-start mb-12">
               <div>
-                <p className="text-sm font-bold text-[#0A1628]">Charge de travail actuelle</p>
-                <p className="text-xs text-slate-400">Vue d'ensemble des tickets assignés</p>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-[#1557FF] mb-2">Suivi Opérationnel Segmenté</h3>
+                <p className="text-sm text-slate-400 font-medium italic">Analyse des flux et charges de travail en temps réel.</p>
               </div>
-              <div className="flex gap-4 text-right">
-                <div>
-                  <p className="text-xl font-black" style={{ color }}>{dept.in_progress}</p>
-                  <p className="text-[10px] text-slate-400 uppercase font-bold">En cours</p>
+              <button onClick={onClose} className="p-4 rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-100 transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6 mb-12">
+              <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-blue-900/20">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-bl-full -mr-16 -mt-16 blur-2xl" />
+                <div className="relative">
+                   <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-4 flex items-center gap-2">
+                     <Activity className="w-3 h-3" /> Charge Active
+                   </p>
+                   <p className="text-4xl font-black text-white tracking-tight mb-4">{dept.in_progress}</p>
+                   <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                     <div className="h-full bg-white rounded-full transition-all duration-1000 shadow-sm" style={{ width: `${(dept.in_progress / (dept.total || 1)) * 100}%` }} />
+                   </div>
                 </div>
-                <div>
-                  <p className="text-xl font-black text-[#0A1628]">{dept.total}</p>
-                  <p className="text-[10px] text-slate-400 uppercase font-bold">Totales</p>
-                </div>
+              </div>
+              <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100 group hover:bg-white hover:shadow-xl transition-all">
+                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
+                   <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Missions Résolues
+                 </p>
+                 <p className="text-4xl font-black text-[#0A1628] tracking-tight mb-4">{dept.resolved}</p>
+                 <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Segment accompli</p>
               </div>
             </div>
-          </div>
 
-          {/* Recent declarations */}
-          <div>
-            <p className="text-sm font-bold text-[#0A1628] mb-3">Déclarations récentes</p>
-            <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
-              {loading && <p className="text-xs text-slate-400 text-center py-4">Chargement...</p>}
-              {!loading && decls.length === 0 && <p className="text-xs text-slate-400 text-center py-4">Aucune déclaration récente.</p>}
-              {decls.map((d, i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
-                    style={{ background: `${color}15` }}>
-                    {DEPT_ICONS[dept.code] || '🏢'}
+            <div className="flex-1 overflow-y-auto space-y-6">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Dernières interventions</h4>
+                <div className="h-px flex-1 bg-slate-100 mx-6" />
+                <button className="text-[9px] font-black text-[#1557FF] uppercase tracking-widest hover:underline">Vue Globale</button>
+              </div>
+              
+              {loading ? (
+                <div className="flex justify-center py-12"><div className="w-10 h-10 border-4 border-blue-500/20 border-t-[#1557FF] rounded-full animate-spin" /></div>
+              ) : decls.length === 0 ? (
+                <p className="text-sm text-slate-300 italic text-center py-12 font-medium">Aucun historique récent pour ce pôle.</p>
+              ) : decls.map((d, i) => {
+                const cfg = statusConfig[d.status] || { label: d.status.toUpperCase(), color: 'text-slate-400', bg: 'bg-slate-50' }
+                return (
+                  <div key={i} className="flex items-center gap-6 p-6 rounded-3xl bg-slate-50 border border-slate-50 hover:bg-white hover:border-blue-100 hover:shadow-xl transition-all group">
+                    <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-lg border border-slate-100 group-hover:scale-110 transition-transform">
+                      {DEPT_ICONS[dept.code] || '🏢'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-black text-[#0A1628] truncate tracking-tight mb-1 group-hover:text-[#1557FF] transition-colors">{d.title}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5" /> {new Date(d.created_at).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                    <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-100 shadow-sm ${cfg.bg} ${cfg.color}`}>
+                      {cfg.label}
+                    </span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#0A1628] truncate">{d.title}</p>
-                    <p className="text-xs text-slate-400">{new Date(d.created_at).toLocaleDateString('fr-FR')}</p>
-                  </div>
-                  <span className="text-[11px] font-bold px-2 py-1 rounded-full flex-shrink-0"
-                    style={{
-                      color: statusColor[d.status] || '#64748B',
-                      background: statusBg[d.status] || '#F8FAFC'
-                    }}>
-                    {statusLabel[d.status] || d.status}
-                  </span>
-                </div>
-              ))}
+                )
+              })}
+            </div>
+            
+            <div className="mt-8 pt-8 border-t border-slate-100 flex gap-4">
+              <button className="flex-1 h-14 rounded-2xl bg-[#1557FF] text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+                Modifier Configuration <Award className="w-4 h-4" />
+              </button>
+              <button className="h-14 px-8 rounded-2xl border border-slate-200 text-[#0A1628] text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-3">
+                Responsable <Shield className="w-4 h-4" />
+              </button>
             </div>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex gap-3 p-6 pt-0">
-          <button className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-            Modifier le service
-          </button>
-          <button className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-            Voir détails complets
-          </button>
-          <button className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold transition-all"
-            style={{ background: '#1557FF' }}>
-            + Assigner une déclaration
-          </button>
         </div>
       </div>
     </div>
@@ -226,145 +271,116 @@ const PresidentServices: React.FC = () => {
   const overloaded = depts.filter(d => d.overloaded).length
   const avgRate = depts.length > 0 ? Math.round(depts.reduce((a, d) => a + d.rate, 0) / depts.length) : 0
 
+  if (loading) return (
+    <PresidentLayout title="Services Municipaux">
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <div className="w-12 h-12 border-[3px] border-slate-100 border-t-[#1557FF] rounded-full animate-spin" />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Synchronisation des pôles...</p>
+      </div>
+    </PresidentLayout>
+  )
+
   return (
-    <PresidentLayout title="Gestion des Services Municipaux">
-      <div className="flex-1 bg-[#f8fafc] p-6 min-h-screen">
-        {loading && (
-          <div className="fixed top-20 right-10 flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-full border border-blue-100 z-50 shadow-lg shadow-blue-500/10 animate-pulse">
-            <TrendingUp className="w-4 h-4" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Analyse en temps réel...</span>
-          </div>
-        )}
-
-        {/* KPI row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: 'TOTAL SERVICES',    value: depts.length, icon: '🏢', color: '#1557FF' },
-            { label: 'SERVICES ACTIFS',   value: depts.filter(d=>d.is_active).length, icon: '⚡', color: '#F59E0B' },
-            { label: 'TAUX RÉSOLUTION',   value: `${avgRate}%`, icon: '✅', color: '#10B981' },
-            { label: 'EN SURCHARGE', value: overloaded, icon: '⚠️', color: '#EF4444', warn: overloaded > 0 },
-          ].map(k => (
-            <div key={k.label}
-              className={`group bg-white rounded-3xl p-6 border transition-all hover:shadow-xl hover:shadow-blue-500/5 relative overflow-hidden ${k.warn ? 'border-red-200' : 'border-slate-200'}`}>
-              <div className="absolute top-0 right-0 w-20 h-20 bg-slate-50 rounded-bl-[3rem] -mr-6 -mt-6 group-hover:bg-blue-50 transition-colors"/>
-              <div className="relative">
-                <div className="flex items-start justify-between mb-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{k.label}</p>
-                  <span className="text-2xl drop-shadow-sm">{k.icon}</span>
-                </div>
-                <p className="text-3xl font-black tracking-tight" style={{ color: k.warn ? '#EF4444' : '#0A1628' }}>
-                  {k.value}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Section header */}
-        <div className="flex items-center justify-between mb-8">
+    <PresidentLayout title="Services Municipaux">
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+        
+        {/* Header Content */}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12">
           <div>
-            <h2 className="text-xl font-black text-[#0A1628]">Départements Opérationnels</h2>
-            <p className="text-sm text-slate-400">Suivi analytique de la performance par service</p>
+            <h1 className="text-4xl font-black text-[#0A1628] tracking-tight mb-3">Pôles Opérationnels</h1>
+            <p className="text-sm font-medium text-slate-400 italic">Pilotage stratégique et monitoring des pôles techniques de la ville.</p>
           </div>
-          <button className="flex items-center gap-2 px-8 py-3.5 rounded-2xl text-white text-[11px] font-black uppercase tracking-widest transition-all hover:shadow-xl hover:shadow-blue-500/30 active:scale-95 shadow-lg shadow-blue-500/20"
-            style={{ background: '#1557FF' }}>
-            <Plus className="w-4 h-4"/> Créer un service
+          <button className="h-14 px-10 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-[#1557FF] transition-all active:scale-[0.98] flex items-center gap-3">
+            <Plus className="w-4 h-4" />
+            Nouveau Pôle
           </button>
         </div>
 
-        {/* Dept cards grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {/* KPI Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
+          <KpiCard label="Unités Actives" value={depts.length} sub="Pôles en fonction" color={{ bg: 'bg-blue-50', text: 'text-blue-600' }} icon={LayoutGrid} />
+          <KpiCard label="Effectif Total" value={depts.reduce((a,d)=>a+d.agents, 0)} sub="Spécialistes déployés" color={{ bg: 'bg-violet-50', text: 'text-violet-600' }} icon={Users} trend="+4.2%" />
+          <KpiCard label="Performance" value={`${avgRate}%`} sub="Taux de réussite avg" color={{ bg: 'bg-emerald-50', text: 'text-emerald-600' }} icon={Activity} trend="+5.4%" />
+          <KpiCard label="Alertes Surcharge" value={overloaded} sub="Interventions critiques" color={{ bg: overloaded > 0 ? 'bg-rose-50' : 'bg-slate-50', text: overloaded > 0 ? 'text-rose-600' : 'text-slate-400' }} icon={AlertTriangle} />
+        </div>
+
+        {/* Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 pb-12">
           {depts.map(dept => {
             const color = DEPT_COLORS[dept.code] || '#1557FF'
-            const isOverloaded = dept.overloaded
             return (
-              <div key={dept.id}
-                className="group bg-white rounded-[2rem] border border-slate-200 overflow-hidden hover:shadow-2xl hover:shadow-blue-500/5 hover:border-blue-400/30 transition-all relative flex flex-col shadow-sm">
-                
-                {/* Overloaded badge */}
-                {isOverloaded && (
-                  <div className="absolute top-4 right-12 z-10">
-                    <span className="text-[9px] font-black px-3 py-1 rounded-lg bg-rose-500 text-white shadow-lg shadow-rose-500/30 animate-pulse uppercase tracking-widest">
-                      Surchargé
+              <div 
+                key={dept.id}
+                onClick={() => setSelected(dept)}
+                className="group bg-white rounded-[3.5rem] border border-slate-200/60 p-10 hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] hover:border-[#1557FF]/30 transition-all duration-500 cursor-pointer relative overflow-hidden"
+              >
+                {/* Surcharge Badge */}
+                {dept.overloaded && (
+                  <div className="absolute top-10 right-10">
+                    <span className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest shadow-xl shadow-rose-500/30 animate-pulse">
+                      <Zap className="w-3 h-3 fill-current" /> Surcharge
                     </span>
                   </div>
                 )}
 
-                {/* Card header */}
-                <div className="p-6 pb-2">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-inner transition-transform group-hover:scale-110"
-                      style={{ background: `${color}10`, color }}>
-                      {DEPT_ICONS[dept.code] || '🏢'}
-                    </div>
-                    <button className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-300 hover:text-slate-500 hover:bg-slate-50 transition-all">
-                      <MoreVertical className="w-4 h-4"/>
-                    </button>
+                <div className="flex items-center gap-6 mb-10">
+                  <div 
+                    className="w-20 h-20 rounded-[2rem] flex items-center justify-center text-4xl shadow-2xl group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-500"
+                    style={{ backgroundColor: `${color}10`, color }}
+                  >
+                    {DEPT_ICONS[dept.code] || '🏢'}
                   </div>
-                  <h3 className="font-black text-[#0A1628] text-base group-hover:text-blue-600 transition-colors mb-1">{dept.name_fr}</h3>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded shadow-sm" style={{ background: `${color}10`, color }}>{dept.code}</span>
-                    <span className="text-[10px] font-bold text-slate-300">· {dept.agents} agents</span>
-                  </div>
-                </div>
-
-                {/* Stats row */}
-                <div className="flex items-center gap-6 p-6">
-                  <div className="shrink-0 scale-110">
-                    <DonutChart rate={dept.rate} color={isOverloaded ? '#EF4444' : color}/>
-                  </div>
-                  <div className="flex-1 space-y-4">
-                    <div className="flex justify-between">
-                      <div className="space-y-0.5">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total</p>
-                        <p className="text-sm font-black text-[#0A1628]">{dept.total.toLocaleString()}</p>
-                      </div>
-                      <div className="space-y-0.5 text-right">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">En cours</p>
-                        <p className="text-sm font-black" style={{ color: isOverloaded ? '#EF4444' : color }}>
-                          {dept.in_progress}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden shadow-inner">
-                      <div className="h-full rounded-full transition-all duration-1000 shadow-sm" 
-                        style={{ width: `${dept.rate}%`, background: isOverloaded ? '#EF4444' : color }} />
+                  <div>
+                    <h3 className="text-2xl font-black text-[#0A1628] tracking-tight group-hover:text-[#1557FF] transition-colors leading-none mb-2">{dept.name_fr}</h3>
+                    <div className="flex items-center gap-3">
+                       <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-slate-100 bg-slate-50 text-slate-400">{dept.code}</span>
+                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1557FF]">{dept.agents} Experts</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Chef footer */}
-                <div className="mt-auto flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-[10px] font-black shadow-md"
-                      style={{ background: color }}>
-                      {dept.chef ? dept.chef.split(' ').map(w=>w[0]).join('').slice(0,2) : '??'}
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-black text-[#0A1628] leading-none mb-1">{dept.chef}</p>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Superviseur</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setSelected(dept)}
-                    className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#1557FF] hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-all">
-                    Analyses
-                  </button>
+                <div className="flex items-center gap-8 mb-10">
+                   <div className="shrink-0">
+                     <ServiceDonut rate={dept.rate} color={dept.overloaded ? '#F43F5E' : color} />
+                   </div>
+                   <div className="flex-1 space-y-6">
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-300 mb-1">Missions</p>
+                          <p className="text-xl font-black text-[#0A1628] tracking-tight">{dept.total}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-300 mb-1">En cours</p>
+                          <p className="text-xl font-black tracking-tight" style={{ color: dept.overloaded ? '#F43F5E' : color }}>{dept.in_progress}</p>
+                        </div>
+                      </div>
+                      <div className="h-2 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+                        <div className="h-full rounded-full transition-all duration-1000 shadow-sm" style={{ width: `${dept.rate}%`, backgroundColor: dept.overloaded ? '#F43F5E' : color }} />
+                      </div>
+                   </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-8 border-t border-slate-50 group-hover:bg-slate-50/50 transition-colors rounded-b-[3.5rem] -mx-10 -mb-10 px-10 pb-10">
+                   <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-[1.25rem] bg-white border border-slate-100 shadow-xl flex items-center justify-center text-[#1557FF] text-xs font-black group-hover:scale-110 transition-transform">
+                        {dept.chef.split(' ').map(w=>w[0]).join('').slice(0,2)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-[#0A1628] tracking-tight truncate leading-none mb-1.5">{dept.chef}</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Manager Pôle</p>
+                      </div>
+                   </div>
+                   <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-300 group-hover:text-[#1557FF] group-hover:border-[#1557FF]/30 group-hover:rotate-12 transition-all">
+                      <ArrowUpRight className="w-6 h-6" />
+                   </div>
                 </div>
               </div>
             )
           })}
-          {depts.length === 0 && !loading && (
-            <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
-              <p className="text-5xl mb-6">🏢</p>
-              <h3 className="text-lg font-black text-slate-600 mb-1">Aucun service opérationnel</h3>
-              <p className="text-sm text-slate-400">Commencez par créer un nouveau département municipal.</p>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Detail modal */}
-      {selected && <DetailModal dept={selected} onClose={() => setSelected(null)}/>}
+      {selected && <DetailModal dept={selected} onClose={() => setSelected(null)} />}
     </PresidentLayout>
   )
 }

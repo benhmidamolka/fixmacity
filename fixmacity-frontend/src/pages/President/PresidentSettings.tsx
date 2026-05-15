@@ -1,37 +1,48 @@
+// src/pages/president/PresidentSettings.tsx
 import React, { useState } from 'react'
 import PresidentLayout from '../../layouts/PresidentLayout'
-import { User, Bell, Shield, Globe, Save, Eye, EyeOff, Check, HelpCircle } from 'lucide-react'
+import { 
+  User, Bell, Shield, Globe, Save, Eye, EyeOff, Check, 
+  HelpCircle, ChevronRight, Mail, Phone, MapPin, Briefcase,
+  Activity, Lock, Zap, RefreshCw, Key, LogOut
+} from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const token = () => localStorage.getItem('fmc_token')
 
+// ── UI Components ─────────────────────────────────────────────────────────────
+
 const Toggle: React.FC<{ value: boolean; onChange: (v: boolean) => void }> = ({ value, onChange }) => (
   <button
     onClick={() => onChange(!value)}
-    className="relative w-10 h-5 rounded-full transition-all flex-shrink-0"
-    style={{ background: value ? '#1557FF' : '#E2E8F0' }}>
-    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${value ? 'left-5' : 'left-0.5'}`}/>
+    className={`relative w-14 h-7 rounded-full transition-all flex-shrink-0 focus:outline-none focus:ring-4 focus:ring-blue-100/50 ${value ? 'bg-[#1557FF]' : 'bg-slate-200'}`}>
+    <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-lg transition-all ${value ? 'left-8' : 'left-1'}`}/>
   </button>
 )
 
-const Section: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode }> = ({ title, icon, children }) => (
-  <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden mb-5">
-    <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100">
-      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm"
-        style={{ background: '#1557FF' }}>
+const Section: React.FC<{ title: string; subtitle?: string; icon: React.ReactNode; children: React.ReactNode }> = ({ title, subtitle, icon, children }) => (
+  <div className="bg-white rounded-[3rem] border border-slate-200/60 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.03)] overflow-hidden mb-10 group hover:border-[#1557FF]/20 transition-all duration-500">
+    <div className="flex items-center gap-6 px-10 py-8 border-b border-slate-100 bg-slate-50/30">
+      <div className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center bg-white border border-slate-100 text-[#1557FF] shadow-sm group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
         {icon}
       </div>
-      <h2 className="text-sm font-black text-[#0A1628] uppercase tracking-wide">{title}</h2>
+      <div>
+        <h2 className="text-xl font-black text-[#0A1628] tracking-tight">{title}</h2>
+        {subtitle && <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">{subtitle}</p>}
+      </div>
     </div>
-    <div className="p-6">{children}</div>
+    <div className="p-10">{children}</div>
   </div>
 )
 
-const Field: React.FC<{ label: string; children: React.ReactNode; hint?: string }> = ({ label, children, hint }) => (
-  <div className="flex items-center justify-between py-3 border-b border-slate-50 last:border-0">
-    <div className="flex-1 mr-8">
-      <p className="text-sm font-semibold text-[#0A1628]">{label}</p>
-      {hint && <p className="text-xs text-slate-400 mt-0.5">{hint}</p>}
+const Field: React.FC<{ label: string; children: React.ReactNode; hint?: string; icon?: React.ReactNode }> = ({ label, children, hint, icon }) => (
+  <div className="flex items-center justify-between py-8 border-b border-slate-50 last:border-0 group/field">
+    <div className="flex items-center gap-6 flex-1 mr-8">
+      {icon && <div className="text-slate-300 group-hover/field:text-[#1557FF] transition-colors">{icon}</div>}
+      <div>
+        <p className="text-base font-black text-[#0A1628] tracking-tight">{label}</p>
+        {hint && <p className="text-[11px] text-slate-400 font-medium mt-1.5 italic">{hint}</p>}
+      </div>
     </div>
     <div className="flex-shrink-0">{children}</div>
   </div>
@@ -108,153 +119,209 @@ const PresidentSettings: React.FC = () => {
 
   return (
     <PresidentLayout title="Paramètres">
-      <div className="max-w-4xl mx-auto pb-20">
-        <div className="flex items-center justify-between mb-8">
+      <div className="max-w-7xl mx-auto pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        
+        {/* Page Header */}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12">
           <div>
-            <h1 className="text-2xl font-black text-[#0A1628]">Configuration du Compte</h1>
-            <p className="text-sm text-slate-400 font-medium">Gérez votre profil, la sécurité et vos préférences de notification.</p>
+            <h1 className="text-4xl font-black text-[#0A1628] tracking-tight mb-3">Configuration Système</h1>
+            <p className="text-sm font-medium text-slate-400 italic">Pilotage des accès, sécurité et préférences du portail présidentiel.</p>
           </div>
-          <button onClick={handleSave} disabled={loading}
-            className="flex items-center gap-2 px-8 py-3 rounded-2xl text-white font-bold text-sm shadow-xl shadow-blue-200 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
-            style={{ background: saved ? '#10B981' : '#1557FF' }}>
-            {loading ? (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-            ) : saved ? (
-              <><Check className="w-4 h-4"/> Modifications enregistrées</>
-            ) : (
-              <><Save className="w-4 h-4"/> Enregistrer tout</>
-            )}
-          </button>
+          <div className="flex items-center gap-4">
+            <button onClick={() => window.location.reload()} className="w-14 h-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-[#1557FF] transition-all">
+               <RefreshCw className="w-5 h-5" />
+            </button>
+            <button onClick={handleSave} disabled={loading}
+              className={`h-14 px-10 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 shadow-2xl flex items-center gap-3 ${
+                saved ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-slate-900 shadow-slate-900/10 hover:bg-[#1557FF]'
+              }`}>
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+              ) : saved ? (
+                <><Check className="w-5 h-5"/> Changements synchronisés</>
+              ) : (
+                <><Save className="w-5 h-5"/> Appliquer les modifications</>
+              )}
+            </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
-            {/* PROFILE */}
-            <Section title="Profil Public" icon={<User className="w-4 h-4"/>}>
-              <div className="flex items-center gap-6 mb-8 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
-                <div className="relative group cursor-pointer">
-                  <div className="w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-black ring-4 ring-white shadow-lg transition-transform group-hover:scale-105"
-                    style={{ background: 'linear-gradient(135deg, #1557FF 0%, #3B82F6 100%)' }}>
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
+          
+          {/* Main Content */}
+          <div className="xl:col-span-8 space-y-10">
+            
+            {/* PROFILE SECTION */}
+            <Section title="Profil Présidentiel" subtitle="Identité Opérationnelle" icon={<User className="w-6 h-6"/>}>
+              <div className="flex flex-col md:flex-row items-center gap-10 mb-12 p-8 bg-slate-50/50 rounded-[2.5rem] border border-slate-200 border-dashed relative overflow-hidden group/avatar">
+                <div className="absolute inset-0 bg-blue-50/20 translate-y-full group-hover/avatar:translate-y-0 transition-transform duration-700" />
+                <div className="relative">
+                  <div className="w-28 h-28 rounded-[2.5rem] flex items-center justify-center text-white text-4xl font-black shadow-2xl transition-all group-hover/avatar:scale-105 group-hover/avatar:rotate-3"
+                    style={{ background: 'linear-gradient(135deg, #0A1628 0%, #1557FF 100%)' }}>
                     {profile.first_name[0]}{profile.last_name[0]}
                   </div>
-                  <div className="absolute inset-0 rounded-full bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                    <span className="text-[10px] text-white font-black uppercase tracking-widest">Éditer</span>
+                  <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-[#1557FF] shadow-xl">
+                    <Shield className="w-5 h-5"/>
                   </div>
                 </div>
-                <div>
-                  <p className="font-black text-[#0A1628] text-lg leading-tight">{profile.first_name} {profile.last_name}</p>
-                  <p className="text-xs font-bold text-[#1557FF] uppercase tracking-widest mt-1">ID: #PRES-{user.id?.slice(0,4)}</p>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">{profile.municipality}</p>
+                <div className="text-center md:text-left flex-1 relative">
+                  <p className="text-3xl font-black text-[#0A1628] tracking-tight leading-tight mb-2">{profile.first_name} {profile.last_name}</p>
+                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mb-4">
+                    <span className="text-[9px] font-black text-[#1557FF] uppercase tracking-[0.2em] bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-xl">
+                      ID: {user.id?.slice(0,10).toUpperCase()}
+                    </span>
+                    <span className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.2em] bg-emerald-50 border border-emerald-100 px-4 py-1.5 rounded-xl flex items-center gap-2">
+                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> ACTIF
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-6 text-slate-400">
+                    <span className="text-xs font-bold flex items-center gap-2.5"><MapPin className="w-4 h-4 text-slate-300"/> Sousse, Tunisie</span>
+                    <span className="text-xs font-bold flex items-center gap-2.5"><Briefcase className="w-4 h-4 text-slate-300"/> Président de la Municipalité</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-5">
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">Prénom</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="group/input">
+                  <label className="text-[10px] font-black text-slate-400 mb-3 block uppercase tracking-[0.2em] group-focus-within/input:text-[#1557FF] transition-colors">Prénom Civil</label>
                   <input value={profile.first_name}
                     onChange={e => setProfile(p => ({ ...p, first_name: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-[#0A1628] focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all"/>
+                    className="w-full h-16 bg-slate-50 border border-slate-100 rounded-2xl px-8 text-base font-bold text-[#0A1628] focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-[#1557FF]/30 outline-none transition-all"/>
                 </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">Nom</label>
+                <div className="group/input">
+                  <label className="text-[10px] font-black text-slate-400 mb-3 block uppercase tracking-[0.2em] group-focus-within/input:text-[#1557FF] transition-colors">Nom de famille</label>
                   <input value={profile.last_name}
                     onChange={e => setProfile(p => ({ ...p, last_name: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-[#0A1628] focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all"/>
+                    className="w-full h-16 bg-slate-50 border border-slate-100 rounded-2xl px-8 text-base font-bold text-[#0A1628] focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-[#1557FF]/30 outline-none transition-all"/>
                 </div>
-                <div className="col-span-2">
-                  <label className="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">Adresse Email</label>
-                  <input value={profile.email}
-                    onChange={e => setProfile(p => ({ ...p, email: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-[#0A1628] focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all"/>
+                <div className="md:col-span-2 group/input">
+                  <label className="text-[10px] font-black text-slate-400 mb-3 block uppercase tracking-[0.2em] group-focus-within/input:text-[#1557FF] transition-colors">Canal de communication principal</label>
+                  <div className="relative">
+                    <Mail className="absolute left-7 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within/input:text-[#1557FF] transition-all" />
+                    <input value={profile.email}
+                      onChange={e => setProfile(p => ({ ...p, email: e.target.value }))}
+                      className="w-full h-16 bg-slate-50 border border-slate-100 rounded-2xl pl-16 pr-8 text-base font-bold text-[#0A1628] focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-[#1557FF]/30 outline-none transition-all"/>
+                  </div>
                 </div>
               </div>
             </Section>
 
-            {/* PASSWORD */}
-            <Section title="Sécurité & Authentification" icon={<Shield className="w-4 h-4"/>}>
-              <div className="space-y-4 mb-6">
+            {/* SECURITY SECTION */}
+            <Section title="Sécurité & Chiffrement" subtitle="Protocole de Protection" icon={<Lock className="w-6 h-6"/>}>
+              <div className="grid grid-cols-1 md:grid-cols-1 gap-8 mb-12">
                 {(['current','newPwd','confirm'] as const).map(k => (
-                  <div key={k}>
-                    <label className="text-[10px] font-black text-slate-400 mb-2 block uppercase tracking-widest">
-                      {k === 'current' ? 'Mot de passe actuel' : k === 'newPwd' ? 'Nouveau mot de passe' : 'Confirmer'}
+                  <div key={k} className="group/input">
+                    <label className="text-[10px] font-black text-slate-400 mb-3 block uppercase tracking-[0.2em] group-focus-within/input:text-[#1557FF] transition-colors">
+                      {k === 'current' ? 'Clé d\'accès actuelle' : k === 'newPwd' ? 'Nouveau code secret' : 'Confirmation du code'}
                     </label>
                     <div className="relative">
+                      <Key className="absolute left-7 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within/input:text-[#1557FF] transition-all" />
                       <input
                         type={showPwd[k] ? 'text' : 'password'}
                         value={passwords[k]}
                         onChange={e => setPasswords(p => ({ ...p, [k]: e.target.value }))}
-                        placeholder="••••••••"
-                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 pr-10 text-sm font-bold text-[#0A1628] focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all"/>
+                        placeholder="••••••••••••••••"
+                        className="w-full h-16 bg-slate-50 border border-slate-100 rounded-2xl pl-16 pr-16 text-base font-bold text-[#0A1628] focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-[#1557FF]/30 outline-none transition-all"/>
                       <button
                         type="button"
                         onClick={() => setShowPwd(p => ({ ...p, [k]: !p[k] }))}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-600">
-                        {showPwd[k] ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+                        className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-[#1557FF] transition-colors p-2 rounded-xl hover:bg-blue-50">
+                        {showPwd[k] ? <EyeOff className="w-5 h-5"/> : <Eye className="w-5 h-5"/>}
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="pt-4 space-y-1">
-                <Field label="Double authentification (2FA)" hint="Requis pour les actions critiques.">
+              <div className="space-y-2">
+                <Field label="Double Authentification (2FA)" hint="Sécurisez vos accès via un protocole mobile OTP." icon={<Zap className="w-5 h-5" />}>
                   <Toggle value={privacy.two_factor} onChange={v => setP('two_factor', v)}/>
                 </Field>
-                <Field label="Journalisation étendue" hint="Historique complet des connexions.">
+                <Field label="Journal d'audit avancé" hint="Conserver une trace immuable de toutes les actions présidentielles." icon={<Activity className="w-5 h-5" />}>
                   <Toggle value={privacy.audit_log} onChange={v => setP('audit_log', v)}/>
                 </Field>
               </div>
             </Section>
           </div>
 
-          <div className="space-y-6">
-            {/* LANGUAGE */}
-            <Section title="Langue du portail" icon={<Globe className="w-4 h-4"/>}>
-              <div className="space-y-2">
+          {/* Sidebar Area */}
+          <div className="xl:col-span-4 space-y-10">
+            
+            {/* LANGUAGE SECTION */}
+            <Section title="Localisation" subtitle="Région & Dialecte" icon={<Globe className="w-6 h-6"/>}>
+              <div className="space-y-4">
                 {[
-                  { code: 'fr', label: 'Français', flag: '🇫🇷' },
-                  { code: 'ar', label: 'العربية',  flag: '🇹🇳' },
+                  { code: 'fr', label: 'Français Tunisien', flag: '🇫🇷', detail: 'Sousse (Par défaut)' },
+                  { code: 'ar', label: 'العربية التونسية',  flag: '🇹🇳', detail: 'سوسة (تونس)' },
                 ].map(l => (
                   <button key={l.code} onClick={() => setLanguage(l.code)}
-                    className="w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all"
-                    style={{
-                      borderColor: language === l.code ? '#1557FF' : 'transparent',
-                      background:  language === l.code ? '#EEF2FF' : '#F8FAFC',
-                    }}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">{l.flag}</span>
-                      <span className={`text-sm font-bold ${language === l.code ? 'text-[#1557FF]' : 'text-slate-500'}`}>{l.label}</span>
+                    className={`w-full flex items-center justify-between p-6 rounded-[1.75rem] border-2 transition-all group ${
+                      language === l.code 
+                        ? 'border-[#1557FF] bg-blue-50/30' 
+                        : 'border-slate-50 bg-slate-50/50 hover:border-slate-200'
+                    }`}>
+                    <div className="flex items-center gap-5">
+                      <span className="text-3xl group-hover:scale-125 group-hover:rotate-6 transition-transform duration-500">{l.flag}</span>
+                      <div className="text-left">
+                        <p className={`text-sm font-black tracking-tight leading-none mb-1.5 ${language === l.code ? 'text-[#1557FF]' : 'text-[#0A1628]'}`}>{l.label}</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{l.detail}</p>
+                      </div>
                     </div>
-                    {language === l.code && <Check className="w-4 h-4 text-[#1557FF]"/>}
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                      language === l.code ? 'bg-[#1557FF] border-[#1557FF] shadow-lg shadow-blue-500/30' : 'border-slate-200 bg-white'
+                    }`}>
+                      {language === l.code && <Check className="w-3.5 h-3.5 text-white stroke-[4]"/>}
+                    </div>
                   </button>
                 ))}
               </div>
             </Section>
 
-            {/* NOTIFICATIONS */}
-            <Section title="Alertes Système" icon={<Bell className="w-4 h-4"/>}>
-              <div className="space-y-1">
-                <Field label="Déclarations">
-                  <Toggle value={notifSettings.new_declaration} onChange={v => setN('new_declaration', v)}/>
-                </Field>
-                <Field label="Changements statut">
-                  <Toggle value={notifSettings.status_change} onChange={v => setN('status_change', v)}/>
-                </Field>
-                <Field label="Email Digest">
-                  <Toggle value={notifSettings.daily_digest} onChange={v => setN('daily_digest', v)}/>
-                </Field>
+            {/* NOTIFICATIONS SECTION */}
+            <Section title="Flux d'Alerte" subtitle="Notifications Push" icon={<Bell className="w-6 h-6"/>}>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                   <div className="flex items-center gap-3">
+                      <Activity className="w-4 h-4 text-blue-500" />
+                      <span className="text-[11px] font-black text-[#0A1628] uppercase tracking-widest">Signalements</span>
+                   </div>
+                   <Toggle value={notifSettings.new_declaration} onChange={v => setN('new_declaration', v)}/>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                   <div className="flex items-center gap-3">
+                      <Zap className="w-4 h-4 text-amber-500" />
+                      <span className="text-[11px] font-black text-[#0A1628] uppercase tracking-widest">Mises à jour</span>
+                   </div>
+                   <Toggle value={notifSettings.status_change} onChange={v => setN('status_change', v)}/>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                   <div className="flex items-center gap-3">
+                      <Mail className="w-4 h-4 text-violet-500" />
+                      <span className="text-[11px] font-black text-[#0A1628] uppercase tracking-widest">Rapport Email</span>
+                   </div>
+                   <Toggle value={notifSettings.daily_digest} onChange={v => setN('daily_digest', v)}/>
+                </div>
               </div>
             </Section>
 
-            <div className="bg-blue-50 border border-blue-100 rounded-3xl p-6">
-              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-blue-600 mb-4 shadow-sm">
-                <HelpCircle className="w-5 h-5"/>
+            {/* HELP CARD */}
+            <div className="bg-[#0A1628] rounded-[3rem] p-10 text-white relative overflow-hidden group shadow-2xl">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-blue-600/20 blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-1000" />
+              <div className="w-16 h-16 rounded-[1.5rem] bg-white/10 flex items-center justify-center mb-8 backdrop-blur-md border border-white/10 group-hover:rotate-12 transition-transform duration-500">
+                <HelpCircle className="w-8 h-8 text-blue-400"/>
               </div>
-              <p className="text-sm font-black text-[#0A1628] mb-1">Besoin d'aide ?</p>
-              <p className="text-[11px] text-slate-500 font-bold mb-4">Contactez le support technique de FixMaCity pour toute assistance.</p>
-              <button className="w-full py-2.5 bg-white rounded-xl text-xs font-black text-blue-600 shadow-sm hover:shadow-md transition-all">
-                CENTRE D'AIDE
-              </button>
+              <h3 className="text-2xl font-black tracking-tight mb-4">Assistance FMC</h3>
+              <p className="text-slate-400 text-sm font-medium leading-relaxed mb-10 opacity-80">
+                L'équipe technique de FixMaCity est à votre disposition pour tout audit de sécurité ou configuration avancée.
+              </p>
+              <div className="space-y-4">
+                 <button className="w-full py-5 bg-[#1557FF] text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 hover:bg-blue-600 transition-all active:scale-[0.98]">
+                   Contacter le Support
+                 </button>
+                 <button className="w-full py-5 bg-white/5 text-white/60 border border-white/10 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all flex items-center justify-center gap-3">
+                   <LogOut className="w-4 h-4" /> Déconnexion Session
+                 </button>
+              </div>
             </div>
           </div>
         </div>

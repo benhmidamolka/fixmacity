@@ -146,7 +146,7 @@ const ChefNotifications: React.FC = () => {
                         </span>
                       </div>
                       
-                      {declarationId && (
+                      {n.data?.declaration_id && (
                         <div className="flex items-center gap-1 text-[10px] font-black text-indigo-600 uppercase tracking-widest group-hover:translate-x-1 transition-all">
                           Gérer l'affectation <ArrowRight className="w-3 h-3" />
                         </div>
@@ -160,8 +160,8 @@ const ChefNotifications: React.FC = () => {
                 <div key={n.id} onClick={() => {
                   if (!n.is_read) markAsRead(n.id)
                 }}>
-                  {declarationId ? (
-                    <Link to={`/chef/declarations/${declarationId}`} className="block border-none">
+                  {n.data?.declaration_id ? (
+                    <Link to={`/chef/declarations/${n.data?.declaration_id}`} className="block border-none">
                       {content}
                     </Link>
                   ) : (

@@ -175,10 +175,8 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
     <div className="min-h-screen flex" style={{ background: '#F8F9FD' }}>
 
       {/* Sidebar desktop */}
-      <aside className={`hidden md:flex flex-col ${sidebarWidth} flex-shrink-0 fixed top-4 left-4 bottom-4 transition-all duration-300 z-40`}>
-        <div className="flex-1 bg-white/80 backdrop-blur-xl border border-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 overflow-hidden">
-          <SidebarContent />
-        </div>
+      <aside className={`hidden md:flex flex-col ${sidebarWidth} flex-shrink-0 fixed top-0 left-0 bottom-0 bg-white border-r border-slate-100 transition-all duration-300 z-40`}>
+        <SidebarContent />
       </aside>
 
       {/* Mobile overlay */}

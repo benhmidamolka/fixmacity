@@ -6,7 +6,8 @@ import { Link } from 'react-router-dom'
 import {
   Search, ChevronDown, ChevronRight, MapPin, ThumbsUp,
   Clock, User, Star, RefreshCw, Plus, Download, Filter,
-  CheckCircle, Circle, Loader, XCircle, Archive, MoreHorizontal, Eye
+  CheckCircle, Circle, Loader, XCircle, Archive, MoreHorizontal, Eye,
+  ArrowUpRight, BarChart3, Activity, AlertCircle, CheckCircle2
 } from 'lucide-react'
 import PresidentLayout from '../../layouts/PresidentLayout'
 
@@ -21,8 +22,8 @@ const GROUPS = [
     statuses: ['assignee_chef'],
     color:    '#F59E0B',
     bg:       '#FFFBEB',
-    icon:     <Circle className="w-4 h-4"/>,
-    desc:     'Affectées à un chef, en attente d\'acceptation',
+    icon:     <Clock className="w-4 h-4"/>,
+    desc:     'En attente d\'acceptation par le Chef',
   },
   {
     key:      'in_progress',
@@ -30,8 +31,8 @@ const GROUPS = [
     statuses: ['assignee_agent', 'en_cours'],
     color:    '#1557FF',
     bg:       '#EEF2FF',
-    icon:     <Loader className="w-4 h-4"/>,
-    desc:     'Agents actifs sur le terrain',
+    icon:     <Activity className="w-4 h-4"/>,
+    desc:     'Opérations actives sur le terrain',
   },
   {
     key:      'in_review',
@@ -39,17 +40,17 @@ const GROUPS = [
     statuses: ['resolue'],
     color:    '#10B981',
     bg:       '#F0FDF4',
-    icon:     <CheckCircle className="w-4 h-4"/>,
-    desc:     'Résolues — en attente d\'évaluation citoyenne',
+    icon:     <CheckCircle2 className="w-4 h-4"/>,
+    desc:     'Travaux terminés, évaluation en cours',
   },
   {
     key:      'done',
     label:    'Clôturées',
     statuses: ['cloturee'],
-    color:    '#64748B',
-    bg:       '#F8FAFC',
+    color:    '#6366F1',
+    bg:       '#F5F3FF',
     icon:     <Archive className="w-4 h-4"/>,
-    desc:     'Déclarations terminées avec évaluation',
+    desc:     'Dossiers archivés et finalisés',
   },
   {
     key:      'rejected',
@@ -57,8 +58,8 @@ const GROUPS = [
     statuses: ['refusee_chef', 'refusee_agent'],
     color:    '#EF4444',
     bg:       '#FEF2F2',
-    icon:     <XCircle className="w-4 h-4"/>,
-    desc:     'Retournées pour réassignation',
+    icon:     <AlertCircle className="w-4 h-4"/>,
+    desc:     'Nécessite une révision immédiate',
   },
 ]
 
@@ -142,17 +143,19 @@ interface Decl {
 // ── Table header ─────────────────────────────────────────────────────────────
 function TableHead() {
   return (
-    <div className="grid items-center gap-4 px-4 py-2.5 border-b border-slate-100 bg-slate-50/50"
-      style={{ gridTemplateColumns:'20px 1fr 130px 130px 100px 80px 80px 70px 80px' }}>
-      <input type="checkbox" className="rounded"/>
-      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Déclaration</span>
-      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Catégorie</span>
-      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Chef de Service</span>
-      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Agent</span>
-      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Priorité</span>
-      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Votes</span>
-      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Note</span>
-      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">···</span>
+    <div className="grid items-center gap-4 px-8 py-4 border-b border-slate-100 bg-slate-50/50"
+      style={{ gridTemplateColumns:'24px 1fr 140px 140px 110px 90px 80px 80px 90px' }}>
+      <div className="flex items-center justify-center">
+        <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer"/>
+      </div>
+      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Signalement</span>
+      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Catégorie</span>
+      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Chef Responsable</span>
+      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Intervenant</span>
+      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">Priorité</span>
+      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">Impact</span>
+      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center">Score</span>
+      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right pr-4">Actions</span>
     </div>
   )
 }
@@ -164,100 +167,94 @@ function TableRow({ d }: { d: Decl }) {
   const dIcon   = DEPT_ICONS[d.category]  || '📋'
 
   return (
-    <div className="grid items-center gap-4 px-4 py-3 hover:bg-slate-50 transition-colors group border-b border-slate-50 last:border-0"
-      style={{ gridTemplateColumns:'20px 1fr 130px 130px 100px 80px 80px 70px 80px' }}>
+    <div className="grid items-center gap-4 px-8 py-5 hover:bg-slate-50/80 transition-all group border-b border-slate-50 last:border-0 cursor-pointer"
+      style={{ gridTemplateColumns:'24px 1fr 140px 140px 110px 90px 80px 80px 90px' }}>
 
-      {/* Checkbox */}
-      <input type="checkbox" className="rounded"/>
+      <div className="flex items-center justify-center">
+        <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer"/>
+      </div>
 
-      {/* Title */}
-      <div className="flex items-center gap-3 min-w-0">
-        {d.image ? (
-          <img src={d.image} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0 border border-slate-100"/>
-        ) : (
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0"
-            style={{ background:`${dColor}15` }}>
-            {dIcon}
+      <div className="flex items-center gap-4 min-w-0">
+        <div className="relative shrink-0">
+          {d.image ? (
+            <img src={d.image} alt="" className="w-12 h-12 rounded-2xl object-cover border-2 border-white shadow-sm"/>
+          ) : (
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm border-2 border-white"
+              style={{ background:`${dColor}10` }}>
+              {dIcon}
+            </div>
+          )}
+          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-lg bg-white shadow-md flex items-center justify-center border border-slate-100 scale-90">
+             <span className="text-[10px]">{dIcon}</span>
           </div>
-        )}
+        </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-[#0A1628] truncate leading-snug">{d.title}</p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[10px] font-mono text-slate-400">{d.ref_citoyen}</span>
-            {d.ref_service && (
-              <span className="text-[10px] font-mono text-blue-400">{d.ref_service}</span>
-            )}
-            <span className="text-[10px] text-slate-300">· {d.date}</span>
+          <p className="text-sm font-black text-[#0A1628] truncate leading-tight group-hover:text-blue-600 transition-colors">{d.title}</p>
+          <div className="flex items-center gap-3 mt-1.5">
+            <span className="text-[9px] font-black text-blue-600/60 uppercase tracking-[0.1em]">{d.ref_citoyen}</span>
+            <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{d.date} · {d.delegation}</span>
           </div>
         </div>
       </div>
 
-      {/* Category */}
-      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full w-fit"
-        style={{ background:`${dColor}15`, color:dColor }}>
-        {dIcon} {d.category}
+      <span className="inline-flex items-center gap-2 text-[10px] font-black px-3 py-1.5 rounded-xl w-fit uppercase tracking-widest border shadow-sm"
+        style={{ background:`white`, borderColor: `${dColor}20`, color: dColor }}>
+        {d.category}
       </span>
 
-      {/* Chef */}
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-3 min-w-0">
         {d.chef ? (
           <>
-            <div className="w-6 h-6 rounded-full bg-[#1557FF] flex items-center justify-center text-[9px] font-black text-white flex-shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-[10px] font-black text-blue-600 border border-blue-100 shadow-sm shrink-0">
               {d.chef.split(' ').map(w=>w[0]).join('').slice(0,2)}
             </div>
-            <span className="text-xs font-semibold text-slate-700 truncate">{d.chef.split(' ')[0]}</span>
+            <span className="text-[11px] font-black text-slate-600 truncate">{d.chef}</span>
           </>
         ) : (
-          <span className="text-xs text-slate-300 font-medium">—</span>
+          <span className="text-[10px] text-slate-300 font-black uppercase tracking-widest">Non assigné</span>
         )}
       </div>
 
-      {/* Agent */}
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-3 min-w-0">
         {d.agent ? (
           <>
-            <div className="w-6 h-6 rounded-full bg-[#10B981] flex items-center justify-center text-[9px] font-black text-white flex-shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-[10px] font-black text-emerald-600 border border-emerald-100 shadow-sm shrink-0">
               {d.agent.split(' ').map(w=>w[0]).join('').slice(0,2)}
             </div>
-            <span className="text-xs font-semibold text-slate-700 truncate">{d.agent.split(' ')[0]}</span>
+            <span className="text-[11px] font-black text-slate-600 truncate">{d.agent}</span>
           </>
         ) : (
-          <span className="text-xs text-slate-300 font-medium">—</span>
+          <span className="text-[10px] text-slate-300 font-black uppercase tracking-widest">—</span>
         )}
       </div>
 
-      {/* Priority */}
       <div className="flex justify-center">
-        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1"
-          style={{ background:pri.bg, color:pri.color }}>
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background:pri.dot }}/>
+        <span className="text-[9px] font-black px-3 py-1.5 rounded-xl flex items-center gap-2 uppercase tracking-widest border shadow-sm"
+          style={{ background:'white', borderColor: `${pri.color}20`, color:pri.color }}>
+          <div className="w-1.5 h-1.5 rounded-full" style={{ background:pri.dot }}/>
           {pri.label}
         </span>
       </div>
 
-      {/* Votes */}
-      <div className="flex flex-col items-center">
-        <span className="text-sm font-black text-[#1557FF]">{d.votes}</span>
+      <div className="flex justify-center items-center gap-1.5">
+        <ThumbsUp className="w-3.5 h-3.5 text-blue-500"/>
+        <span className="text-sm font-black text-slate-900 leading-none">{d.votes}</span>
       </div>
 
-      {/* Rating */}
-      <div className="flex items-center justify-center gap-0.5">
+      <div className="flex items-center justify-center gap-1.5">
         {d.rating ? (
-          <span className="text-xs font-black text-yellow-500 flex items-center gap-1">
-            ⭐ {d.rating}
-          </span>
+          <div className="flex items-center gap-1 bg-yellow-50 px-2.5 py-1.5 rounded-xl border border-yellow-100 shadow-sm">
+            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500"/>
+            <span className="text-xs font-black text-yellow-700 leading-none">{d.rating}</span>
+          </div>
         ) : (
-          <span className="text-[10px] text-slate-300">—</span>
+          <span className="text-[10px] text-slate-300 font-black">—</span>
         )}
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 hover:bg-blue-50 hover:text-[#1557FF] flex items-center justify-center transition-all">
-          <Eye className="w-3.5 h-3.5"/>
-        </button>
-        <button className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center transition-all">
-          <MoreHorizontal className="w-3.5 h-3.5"/>
+      <div className="flex items-center justify-end gap-2 pr-2">
+        <button className="w-10 h-10 rounded-2xl bg-white border border-slate-100 text-slate-300 hover:text-blue-600 hover:border-blue-200 flex items-center justify-center transition-all shadow-sm group/btn active:scale-95">
+          <ArrowUpRight className="w-5 h-5 group-hover/btn:scale-110 transition-transform"/>
         </button>
       </div>
     </div>
@@ -285,38 +282,42 @@ function GroupSection({
       {/* Group header */}
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 rounded-xl transition-colors group">
-        <div className="flex items-center gap-1 text-slate-400 group-hover:text-slate-600 transition-colors">
+        className="w-full flex items-center gap-4 px-6 py-5 hover:bg-slate-50 rounded-[2rem] transition-all group">
+        <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-white border border-slate-100 shadow-sm text-slate-400 group-hover:text-blue-600 transition-colors">
           {open ? <ChevronDown className="w-4 h-4"/> : <ChevronRight className="w-4 h-4"/>}
         </div>
-        <div className="w-1 h-5 rounded-full" style={{ background: group.color }}/>
-        <span className="text-sm font-black text-[#0A1628]">{group.label}</span>
-        <span className="ml-1 text-xs font-bold px-2 py-0.5 rounded-full"
-          style={{ background: group.bg, color: group.color }}>
-          {filtered.length}
-        </span>
-        <span className="text-xs text-slate-400 font-medium ml-1 hidden sm:block">{group.desc}</span>
-        <button className="ml-auto w-6 h-6 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 opacity-0 group-hover:opacity-100 transition-all"
+        <div className="w-1.5 h-6 rounded-full" style={{ background: group.color }}/>
+        <div className="flex items-baseline gap-3">
+          <span className="text-lg font-black text-[#0A1628] tracking-tight">{group.label}</span>
+          <span className="text-xs font-black px-3 py-1 rounded-xl shadow-sm border border-slate-50"
+            style={{ background: group.bg, color: group.color }}>
+            {filtered.length} dossiers
+          </span>
+        </div>
+        <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest ml-4 hidden sm:block opacity-60">{group.desc}</span>
+        <button className="ml-auto w-10 h-10 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-200 opacity-0 group-hover:opacity-100 transition-all active:scale-90 shadow-sm"
           onClick={e => e.stopPropagation()}>
-          <Plus className="w-3.5 h-3.5"/>
+          <Plus className="w-5 h-5"/>
         </button>
       </button>
 
       {/* Table */}
       {open && filtered.length > 0 && (
-        <div className="ml-7 mb-3 bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+        <div className="ml-8 mt-2 mb-6 bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-2xl shadow-blue-900/5">
           <TableHead/>
-          {filtered.map(d => <TableRow key={d.id} d={d}/>)}
+          <div className="divide-y divide-slate-50">
+            {filtered.map(d => <TableRow key={d.id} d={d}/>)}
+          </div>
 
           {/* Group footer */}
-          <div className="px-4 py-2.5 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-[10px] font-semibold text-slate-400">
-              {filtered.length} déclaration{filtered.length>1?'s':''}
+          <div className="px-8 py-4 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Total du segment: {filtered.length} signalement{filtered.length>1?'s':''}
             </span>
             {group.key === 'rejected' && (
-              <Link to="/president/incoming"
-                className="text-[10px] font-bold text-red-500 hover:underline flex items-center gap-1">
-                Réaffecter toutes <ChevronRight className="w-3 h-3"/>
+              <Link to="/president/declarations"
+                className="text-[10px] font-black text-red-500 hover:text-red-700 uppercase tracking-widest flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 border border-red-100 transition-all">
+                Réaffecter toutes les alertes <ArrowUpRight className="w-4 h-4"/>
               </Link>
             )}
           </div>
@@ -336,7 +337,7 @@ function GroupSection({
 const PresidentSuivi: React.FC = () => {
   const [decls,   setDecls]   = useState<Decl[]>(MOCK_ALL)
   const [search,  setSearch]  = useState('')
-  const [catF,    setCatF]    = useState('Tous')
+  const [catF,    setCatF]    = useState('Tous les Services')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -377,96 +378,111 @@ const PresidentSuivi: React.FC = () => {
   }, [])
 
   const filteredDecls = decls.filter(d => {
-    if (catF !== 'Tous' && d.category !== catF) return false
+    if (catF !== 'Tous les Services' && d.category !== catF) return false
     return true
   })
 
-  const totalByGroup = GROUPS.reduce((acc, g) => {
-    acc[g.key] = filteredDecls.filter(d => g.statuses.includes(d.status)).length
-    return acc
-  }, {} as Record<string,number>)
+  const totalIntervention = filteredDecls.filter(d => ['assignee_agent', 'en_cours'].includes(d.status)).length
+  const totalReview = filteredDecls.filter(d => d.status === 'resolue').length
+  const totalAlerts = filteredDecls.filter(d => d.status.includes('refusee')).length
 
   return (
-    <PresidentLayout title="Suivi des Déclarations">
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-black text-[#0A1628]">Suivi des Déclarations</h1>
-          <p className="text-sm text-slate-400 mt-1">Vue d'ensemble de toutes les déclarations en cours de traitement</p>
-        </div>
-        <div className="flex gap-2">
-          <Link to="/president/incoming"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-600 hover:border-slate-300 transition-all">
-            📥 Nouvelles déclarations
-          </Link>
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-600 hover:border-slate-300 transition-all">
-            <Download className="w-4 h-4"/> Exporter
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-600 hover:border-slate-300 transition-all">
-            <RefreshCw className="w-4 h-4"/>
-          </button>
-        </div>
-      </div>
-
-      {/* Summary pills */}
-      <div className="flex flex-wrap gap-2 mb-5">
-        {GROUPS.map(g => (
-          <div key={g.key}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all"
-            style={{ borderColor:`${g.color}30`, background:g.bg, color:g.color }}>
-            <span style={{ color:g.color }}>{g.icon}</span>
-            {g.label}
-            <span className="font-black">{totalByGroup[g.key] || 0}</span>
+    <PresidentLayout title="Suivi des Opérations">
+      <div className="max-w-7xl mx-auto space-y-8 pb-20 p-8">
+        
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tight">Suivi des Opérations</h1>
+            <p className="text-slate-500 font-medium mt-2">Monitoring en temps réel des flux d'interventions urbaines.</p>
           </div>
-        ))}
-      </div>
-
-      {/* Search + filter bar */}
-      <div className="flex flex-wrap gap-2 mb-5 bg-white border border-slate-100 rounded-2xl p-3">
-        <div className="flex-1 min-w-[220px] flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2">
-          <Search className="w-4 h-4 text-slate-400 flex-shrink-0"/>
-          <input value={search} onChange={e=>setSearch(e.target.value)}
-            placeholder="Chercher par titre ou référence..."
-            className="bg-transparent text-sm text-slate-600 placeholder-slate-400 outline-none flex-1"/>
-          {search && (
-            <button onClick={()=>setSearch('')} className="text-slate-400 hover:text-slate-600">
-              <XCircle className="w-3.5 h-3.5"/>
+          <div className="flex items-center gap-3">
+            <button className="flex items-center gap-2 px-8 py-5 rounded-[2.5rem] bg-white border border-slate-100 text-[11px] font-black text-slate-600 uppercase tracking-[0.2em] transition-all hover:bg-slate-50 active:scale-95 shadow-xl shadow-slate-200/50">
+              <Download className="w-5 h-5"/> Exporter Dashboard
             </button>
-          )}
+            <button className="w-14 h-14 rounded-[1.5rem] bg-[#1557FF] text-white flex items-center justify-center shadow-xl shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-95">
+              <RefreshCw className="w-6 h-6"/>
+            </button>
+          </div>
         </div>
-        <div className="relative">
-          <select value={catF} onChange={e=>setCatF(e.target.value)}
-            className="appearance-none bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2.5 text-sm font-semibold text-slate-600 outline-none cursor-pointer">
-            <option>Tous</option>
-            {Object.keys(DEPT_COLORS).map(c=><option key={c}>{c}</option>)}
-          </select>
-          <ChevronDown className="absolute right-2.5 top-3 w-4 h-4 text-slate-400 pointer-events-none"/>
-        </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-all">
-          <Filter className="w-4 h-4"/> Plus de filtres
-        </button>
-      </div>
 
-      {/* Groups */}
-      {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="w-8 h-8 border-2 border-slate-200 border-t-[#1557FF] rounded-full animate-spin"/>
+        {/* Status KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Total Suivi</p>
+            <div className="flex items-end justify-between">
+              <span className="text-3xl font-black text-slate-900 tracking-tight">{filteredDecls.length}</span>
+              <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400"><BarChart3 className="w-5 h-5"/></div>
+            </div>
+          </div>
+          <div className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">En Intervention</p>
+            <div className="flex items-end justify-between">
+              <span className="text-3xl font-black text-[#1557FF] tracking-tight">{totalIntervention}</span>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#1557FF]"><Activity className="w-5 h-5"/></div>
+            </div>
+          </div>
+          <div className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Vérification</p>
+            <div className="flex items-end justify-between">
+              <span className="text-3xl font-black text-emerald-500 tracking-tight">{totalReview}</span>
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500"><CheckCircle2 className="w-5 h-5"/></div>
+            </div>
+          </div>
+          <div className="bg-white rounded-[2rem] border border-slate-100 p-6 shadow-sm">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Alertes / Rejets</p>
+            <div className="flex items-end justify-between">
+              <span className="text-3xl font-black text-rose-500 tracking-tight">{totalAlerts}</span>
+              <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500"><AlertCircle className="w-5 h-5"/></div>
+            </div>
+          </div>
         </div>
-      ) : (
-        <div>
-          {GROUPS.map((group, i) => (
-            <GroupSection
-              key={group.key}
-              group={group}
-              decls={filteredDecls.filter(d => group.statuses.includes(d.status))}
-              defaultOpen={i < 3}
-              search={search}
-            />
-          ))}
+
+        {/* Filters */}
+        <div className="bg-white rounded-[2.5rem] border border-slate-100 p-6 shadow-sm flex flex-col md:flex-row gap-4">
+          <div className="flex-1 relative group">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-[#1557FF] transition-colors"/>
+            <input value={search} onChange={e=>setSearch(e.target.value)}
+              placeholder="RECHERCHER PAR RÉFÉRENCE OU TITRE..."
+              className="w-full bg-slate-50 border-none rounded-2xl py-5 pl-14 pr-6 text-xs font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all placeholder:text-slate-300 tracking-[0.1em] uppercase"/>
+          </div>
+          
+          <div className="relative min-w-[240px]">
+            <Filter className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 pointer-events-none"/>
+            <select value={catF} onChange={e=>setCatF(e.target.value)}
+              className="w-full appearance-none bg-slate-50 border-none rounded-2xl py-5 pl-14 pr-12 text-xs font-black uppercase tracking-[0.1em] text-slate-600 outline-none focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all cursor-pointer">
+              <option>Tous les Services</option>
+              {Object.keys(DEPT_COLORS).map(c=><option key={c}>{c}</option>)}
+            </select>
+            <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 pointer-events-none"/>
+          </div>
+
+          <button onClick={() => { setSearch(''); setCatF('Tous les Services'); }}
+            className="px-10 py-5 rounded-2xl bg-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] hover:bg-slate-200 transition-all active:scale-95">
+            Réinitialiser
+          </button>
         </div>
-      )}
-    </div>
+
+        {/* Main Content */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-32 bg-white rounded-[4rem] border border-slate-100 shadow-sm">
+            <div className="w-14 h-14 border-4 border-blue-600/20 border-t-[#1557FF] rounded-full animate-spin mb-8"/>
+            <p className="text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Synchronisation de la flotte...</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {GROUPS.map((group, i) => (
+              <GroupSection
+                key={group.key}
+                group={group}
+                decls={filteredDecls.filter(d => group.statuses.includes(d.status))}
+                defaultOpen={i < 3}
+                search={search}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </PresidentLayout>
   )
 }

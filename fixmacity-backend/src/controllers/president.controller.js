@@ -937,7 +937,13 @@ exports.dashboard = async (req, res) => {
         ...d,
         citizen_name: citizenMap[d.citizen_id] || 'Anonyme'
       })),
-      moneyVotes: moneyVotes || []
+      moneyVotes: moneyVotes || [],
+      topVotedDeclarations: (await supabase
+        .from('declarations')
+        .select('id, title, status, votes_count, created_at, citizen_id')
+        .is('deleted_at', null)
+        .order('votes_count', { ascending: false })
+        .limit(5)).data || []
     });
   } catch (err) {
     console.error('[President] Dashboard error:', err);
