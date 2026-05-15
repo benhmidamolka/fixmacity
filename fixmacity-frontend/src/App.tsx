@@ -40,29 +40,22 @@ import Propositions      from './pages/Citizen/Propositions'
 import TravauxRealises   from './pages/Citizen/TravauxRealises'
 
 // Protected Route Wrapper
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const ProtectedRoute = ({
+  children,
+  allowedRoles,
+}: {
+  children: React.ReactNode
+  allowedRoles?: string[]
+}) => {
   const token = localStorage.getItem('fmc_token')
   if (!token) return <Navigate to="/login" replace />
 
-  const userStr = localStorage.getItem('fmc_user')
-  let role = 'citizen'
-  if (userStr) {
-    try {
-      role = JSON.parse(userStr).role || 'citizen'
-    } catch (e) {}
+  if (allowedRoles) {
+    const user = JSON.parse(localStorage.getItem('fmc_user') || '{}')
+    if (!allowedRoles.includes(user.role)) {
+      return <Navigate to="/login" replace />
+    }
   }
-
-  const path = window.location.pathname
-  if (path.startsWith('/president') && role !== 'president') {
-    return <Navigate to="/dashboard" replace />
-  }
-  if (path.startsWith('/chef') && role !== 'chef') {
-    return <Navigate to="/dashboard" replace />
-  }
-  if (path.startsWith('/agent') && role !== 'agent') {
-    return <Navigate to="/dashboard" replace />
-  }
-
   return <>{children}</>
 }
 
@@ -79,98 +72,98 @@ const App: React.FC = () => {
 
         {/* Citizen Protected Routes */}
         <Route path="/dashboard" element={
-          <ProtectedRoute><Dashboard /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['citizen']}><Dashboard /></ProtectedRoute>
         } />
         <Route path="/nouveau-signalement" element={
-          <ProtectedRoute><NouveauSignalement /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['citizen']}><NouveauSignalement /></ProtectedRoute>
         } />
         <Route path="/mes-signalements" element={
-          <ProtectedRoute><MesSignalements /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['citizen']}><MesSignalements /></ProtectedRoute>
         } />
         <Route path="/map" element={
-          <ProtectedRoute><MapPage /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['citizen']}><MapPage /></ProtectedRoute>
         } />
         <Route path="/profile" element={
-          <ProtectedRoute><Profile /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['citizen']}><Profile /></ProtectedRoute>
         } />
         <Route path="/propositions" element={
-          <ProtectedRoute><Propositions /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['citizen']}><Propositions /></ProtectedRoute>
         } />
         <Route path="/travaux-realises" element={
-          <ProtectedRoute><TravauxRealises /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['citizen']}><TravauxRealises /></ProtectedRoute>
         } />
 
         {/* President Routes */}
         <Route path="/president" element={<Navigate to="/president/dashboard" replace />} />
         <Route path="/president/dashboard" element={
-          <ProtectedRoute><PresidentDashboard /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['president']}><PresidentDashboard /></ProtectedRoute>
         } />
         <Route path="/president/declarations" element={
-          <ProtectedRoute><PresidentDeclarations /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['president']}><PresidentDeclarations /></ProtectedRoute>
         } />
         <Route path="/president/incoming" element={
-          <ProtectedRoute><PresidentIncoming /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['president']}><PresidentIncoming /></ProtectedRoute>
         } />
         <Route path="/president/suivi" element={
-          <ProtectedRoute><PresidentSuivi /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['president']}><PresidentSuivi /></ProtectedRoute>
         } />
         <Route path="/president/personnel" element={
-          <ProtectedRoute><PresidentPersonnel /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['president']}><PresidentPersonnel /></ProtectedRoute>
         } />
         <Route path="/president/services" element={
-          <ProtectedRoute><PresidentServices /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['president']}><PresidentServices /></ProtectedRoute>
         } />
         <Route path="/president/propositions" element={
-          <ProtectedRoute><PresidentPropositions /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['president']}><PresidentPropositions /></ProtectedRoute>
         } />
         <Route path="/president/notifications" element={
-          <ProtectedRoute><PresidentNotifications /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['president']}><PresidentNotifications /></ProtectedRoute>
         } />
         <Route path="/president/settings" element={
-          <ProtectedRoute><PresidentSettings /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['president']}><PresidentSettings /></ProtectedRoute>
         } />
 
         {/* Chef Routes */}
         <Route path="/chef" element={<Navigate to="/chef/dashboard" replace />} />
         <Route path="/chef/dashboard" element={
-          <ProtectedRoute><ChefDashboard /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['chef']}><ChefDashboard /></ProtectedRoute>
         } />
         <Route path="/chef/declarations" element={
-          <ProtectedRoute><ChefDeclarations /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['chef']}><ChefDeclarations /></ProtectedRoute>
         } />
         <Route path="/chef/map" element={
-          <ProtectedRoute><ChefMap /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['chef']}><ChefMap /></ProtectedRoute>
         } />
         <Route path="/chef/agents" element={
-          <ProtectedRoute><ChefAgents /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['chef']}><ChefAgents /></ProtectedRoute>
         } />
         <Route path="/chef/declarations/:id" element={
-          <ProtectedRoute><ChefDeclarationDetail /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['chef']}><ChefDeclarationDetail /></ProtectedRoute>
         } />
         <Route path="/chef/notifications" element={
-          <ProtectedRoute><ChefNotifications /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['chef']}><ChefNotifications /></ProtectedRoute>
         } />
         <Route path="/chef/settings" element={
-          <ProtectedRoute><ChefSettings /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['chef']}><ChefSettings /></ProtectedRoute>
         } />
 
         {/* Agent Routes */}
         <Route path="/agent" element={<Navigate to="/agent/dashboard" replace />} />
         <Route path="/agent/dashboard" element={
-          <ProtectedRoute><AgentDashboard /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['agent']}><AgentDashboard /></ProtectedRoute>
         } />
         <Route path="/agent/declarations" element={
-          <ProtectedRoute><AgentDeclarations /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['agent']}><AgentDeclarations /></ProtectedRoute>
         } />
         <Route path="/agent/declarations/:id" element={
-          <ProtectedRoute><AgentDeclarationDetail /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['agent']}><AgentDeclarationDetail /></ProtectedRoute>
         } />
 
         <Route path="/agent/notifications" element={
-          <ProtectedRoute><AgentNotifications /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['agent']}><AgentNotifications /></ProtectedRoute>
         } />
         <Route path="/agent/settings" element={
-          <ProtectedRoute><AgentSettings /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['agent']}><AgentSettings /></ProtectedRoute>
         } />
 
         {/* Fallback */}
