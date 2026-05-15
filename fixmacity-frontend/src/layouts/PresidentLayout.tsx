@@ -14,8 +14,6 @@ const NAV = [
     items: [
       { label: 'Dashboard',        icon: LayoutDashboard, to: '/president/dashboard'     },
       { label: 'Déclarations',     icon: FileText,        to: '/president/declarations'  },
-      { label: 'Nouvelles',        icon: Inbox,           to: '/president/incoming'      },
-      { label: 'Suivi',            icon: GitMerge,        to: '/president/suivi'         },
       { label: 'Personnel',        icon: Users,           to: '/president/personnel'      },
       { label: 'Services',         icon: Building2,       to: '/president/services'       },
       { label: 'Propositions',     icon: Vote,            to: '/president/propositions'   },

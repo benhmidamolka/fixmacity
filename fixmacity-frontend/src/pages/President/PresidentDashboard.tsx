@@ -209,7 +209,7 @@ const PresidentDashboard: React.FC = () => {
           <div className="bg-white rounded-[3rem] border border-slate-200/60 p-10 shadow-sm flex flex-col">
             <h3 className="text-xl font-black text-[#0A1628] tracking-tight mb-2">Performance Citoyenne</h3>
             <p className="text-[10px] font-black text-slate-400 mb-10 uppercase tracking-widest italic">Résolus vs Satisfaction {'>'} 3★</p>
-            <div className="flex-1 min-h-[300px]">
+            <div className="h-[400px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={perfData}>
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#CBD5E1' }} />

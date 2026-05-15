@@ -7,9 +7,9 @@ import {
   Search, MapPin, X, AlertTriangle, ChevronDown, List, Map, 
   BrainCircuit, MessageSquare, ChevronRight, CheckCircle2, 
   Filter, Calendar, Users, ArrowUpRight, TrendingUp, 
-  BarChart3, Clock, LayoutGrid, FileText, Smartphone,
-  Activity, Zap, Shield, School, Hospital, ArrowUpDown, ThumbsUp,
-  Check, RotateCcw
+  BarChart3, Clock, LayoutGrid, FileText, Smartphone, Flame,
+  Zap, Shield, School, Hospital, ArrowUpDown, ThumbsUp, Activity,
+  Check, RotateCcw, ArrowLeft, Share2, Building2, Mail
 } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -26,14 +26,14 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const token = () => localStorage.getItem('fmc_token')
 
 const STATUS_CONFIG: Record<string, { label:string; color:string; bg:string; dot:string }> = {
-  soumise:        { label:'En cours',              color:'#F59E0B', bg:'#FFFBEB', dot:'#F59E0B' },
-  assignee_chef:  { label:'Assigné département',   color:'#FF6B6B', bg:'#FFF5F5', dot:'#FF6B6B' },
-  assignee_agent: { label:'Assigné agent',         color:'#4ECDC4', bg:'#F0FFFE', dot:'#4ECDC4' },
-  en_cours:       { label:'En cours d\'action',    color:'#1557FF', bg:'#EEF2FF', dot:'#1557FF' },
-  resolue:        { label:'Résolu',                color:'#10B981', bg:'#F0FDF4', dot:'#10B981' },
-  cloturee:       { label:'Résolu',                color:'#845EC2', bg:'#F3EEFF', dot:'#845EC2' },
-  refusee_chef:   { label:'Refusée Chef',          color:'#FF9671', bg:'#FFF7F2', dot:'#FF9671' },
-  refusee_agent:  { label:'Refusée Agent',         color:'#D65DB1', bg:'#FFF0F9', dot:'#D65DB1' },
+  soumise:        { label:'Soumise',               color:'#F59E0B', bg:'#FFFBEB', dot:'#F59E0B' },
+  assignee_chef:  { label:'Assignée chef',        color:'#FF6B6B', bg:'#FFF5F5', dot:'#FF6B6B' },
+  assignee_agent: { label:'Assignée agent',       color:'#4ECDC4', bg:'#F0FFFE', dot:'#4ECDC4' },
+  en_cours:       { label:'En cours',              color:'#1557FF', bg:'#EEF2FF', dot:'#1557FF' },
+  resolue:        { label:'Resolue',               color:'#10B981', bg:'#F0FDF4', dot:'#10B981' },
+  cloturee:       { label:'Clôturee',              color:'#845EC2', bg:'#F3EEFF', dot:'#845EC2' },
+  refusee_chef:   { label:'Refusee chef',          color:'#EF4444', bg:'#FEF2F2', dot:'#EF4444' },
+  refusee_agent:  { label:'Refusee agent',         color:'#D65DB1', bg:'#FFF0F9', dot:'#D65DB1' },
 }
 
 const PRIORITY_CONFIG: Record<string, { label:string; color:string; bg:string }> = {
@@ -179,6 +179,9 @@ interface Decl {
   created_at: string;
   is_sensitive?: boolean; 
   sensitive_type?: 'school' | 'hospital' | 'none';
+  citizen_name?: string;
+  citizen_email?: string;
+  citizen_avatar?: string;
 }
 
 // ── UI Components ─────────────────────────────────────────────────────────────
@@ -259,8 +262,9 @@ const PresidentDeclarations: React.FC = () => {
   const [viewMode, setViewMode] = useState<'map' | 'list'>('list')
   const [selectedDecl, setSelectedDecl] = useState<Decl|null>(null)
   const [showComments, setShowComments] = useState(false)
-  const [mode, setMode] = useState<'incoming' | 'tracking'>('incoming')
+  const [mode, setMode] = useState<'all' | 'soumise' | 'en_cours' | 'urgent' | 'resolue'>('all')
   const [loading, setLoading] = useState(true)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   const currentUserId = (() => {
     try {
@@ -308,7 +312,10 @@ const PresidentDeclarations: React.FC = () => {
               resolution_image: d.resolution_image_url || null,
               description: d.description || d.title,
               is_sensitive: d.is_sensitive || false,
-              sensitive_type: d.sensitive_type || 'none'
+              sensitive_type: d.sensitive_type || 'none',
+              citizen_name: d.citizen_name || `Citoyen #${d.ref_citoyen?.slice(-4) || '??'}`,
+              citizen_email: d.citizen_email || 'citoyen@fixmacity.tn',
+              citizen_avatar: d.citizen_avatar || `https://i.pravatar.cc/150?u=${d.id}`
             })))
           }
         }
@@ -344,10 +351,14 @@ const PresidentDeclarations: React.FC = () => {
       if (arrondissementF.length > 0 && !arrondissementF.includes(d.arrondissement)) return false
       if (statusF.length > 0 && !statusF.includes(d.status)) return false
 
-      if (mode === 'incoming') {
+      if (mode === 'soumise') {
         if (d.status !== 'soumise') return false
-      } else {
-        if (d.status === 'soumise' && statusF.length === 0) return false
+      } else if (mode === 'en_cours') {
+        if (!['assignee_chef', 'assignee_agent', 'en_cours'].includes(d.status)) return false
+      } else if (mode === 'urgent') {
+        if (d.priority !== 'haute') return false
+      } else if (mode === 'resolue') {
+        if (!['resolue', 'cloturee'].includes(d.status)) return false
       }
       return true
     })
@@ -404,19 +415,29 @@ const PresidentDeclarations: React.FC = () => {
                 <Map className="w-5 h-5"/>
               </button>
             </div>
-            <div className="hidden sm:flex bg-white/50 backdrop-blur-md border border-slate-200/50 rounded-2xl p-1.5 shadow-sm">
-              <button onClick={() => setMode('incoming')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'incoming' ? 'bg-[#1557FF] text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>Flux Entrant</button>
-              <button onClick={() => setMode('tracking')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'tracking' ? 'bg-[#1557FF] text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>Suivi Global</button>
+            <div className="flex bg-slate-50/50 backdrop-blur-md border border-slate-200/50 rounded-2xl p-1 shadow-sm">
+              {[
+                { id: 'all', label: 'Toutes', icon: LayoutGrid },
+                { id: 'critical', label: 'Critiques', icon: Flame },
+                { id: 'assigned', label: 'Assignées', icon: Users },
+                { id: 'resolved', label: 'Résolues', icon: CheckCircle2 }
+              ].map((tab) => (
+                <button 
+                  key={tab.id}
+                  onClick={() => setMode(tab.id as any)} 
+                  className={cn(
+                    "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                    mode === tab.id 
+                      ? "bg-white text-[#1557FF] shadow-sm border border-slate-200/60" 
+                      : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  <tab.icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                </button>
+              ))}
             </div>
           </div>
-        </div>
-
-        {/* KPI Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
-          <KpiCard label="Nouveaux Signalements" value={stats.pending} sub="En attente d'affectation" color={{ bg: 'bg-amber-50', text: 'text-amber-600' }} icon={Smartphone} trend="+12% weekly" />
-          <KpiCard label="Urgences Vitales" value={stats.urgent} sub="Priorité haute active" color={{ bg: 'bg-rose-50', text: 'text-rose-600' }} icon={AlertTriangle} />
-          <KpiCard label="Interventions" value={stats.total - stats.pending} sub="En cours de traitement" color={{ bg: 'bg-blue-50', text: 'text-blue-600' }} icon={Activity} />
-          <KpiCard label="Succès Global" value={`${((stats.resolved/stats.total)*100).toFixed(0)}%`} sub="Taux de résolution" color={{ bg: 'bg-emerald-50', text: 'text-emerald-600' }} icon={CheckCircle2} trend="Optimal" />
         </div>
 
         {/* Filters Panel */}
@@ -433,7 +454,7 @@ const PresidentDeclarations: React.FC = () => {
           </div>
 
           <FacetedFilter 
-            title="Statut"
+            title={statusF.length === 0 ? "Tous les statuts" : "Statut"}
             icon={Activity}
             options={Object.entries(STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label, icon: Clock }))}
             selected={statusF}
@@ -509,105 +530,132 @@ const PresidentDeclarations: React.FC = () => {
             <div className="bg-white rounded-[3rem] border border-slate-200/60 shadow-sm overflow-hidden">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-10 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">ID Signalement</th>
-                    <th className="px-8 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Titre</th>
-                    <th className="px-8 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Priorité</th>
-                    <th className="px-8 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Statut</th>
-                    <th className="px-8 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Assigné à</th>
-                    <th className="px-8 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Date</th>
-                    <th className="px-8 py-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Catégorie</th>
-                    <th className="px-10 py-8 text-right"></th>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="pl-10 pr-4 py-6 w-14">
+                      <div 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (selectedIds.length === filtered.length) setSelectedIds([])
+                          else setSelectedIds(filtered.map(f => f.id))
+                        }}
+                        className={cn(
+                          "w-5 h-5 rounded-md border flex items-center justify-center cursor-pointer transition-all",
+                          selectedIds.length === filtered.length && filtered.length > 0
+                            ? "bg-[#1557FF] border-[#1557FF]" 
+                            : "border-slate-200 bg-white hover:border-slate-300"
+                        )}
+                      >
+                        {selectedIds.length === filtered.length && filtered.length > 0 && <Check className="w-3.5 h-3.5 text-white" />}
+                      </div>
+                    </th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628]">ID</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628]">Titre</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628]">Email</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] text-center">Status</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628]">Priorité</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628]">Assigné</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] text-center">Votes</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628]">Date</th>
+                    <th className="pr-10 pl-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-slate-50/50">
                   {filtered.length > 0 ? (
-                    filtered.map(d => (
-                      <tr key={d.id} onClick={() => setSelectedDecl(d)} className="group hover:bg-slate-50/50 cursor-pointer transition-all">
-                        <td className="px-10 py-8">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-black text-[#1557FF] uppercase tracking-widest">{d.ref_citoyen}</span>
-                            <div className="flex items-center gap-1.5">
-                               <MapPin className="w-3 h-3 text-slate-300"/>
-                               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{d.arrondissement}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-8 py-8">
-                          <div className="flex flex-col gap-1.5">
-                            <span className="text-sm font-black text-[#0A1628] tracking-tight group-hover:text-[#1557FF] transition-colors">{d.title}</span>
-                            <div className="flex items-center gap-3">
-                               {d.sensitive_type === 'school' && (
-                                 <span className="flex items-center gap-1 text-[8px] font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-md uppercase tracking-widest">
-                                   <School size={10}/> Zone École
-                                 </span>
-                               )}
-                               {d.sensitive_type === 'hospital' && (
-                                 <span className="flex items-center gap-1 text-[8px] font-black text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded-md uppercase tracking-widest">
-                                   <Hospital size={10}/> Zone Hôpital
-                                 </span>
-                               )}
-                               <span className="flex items-center gap-1 text-[8px] font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md uppercase tracking-widest">
-                                 <ThumbsUp size={10}/> {d.votes} Votes
-                               </span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-8 py-8">
-                          <span 
-                            className="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border shadow-sm"
-                            style={{ 
-                              color: PRIORITY_CONFIG[d.priority]?.color, 
-                              borderColor: `${PRIORITY_CONFIG[d.priority]?.color}20`,
-                              background: `${PRIORITY_CONFIG[d.priority]?.color}05`
-                            }}
-                          >
-                            <div className={`w-1.5 h-1.5 rounded-full ${d.priority === 'haute' ? 'animate-pulse' : ''}`} style={{ background: PRIORITY_CONFIG[d.priority]?.color }}/>
-                            {PRIORITY_CONFIG[d.priority]?.label}
-                          </span>
-                        </td>
-                        <td className="px-8 py-8">
-                          <span 
-                            className="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-100 shadow-sm"
-                            style={{ color: STATUS_CONFIG[d.status]?.color, background: STATUS_CONFIG[d.status]?.bg }}
-                          >
-                            <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: STATUS_CONFIG[d.status]?.dot }}/>
-                            {STATUS_CONFIG[d.status]?.label}
-                          </span>
-                        </td>
-                        <td className="px-8 py-8">
-                          {d.agent ? (
-                            <div className="flex items-center gap-2">
-                               <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center text-[10px] font-black text-blue-600 border border-blue-100">
-                                 {d.agent.split(' ').map(n=>n[0]).join('')}
-                               </div>
-                               <span className="text-xs font-black text-slate-700">{d.agent}</span>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] font-bold text-slate-300 italic uppercase tracking-widest">Non assigné</span>
+                    filtered.map(d => {
+                      const isRowSelected = selectedIds.includes(d.id);
+                      return (
+                        <tr 
+                          key={d.id} 
+                          onClick={() => setSelectedDecl(d)} 
+                          className={cn(
+                            "group cursor-pointer transition-all hover:bg-slate-50/40",
+                            isRowSelected && "bg-blue-50/30"
                           )}
-                        </td>
-                        <td className="px-8 py-8">
-                          <span className="text-[11px] font-bold text-slate-500">{d.date}</span>
-                        </td>
-                        <td className="px-8 py-8">
-                          <span className="text-xs font-black text-slate-600 uppercase tracking-tight">{d.category}</span>
-                        </td>
-                        <td className="px-10 py-8 text-right">
-                          <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-300 group-hover:text-[#1557FF] group-hover:border-[#1557FF]/30 group-hover:rotate-12 transition-all duration-300">
-                            <ArrowUpRight className="w-5 h-5"/>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                        >
+                          <td className="pl-10 pr-4 py-6" onClick={(e) => e.stopPropagation()}>
+                            <div 
+                              onClick={() => {
+                                if (isRowSelected) setSelectedIds(selectedIds.filter(id => id !== d.id))
+                                else setSelectedIds([...selectedIds, d.id])
+                              }}
+                              className={cn(
+                                "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
+                                isRowSelected ? "bg-[#1557FF] border-[#1557FF]" : "border-slate-200 bg-white group-hover:border-slate-300"
+                              )}
+                            >
+                              {isRowSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                            </div>
+                          </td>
+                          <td className="px-4 py-6">
+                            <span className="text-[10px] font-black text-[#1557FF] uppercase tracking-widest">{d.ref_citoyen}</span>
+                          </td>
+                          <td className="px-4 py-6">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-xs font-bold text-[#0A1628] truncate max-w-[200px]">{d.title}</span>
+                              <div className="flex items-center gap-1.5 opacity-50">
+                                 <MapPin className="w-2.5 h-2.5"/>
+                                 <span className="text-[8px] font-bold uppercase tracking-tight">{d.arrondissement}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-6">
+                            <span className="text-[11px] font-medium text-slate-500">{d.citizen_email}</span>
+                          </td>
+                          <td className="px-4 py-6 text-center">
+                            <span 
+                              className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border"
+                              style={{ 
+                                color: STATUS_CONFIG[d.status]?.color, 
+                                backgroundColor: STATUS_CONFIG[d.status]?.bg,
+                                borderColor: `${STATUS_CONFIG[d.status]?.color}15`
+                              }}
+                            >
+                              {STATUS_CONFIG[d.status]?.label}
+                            </span>
+                          </td>
+                          <td className="px-4 py-6">
+                             <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: PRIORITY_CONFIG[d.priority]?.color }} />
+                                <span className="text-xs font-bold text-slate-600">{PRIORITY_CONFIG[d.priority]?.label}</span>
+                             </div>
+                          </td>
+                          <td className="px-4 py-6">
+                            {d.agent ? (
+                              <div className="flex items-center gap-2">
+                                 <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center text-[9px] font-black text-blue-600 border border-blue-100">
+                                   {d.agent.split(' ').map(n=>n[0]).join('')}
+                                 </div>
+                                 <span className="text-[11px] font-bold text-slate-600">{d.agent}</span>
+                              </div>
+                            ) : (
+                              <span className="text-[9px] font-bold text-slate-300 italic uppercase tracking-widest">En attente</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-6 text-center">
+                            <span className="text-[11px] font-black text-[#1557FF]">+{d.votes || 0}</span>
+                          </td>
+                          <td className="px-4 py-6">
+                            <span className="text-[11px] font-medium text-slate-400">{d.date}</span>
+                          </td>
+                          <td className="pr-10 pl-4 py-6 text-right">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setSelectedDecl(d); }}
+                              className="px-4 py-2 rounded-xl bg-[#1557FF]/5 text-[#1557FF] text-[10px] font-black uppercase tracking-widest hover:bg-[#1557FF] hover:text-white transition-all shadow-sm border border-[#1557FF]/10"
+                            >
+                              Détails
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
                   ) : (
                     <tr>
-                      <td colSpan={8} className="py-32 text-center">
+                      <td colSpan={9} className="py-32 text-center">
                         <div className="w-20 h-20 rounded-[2rem] bg-slate-50 flex items-center justify-center mx-auto mb-6 text-slate-200">
                           <Smartphone className="w-10 h-10" />
                         </div>
-                        <h3 className="text-xl font-black text-[#0A1628] mb-2">Aucun signalement</h3>
-                        <p className="text-sm text-slate-400 font-medium italic">Réessayez avec d'autres filtres.</p>
+                        <h3 className="text-xl font-black text-[#0A1628] mb-2">Aucun résultat</h3>
+                        <p className="text-sm text-slate-400 font-medium italic">Essayez de modifier vos filtres.</p>
                       </td>
                     </tr>
                   )}
@@ -632,104 +680,231 @@ const PresidentDeclarations: React.FC = () => {
           )}
         </div>
 
-        {/* Cinematic Detail Modal */}
-        {selectedDecl && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedDecl(null)} />
-            <div className="relative bg-white rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
-              {/* Simple Header */}
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white">
-                <div>
-                  <h3 className="text-xl font-black text-[#0A1628] tracking-tight">{selectedDecl.title}</h3>
-                  <p className="text-[10px] font-black text-[#1557FF] uppercase tracking-widest mt-1">{selectedDecl.ref_citoyen} • {selectedDecl.category}</p>
-                </div>
-                <button onClick={() => setSelectedDecl(null)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-                  <X className="w-6 h-6 text-slate-400" />
-                </button>
-              </div>
-
-              <div className="p-8 max-h-[80vh] overflow-y-auto custom-scrollbar">
-                {/* Photos Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">État Signalé (Citoyen)</p>
-                    <div className="aspect-video rounded-3xl overflow-hidden border border-slate-100 bg-slate-50">
-                      <img src={selectedDecl.image} alt="Avant" className="w-full h-full object-cover" />
+        {/* Premium Detail Modal */}
+        <AnimatePresence>
+          {selectedDecl && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
+                onClick={() => setSelectedDecl(null)} 
+              />
+              
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 40 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 40 }}
+                className="relative bg-white rounded-[3rem] w-full max-w-6xl h-[90vh] overflow-hidden shadow-2xl flex flex-col"
+              >
+                {/* Header Bar */}
+                <div className="flex items-center justify-between px-10 py-6 border-b border-slate-100 flex-shrink-0 bg-white">
+                  <button 
+                    onClick={() => setSelectedDecl(null)}
+                    className="flex items-center gap-2 text-slate-500 hover:text-[#0A1628] transition-colors group"
+                  >
+                    <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                    <span className="text-sm font-bold tracking-tight">Retour à la liste</span>
+                  </button>
+                  
+                  <div className="flex items-center gap-6">
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">ID Signalement</p>
+                      <p className="text-sm font-black text-[#0A1628]">#{selectedDecl.ref_citoyen}</p>
                     </div>
-                  </div>
-                  {['resolue', 'cloturee'].includes(selectedDecl.status) && selectedDecl.resolution_image && (
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">État Résolu (Agent)</p>
-                      <div className="aspect-video rounded-3xl overflow-hidden border border-emerald-100 bg-emerald-50">
-                        <img src={selectedDecl.resolution_image} alt="Après" className="w-full h-full object-cover" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Info Square */}
-                <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-100 mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-[#1557FF]">
-                      <FileText size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Description</span>
-                    </div>
-                    <p className="text-sm font-medium text-slate-600 leading-relaxed italic">"{selectedDecl.description}"</p>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-emerald-500">
-                      <MapPin size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Localisation</span>
-                    </div>
-                    <div className="text-sm font-bold text-[#0A1628]">
-                      {selectedDecl.address || "Adresse non spécifiée"}
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">{selectedDecl.arrondissement}</p>
-                    </div>
+                    <button className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-[#1557FF] hover:bg-blue-50 transition-all">
+                      <Share2 size={18} />
+                    </button>
                   </div>
                 </div>
 
-                {/* Assignment / Status */}
-                <div className="space-y-6">
-                  {selectedDecl.status === 'soumise' ? (
-                    <div className="p-6 rounded-[2rem] bg-blue-50 border border-blue-100">
-                      <div className="flex items-center gap-3 mb-4">
-                        <Shield className="w-5 h-5 text-[#1557FF]" />
-                        <h4 className="text-sm font-black text-[#0A1628] uppercase tracking-widest">Affecter à un département</h4>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        {departments.map(dept => (
-                          <button 
-                            key={dept.id}
-                            onClick={() => handleAssign(selectedDecl, dept.id)}
-                            className="py-3 px-4 rounded-xl bg-white border border-blue-200 text-[10px] font-black uppercase tracking-widest text-[#1557FF] hover:bg-[#1557FF] hover:text-white transition-all shadow-sm flex items-center justify-between"
-                          >
-                            {dept.name} <ChevronRight className="w-4 h-4" />
-                          </button>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-10 bg-[#F8F9FD]/50">
+                  {/* Hero Section */}
+                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 mb-10">
+                    {/* Left Info Column */}
+                    <div className="lg:col-span-2 flex flex-col">
+                      <h2 className="text-4xl font-black text-[#0A1628] tracking-tight leading-tight mb-4">
+                        {selectedDecl.title}
+                      </h2>
+
+                      <div className="space-y-8">
+                        {[
+                          { icon: MapPin, label: 'Localisation', value: selectedDecl.arrondissement + ', Sousse' },
+                          { icon: Calendar, label: 'Date du Signalement', value: selectedDecl.date },
+                          { icon: Users, label: 'Assigné à', value: selectedDecl.agent || 'Pôle Technique - Services Municipaux' },
+                          { icon: LayoutGrid, label: 'Catégorie', value: selectedDecl.category, type: 'badge', config: { bg: 'bg-emerald-50', text: 'text-emerald-600' } },
+                          { icon: Activity, label: 'État Actuel', value: STATUS_CONFIG[selectedDecl.status]?.label, type: 'badge', config: { bg: STATUS_CONFIG[selectedDecl.status]?.bg, text: STATUS_CONFIG[selectedDecl.status]?.color } },
+                        ].map((item, idx) => (
+                          <div key={idx} className="flex items-start gap-4">
+                            <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400 flex-shrink-0 shadow-sm">
+                              <item.icon size={16} />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest leading-none mb-1.5">{item.label}</p>
+                              {item.type === 'badge' ? (
+                                <span className={cn("inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest", item.config.bg, item.config.text)}>
+                                  {item.value}
+                                </span>
+                              ) : (
+                                <p className="text-sm font-bold text-[#0A1628] leading-tight">{item.value}</p>
+                              )}
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </div>
-                  ) : (
-                    <div className="flex items-center justify-between p-6 rounded-[2rem] bg-slate-50 border border-slate-100">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center text-[#1557FF] font-black">
-                          {selectedDecl.agent ? selectedDecl.agent.split(' ').map(n=>n[0]).join('') : '??'}
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Agent en charge</p>
-                          <p className="text-sm font-black text-[#0A1628]">{selectedDecl.agent || 'Pôle Technique'}</p>
+
+                    {/* Right Images Column */}
+                    <div className="lg:col-span-3 flex items-center gap-4 relative h-[450px]">
+                      <div className="flex-1 h-full rounded-[2.5rem] overflow-hidden border-4 border-white shadow-xl relative group">
+                        <img src={selectedDecl.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Avant" />
+                        <div className="absolute top-6 left-6 px-4 py-2 rounded-2xl bg-rose-500/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                           <X className="w-3 h-3" /> Avant
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Statut</p>
-                        <p className="text-sm font-black text-[#1557FF]" style={{ color: STATUS_CONFIG[selectedDecl.status]?.color }}>{STATUS_CONFIG[selectedDecl.status]?.label}</p>
+
+                      {['resolue', 'cloturee'].includes(selectedDecl.status) && selectedDecl.resolution_image ? (
+                        <>
+                          <div className="w-12 h-12 rounded-full bg-white shadow-xl flex items-center justify-center text-[#0A1628] z-10 -mx-6 border border-slate-100">
+                             <ChevronRight className="w-6 h-6" />
+                          </div>
+                          <div className="flex-1 h-full rounded-[2.5rem] overflow-hidden border-4 border-white shadow-xl relative group">
+                            <img src={selectedDecl.resolution_image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Après" />
+                            <div className="absolute top-6 left-6 px-4 py-2 rounded-2xl bg-emerald-500/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                               <CheckCircle2 className="w-3 h-3" /> Après
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex-1 h-full rounded-[2.5rem] bg-slate-100 border-4 border-white shadow-inner flex flex-col items-center justify-center text-slate-300 p-10 text-center">
+                           <div className="w-20 h-20 rounded-[2rem] bg-white flex items-center justify-center mb-6 shadow-sm">
+                              <LayoutGrid className="w-10 h-10 opacity-20" />
+                           </div>
+                           <p className="text-xs font-black uppercase tracking-[0.2em] mb-2 opacity-50">Intervention en cours</p>
+                           <p className="text-[10px] font-bold opacity-30">La photo "Après" sera disponible dès la résolution.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Bottom Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                    {/* Assigned To & Description Column */}
+                    <div className="lg:col-span-12 space-y-10">
+                      {/* Department Info */}
+                      <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200/60 shadow-sm flex items-center justify-between">
+                         <div className="flex items-center gap-6">
+                            <div className="w-16 h-16 rounded-[1.5rem] bg-blue-50 flex items-center justify-center text-[#1557FF] border border-blue-100">
+                               <Building2 size={32} />
+                            </div>
+                            <div>
+                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Département Responsable</p>
+                               <h5 className="text-xl font-black text-[#0A1628]">{selectedDecl.agent || 'Pôle Technique Municipal'}</h5>
+                               <p className="text-xs font-bold text-slate-400">Municipalité de Sousse, Tunisie</p>
+                            </div>
+                         </div>
+                         <button className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest transition-all">
+                            <Mail size={16} /> Contacter
+                         </button>
+                      </div>
+
+                      {/* Citizen Message / Description Block */}
+                      <div className="bg-[#F1F5FF] rounded-[2.5rem] p-10 border border-blue-100 relative overflow-hidden group">
+                         <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform text-[#1557FF]">
+                            <MessageSquare size={120} />
+                         </div>
+                         <div className="relative">
+                            <p className="text-[10px] font-black text-[#1557FF] uppercase tracking-widest mb-6 flex items-center gap-2">
+                               <MessageSquare size={14} /> Description
+                            </p>
+                            <blockquote className="text-xl font-bold text-[#0A1628] leading-relaxed italic mb-8">
+                               "{selectedDecl.description || "Aucune description supplémentaire n'a été fournie pour ce signalement."}"
+                            </blockquote>
+                            
+                            <div className="flex items-center justify-between pt-8 border-t border-blue-200/50">
+                               <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#1557FF] shadow-sm">
+                                     <MapPin size={14} />
+                                  </div>
+                                  <div>
+                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Localisation</p>
+                                     <p className="text-xs font-bold text-[#0A1628]">{selectedDecl.arrondissement || 'Non spécifié'}</p>
+                                  </div>
+                               </div>
+                            </div>
+                         </div>
                       </div>
                     </div>
-                  )}
+                  </div>
+                </div>
+
+                {/* Footer Actions */}
+                <div className="px-10 py-6 border-t border-slate-100 flex items-center justify-between bg-white flex-shrink-0">
+                  <div className="flex items-center gap-4">
+                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dernière mise à jour</span>
+                     <span className="text-xs font-black text-[#0A1628]">Il y a 2 heures</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => setSelectedDecl(null)}
+                      className="px-8 py-4 rounded-2xl border border-slate-200 text-slate-500 text-sm font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
+                    >
+                      Fermer
+                    </button>
+                    {selectedDecl.status === 'soumise' && (
+                      <button className="px-8 py-4 rounded-2xl bg-[#1557FF] text-white text-sm font-black uppercase tracking-widest hover:bg-[#1557FF]/90 transition-all shadow-xl shadow-blue-200">
+                        Affecter une équipe
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Floating Bulk Action Bar */}
+        <AnimatePresence>
+          {selectedIds.length > 0 && (
+            <motion.div 
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[110] w-full max-w-lg px-4"
+            >
+              <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-2xl flex items-center justify-between gap-6">
+                <div className="flex items-center gap-4 pl-2">
+                  <div className="w-8 h-8 rounded-lg bg-[#1557FF] flex items-center justify-center text-white text-xs font-black">
+                    {selectedIds.length}
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em]">Sélectionnés</p>
+                    <p className="text-xs font-black text-white">Actions de groupe</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                   <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest transition-all">
+                     <Calendar size={14}/> Imprimer
+                   </button>
+                   <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-[10px] font-black uppercase tracking-widest transition-all">
+                     <X size={14}/> Supprimer
+                   </button>
+                   <div className="w-px h-8 bg-white/10 mx-2" />
+                   <button 
+                     onClick={() => setSelectedIds([])}
+                     className="p-2 text-white/40 hover:text-white transition-colors"
+                   >
+                     <X size={20} />
+                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       </div>
     </PresidentLayout>
   )
