@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import Logo from '../Logo'
 import ChatbotWidget from './ChatbotWidget'
+import { useSocket } from '../../hooks/useSocket'
 
 const NAV = [
   { label: 'Accueil',          icon: LayoutDashboard, to: '/dashboard'       },
@@ -63,6 +64,20 @@ function NotificationBell() {
   const [showPanel, setShowPanel] = useState(false)
   const [notifs, setNotifs]       = useState(INIT_NOTIFS)
   const panelRef = useRef<HTMLDivElement>(null)
+
+  useSocket((data: any) => {
+    setNotifs(ns => [
+      {
+        id: Date.now().toString(),
+        type: data?.type || 'systeme',
+        read: false,
+        title: data?.title || 'Nouvelle notification',
+        body: data?.message || 'Vous avez reçu une nouvelle notification.',
+        time: 'À l\'instant'
+      },
+      ...ns
+    ])
+  })
 
   const unread = notifs.filter(n => !n.read).length
 

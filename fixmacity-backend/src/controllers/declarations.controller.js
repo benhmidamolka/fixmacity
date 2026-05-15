@@ -628,10 +628,17 @@ exports.getById = async (req, res) => {
       return res.status(404).json({ error: 'Déclaration introuvable.' });
     }
 
-    // Role-based visibility check: 
-    // Citizens/Agents can see any declaration (for cross-referencing), 
-    // but we can add more strict logic if needed later.
-    // For now, allow all authenticated users to GET by ID.
+    // Role-based visibility check
+    if (req.user.role === 'citizen') {
+      if (decl.citizen_id !== req.user.id && decl.user_id !== req.user.id) {
+        return res.status(403).json({ error: 'Accès refusé.' });
+      }
+    }
+    if (req.user.role === 'agent' || req.user.role === 'chef') {
+      if (decl.department_id !== req.user.department_id) {
+        return res.status(403).json({ error: 'Hors de votre département.' });
+      }
+    }
 
     return res.status(200).json({ declaration: mapCitizenStatus(decl) });
   } catch (err) {

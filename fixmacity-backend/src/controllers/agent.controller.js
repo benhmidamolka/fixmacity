@@ -346,7 +346,7 @@ exports.addComment = async (req, res) => {
         declaration_id: id, 
         user_id: req.user.id, 
         content: content.trim(),
-        channel: channel || 'chef'
+        channel: channel || 'chef_agent'
       })
       .select(`id, content, channel, created_at, author:user_id (first_name, last_name, role)`)
       .single();

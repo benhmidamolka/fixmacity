@@ -50,8 +50,14 @@ router.get('/me',           authenticate, getMe);
 router.patch('/me',         authenticate, updateMe);
 router.patch('/profil',     authenticate, updateProfile);
 router.patch('/profile',    authenticate, updateProfile);
-router.patch('/mot-de-passe', authenticate, updatePassword);
-router.patch('/password',   authenticate, updatePassword);
+router.patch('/mot-de-passe', authenticate, [
+  body('new_password').isLength({ min: 8 })
+    .withMessage('Le nouveau mot de passe doit contenir au moins 8 caractères')
+], updatePassword);
+router.patch('/password', authenticate, [
+  body('new_password').isLength({ min: 8 })
+    .withMessage('Le nouveau mot de passe doit contenir au moins 8 caractères')
+], updatePassword);
 router.post('/logout',      authenticate, logout);
 
 module.exports = router;

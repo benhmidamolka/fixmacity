@@ -150,6 +150,9 @@ exports.updateProfile = exports.updateMe;
 
 // ─── PATCH /api/auth/mot-de-passe ───────────────────────────────────────────
 exports.updatePassword = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
   try {
     const { current_password, new_password } = req.body;
     if (!current_password || !new_password) {

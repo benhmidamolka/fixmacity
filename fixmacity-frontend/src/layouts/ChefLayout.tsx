@@ -5,6 +5,7 @@ import {
   Settings, LogOut, Menu, X, Mail, HelpCircle,
   ChevronDown, Search, MessageSquare
 } from 'lucide-react'
+import { useSocket } from '../hooks/useSocket'
 
 const NAV = [
   {
@@ -14,7 +15,7 @@ const NAV = [
       { label: 'Déclarations',     icon: FileText,        to: '/chef/declarations'   },
       { label: 'Mon Équipe',       icon: Users,           to: '/chef/agents'         },
       { label: 'Messages',         icon: MessageSquare,   to: '/chef/messages'       },
-      { label: 'Notifications',    icon: Bell,            to: '/chef/notifications', badge: 2 },
+      { label: 'Notifications',    icon: Bell,            to: '/chef/notifications', badge: null },
       { label: 'Paramètres',       icon: Settings,        to: '/chef/settings'       },
     ]
   }
@@ -27,6 +28,24 @@ const ChefLayout: React.FC<Props> = ({ children, title = 'Mes Affectations' }) =
   const navigate   = useNavigate()
   const [mobileOpen,  setMobileOpen]  = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [unreadCount, setUnreadCount] = useState<number | null>(null)
+
+  useSocket(() => setUnreadCount(n => (n ?? 0) + 1))
+
+  React.useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5005/api'}/notifications/unread-count`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setUnreadCount(data.count ?? data.unread_count ?? null)
+        }
+      } catch (_) {}
+    }
+    fetchUnread()
+  }, [])
 
   const user     = JSON.parse(localStorage.getItem('fmc_user') || '{}')
   const initials = `${user.first_name?.[0] ?? 'C'}${user.last_name?.[0] ?? 'S'}`
@@ -115,9 +134,9 @@ const ChefLayout: React.FC<Props> = ({ children, title = 'Mes Affectations' }) =
                     {!isCollapsed && (
                       <span className="text-sm font-bold tracking-tight flex-1 truncate">{item.label}</span>
                     )}
-                    {!isCollapsed && (item as any).badge && !active && (
-                      <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center">
-                        {(item as any).badge}
+                    {!isCollapsed && item.to === '/chef/notifications' && !active && (unreadCount ?? 0) > 0 && (
+                      <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-black flex items-center justify-center ring-2 ring-white">
+                        {unreadCount}
                       </span>
                     )}
                   </Link>
@@ -204,7 +223,7 @@ const ChefLayout: React.FC<Props> = ({ children, title = 'Mes Affectations' }) =
               <Link to="/chef/notifications"
                 className="relative w-11 h-11 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-purple-500 hover:border-purple-100 transition-all shadow-sm">
                 <Bell className="w-5 h-5" />
-                <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+                {(unreadCount ?? 0) > 0 && <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />}
               </Link>
               <Link to="/chef/messages"
                 className="w-11 h-11 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-purple-500 hover:border-purple-100 transition-all shadow-sm">

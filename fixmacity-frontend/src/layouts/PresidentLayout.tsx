@@ -6,6 +6,7 @@ import {
   ChevronDown, Plus, Search, Inbox, GitMerge
 } from 'lucide-react'
 import CreateActionModal from '../components/president/CreateActionModal'
+import { useSocket } from '../hooks/useSocket'
 
 const NAV = [
   {
@@ -32,6 +33,8 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isActionModalOpen, setIsActionModalOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState<number | null>(null)
+
+  useSocket(() => setUnreadCount(n => (n ?? 0) + 1))
 
   useEffect(() => {
     const fetchUnread = async () => {
@@ -217,7 +220,7 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
             <div className="flex items-center gap-2">
               <button className="relative w-11 h-11 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-[#1557FF] hover:border-blue-100 transition-all shadow-sm">
                 <Bell className="w-5 h-5" />
-                <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+                {(unreadCount ?? 0) > 0 && <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />}
               </button>
               <button className="w-11 h-11 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-[#1557FF] hover:border-blue-100 transition-all shadow-sm">
                 <Mail className="w-5 h-5" />

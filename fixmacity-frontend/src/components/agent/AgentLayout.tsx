@@ -6,6 +6,7 @@ import {
   Bell, LogOut, Menu,
   Settings, ClipboardList, List
 } from 'lucide-react'
+import { useSocket } from '../../hooks/useSocket'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
@@ -35,11 +36,26 @@ const AgentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => {
   const [mobileOpen,  setMobileOpen]  = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [missionCount, setMissionCount] = useState(0)
+  const [unreadCount, setUnreadCount] = useState<number | null>(null)
 
   const user     = JSON.parse(localStorage.getItem('fmc_user') || '{}')
   const initials = `${user.first_name?.[0] ?? 'A'}${user.last_name?.[0] ?? 'T'}`
 
+  useSocket(() => setUnreadCount(n => (n ?? 0) + 1))
+
   useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch(`${API}/notifications/unread-count`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setUnreadCount(data.count ?? data.unread_count ?? null)
+        }
+      } catch (_) {}
+    }
+    fetchUnread()
     fetchMissionCount()
     const interval = setInterval(fetchMissionCount, 30000)
     return () => clearInterval(interval)
@@ -113,6 +129,15 @@ const AgentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => {
                         active ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-600'
                       }`}>
                         {missionCount}
+                      </span>
+                    )}
+
+                    {/* Badge for unread notifications */}
+                    {item.label === 'Notifications' && (unreadCount ?? 0) > 0 && (
+                      <span className={`ml-auto text-[10px] font-black px-2 py-0.5 rounded-full ${
+                        active ? 'bg-white/20 text-white' : 'bg-red-100 text-red-600'
+                      }`}>
+                        {unreadCount}
                       </span>
                     )}
                   </Link>
