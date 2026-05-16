@@ -44,7 +44,16 @@ function timeAgo(iso: string) {
 
 // ── UI Components ─────────────────────────────────────────────────────────────
 
-const KpiCard: React.FC<{ label: string; value: string | number; sub: string; icon: React.ReactNode; color: string }> = ({ label, value, sub, icon, color }) => (
+const KpiCard: React.FC<{
+  label: string
+  value: string | number
+  sub: string
+  icon: React.ReactNode
+  color: string
+  progressPct: number
+}> = ({ label, value, sub, icon, color, progressPct }) => {
+  const pct = Math.min(100, Math.max(0, progressPct))
+  return (
   <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200/60 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.05)] hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] transition-all duration-500 group relative overflow-hidden">
     <div className="absolute top-0 right-0 w-32 h-32 translate-x-8 -translate-y-8 blur-3xl opacity-10 group-hover:opacity-20 transition-opacity duration-700" style={{ backgroundColor: color }} />
     <div className="relative z-10">
@@ -59,13 +68,14 @@ const KpiCard: React.FC<{ label: string; value: string | number; sub: string; ic
       </div>
       <div className="flex items-center gap-2">
         <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-          <div className="h-full rounded-full transition-all duration-1000" style={{ width: '70%', backgroundColor: color }} />
+          <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, backgroundColor: color }} />
         </div>
         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{sub}</span>
       </div>
     </div>
   </div>
-)
+  )
+}
 
 const AssignModal: React.FC<{ decl: Decl; departments: {id:string, name:string}[]; onClose: ()=>void; onAssigned: (id:string)=>void }> = ({ decl, departments, onClose, onAssigned }) => {
   const [selected, setSelected] = useState('')
@@ -256,6 +266,9 @@ const PresidentIncoming: React.FC = () => {
     })
 
   const urgentCount = filtered.filter(d=>d.priority==='haute').length
+  const voteSum = filtered.reduce((a,d)=>a+d.votes,0)
+  const queueTotal = filtered.length + assigned.size
+  const kpiMax = Math.max(1, filtered.length, urgentCount, voteSum, assigned.size)
 
   return (
     <PresidentLayout title="Flux Entrant">
@@ -283,10 +296,10 @@ const PresidentIncoming: React.FC = () => {
 
         {/* KPIs Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <KpiCard label="En attente" value={filtered.length} sub="Signalements" icon={<Activity className="w-6 h-6"/>} color="#1557FF" />
-          <KpiCard label="Urgent" value={urgentCount} sub="Critique" icon={<AlertTriangle className="w-6 h-6"/>} color="#EF4444" />
-          <KpiCard label="Engagements" value={filtered.reduce((a,d)=>a+d.votes,0)} sub="Votes Citoyens" icon={<ThumbsUp className="w-6 h-6"/>} color="#10B981" />
-          <KpiCard label="Délégués" value={assigned.size} sub="Ce jour" icon={<Zap className="w-6 h-6"/>} color="#8B5CF6" />
+          <KpiCard label="En attente" value={filtered.length} sub="Signalements" icon={<Activity className="w-6 h-6"/>} color="#1557FF" progressPct={(filtered.length / kpiMax) * 100} />
+          <KpiCard label="Urgent" value={urgentCount} sub="Critique" icon={<AlertTriangle className="w-6 h-6"/>} color="#EF4444" progressPct={(urgentCount / kpiMax) * 100} />
+          <KpiCard label="Engagements" value={voteSum} sub="Votes Citoyens" icon={<ThumbsUp className="w-6 h-6"/>} color="#10B981" progressPct={(voteSum / kpiMax) * 100} />
+          <KpiCard label="Délégués" value={assigned.size} sub="Aujourd'hui" icon={<Zap className="w-6 h-6"/>} color="#8B5CF6" progressPct={queueTotal > 0 ? (assigned.size / queueTotal) * 100 : 0} />
         </div>
 
         {/* Filters & Content Area */}

@@ -44,6 +44,32 @@ router.delete('/users/:id', ctrl.deleteUser);
 // ── Departments ──
 router.get('/departments', ctrl.listDepartments);
 router.patch('/departments/:id/status', ctrl.updateDepartmentStatus);
+// POST /api/president/departments  — create new department
+router.post('/departments', [
+  body('name_fr').notEmpty().trim().withMessage('Nom français obligatoire.'),
+  body('code').notEmpty().trim().isLength({ max: 3 }).withMessage('Code obligatoire (max 3 caractères).'),
+  body('name_ar').optional().trim(),
+  body('name_en').optional().trim(),
+  body('description').optional().trim(),
+], ctrl.createDepartment);
+ 
+// PATCH /api/president/departments/:id  — edit names/description
+router.patch('/departments/:id', [
+  body('name_fr').optional().trim(),
+  body('name_ar').optional().trim(),
+  body('name_en').optional().trim(),
+  body('description').optional().trim(),
+], ctrl.updateDepartment);
+ 
+// DELETE /api/president/departments/:id  — remove department
+router.delete('/departments/:id', ctrl.deleteDepartment);
+router.post('/departments', [
+  body('name_fr').notEmpty().trim().withMessage('Nom français requis.'),
+  body('code').notEmpty().trim().withMessage('Code requis.'),
+  body('name_ar').optional().trim(),
+  body('name_en').optional().trim(),
+  body('description').optional().trim(),
+], ctrl.createDepartment);
 
 // ── Propositions ──
 router.get('/propositions', ctrl.listPropositions);
@@ -51,6 +77,8 @@ router.post('/propositions', [
   body('title').notEmpty().trim().withMessage('Titre requis.'),
   body('description').notEmpty().trim().withMessage('Description requise.'),
 ], ctrl.createProposition);
+router.put('/propositions/:id', ctrl.updateProposition);
+router.delete('/propositions/:id', ctrl.deleteProposition);
 
 router.post('/propositions/:id/confirmer', ctrl.confirmProposition);
 router.post('/propositions/:id/retenu', ctrl.retainProposition);

@@ -53,12 +53,12 @@ exports.listPropositions = async (req, res) => {
     if (propositions && propositions.length > 0) {
       const userIds = [...new Set(propositions.map(p => p.created_by))];
       const { data: usersData } = await supabase.from('users')
-        .select('id, first_name, last_name')
+        .select('id, first_name, last_name, email, role')
         .in('id', userIds);
       
       const userMap = {};
       if (usersData) {
-        usersData.forEach(u => userMap[u.id] = { first_name: u.first_name, last_name: u.last_name });
+        usersData.forEach(u => userMap[u.id] = { first_name: u.first_name, last_name: u.last_name, email: u.email, role: u.role });
       }
       
       propositions = propositions.map(p => ({

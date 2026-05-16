@@ -55,7 +55,7 @@ const KpiCard: React.FC<{ label: string; value: number; color: string; icon: Rea
 const PresidentNotifications: React.FC = () => {
   const [notifs, setNotifs]   = useState<any[]>([])
   const [filter, setFilter]   = useState('all')
-  const [typeF,  setTypeF]    = useState('Tous')
+  const [typeF,  setTypeF]    = useState('')
   const [selected, setSelected] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
@@ -113,7 +113,7 @@ const PresidentNotifications: React.FC = () => {
   const filtered = notifs.filter(n => {
     if (filter === 'unread' && n.is_read) return false
     if (filter === 'read'   && !n.is_read) return false
-    if (typeF !== 'Tous' && n.type !== typeF) return false
+    if (typeF && n.type !== typeF) return false
     if (searchQuery && !n.title.toLowerCase().includes(searchQuery.toLowerCase()) && !n.body.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
   }).sort((a, b) => {
@@ -204,7 +204,7 @@ const PresidentNotifications: React.FC = () => {
                 className="h-14 bg-white border border-slate-200 rounded-2xl px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 outline-none cursor-pointer hover:border-[#1557FF]/30 transition-all appearance-none pr-12 min-w-[200px]"
                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.25rem center', backgroundSize: '1rem' }}
               >
-                <option>Tous les types</option>
+                <option value="">Tous les types</option>
                 <option value="NEW_DECLARATION">SIGNALEMENTS</option>
                 <option value="URGENT_DECLARATION">URGENCES CRITIQUES</option>
                 <option value="DECLARATION_REJECTED">ANOMALIES / REFUS</option>

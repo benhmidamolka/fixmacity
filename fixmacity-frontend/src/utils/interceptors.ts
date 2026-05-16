@@ -12,7 +12,7 @@ window.fetch = async (...args) => {
 
   // 2. If 401 and not already a login/refresh request
   const url = resource.toString();
-  if (response.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/refresh')) {
+  if (response.status === 401 && url.startsWith(API_URL) && !url.includes('/auth/login') && !url.includes('/auth/refresh')) {
     const refreshToken = localStorage.getItem('fmc_refresh_token');
     
     if (refreshToken) {

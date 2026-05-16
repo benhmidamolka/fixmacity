@@ -1,4 +1,4 @@
-const bcrypt   = require('bcrypt');
+const bcrypt = require('bcrypt');
 const supabase = require('../config/db');
 const { validationResult } = require('express-validator');
 const { generateRefService } = require('../services/refGenerator.service');
@@ -17,15 +17,15 @@ exports.listDeclarations = async (req, res) => {
       .from('declarations')
       .select('*', { count: 'exact' })
       .is('deleted_at', null)
-      
+
       .order('priority_score', { ascending: false })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (status)        query = query.eq('status', status);
+    if (status) query = query.eq('status', status);
     if (delegation_id) query = query.eq('delegation_id', delegation_id);
     if (department_id) query = query.eq('department_id', department_id);
-    if (service_id)    query = query.eq('service_id', service_id);
+    if (service_id) query = query.eq('service_id', service_id);
 
     let { data, error, count } = await query;
 
@@ -49,7 +49,7 @@ exports.listDeclarations = async (req, res) => {
         const { data: delegData } = await supabase.from('delegations').select('id, name').in('id', delegIds);
         if (delegData) delegData.forEach(d => delegMap[d.id] = d.name);
       }
-      
+
       data = data.map(d => {
         const agent = d.agent_id ? userMap[d.agent_id] : null;
         return {
@@ -91,7 +91,7 @@ exports.getDeclarationDetail = async (req, res) => {
       `)
       .eq('id', id)
       .is('deleted_at', null)
-      
+
       .single();
 
     if (error || !decl) {
@@ -163,9 +163,9 @@ exports.assignDeclaration = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { id }            = req.params;
-    const { department_id, priority, planned_start, planned_end } = req.body; 
-    
+    const { id } = req.params;
+    const { department_id, priority, planned_start, planned_end } = req.body;
+
     let priority_score = 4;
     if (priority === 'High') priority_score = 8;
     if (priority === 'Low') priority_score = 1;
@@ -176,7 +176,7 @@ exports.assignDeclaration = async (req, res) => {
       .select('id, status')
       .eq('id', id)
       .is('deleted_at', null)
-      
+
       .single();
 
     if (fetchErr || !decl) {
@@ -203,15 +203,15 @@ exports.assignDeclaration = async (req, res) => {
     const { data: updated, error: updateErr } = await supabase
       .from('declarations')
       .update({
-        status:        'assignee_chef',
+        status: 'assignee_chef',
         department_id,
-        service_id:    department_id,
-        ref_service:   refService,
+        service_id: department_id,
+        ref_service: refService,
         priority_score: priority_score,
         planned_start: planned_start || null,
-        planned_end:   planned_end || null,
-        assigned_at:   new Date().toISOString(),
-        updated_at:    new Date().toISOString(),
+        planned_end: planned_end || null,
+        assigned_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id)
       .select('*')
@@ -253,7 +253,7 @@ exports.reassignDeclaration = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { id }            = req.params;
+    const { id } = req.params;
     const { department_id, priority, planned_start, planned_end } = req.body;
 
     let priority_score = 4;
@@ -265,7 +265,7 @@ exports.reassignDeclaration = async (req, res) => {
       .select('id, status')
       .eq('id', id)
       .is('deleted_at', null)
-      
+
       .single();
 
     if (fetchErr || !decl) {
@@ -287,21 +287,21 @@ exports.reassignDeclaration = async (req, res) => {
     }
 
     const refService = await generateRefService(service.code);
-    const oldStatus  = decl.status;
+    const oldStatus = decl.status;
 
     const { data: updated, error: updateErr } = await supabase
       .from('declarations')
       .update({
-        status:        'assignee_chef',
+        status: 'assignee_chef',
         department_id,
-        service_id:    department_id,
-        agent_id:      null,
-        ref_service:   refService,
+        service_id: department_id,
+        agent_id: null,
+        ref_service: refService,
         priority_score: priority_score,
         planned_start: planned_start || null,
-        planned_end:   planned_end || null,
-        assigned_at:   new Date().toISOString(),
-        updated_at:    new Date().toISOString(),
+        planned_end: planned_end || null,
+        assigned_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id)
       .select('*')
@@ -348,7 +348,7 @@ exports.listUsers = async (req, res) => {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (role)          query = query.eq('role', role);
+    if (role) query = query.eq('role', role);
     if (department_id) query = query.eq('department_id', department_id);
 
     const { data, error, count } = await query;
@@ -358,31 +358,51 @@ exports.listUsers = async (req, res) => {
       return res.status(500).json({ error: 'Erreur serveur.' });
     }
 
-    // 1. Fetch counts from declarations for agents and departments
-    const agentCountsRes = await supabase.pool.query(`
-      SELECT agent_id, COUNT(*) as count 
-      FROM declarations 
-      WHERE agent_id IS NOT NULL AND deleted_at IS NULL
+    // 1. Fetch counts from declarations for agents and departments (totals + resolved + accepted)
+    const agentStatsRes = await supabase.pool.query(`
+      SELECT
+        agent_id,
+        COUNT(*)                                                              AS total,
+        COUNT(*) FILTER (WHERE status IN ('resolue','cloturee'))              AS resolved,
+        COUNT(*) FILTER (WHERE status NOT IN ('soumise','refusee_chef'))      AS accepted
+      FROM declarations
+      WHERE agent_id IS NOT NULL AND deleted_at IS NULL AND is_deleted = false
       GROUP BY agent_id
     `);
-    const agentCounts = {};
-    agentCountsRes.rows.forEach(r => agentCounts[r.agent_id] = parseInt(r.count, 10));
+    const agentStats = {};
+    agentStatsRes.rows.forEach(r => {
+      agentStats[r.agent_id] = {
+        total:    parseInt(r.total,    10),
+        resolved: parseInt(r.resolved, 10),
+        accepted: parseInt(r.accepted, 10),
+      };
+    });
 
-    const deptCountsRes = await supabase.pool.query(`
-      SELECT department_id, COUNT(*) as count 
-      FROM declarations 
-      WHERE department_id IS NOT NULL AND deleted_at IS NULL
+    const deptStatsRes = await supabase.pool.query(`
+      SELECT
+        department_id,
+        COUNT(*)                                                              AS total,
+        COUNT(*) FILTER (WHERE status IN ('resolue','cloturee'))              AS resolved,
+        COUNT(*) FILTER (WHERE status NOT IN ('soumise','refusee_chef'))      AS accepted
+      FROM declarations
+      WHERE department_id IS NOT NULL AND deleted_at IS NULL AND is_deleted = false
       GROUP BY department_id
     `);
-    const deptCounts = {};
-    deptCountsRes.rows.forEach(r => deptCounts[r.department_id] = parseInt(r.count, 10));
+    const deptStats = {};
+    deptStatsRes.rows.forEach(r => {
+      deptStats[r.department_id] = {
+        total:    parseInt(r.total,    10),
+        resolved: parseInt(r.resolved, 10),
+        accepted: parseInt(r.accepted, 10),
+      };
+    });
 
     // Enrich with department name and code
     let enrichedData = data || [];
     if (enrichedData.length > 0) {
       const deptIds = [...new Set(enrichedData.map(u => u.department_id).filter(Boolean))];
       const delegIds = [...new Set(enrichedData.map(u => u.delegation_id).filter(Boolean))];
-      
+
       let serviceMap = {};
       if (deptIds.length > 0) {
         const { data: services } = await supabase
@@ -401,13 +421,20 @@ exports.listUsers = async (req, res) => {
         if (delegs) delegs.forEach(d => delegMap[d.id] = d.name);
       }
 
-      enrichedData = enrichedData.map(u => ({
-        ...u,
-        department_name: u.department_id ? (serviceMap[u.department_id]?.name_fr || 'Service') : 'N/A',
-        department_code: u.department_id ? (serviceMap[u.department_id]?.code || '??') : '??',
-        location: u.delegation_id ? (delegMap[u.delegation_id] || 'Sousse') : 'Sousse',
-        total_tasks: u.role === 'agent' ? (agentCounts[u.id] || 0) : (deptCounts[u.department_id] || 0)
-      }));
+      enrichedData = enrichedData.map(u => {
+        const stats = u.role === 'agent'
+          ? (agentStats[u.id]              || { total:0, resolved:0, accepted:0 })
+          : (deptStats[u.department_id]    || { total:0, resolved:0, accepted:0 });
+        return {
+          ...u,
+          department_name:  u.department_id ? (serviceMap[u.department_id]?.name_fr || 'Service') : 'N/A',
+          department_code:  u.department_id ? (serviceMap[u.department_id]?.code    || '??')      : '??',
+          location:         u.delegation_id ? (delegMap[u.delegation_id]            || 'Sousse')  : 'Sousse',
+          total_tasks:    stats.total,
+          resolved_tasks: stats.resolved,
+          accepted_tasks: stats.accepted,
+        };
+      });
     }
 
     return res.status(200).json({ users: enrichedData, total: count, page: +page, limit: +limit });
@@ -447,14 +474,14 @@ exports.createUser = async (req, res) => {
     const { data: user, error } = await supabase
       .from('users')
       .insert({
-        email:         email.toLowerCase().trim(),
+        email: email.toLowerCase().trim(),
         password_hash: hashedPassword,
-        first_name:    first_name.trim(),
-        last_name:     last_name.trim(),
+        first_name: first_name.trim(),
+        last_name: last_name.trim(),
         role,
         department_id: department_id || null,
         delegation_id: delegation_id || null,
-        is_active:     true,
+        is_active: true,
       })
       .select('id, email, first_name, last_name, role, department_id, delegation_id, is_active')
       .single();
@@ -474,14 +501,14 @@ exports.createUser = async (req, res) => {
 /* ──────────── PATCH /api/president/users/:id ──────────── */
 exports.updateUser = async (req, res) => {
   try {
-    const { id }    = req.params;
-    const updates   = {};
+    const { id } = req.params;
+    const updates = {};
     const { role, department_id, is_active, delegation_id } = req.body;
 
-    if (role !== undefined)          updates.role          = role;
+    if (role !== undefined) updates.role = role;
     if (department_id !== undefined) updates.department_id = department_id;
     if (delegation_id !== undefined) updates.delegation_id = delegation_id;
-    if (is_active !== undefined)     updates.is_active     = is_active;
+    if (is_active !== undefined) updates.is_active = is_active;
 
     if (is_active === false) {
       // Check for missions in progress
@@ -509,73 +536,22 @@ exports.updateUser = async (req, res) => {
       .update(updates)
       .eq('id', id)
       .select('id, email, first_name, last_name, role, department_id, delegation_id, is_active')
-      .single();
-
-    if (error) {
-      console.error('[President] UpdateUser error:', error.message);
-      return res.status(500).json({ error: 'Erreur lors de la mise à jour.' });
-    }
-
-    return res.status(200).json({ user });
-  } catch (err) {
-    console.error('[President] UpdateUser error:', err);
-    return res.status(500).json({ error: 'Erreur serveur.' });
-  }
-};
-
-/* ──────────── DELETE /api/president/users/:id ──────────── */
-exports.deleteUser = async (req, res) => {
+      exports.listDepartments = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    // Exception 3: Impossible de désactiver ou supprimer un agent ayant des missions en cours
-    const { count: activeMissions } = await supabase
-      .from('declarations')
-      .select('id', { count: 'exact', head: true })
-      .eq('agent_id', id)
-      .in('status', ['assignee_agent', 'en_cours'])
-      .is('deleted_at', null)
-      ;
-
-    if ((activeMissions || 0) > 0) {
-      return res.status(400).json({ error: 'Impossible de désactiver un agent ayant des missions en cours' });
-    }
-
-    const { data: user, error } = await supabase
-      .from('users')
-      .update({ is_active: false, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select('id, email, is_active')
-      .single();
-
-    if (error) {
-      console.error('[President] DeleteUser error:', error.message);
-      return res.status(500).json({ error: 'Erreur serveur.' });
-    }
-
-    return res.status(200).json({ message: 'Utilisateur désactivé.', user });
-  } catch (err) {
-    console.error('[President] DeleteUser error:', err);
-    return res.status(500).json({ error: 'Erreur serveur.' });
-  }
-};
-
-/* ──────────── GET /api/president/departments ──────────── */
-exports.listDepartments = async (req, res) => {
-  try {
-    // Fetch all services/departments
+    /* 1 ── Fetch all services */
     const { data: services, error } = await supabase
       .from('services')
-      .select('id, name_fr, name_ar, name_en, code, is_active, created_at, updated_at')
+      .select('id, name_fr, name_ar, name_en, code, description, is_active, created_at')
       .order('name_fr', { ascending: true });
-
+ 
     if (error) {
       console.error('[President] ListDept error:', error.message);
       return res.status(500).json({ error: 'Erreur serveur.' });
     }
-
-    // Fetch chefs linked to each department via users.department_id
+ 
     const deptIds = (services || []).map(s => s.id);
+ 
+    /* 2 ── Chefs map  (one per department, first active chef wins) */
     let chefMap = {};
     if (deptIds.length > 0) {
       const { data: chefs } = await supabase
@@ -590,6 +566,71 @@ exports.listDepartments = async (req, res) => {
         });
       }
     }
+ 
+    /* 3 ── Agent counts per department */
+    let agentsCountMap = {};
+    if (deptIds.length > 0) {
+      const { data: agentRows } = await supabase
+        .from('users')
+        .select('department_id')
+        .eq('role', 'agent')
+        .eq('is_active', true)
+        .in('department_id', deptIds);
+      if (agentRows) {
+        agentRows.forEach(a => {
+          agentsCountMap[a.department_id] = (agentsCountMap[a.department_id] || 0) + 1;
+        });
+      }
+    }
+ 
+    /* 4 ── Declaration counts per department — all status buckets in one query */
+    const declRes = await supabase.pool.query(`
+      SELECT
+        department_id,
+        COUNT(*)                                                                            AS total,
+        COUNT(*) FILTER (WHERE status NOT IN ('soumise','refusee_chef'))                   AS accepted,
+        COUNT(*) FILTER (WHERE status IN ('resolue','cloturee'))                           AS resolved,
+        COUNT(*) FILTER (WHERE status IN ('refusee_chef','refusee_agent'))                 AS rejected,
+        COUNT(*) FILTER (WHERE status = 'en_cours')                                        AS in_progress
+      FROM declarations
+      WHERE department_id IS NOT NULL
+        AND deleted_at IS NULL
+        AND is_deleted = false
+      GROUP BY department_id
+    `);
+ 
+    const countsMap = {};
+    (declRes.rows || []).forEach(r => {
+      countsMap[r.department_id] = {
+        total:       parseInt(r.total,       10),
+        accepted:    parseInt(r.accepted,    10),
+        resolved:    parseInt(r.resolved,    10),
+        rejected:    parseInt(r.rejected,    10),
+        in_progress: parseInt(r.in_progress, 10),
+      };
+    });
+ 
+    /* 5 ── Build response */
+    const departments = (services || []).map(dept => {
+      const chef   = chefMap[dept.id]   || null;
+      const counts = countsMap[dept.id] || { total:0, accepted:0, resolved:0, rejected:0, in_progress:0 };
+      return {
+        ...dept,
+        name:         dept.name_fr,
+        chef_name:    chef ? `${chef.first_name} ${chef.last_name}` : null,
+        chef_id:      chef?.id || null,
+        agents_count: agentsCountMap[dept.id] || 0,
+        ...counts,
+      };
+    });
+ 
+    return res.status(200).json({ departments, success: true });
+  } catch (err) {
+    console.error('[President] ListDept error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+ 
 
     // Fetch declaration counts per department
     const { data: countsRes } = await supabase.rpc('count_declarations_per_department');
@@ -601,7 +642,7 @@ exports.listDepartments = async (req, res) => {
       .select('department_id, count:id.count()')
       .is('deleted_at', null)
       .not('department_id', 'is', null);
-      
+
     if (declCounts) {
       declCounts.forEach(d => {
         countsMap[d.department_id] = d.count;
@@ -611,7 +652,7 @@ exports.listDepartments = async (req, res) => {
     const departments = (services || []).map(dept => {
       const chef = chefMap[dept.id] || null;
       const total = countsMap[dept.id] || 0;
-      
+
       // Determine a mock status based on activity for the UI
       let status = 'Stable';
       if (total > 15) status = 'Surcharge';
@@ -647,13 +688,13 @@ exports.createProposition = async (req, res) => {
     const { data: prop, error } = await supabase
       .from('propositions')
       .insert({
-        title:       title.trim(),
+        title: title.trim(),
         description: description.trim(),
-        category:    category || 'Général',
-        start_date:  start_date || null,
-        end_date:    end_date || null,
-        created_by:  req.user.id,
-        status:      'active',
+        category: category || 'Général',
+        start_date: start_date || null,
+        end_date: end_date || null,
+        created_by: req.user.id,
+        status: 'active',
       })
       .select('*')
       .single();
@@ -666,6 +707,60 @@ exports.createProposition = async (req, res) => {
     return res.status(201).json({ proposition: prop });
   } catch (err) {
     console.error('[President] CreateProp error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── PUT /api/president/propositions/:id ──────────── */
+exports.updateProposition = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, start_date, end_date, category, status } = req.body;
+    
+    const { data: prop, error } = await supabase
+      .from('propositions')
+      .update({
+        title: title?.trim(),
+        description: description?.trim(),
+        category: category || 'Général',
+        start_date: start_date || null,
+        end_date: end_date || null,
+        status: status || 'active'
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('[President] UpdateProp error:', error.message);
+      return res.status(500).json({ error: 'Erreur serveur.' });
+    }
+
+    return res.status(200).json({ proposition: prop });
+  } catch (err) {
+    console.error('[President] UpdateProp error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── DELETE /api/president/propositions/:id ──────────── */
+exports.deleteProposition = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const { error } = await supabase
+      .from('propositions')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('[President] DeleteProp error:', error.message);
+      return res.status(500).json({ error: 'Erreur serveur.' });
+    }
+
+    return res.status(200).json({ success: true, message: 'Proposition supprimée' });
+  } catch (err) {
+    console.error('[President] DeleteProp error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
@@ -707,12 +802,12 @@ exports.listPropositions = async (req, res) => {
       total: (p.votes_pour || 0) + (p.votes_contre || 0)
     }));
 
-    return res.status(200).json({ 
+    return res.status(200).json({
       success: true,
-      propositions: structured, 
+      propositions: structured,
       presidential: structured.filter(p => p.is_presidential),
-      citizen:      structured.filter(p => !p.is_presidential),
-      total: count 
+      citizen: structured.filter(p => !p.is_presidential),
+      total: count
     });
   } catch (err) {
     console.error('[President] ListProp error:', err);
@@ -729,9 +824,10 @@ exports.dashboard = async (req, res) => {
       .from('declarations')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null)
+      .eq('is_deleted', false)
       ;
 
-    let sqlFilter = ` AND d.deleted_at IS NULL`;
+    let sqlFilter = ` AND d.deleted_at IS NULL AND COALESCE(d.is_deleted, false) = false`;
 
     if (period && period !== 'all') {
       const days = parseInt(period, 10);
@@ -820,7 +916,7 @@ exports.dashboard = async (req, res) => {
         m.name,
         COUNT(d.id) FILTER (WHERE d.created_at >= m.m_start AND d.created_at < m.m_start + interval '1 month') as reports,
         COUNT(d.id) FILTER (WHERE d.status IN ('resolue', 'cloturee') AND d.resolved_at >= m.m_start AND d.resolved_at < m.m_start + interval '1 month') as resolved
-      FROM months m
+      FROM months m  
       LEFT JOIN declarations d ON 1=1 ${sqlFilter}
       GROUP BY m.name, m.m_start
       ORDER BY m.m_start ASC;
@@ -838,38 +934,74 @@ exports.dashboard = async (req, res) => {
         s.id,
         s.code,
         COUNT(d.id) as total,
-        COUNT(d.id) FILTER (WHERE d.status IN ('resolue', 'cloturee')) as resolved
+        COUNT(d.id) FILTER (WHERE d.status IN ('resolue', 'cloturee')) as resolved,
+        COUNT(d.id) FILTER (
+          WHERE EXISTS (
+            SELECT 1 FROM ratings r
+            WHERE r.declaration_id = d.id AND r.score > 3
+          )
+        ) as high_satisfaction_count
       FROM services s
       LEFT JOIN declarations d ON d.department_id = s.id ${sqlFilter}
       GROUP BY s.id, s.name_fr, s.code
       ORDER BY total DESC
     `);
-    
+
     const byDepartment = deptRes.rows.map(r => ({
       name: r.name,
       code: r.code,
       total: parseInt(r.total, 10),
       resolved: parseInt(r.resolved, 10),
-      perf: r.total > 0 ? Math.round((parseInt(r.resolved, 10) / parseInt(r.total, 10)) * 100) : 0
+      perf: r.total > 0 ? Math.round((parseInt(r.resolved, 10) / parseInt(r.total, 10)) * 100) : 0,
+      highSatisfactionCount: parseInt(r.high_satisfaction_count, 10) || 0
     }));
+
+    // ── Aggregate KPI stats (same filters as dashboard) ──
+    let stats = { criticalCount: 0, resolvedCount: 0, highSatisfactionCount: 0 };
+    try {
+      const statsRes = await supabase.pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE d.priority = 'haute') AS critical_count,
+          COUNT(*) FILTER (WHERE d.status IN ('resolue', 'cloturee')) AS resolved_count
+        FROM declarations d
+        WHERE 1=1 ${sqlFilter}
+      `);
+      const satRes = await supabase.pool.query(`
+        SELECT COUNT(DISTINCT d.id) AS high_satisfaction_count
+        FROM declarations d
+        INNER JOIN ratings r ON r.declaration_id = d.id AND r.score > 3
+        WHERE 1=1 ${sqlFilter}
+      `);
+      const sr = statsRes.rows[0] || {};
+      const hr = satRes.rows[0] || {};
+      stats = {
+        criticalCount: parseInt(sr.critical_count, 10) || 0,
+        resolvedCount: parseInt(sr.resolved_count, 10) || 0,
+        highSatisfactionCount: parseInt(hr.high_satisfaction_count, 10) || 0
+      };
+    } catch (statsErr) {
+      console.error('[President] Dashboard stats query error:', statsErr);
+    }
 
     // ── Recent Declarations ──
     let recentQuery = supabase
       .from('declarations')
-      .select('id, ref_citoyen, status, description, created_at, citizen_id')
+      .select('id, ref_citoyen, title, status, description, category, created_at, citizen_id, delegation_id, priority')
       .is('deleted_at', null)
-      
+      .eq('is_deleted', false)
+
       .order('created_at', { ascending: false })
-      .limit(5);
+      .limit(8);
 
     let crucialQuery = supabase
       .from('declarations')
-      .select('id, ref_citoyen, title, status, description, created_at, citizen_id')
+      .select('id, ref_citoyen, title, status, description, category, priority, votes_count, created_at, citizen_id, delegation_id')
       .is('deleted_at', null)
-      
+      .eq('is_deleted', false)
+
       .in('status', ['soumise', 'assignee_chef', 'assignee_agent', 'en_cours'])
       .order('created_at', { ascending: true })
-      .limit(5);
+      .limit(8);
 
     if (period && period !== 'all') {
       const days = parseInt(period, 10);
@@ -895,55 +1027,82 @@ exports.dashboard = async (req, res) => {
     }
 
     const { data: recentDecl } = await recentQuery;
-    
-    // Enrich recent with citizen names
-    const citizenIds = [...new Set((recentDecl || []).map(d => d.citizen_id).filter(Boolean))];
-    let citizenMap = {};
-    if (citizenIds.length > 0) {
-      const { data: citizens } = await supabase
-        .from('users').select('id, first_name, last_name').in('id', citizenIds);
-      (citizens || []).forEach(c => { citizenMap[c.id] = `${c.first_name} ${c.last_name}`; });
+    const { data: crucialCases } = await crucialQuery;
+
+    let topVotedDeclarations = [];
+    try {
+      const topVotedRes = await supabase.pool.query(`
+        SELECT d.id, d.title, d.status, d.votes_count, d.created_at, d.citizen_id, d.category
+        FROM declarations d
+        WHERE 1=1 ${sqlFilter}
+        ORDER BY d.votes_count DESC NULLS LAST
+        LIMIT 5
+      `);
+      topVotedDeclarations = topVotedRes.rows || [];
+    } catch (tvErr) {
+      console.error('[President] topVotedDeclarations query error:', tvErr);
     }
 
-    const { data: crucialCases } = await crucialQuery;
-    // ── Top Voted Propositions ──
     const { data: moneyVotes } = await supabase
       .from('propositions')
       .select('*')
       .order('votes_pour', { ascending: false })
       .limit(5);
 
+    const citizenIds = [...new Set([
+      ...(recentDecl || []).map(d => d.citizen_id),
+      ...(crucialCases || []).map(d => d.citizen_id),
+      ...topVotedDeclarations.map(d => d.citizen_id)
+    ].filter(Boolean))];
+    let citizenMap = {};
+    if (citizenIds.length > 0) {
+      const { data: citizens } = await supabase
+        .from('users').select('id, first_name, last_name').in('id', citizenIds);
+      (citizens || []).forEach(c => { citizenMap[c.id] = `${c.first_name} ${c.last_name}`.trim() || 'Anonyme'; });
+    }
+
+    const delegIds = [...new Set([
+      ...(recentDecl || []).map(d => d.delegation_id),
+      ...(crucialCases || []).map(d => d.delegation_id)
+    ].filter(Boolean))];
+    let delegMap = {};
+    if (delegIds.length > 0) {
+      const { data: delegs } = await supabase.from('delegations').select('id, name').in('id', delegIds);
+      (delegs || []).forEach(x => { delegMap[x.id] = x.name; });
+    }
+
     return res.status(200).json({
       success: true,
       // Aliases matching the frontend field names
-      total:             totalDecl || 0,
+      total: totalDecl || 0,
       total_declarations: totalDecl || 0,
-      byStatus:          byStatus,
-      by_status:         byStatus,
-      byArrondissement:  byArrondissement,
+      byStatus: byStatus,
+      by_status: byStatus,
+      byArrondissement: byArrondissement,
       by_arrondissement: byArrondissement,
-      byDepartment:      byDepartment,
-      by_department:     byDepartment,
-      totalUsers:        totalUsers || 0,
-      total_users:       totalUsers || 0,
-      avgRating:         avgRating ? parseFloat(avgRating) : 0,
-      average_rating:    avgRating,
+      byDepartment: byDepartment,
+      by_department: byDepartment,
+      totalUsers: totalUsers || 0,
+      total_users: totalUsers || 0,
+      avgRating: avgRating ? parseFloat(avgRating) : 0,
+      average_rating: avgRating,
+      stats,
       trendData,
       recentDeclarations: (recentDecl || []).map(d => ({
         ...d,
-        citizen_name: citizenMap[d.citizen_id] || 'Anonyme'
+        citizen_name: citizenMap[d.citizen_id] || 'Anonyme',
+        arrondissement_name: d.delegation_id ? (delegMap[d.delegation_id] || null) : null
       })),
       crucialCases: (crucialCases || []).map(d => ({
         ...d,
-        citizen_name: citizenMap[d.citizen_id] || 'Anonyme'
+        citizen_name: citizenMap[d.citizen_id] || 'Anonyme',
+        arrondissement_name: d.delegation_id ? (delegMap[d.delegation_id] || null) : null
       })),
       moneyVotes: moneyVotes || [],
-      topVotedDeclarations: (await supabase
-        .from('declarations')
-        .select('id, title, status, votes_count, created_at, citizen_id')
-        .is('deleted_at', null)
-        .order('votes_count', { ascending: false })
-        .limit(5)).data || []
+      topVotedDeclarations: (topVotedDeclarations || []).map(d => ({
+        ...d,
+        citizen_name: citizenMap[d.citizen_id] || 'Anonyme'
+      }))
     });
   } catch (err) {
     console.error('[President] Dashboard error:', err);
@@ -961,7 +1120,7 @@ exports.exportData = async (req, res) => {
       .from('declarations')
       .select('ref_citoyen, ref_service, title, category, status, delegation_id, department_id, created_at, assigned_at, resolved_at')
       .is('deleted_at', null)
-      
+
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -1010,6 +1169,138 @@ exports.updateDepartmentStatus = async (req, res) => {
     });
   } catch (err) {
     console.error('[President] Update department status error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── POST /api/president/departments ──────────── */
+exports.createDepartment = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { name_fr, name_ar, name_en, code, description } = req.body;
+
+    const { data: existing } = await supabase
+      .from('services')
+      .select('id')
+      .eq('code', code.toUpperCase().trim())
+      .maybeSingle();
+
+    if (existing) return res.status(409).json({ error: 'Ce code de département existe déjà.' });
+
+    const { data: dept, error } = await supabase
+      .from('services')
+      .insert({
+        name_fr: name_fr.trim(),
+        name_ar: name_ar?.trim() || null,
+        name_en: name_en?.trim() || null,
+        code: code.toUpperCase().trim(),
+        description: description?.trim() || null,
+        is_active: true,
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('[President] CreateDept error:', error.message);
+      return res.status(500).json({ error: 'Erreur lors de la création du département.' });
+    }
+
+    return res.status(201).json({ department: dept });
+  } catch (err) {
+    console.error('[President] CreateDept error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── PATCH /api/president/departments/:id ──────────── */
+exports.updateDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name_fr, name_ar, name_en, description } = req.body;
+
+    /* Build update payload — only include provided fields */
+    const updates = {};
+    if (name_fr     !== undefined) updates.name_fr     = name_fr.trim();
+    if (name_ar     !== undefined) updates.name_ar     = name_ar?.trim() || null;
+    if (name_en     !== undefined) updates.name_en     = name_en?.trim() || null;
+    if (description !== undefined) updates.description = description?.trim() || null;
+
+    if (Object.keys(updates).length === 0)
+      return res.status(400).json({ error: 'Aucune donnée à mettre à jour.' });
+
+    /* If name_fr changed, check uniqueness */
+    if (updates.name_fr) {
+      const { data: sameName } = await supabase
+        .from('services')
+        .select('id')
+        .eq('name_fr', updates.name_fr)
+        .maybeSingle();
+      if (sameName && sameName.id !== id)
+        return res.status(409).json({ error: 'Un service avec ce nom existe déjà.' });
+    }
+
+    const { data: dept, error } = await supabase
+      .from('services')
+      .update(updates)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('[President] UpdateDept error:', error.message);
+      return res.status(500).json({ error: 'Erreur lors de la mise à jour.' });
+    }
+
+    return res.status(200).json({ department: dept, success: true });
+  } catch (err) {
+    console.error('[President] UpdateDept error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── DELETE /api/president/departments/:id ──────────── */
+exports.deleteDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    /* Block deletion if active (non-resolved) declarations exist */
+    const { data: activeDecls } = await supabase
+      .from('declarations')
+      .select('id')
+      .eq('department_id', id)
+      .is('deleted_at', null)
+      .eq('is_deleted', false)
+      .not('status', 'in', '(resolue,cloturee,refusee_chef,refusee_agent)')
+      .limit(1)
+      .maybeSingle();
+
+    if (activeDecls)
+      return res.status(409).json({
+        error: 'Impossible de supprimer ce service : des déclarations actives lui sont encore assignées.',
+      });
+
+    /* Detach agents and chefs from this department before deleting */
+    await supabase
+      .from('users')
+      .update({ department_id: null })
+      .eq('department_id', id);
+
+    const { error } = await supabase
+      .from('services')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('[President] DeleteDept error:', error.message);
+      return res.status(500).json({ error: 'Erreur lors de la suppression.' });
+    }
+
+    console.log(`[President] Department ${id} deleted.`);
+    return res.status(200).json({ success: true, message: 'Service supprimé.' });
+  } catch (err) {
+    console.error('[President] DeleteDept error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
@@ -1064,7 +1355,7 @@ exports.listComments = async (req, res) => {
       .select('id')
       .eq('id', id)
       .is('deleted_at', null)
-      
+
       .single();
     if (!decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
 
@@ -1119,7 +1410,7 @@ exports.addComment = async (req, res) => {
       .select('id')
       .eq('id', id)
       .is('deleted_at', null)
-      
+
       .single();
     if (!decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
 
@@ -1127,9 +1418,9 @@ exports.addComment = async (req, res) => {
       .from('internal_comments')
       .insert({
         declaration_id: id,
-        user_id:        req.user.id,
-        content:        content.trim(),
-        channel:        channel
+        user_id: req.user.id,
+        content: content.trim(),
+        channel: channel
       })
       .select('*')
       .single();
@@ -1162,8 +1453,8 @@ exports.respondToProposition = async (req, res) => {
 
     const { data, error } = await supabase
       .from('propositions')
-      .update({ 
-        status, 
+      .update({
+        status,
         president_response,
         updated_at: new Date().toISOString()
       })

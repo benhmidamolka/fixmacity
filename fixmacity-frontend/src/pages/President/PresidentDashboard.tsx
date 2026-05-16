@@ -1,324 +1,639 @@
 // src/pages/president/PresidentDashboard.tsx
-import React, { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import {
-  FileText, CheckCircle2, TrendingUp, 
-  MapPin, AlertTriangle, Activity,
-  RefreshCw, Flame, ThumbsUp, Star,
-  ShieldAlert, ShieldCheck, Filter, 
-  School, Hospital, ChevronDown, Users
+  FileText, CheckCircle2, TrendingUp, ArrowRight, AlertTriangle, Activity,
+  RefreshCw, Flame, ThumbsUp, Star, Users, Inbox, Vote, BarChart3,
+  ShieldAlert, Filter, ChevronDown, Clock, MapPin
 } from 'lucide-react'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
-  ResponsiveContainer, Legend, Line, ComposedChart
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Line, ComposedChart
 } from 'recharts'
 import PresidentLayout from '../../layouts/PresidentLayout'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const tok = () => localStorage.getItem('fmc_token') || ''
 
-// ── Components ───────────────────────────────────────────────────────────────
+type ByStatus = Record<string, number>
 
-const StatCard = ({ label, value, trend, icon: Icon, color }: any) => (
-  <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200/60 shadow-sm relative overflow-hidden group hover:border-blue-400/50 transition-all duration-500">
-    <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-bl-[3rem] -mr-8 -mt-8 group-hover:bg-blue-50 transition-colors" />
-    <div className="relative">
-      <div className="flex items-center justify-between mb-6">
-        <div className="p-4 rounded-2xl flex items-center justify-center shadow-sm" style={{ backgroundColor: `${color}10`, color: color }}>
-          <Icon size={24} />
-        </div>
-        {trend && (
-          <span className="flex items-center gap-1 text-[10px] font-black text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg">
-            <TrendingUp size={12} /> {trend}
-          </span>
-        )}
-      </div>
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{label}</p>
-      <h3 className="text-4xl font-black text-[#0A1628] tracking-tight">{value}</h3>
-    </div>
-  </div>
-)
+interface DeptRow {
+  name: string
+  code: string
+  total: number
+  resolved: number
+  perf?: number
+  highSatisfactionCount?: number
+}
 
-const CriticalAlert = ({ decl, onClick }: any) => (
-  <div className="flex items-center justify-between p-5 rounded-3xl bg-slate-50/50 border border-slate-100 hover:bg-white hover:shadow-xl hover:border-blue-100 transition-all group">
-    <div className="flex items-center gap-4 min-w-0">
-      <div className="relative">
-        <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 group-hover:scale-110 transition-transform">
-          <AlertTriangle size={24} />
+interface DashboardPayload {
+  success?: boolean
+  error?: string
+  total?: number
+  byStatus?: ByStatus
+  byDepartment?: DeptRow[]
+  trendData?: { name: string; reports: number; resolved: number }[]
+  stats?: { criticalCount?: number; resolvedCount?: number; highSatisfactionCount?: number }
+  recentDeclarations?: any[]
+  crucialCases?: any[]
+  topVotedDeclarations?: any[]
+  moneyVotes?: any[]
+  totalUsers?: number
+  avgRating?: number
+}
+
+const PIPELINE_STEPS: { key: keyof ByStatus | string; label: string; color: string }[] = [
+  { key: 'soumise', label: 'Soumise', color: '#F59E0B' },
+  { key: 'assignee_chef', label: 'Chef', color: '#F97316' },
+  { key: 'assignee_agent', label: 'Agent', color: '#1557FF' },
+  { key: 'en_cours', label: 'En cours', color: '#6366F1' },
+  { key: 'resolue', label: 'Résolue', color: '#10B981' },
+  { key: 'cloturee', label: 'Clôturée', color: '#64748B' },
+  { key: 'refusee_chef', label: 'Ref. chef', color: '#EF4444' },
+  { key: 'refusee_agent', label: 'Ref. agent', color: '#BE123C' },
+]
+
+const fmtShort = (iso?: string) =>
+  iso
+    ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : '—'
+
+const STATUS_LABEL: Record<string, string> = {
+  soumise: 'Soumise',
+  assignee_chef: 'Assignée chef',
+  assignee_agent: 'Assignée agent',
+  en_cours: 'En cours',
+  resolue: 'Résolue',
+  cloturee: 'Clôturée',
+  refusee_chef: 'Refusée chef',
+  refusee_agent: 'Refusée agent',
+}
+
+function MetricCard({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  accent,
+}: {
+  label: string
+  value: string | number
+  hint?: string
+  icon: typeof FileText
+  accent: string
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm transition hover:border-slate-300 hover:shadow-md">
+      <div
+        className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-[0.07]"
+        style={{ background: accent }}
+      />
+      <div className="relative flex items-start justify-between gap-4">
+        <div
+          className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl"
+          style={{ backgroundColor: `${accent}14`, color: accent }}
+        >
+          <Icon className="h-6 w-6" strokeWidth={2} />
         </div>
-        {decl.is_sensitive && (
-          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#1557FF] border-2 border-white flex items-center justify-center text-white">
-            {decl.sensitive_type === 'school' ? <School size={10}/> : <Hospital size={10}/>}
-          </div>
-        )}
+        {hint ? (
+          <span className="max-w-[45%] text-right text-[9px] font-bold uppercase tracking-wider text-slate-400">{hint}</span>
+        ) : null}
       </div>
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <h4 className="text-sm font-black text-[#0A1628] truncate">{decl.title}</h4>
-          <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md bg-rose-100 text-rose-600 uppercase">Critique</span>
-        </div>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{decl.arrondissement_name} • {decl.category}</p>
+      <p className="relative mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{label}</p>
+      <p className="relative mt-1 text-3xl font-black tracking-tight text-[#0A1628]">{value}</p>
+    </div>
+  )
+}
+
+function PipelineBar({ byStatus, total }: { byStatus: ByStatus; total: number }) {
+  const sum = PIPELINE_STEPS.reduce((s, { key }) => s + (Number(byStatus[key as string]) || 0), 0)
+  const base = total > 0 ? total : sum
+  if (!base) {
+    return <p className="py-8 text-center text-xs font-semibold text-slate-400">Aucun signalement sur cette période.</p>
+  }
+  return (
+    <div className="space-y-3">
+      <div className="flex h-4 w-full overflow-hidden rounded-full bg-slate-100">
+        {PIPELINE_STEPS.map(({ key, color }) => {
+          const n = Number(byStatus[key as string]) || 0
+          if (!n) return null
+          const pct = Math.max(0.35, (n / base) * 100)
+          return (
+            <div
+              key={key}
+              className="h-full min-w-[3px] transition-all"
+              style={{ width: `${pct}%`, backgroundColor: color }}
+              title={`${key}: ${n}`}
+            />
+          )
+        })}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-2">
+        {PIPELINE_STEPS.map(({ key, label, color }) => {
+          const n = Number(byStatus[key as string]) || 0
+          if (!n) return null
+          return (
+            <div key={key} className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600">
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+              {label} <span className="text-slate-400">({n})</span>
+            </div>
+          )
+        })}
       </div>
     </div>
-    <button 
-      onClick={onClick}
-      className="px-6 py-2.5 rounded-xl bg-white border border-slate-200 text-[10px] font-black text-[#1557FF] hover:bg-[#1557FF] hover:text-white hover:border-[#1557FF] transition-all uppercase tracking-widest"
-    >
-      Voir détails
-    </button>
-  </div>
-)
+  )
+}
 
 const PresidentDashboard: React.FC = () => {
   const navigate = useNavigate()
-  const user = JSON.parse(localStorage.getItem('fmc_user') || '{}')
-  const [data, setData] = useState<any>(null)
+  const user = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('fmc_user') || '{}') as { first_name?: string; last_name?: string }
+    } catch {
+      return {}
+    }
+  }, [])
+
+  const [data, setData] = useState<DashboardPayload | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedDept, setSelectedDept] = useState<string>('all')
-  const [departments, setDepts] = useState<any[]>([])
+  const [selectedDept, setSelectedDept] = useState('all')
+  const [period, setPeriod] = useState<'all' | '7' | '30' | '90'>('30')
+  const [departments, setDepts] = useState<{ id: string; name_fr?: string; name?: string }[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
+    setLoadError(null)
     try {
       const params = new URLSearchParams()
-      if (selectedDept !== 'all') params.append('department_id', selectedDept)
-      
+      if (selectedDept !== 'all') params.set('department_id', selectedDept)
+      if (period !== 'all') params.set('period', period)
+
       const res = await fetch(`${API}/president/dashboard?${params}`, {
-        headers: { Authorization: `Bearer ${tok()}` }
+        headers: { Authorization: `Bearer ${tok()}` },
       })
-      const j = await res.json()
+      const j = (await res.json()) as DashboardPayload
+      if (!res.ok) {
+        setLoadError((j as { error?: string }).error || `Erreur ${res.status}`)
+        setData(null)
+        return
+      }
       setData(j)
-    } catch (e) {
-      console.error(e)
+    } catch {
+      setLoadError('Réseau indisponible.')
+      setData(null)
     } finally {
       setLoading(false)
     }
-  }, [selectedDept])
+  }, [selectedDept, period])
 
   useEffect(() => {
     fetch(`${API}/president/departments`, { headers: { Authorization: `Bearer ${tok()}` } })
       .then(r => r.json())
       .then(j => setDepts(j.departments || []))
-      .catch(() => {})
+      .catch(() => setDepts([]))
+  }, [])
+
+  useEffect(() => {
     load()
   }, [load])
 
-  // Process data for charts
-  const trendData = (data?.trendData || []).map((d: any) => ({
-    name: d.name,
-    Soumis: d.reports || 0,
-    Résolus: d.resolved || 0
-  }))
-
-  const perfData = (data?.byDepartment || []).map((d: any) => ({
-    name: d.code,
-    Total: d.total || 0,
-    Résolus: d.resolved || 0,
-    Satisfaits: d.highSatisfactionCount || 0
-  }))
-
-  const topCritical = (data?.crucialCases || []).slice(0, 5)
-  const sensitiveCases = (data?.crucialCases || []).filter((c: any) => c.is_sensitive).slice(0, 3)
-  const topVoted = (data?.topVotedDeclarations || []).slice(0, 5)
-
-  if (loading && !data) return (
-    <PresidentLayout title="Dashboard">
-      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-        <div className="w-12 h-12 border-[3px] border-slate-100 border-t-[#1557FF] rounded-full animate-spin" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Initialisation de l'Exécutif...</p>
-      </div>
-    </PresidentLayout>
+  const byStatus = data?.byStatus || {}
+  const trendChart = useMemo(
+    () =>
+      (data?.trendData || []).map(d => ({
+        name: d.name,
+        Soumis: d.reports || 0,
+        Résolus: d.resolved || 0,
+      })),
+    [data?.trendData]
   )
 
+  const perfChart = useMemo(
+    () =>
+      (data?.byDepartment || [])
+        .filter(d => (d.total || 0) > 0)
+        .slice(0, 8)
+        .map(d => ({
+          name: d.code || d.name?.slice(0, 3) || '—',
+          Résolus: d.resolved || 0,
+          Satisfaits: d.highSatisfactionCount ?? 0,
+        })),
+    [data?.byDepartment]
+  )
+
+  const inProgress =
+    (byStatus.assignee_chef || 0) + (byStatus.assignee_agent || 0) + (byStatus.en_cours || 0)
+  const total = data?.total ?? 0
+  const resolved = (byStatus.resolue || 0) + (byStatus.cloturee || 0)
+  const greet = user.first_name?.trim() || 'Président'
+
+  if (loading && !data) {
+    return (
+      <PresidentLayout title="Tableau de bord">
+        <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
+          <div className="h-12 w-12 animate-spin rounded-full border-[3px] border-slate-100 border-t-[#1557FF]" />
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Chargement du tableau de bord…</p>
+        </div>
+      </PresidentLayout>
+    )
+  }
+
   return (
-    <PresidentLayout title="Tableau de Bord">
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-12">
-        
-        {/* Top Section */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8">
+    <PresidentLayout title="Tableau de bord">
+      <div className="mx-auto max-w-[1600px] space-y-8 pb-12 animate-in fade-in duration-500">
+        {/* Header */}
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 className="text-4xl font-black text-[#0A1628] tracking-tight mb-2">Bonjour, {user.first_name}</h1>
-            <p className="text-sm font-medium text-slate-400 italic">Voici l'état actuel de la performance citoyenne et technique.</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="relative group">
-              <Filter className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 pointer-events-none" />
-              <select 
-                value={selectedDept} 
-                onChange={(e) => setSelectedDept(e.target.value)}
-                className="appearance-none bg-white border border-slate-200/60 rounded-2xl pl-16 pr-12 h-16 text-[10px] font-black uppercase tracking-widest text-[#0A1628] shadow-sm focus:ring-4 focus:ring-blue-500/5 focus:border-[#1557FF] outline-none transition-all cursor-pointer"
-              >
-                <option value="all">Tous les Départements</option>
-                {departments.map(d => <option key={d.id} value={d.id}>{d.name_fr || d.name}</option>)}
-              </select>
-              <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 pointer-events-none" />
+            <h1 className="text-3xl font-black tracking-tight text-[#0A1628] md:text-4xl">Bonjour, {greet}</h1>
+            <p className="mt-2 max-w-xl text-sm text-slate-500">
+              Vue consolidée des signalements, du traitement et de l&apos;engagement citoyen. Filtrez par période et par
+              département.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {(
+                [
+                  ['all', 'Tout'],
+                  ['7', '7 j.'],
+                  ['30', '30 j.'],
+                  ['90', '90 j.'],
+                ] as const
+              ).map(([k, lab]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setPeriod(k)}
+                  className={`rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition ${
+                    period === k
+                      ? 'bg-[#0A1628] text-white shadow-lg'
+                      : 'border border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                  }`}
+                >
+                  {lab}
+                </button>
+              ))}
             </div>
-            <button 
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative group">
+              <Filter className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <select
+                value={selectedDept}
+                onChange={e => setSelectedDept(e.target.value)}
+                className="h-14 w-full min-w-[220px] appearance-none rounded-2xl border border-slate-200 bg-white pl-11 pr-10 text-[10px] font-black uppercase tracking-widest text-[#0A1628] shadow-sm outline-none focus:border-[#1557FF] sm:w-auto"
+              >
+                <option value="all">Tous les départements</option>
+                {departments.map(d => (
+                  <option key={d.id} value={d.id}>
+                    {d.name_fr || d.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            </div>
+            <button
+              type="button"
               onClick={() => load()}
-              className="w-16 h-16 bg-white border border-slate-200/60 rounded-2xl flex items-center justify-center text-slate-400 hover:text-[#1557FF] hover:border-[#1557FF]/30 transition-all shadow-sm"
+              className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-[#1557FF]/40 hover:text-[#1557FF]"
+              aria-label="Actualiser"
             >
-              <RefreshCw size={24} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* KPI Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          <StatCard label="Flux Citoyen" value={data?.total || 0} trend="+5.2%" icon={FileText} color="#1557FF" />
-          <StatCard label="Urgences AI" value={data?.stats?.criticalCount || 0} icon={Flame} color="#EF4444" />
-          <StatCard label="Interventions" value={data?.stats?.resolvedCount || 0} trend="+12%" icon={CheckCircle2} color="#10B981" />
-          <StatCard label="Approbation > 3★" value={data?.stats?.highSatisfactionCount || 0} icon={Star} color="#F59E0B" />
-        </div>
+        {loadError ? (
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-800">
+            <span className="font-semibold">{loadError}</span>
+            <button
+              type="button"
+              onClick={() => load()}
+              className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-black uppercase tracking-widest text-white hover:bg-rose-700"
+            >
+              Réessayer
+            </button>
+          </div>
+        ) : null}
 
-        {/* Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Main Trend Chart */}
-          <div className="lg:col-span-2 bg-white rounded-[3rem] border border-slate-200/60 p-10 shadow-sm">
-            <div className="flex items-center justify-between mb-10">
-              <div>
-                <h3 className="text-xl font-black text-[#0A1628] tracking-tight">Signalements: Soumis vs Résolus</h3>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Analyse comparative mensuelle par département</p>
+        {/* Quick links */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Link
+            to="/president/incoming"
+            className="group flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm transition hover:border-[#1557FF]/40 hover:shadow-md"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#1557FF]">
+                <Inbox className="h-5 w-5" />
               </div>
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
-                   <div className="w-2.5 h-2.5 rounded-full bg-slate-100" />
-                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Soumis</span>
-                </div>
-                <div className="flex items-center gap-2">
-                   <div className="w-2.5 h-2.5 rounded-full bg-[#1557FF]" />
-                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Résolus</span>
-                </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">À affecter</p>
+                <p className="text-sm font-black text-[#0A1628]">Flux entrant</p>
               </div>
             </div>
-            <div className="h-[350px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={trendData} barGap={12}>
+            <ArrowRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#1557FF]" />
+          </Link>
+          <Link
+            to="/president/declarations"
+            className="group flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm transition hover:border-[#1557FF]/40 hover:shadow-md"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-[#0A1628]">
+                <FileText className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Opérations</p>
+                <p className="text-sm font-black text-[#0A1628]">Signalements</p>
+              </div>
+            </div>
+            <ArrowRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#1557FF]" />
+          </Link>
+          <Link
+            to="/president/propositions"
+            className="group flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm transition hover:border-[#1557FF]/40 hover:shadow-md"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                <Vote className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Consultations</p>
+                <p className="text-sm font-black text-[#0A1628]">Propositions</p>
+              </div>
+            </div>
+            <ArrowRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#1557FF]" />
+          </Link>
+        </div>
+
+        {/* KPI grid */}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard label="Signalements (filtre)" value={total} hint="Volume total" icon={BarChart3} accent="#1557FF" />
+          <MetricCard
+            label="En traitement"
+            value={inProgress}
+            hint="Chef + agent + en cours"
+            icon={Activity}
+            accent="#6366F1"
+          />
+          <MetricCard label="Clôturés" value={resolved} hint="Résolues + clôturées" icon={CheckCircle2} accent="#10B981" />
+          <MetricCard
+            label="Priorité haute"
+            value={data?.stats?.criticalCount ?? 0}
+            hint="File active"
+            icon={Flame}
+            accent="#EF4444"
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <MetricCard
+            label="Satisfaction > 3★"
+            value={data?.stats?.highSatisfactionCount ?? 0}
+            hint="Déclarations notées"
+            icon={Star}
+            accent="#F59E0B"
+          />
+          <MetricCard
+            label="Note moyenne"
+            value={data?.avgRating != null ? `${Number(data.avgRating).toFixed(1)} / 5` : '—'}
+            hint="Tous avis"
+            icon={ThumbsUp}
+            accent="#8B5CF6"
+          />
+          <MetricCard
+            label="Comptes plateforme"
+            value={data?.totalUsers ?? 0}
+            hint="Utilisateurs"
+            icon={Users}
+            accent="#0891B2"
+          />
+        </div>
+
+        {/* Pipeline */}
+        <div className="rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm md:p-8">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-black text-[#0A1628]">Répartition par statut</h2>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pipeline des déclarations</p>
+            </div>
+            {total > 0 ? (
+              <span className="text-xs font-bold text-slate-500">
+                Taux de clôture :{' '}
+                <span className="font-black text-emerald-600">{Math.round((resolved / total) * 100)}%</span>
+              </span>
+            ) : null}
+          </div>
+          <PipelineBar byStatus={byStatus} total={total} />
+        </div>
+
+        {/* Charts */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm md:p-8 lg:col-span-2">
+            <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-black text-[#0A1628]">Tendance mensuelle</h2>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  Créations vs résolutions (6 mois)
+                </p>
+              </div>
+              <div className="flex gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <span className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-slate-200" /> Soumis
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#1557FF]" /> Résolus
+                </span>
+              </div>
+            </div>
+            <div className="h-[300px] w-full md:h-[340px]">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <BarChart data={trendChart} barGap={10}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#CBD5E1' }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#CBD5E1' }} />
-                  <Tooltip cursor={{ fill: '#F8FAFC' }} contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.05)', padding: '20px' }} />
-                  <Bar dataKey="Soumis" fill="#F1F5F9" radius={[8, 8, 0, 0]} barSize={20} />
-                  <Bar dataKey="Résolus" fill="#1557FF" radius={[8, 8, 0, 0]} barSize={20} />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fontWeight: 800, fill: '#94A3B8' }}
+                  />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94A3B8' }} />
+                  <Tooltip
+                    cursor={{ fill: '#F8FAFC' }}
+                    contentStyle={{ borderRadius: 16, border: 'none', boxShadow: '0 12px 40px rgba(0,0,0,0.08)' }}
+                  />
+                  <Bar dataKey="Soumis" fill="#E2E8F0" radius={[6, 6, 0, 0]} barSize={18} />
+                  <Bar dataKey="Résolus" fill="#1557FF" radius={[6, 6, 0, 0]} barSize={18} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Performance Curve */}
-          <div className="bg-white rounded-[3rem] border border-slate-200/60 p-10 shadow-sm flex flex-col">
-            <h3 className="text-xl font-black text-[#0A1628] tracking-tight mb-2">Performance Citoyenne</h3>
-            <p className="text-[10px] font-black text-slate-400 mb-10 uppercase tracking-widest italic">Résolus vs Satisfaction {'>'} 3★</p>
-            <div className="h-[400px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={perfData}>
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#CBD5E1' }} />
-                  <YAxis hide />
-                  <Tooltip contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.05)' }} />
-                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em' }} />
-                  <Line type="monotone" name="Résolus" dataKey="Résolus" stroke="#1557FF" strokeWidth={4} dot={{ r: 4, strokeWidth: 2, fill: 'white' }} />
-                  <Line type="monotone" name="Satisfaits" dataKey="Satisfaits" stroke="#F59E0B" strokeWidth={4} strokeDasharray="8 8" dot={{ r: 4, strokeWidth: 2, fill: 'white' }} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-8 pt-8 border-t border-slate-50 space-y-3">
-               <div className="flex items-center gap-2 mb-2">
-                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Guide des Départements</span>
-               </div>
-               <div className="grid grid-cols-2 gap-4">
-                 <div className="text-[9px] font-bold text-slate-400">EP: Éclairage Public</div>
-                 <div className="text-[9px] font-bold text-slate-400">VR: Voirie & Routes</div>
-                 <div className="text-[9px] font-bold text-slate-400">PD: Propreté & Déchets</div>
-                 <div className="text-[9px] font-bold text-slate-400">ES: Espaces Verts</div>
-               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Modules */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
-          {/* Signalements Zones Critiques */}
-          <div className="lg:col-span-4 bg-white rounded-[3rem] border border-slate-200/60 p-10 shadow-sm">
-            <div className="flex items-center justify-between mb-10">
-              <h3 className="text-xl font-black text-[#0A1628] tracking-tight">Zones Critiques</h3>
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#1557FF]">
-                <MapPin size={20} />
-              </div>
-            </div>
-            <div className="space-y-6">
-              {sensitiveCases.length > 0 ? sensitiveCases.map((c: any) => (
-                <div key={c.id} className="p-6 rounded-[2rem] bg-slate-50 border border-slate-100 flex items-center gap-5 group hover:bg-white hover:shadow-xl transition-all cursor-pointer" onClick={() => navigate('/president/declarations')}>
-                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg ${c.sensitive_type === 'school' ? 'bg-indigo-500' : 'bg-rose-500'}`}>
-                      {c.sensitive_type === 'school' ? <School size={24}/> : <Hospital size={24}/>}
-                   </div>
-                   <div className="min-w-0">
-                      <p className="text-[10px] font-black text-[#1557FF] uppercase tracking-widest mb-1">{c.arrondissement_name || 'Sousse'}</p>
-                      <h4 className="text-sm font-black text-[#0A1628] truncate">{c.title}</h4>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">{c.sensitive_type === 'school' ? 'Proximité École' : 'Proximité Hôpital'}</p>
-                   </div>
+          <div className="rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm md:p-8">
+            <h2 className="text-lg font-black text-[#0A1628]">Performance par département</h2>
+            <p className="mb-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              Résolus vs avis &gt; 3★
+            </p>
+            <div className="h-[300px] w-full md:h-[340px]">
+              {perfChart.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-xs font-semibold text-slate-400">
+                  Pas encore de données filtrées.
                 </div>
-              )) : (
-                <div className="flex flex-col items-center justify-center h-40 text-slate-200 italic">
-                  <ShieldCheck size={48} className="mb-4 opacity-20" />
-                  <p className="text-xs font-bold uppercase tracking-widest">Aucune alerte zone</p>
-                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                  <ComposedChart data={perfChart}>
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fontWeight: 800, fill: '#94A3B8' }}
+                    />
+                    <YAxis hide />
+                    <Tooltip contentStyle={{ borderRadius: 16, border: 'none', boxShadow: '0 12px 40px rgba(0,0,0,0.08)' }} />
+                    <Line type="monotone" name="Résolus" dataKey="Résolus" stroke="#1557FF" strokeWidth={3} dot={{ r: 3 }} />
+                    <Line
+                      type="monotone"
+                      name="Satisfaits"
+                      dataKey="Satisfaits"
+                      stroke="#F59E0B"
+                      strokeWidth={3}
+                      strokeDasharray="6 4"
+                      dot={{ r: 3 }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
               )}
             </div>
           </div>
+        </div>
 
-          {/* Plébiscites Citoyens (Votes) */}
-          <div className="lg:col-span-4 bg-white rounded-[3rem] border border-slate-200/60 p-10 shadow-sm">
-            <div className="flex items-center justify-between mb-10">
-              <h3 className="text-xl font-black text-[#0A1628] tracking-tight">Plébiscites Citoyens</h3>
-              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
-                <ThumbsUp size={20} />
-              </div>
+        {/* Lists */}
+        <div className="grid gap-4 lg:grid-cols-12">
+          <div className="rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm md:p-8 lg:col-span-4">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-base font-black text-[#0A1628]">Activité récente</h2>
+              <Clock className="h-5 w-5 text-slate-300" />
             </div>
-            <div className="space-y-8">
-              {topVoted.map((d: any) => (
-                <div key={d.id} className="flex items-center justify-between group cursor-pointer" onClick={() => navigate('/president/declarations')}>
-                   <div className="flex items-center gap-5 min-w-0">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-[#1557FF] group-hover:text-white transition-all">
-                        <Users size={20} />
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="text-sm font-black text-[#0A1628] truncate">{d.title}</h4>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{d.category}</p>
-                      </div>
-                   </div>
-                   <div className="text-right">
-                      <p className="text-lg font-black text-[#1557FF]">+{d.votes_count}</p>
-                      <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Votes</p>
-                   </div>
+            <ul className="space-y-3">
+              {(data?.recentDeclarations || []).length === 0 ? (
+                <li className="py-8 text-center text-xs text-slate-400">Aucune entrée.</li>
+              ) : (
+                (data?.recentDeclarations || []).map((d: any) => (
+                  <li
+                    key={d.id}
+                    className="cursor-pointer rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition hover:border-[#1557FF]/30 hover:bg-white"
+                    onClick={() => navigate('/president/declarations')}
+                  >
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#1557FF]">{d.ref_citoyen}</p>
+                    <p className="mt-1 line-clamp-2 text-sm font-bold text-[#0A1628]">
+                      {(d.title || d.description || 'Signalement').slice(0, 80)}
+                    </p>
+                    <p className="mt-2 text-[10px] font-semibold text-slate-400">
+                      {d.citizen_name} · {STATUS_LABEL[d.status] || d.status} · {fmtShort(d.created_at)}
+                    </p>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+
+          <div className="rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm md:p-8 lg:col-span-4">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-base font-black text-[#0A1628]">File d&apos;attention</h2>
+              <ShieldAlert className="h-5 w-5 text-rose-400" />
+            </div>
+            <ul className="space-y-3">
+              {(data?.crucialCases || []).length === 0 ? (
+                <li className="flex flex-col items-center py-10 text-center text-xs text-slate-400">
+                  <CheckCircle2 className="mb-2 h-8 w-8 text-emerald-200" />
+                  Aucun dossier ouvert à traiter dans cette vue.
+                </li>
+              ) : (
+                (data?.crucialCases || []).map((d: any) => (
+                  <li
+                    key={d.id}
+                    className="cursor-pointer rounded-2xl border border-rose-100/80 bg-rose-50/30 p-4 transition hover:border-rose-200 hover:bg-white"
+                    onClick={() => navigate('/president/declarations')}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-black text-[#0A1628] line-clamp-2">{d.title || d.description || '—'}</p>
+                      {d.priority === 'haute' ? (
+                        <AlertTriangle className="h-4 w-4 flex-shrink-0 text-rose-500" />
+                      ) : null}
+                    </div>
+                    <p className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-500">
+                      <MapPin className="h-3 w-3" />
+                      {d.arrondissement_name || '—'}
+                      {d.category ? ` · ${d.category}` : ''}
+                    </p>
+                    <p className="mt-1 text-[10px] text-slate-400">
+                      Depuis {fmtShort(d.created_at)} · {d.citizen_name}
+                    </p>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+
+          <div className="rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm md:p-8 lg:col-span-4">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-base font-black text-[#0A1628]">Votes citoyens</h2>
+              <TrendingUp className="h-5 w-5 text-amber-500" />
+            </div>
+            <ul className="space-y-4">
+              {(data?.topVotedDeclarations || []).length === 0 ? (
+                <li className="py-8 text-center text-xs text-slate-400">Aucun vote enregistré.</li>
+              ) : (
+                (data?.topVotedDeclarations || []).map((d: any) => (
+                  <li
+                    key={d.id}
+                    className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-slate-100 p-3 transition hover:border-[#1557FF]/30"
+                    onClick={() => navigate('/president/declarations')}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-[#0A1628]">{d.title}</p>
+                      <p className="text-[10px] text-slate-400">{d.category || '—'}</p>
+                    </div>
+                    <span className="flex-shrink-0 text-lg font-black text-[#1557FF]">
+                      +{d.votes_count ?? 0}
+                    </span>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        </div>
+
+        {/* Propositions */}
+        {(data?.moneyVotes || []).length > 0 ? (
+          <div className="rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm md:p-8">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-black text-[#0A1628]">Propositions les plus soutenues</h2>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Consultations municipales</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/president/propositions')}
+                className="text-[10px] font-black uppercase tracking-widest text-[#1557FF] hover:underline"
+              >
+                Voir tout
+              </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {(data?.moneyVotes || []).map((p: any) => (
+                <div
+                  key={p.id}
+                  className="cursor-pointer rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition hover:border-violet-200 hover:bg-violet-50/30"
+                  onClick={() => navigate('/president/propositions')}
+                >
+                  <p className="line-clamp-2 text-xs font-black text-[#0A1628]">{p.title}</p>
+                  <p className="mt-3 text-[10px] font-bold text-slate-400">
+                    Pour : <span className="text-violet-600">{p.votes_pour ?? 0}</span>
+                  </p>
                 </div>
               ))}
             </div>
-            <button 
-              onClick={() => navigate('/president/declarations')}
-              className="w-full mt-10 h-16 rounded-2xl bg-slate-50 text-[10px] font-black text-slate-400 hover:bg-[#1557FF] hover:text-white transition-all uppercase tracking-[0.2em]"
-            >
-              Voir tous les votes
-            </button>
           </div>
-
-          {/* Top 5 Signalements Critiques */}
-          <div className="lg:col-span-4 bg-white rounded-[3rem] border border-slate-200/60 p-10 shadow-sm">
-            <div className="flex items-center justify-between mb-10">
-              <h3 className="text-xl font-black text-[#0A1628] tracking-tight">Top 5 Alertes Critiques</h3>
-              <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500">
-                <ShieldAlert size={20} />
-              </div>
-            </div>
-            <div className="space-y-4">
-              {topCritical.map((d: any) => (
-                <CriticalAlert key={d.id} decl={d} onClick={() => navigate('/president/declarations')} />
-              ))}
-            </div>
-          </div>
-
-        </div>
-
+        ) : null}
       </div>
     </PresidentLayout>
   )

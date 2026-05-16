@@ -1,386 +1,903 @@
-// src/pages/president/PresidentServices.tsx
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import PresidentLayout from '../../layouts/PresidentLayout'
-import { 
-  Plus, MoreVertical, X, Users, FileText, TrendingUp, 
-  AlertTriangle, ArrowRight, Activity, Zap, CheckCircle2, 
-  LayoutGrid, List, BarChart3, Clock, ArrowUpRight,
-  Shield, Target, Award, Briefcase, Calendar
+import {
+  Plus, X, Search, Pencil, Trash2, Eye, EyeOff, AlertTriangle,
+  Check, Loader2, ChevronRight, Building2, Users, CheckCircle,
+  XCircle, Clock, TrendingUp, BarChart2, Shield, User
 } from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
-const token = () => localStorage.getItem('fmc_token')
+const tok = () => localStorage.getItem('fmc_token')
 
-const DEPT_ICONS: Record<string, string> = {
+// ─── Department icons & colors ────────────────────────────────────────────────
+const ICONS: Record<string, string> = {
   VR: '🛣️', EP: '💡', PD: '🗑️', EV: '🌿',
-  EA: '💧', ST: '🚦', BP: '🏛️', SG: '💡'
+  EA: '💧', ST: '🚦', BP: '🏛️', SG: '💬',
 }
+const getIcon = (code: string) => ICONS[code] ?? '🏢'
 
-const DEPT_COLORS: Record<string, string> = {
-  VR: '#1557FF', EP: '#F59E0B', PD: '#10B981',
+const COLORS: Record<string, string> = {
+  VR: '#3B82F6', EP: '#F59E0B', PD: '#10B981',
   EV: '#22C55E', EA: '#6366F1', ST: '#F97316',
-  BP: '#8B5CF6', SG: '#EC4899'
+  BP: '#8B5CF6', SG: '#EC4899',
+}
+const getColor = (code: string) => COLORS[code] ?? '#1557FF'
+
+// palette for custom departments
+const EXTRA_COLORS = ['#06B6D4','#84CC16','#F43F5E','#A855F7','#0EA5E9']
+const dynamicColor = (code: string, id: string) => {
+  if (COLORS[code]) return COLORS[code]
+  return EXTRA_COLORS[id.charCodeAt(0) % EXTRA_COLORS.length]
 }
 
-interface Dept {
-  id: string; name_fr: string; code: string; is_active: boolean
-  chef: string; total: number; in_progress: number; resolved: number
-  agents: number; rate: number; overloaded?: boolean
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface Agent {
+  id: string
+  first_name: string
+  last_name: string
+  email: string
+  is_active: boolean
+  total_tasks?: number
+  resolved_tasks?: number
 }
 
-// ── UI Components ─────────────────────────────────────────────────────────────
+interface Department {
+  id: string
+  name_fr: string
+  name_ar: string | null
+  name_en: string | null
+  code: string
+  description: string | null
+  is_active: boolean
+  chef_name: string | null
+  chef_id:   string | null
+  total:     number   // total declarations
+  accepted:  number   // accepted (not soumise/refusee_chef)
+  resolved:  number   // resolue + cloturee
+  rejected:  number   // refusee_chef + refusee_agent
+  in_progress: number // en_cours
+  agents_count: number
+  created_at?: string
+}
 
-const KpiCard = ({ label, value, sub, color, icon: Icon, trend }: any) => (
-  <div className="group bg-white rounded-[2.5rem] p-8 border border-slate-200/60 hover:border-blue-400/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500 relative overflow-hidden">
-    <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50/50 rounded-bl-[5rem] -mr-10 -mt-10 group-hover:bg-blue-50/50 transition-colors duration-500" />
-    <div className="relative">
-      <div className="flex items-center justify-between mb-6">
-        <div className={`p-4 rounded-2xl ${color.bg} ${color.text} shadow-sm group-hover:scale-110 transition-transform duration-500`}>
-          <Icon className="w-6 h-6" />
-        </div>
-        {trend && (
-          <span className="flex items-center gap-1 text-[10px] font-black text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg">
-            <TrendingUp className="w-3 h-3" /> {trend}
-          </span>
-        )}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const apiFetch = (path: string, opts?: RequestInit) =>
+  fetch(`${API}${path}`, {
+    ...opts,
+    headers: {
+      Authorization: `Bearer ${tok()}`,
+      'Content-Type': 'application/json',
+      ...(opts?.headers ?? {}),
+    },
+  }).then(r => r.json())
+
+function pct(n: number, d: number) {
+  if (!d) return 0
+  return Math.round((n / d) * 100)
+}
+
+const initials = (name: string | null) => {
+  if (!name) return '?'
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+}
+
+// ─── Ring chart ───────────────────────────────────────────────────────────────
+const Ring: React.FC<{ value: number; color: string; size?: number; label?: string }> = ({
+  value, color, size = 64, label
+}) => {
+  const r = (size - 8) / 2
+  const circ = 2 * Math.PI * r
+  const dash = (Math.min(value, 100) / 100) * circ
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="flex-shrink-0">
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#F1F5F9" strokeWidth="6"/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="6"
+        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+        transform={`rotate(-90 ${size/2} ${size/2})`}
+        style={{ transition: 'stroke-dasharray .7s ease' }}/>
+      <text x="50%" y={label ? '44%' : '54%'} dominantBaseline="middle" textAnchor="middle"
+        fontSize="12" fontWeight="800" fill="#0A1628">{value}%</text>
+      {label && (
+        <text x="50%" y="62%" dominantBaseline="middle" textAnchor="middle"
+          fontSize="7" fontWeight="700" fill="#94A3B8">{label}</text>
+      )}
+    </svg>
+  )
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+const Toast: React.FC<{ msg: string; type: 'ok' | 'err'; onDone: () => void }> = ({ msg, type, onDone }) => {
+  useEffect(() => { const t = setTimeout(onDone, 3200); return () => clearTimeout(t) }, [onDone])
+  return (
+    <div className={`fixed bottom-6 right-6 z-[200] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl text-white text-sm font-bold ${type === 'ok' ? 'bg-emerald-500' : 'bg-red-500'}`}
+      style={{ animation: 'slideUp .3s ease forwards' }}>
+      {type === 'ok' ? <Check className="w-4 h-4 flex-shrink-0"/> : <AlertTriangle className="w-4 h-4 flex-shrink-0"/>}
+      {msg}
+    </div>
+  )
+}
+
+// ─── Confirm ──────────────────────────────────────────────────────────────────
+const Confirm: React.FC<{ msg: string; sub?: string; onYes: () => void; onNo: () => void; danger?: boolean }> = ({
+  msg, sub, onYes, onNo, danger = true
+}) => (
+  <div className="fixed inset-0 z-[180] flex items-center justify-center p-4">
+    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onNo}/>
+    <div className="relative bg-white rounded-2xl shadow-2xl p-7 w-full max-w-xs text-center">
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 ${danger ? 'bg-red-50' : 'bg-amber-50'}`}>
+        <AlertTriangle className={`w-6 h-6 ${danger ? 'text-red-500' : 'text-amber-500'}`}/>
       </div>
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{label}</p>
-      <h3 className="text-4xl font-black text-[#0A1628] tracking-tight">{value}</h3>
-      <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-widest">{sub}</p>
+      <p className="text-sm font-black text-[#0A1628] mb-1">{msg}</p>
+      {sub && <p className="text-xs text-slate-400 font-semibold mb-6">{sub}</p>}
+      {!sub && <div className="mb-6"/>}
+      <div className="flex gap-3">
+        <button onClick={onNo} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Annuler</button>
+        <button onClick={onYes} className={`flex-1 py-2.5 rounded-xl text-sm font-bold text-white ${danger ? 'bg-red-500 hover:bg-red-600' : 'bg-amber-500 hover:bg-amber-600'}`}>Confirmer</button>
+      </div>
     </div>
   </div>
 )
 
-const ServiceDonut: React.FC<{ rate: number; color: string }> = ({ rate, color }) => {
-  const data = [
-    { name: 'Résolu', value: rate },
-    { name: 'Restant', value: 100 - rate }
-  ]
-  
-  return (
-    <div className="w-20 h-20 relative group-hover:scale-110 transition-transform duration-500">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            innerRadius={28}
-            outerRadius={36}
-            paddingAngle={0}
-            dataKey="value"
-            stroke="none"
-            startAngle={90}
-            endAngle={-270}
-          >
-            <Cell fill={color} />
-            <Cell fill="#f1f5f9" />
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-[12px] font-black text-[#0A1628] leading-none">{rate}%</span>
-      </div>
-    </div>
-  )
+// ─── Service Form Modal (Create / Edit) ───────────────────────────────────────
+interface FormState {
+  name_fr: string; name_ar: string; name_en: string
+  code: string; description: string
 }
 
-const DetailModal: React.FC<{ dept: Dept; onClose: () => void }> = ({ dept, onClose }) => {
-  const color = DEPT_COLORS[dept.code] || '#1557FF'
-  const [decls, setDecls] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+const ICON_OPTIONS = [
+  { emoji: '🛣️', label: 'Route' }, { emoji: '💡', label: 'Éclairage' },
+  { emoji: '🗑️', label: 'Déchets' }, { emoji: '🌿', label: 'Espaces verts' },
+  { emoji: '💧', label: 'Réseau' }, { emoji: '🚦', label: 'Signalisation' },
+  { emoji: '🏛️', label: 'Admin' }, { emoji: '💬', label: 'Suggestions' },
+  { emoji: '🔧', label: 'Technique' }, { emoji: '🏗️', label: 'Construction' },
+  { emoji: '⚡', label: 'Énergie' }, { emoji: '🌊', label: 'Eau' },
+]
 
-  useEffect(() => {
-    const fetchDecls = async () => {
-      try {
-        const res = await fetch(`${API}/president/declarations?department_id=${dept.id}&limit=5`, {
-          headers: { Authorization: `Bearer ${token()}` }
+const ServiceModal: React.FC<{
+  dept: Department | null
+  onClose: () => void
+  onSaved: (msg: string) => void
+}> = ({ dept, onClose, onSaved }) => {
+  const isEdit = !!dept
+  const [form, setForm] = useState<FormState>({
+    name_fr:     dept?.name_fr     ?? '',
+    name_ar:     dept?.name_ar     ?? '',
+    name_en:     dept?.name_en     ?? '',
+    code:        dept?.code        ?? '',
+    description: dept?.description ?? '',
+  })
+  const [selectedIcon, setSelectedIcon] = useState(dept ? getIcon(dept.code) : '🏢')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr]       = useState('')
+
+  const set = (k: keyof FormState, v: string) => setForm(f => ({ ...f, [k]: v }))
+
+  const save = async () => {
+    if (!form.name_fr.trim()) { setErr('Le nom en français est obligatoire.'); return }
+    if (!form.code.trim())    { setErr('Le code est obligatoire.'); return }
+    if (form.code.length > 3) { setErr('Le code ne doit pas dépasser 3 caractères.'); return }
+    setSaving(true); setErr('')
+    try {
+      let res
+      if (isEdit) {
+        res = await apiFetch(`/president/departments/${dept!.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name_fr:     form.name_fr.trim(),
+            name_ar:     form.name_ar.trim() || null,
+            name_en:     form.name_en.trim() || null,
+            description: form.description.trim() || null,
+          }),
         })
-        if (res.ok) {
-          const data = await res.json()
-          setDecls(data.declarations || [])
-        }
-      } catch (e) {
-        console.error('Error loading depts decls', e)
-      } finally {
-        setLoading(false)
+      } else {
+        res = await apiFetch('/president/departments', {
+          method: 'POST',
+          body: JSON.stringify({
+            name_fr:     form.name_fr.trim(),
+            name_ar:     form.name_ar.trim() || null,
+            name_en:     form.name_en.trim() || null,
+            code:        form.code.toUpperCase().trim(),
+            description: form.description.trim() || null,
+          }),
+        })
       }
+      if (res.error || res.errors) {
+        setErr(res.error || res.errors?.[0]?.msg || 'Erreur')
+        setSaving(false)
+        return
+      }
+      onSaved(isEdit ? 'Service modifié avec succès.' : 'Service créé avec succès.')
+    } catch {
+      setErr('Erreur serveur.')
+      setSaving(false)
     }
-    fetchDecls()
-  }, [dept.id])
-
-  const statusConfig: Record<string, any> = {
-    'soumise': { label: 'SOUMISE', color: 'text-slate-400', bg: 'bg-slate-50' },
-    'assignee': { label: 'ASSIGNÉE', color: 'text-amber-500', bg: 'bg-amber-50' },
-    'en_cours': { label: 'EN COURS', color: 'text-blue-500', bg: 'bg-blue-50' },
-    'resolue': { label: 'RÉSOLUE', color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    'cloturee': { label: 'CLÔTURÉE', color: 'text-emerald-700', bg: 'bg-emerald-100' }
   }
 
+  const inputCls = "w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 outline-none focus:border-[#1557FF] focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+
+  const Field: React.FC<{ label: string; req?: boolean; children: React.ReactNode }> = ({ label, req, children }) => (
+    <div>
+      <label className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
+        {label}{req && <span className="text-red-400">*</span>}
+      </label>
+      {children}
+    </div>
+  )
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#0A1628]/80 backdrop-blur-xl transition-opacity duration-500" onClick={onClose} />
-      
-      <div className="relative bg-white rounded-[3.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-300">
-        <div className="flex flex-col lg:flex-row h-full">
-          {/* Sidebar Info */}
-          <div className="lg:w-80 bg-slate-50/50 p-12 border-r border-slate-100 flex flex-col items-center text-center">
-            <div 
-              className="w-32 h-32 rounded-[3rem] flex items-center justify-center text-5xl font-black mb-8 shadow-2xl ring-[12px] ring-white transition-transform hover:rotate-3"
-              style={{ backgroundColor: `${color}10`, color }}
-            >
-              {DEPT_ICONS[dept.code] || '🏢'}
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}/>
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 pt-6 pb-4 flex items-center justify-between z-10">
+          <div>
+            <h2 className="text-lg font-black text-[#0A1628]">
+              {isEdit ? 'Modifier le service' : 'Nouveau service municipal'}
+            </h2>
+            <p className="text-xs text-slate-400 font-semibold mt-0.5">
+              {isEdit ? dept!.name_fr : 'Créer un département opérationnel'}
+            </p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200">
+            <X className="w-4 h-4 text-slate-500"/>
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {err && (
+            <div className="bg-red-50 border border-red-200 text-red-600 text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0"/>{err}
             </div>
-            <h2 className="text-2xl font-black text-[#0A1628] leading-tight mb-2">{dept.name_fr}</h2>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#1557FF] bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-full mb-8">
-              Pôle {dept.code}
-            </span>
-            
-            <div className="w-full space-y-3">
-              <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col items-center">
-                <Users className="w-6 h-6 text-slate-400 mb-3" />
-                <p className="text-xl font-black text-[#0A1628]">{dept.agents}</p>
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Experts Déployés</p>
-              </div>
-              <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm flex flex-col items-center">
-                <Target className="w-6 h-6 text-[#1557FF] mb-3" />
-                <p className="text-xl font-black text-[#0A1628]">{dept.rate}%</p>
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Performance Pôle</p>
-              </div>
+          )}
+
+          {/* Icon picker */}
+          <Field label="Icône représentative">
+            <div className="grid grid-cols-6 gap-2">
+              {ICON_OPTIONS.map(opt => (
+                <button key={opt.emoji} type="button"
+                  onClick={() => setSelectedIcon(opt.emoji)}
+                  className={`h-10 rounded-xl text-xl flex items-center justify-center border-2 transition-all ${selectedIcon === opt.emoji ? 'border-[#1557FF] bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}
+                  title={opt.label}>
+                  {opt.emoji}
+                </button>
+              ))}
             </div>
+          </Field>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <Field label="Nom français" req>
+                <input className={inputCls} value={form.name_fr}
+                  onChange={e => set('name_fr', e.target.value)} placeholder="Voirie & Routes"/>
+              </Field>
+            </div>
+            <Field label="Code" req>
+              <input className={`${inputCls} uppercase font-black text-center tracking-widest`}
+                value={form.code} onChange={e => set('code', e.target.value.toUpperCase().slice(0,3))}
+                placeholder="VR" maxLength={3} disabled={isEdit}
+                style={isEdit ? { background: '#F8FAFC', color: '#94A3B8' } : {}}/>
+              {isEdit && <p className="text-[9px] text-slate-400 mt-1 font-semibold">Non modifiable</p>}
+            </Field>
           </div>
 
-          {/* Main Content */}
-          <div className="flex-1 p-12 flex flex-col overflow-hidden">
-            <div className="flex justify-between items-start mb-12">
-              <div>
-                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-[#1557FF] mb-2">Suivi Opérationnel Segmenté</h3>
-                <p className="text-sm text-slate-400 font-medium italic">Analyse des flux et charges de travail en temps réel.</p>
-              </div>
-              <button onClick={onClose} className="p-4 rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-100 transition-all">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+          <Field label="Nom arabe">
+            <input className={inputCls} value={form.name_ar}
+              onChange={e => set('name_ar', e.target.value)} placeholder="الطرق والأرصفة" dir="rtl"/>
+          </Field>
 
-            <div className="grid grid-cols-2 gap-6 mb-12">
-              <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-blue-900/20">
-                <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-bl-full -mr-16 -mt-16 blur-2xl" />
-                <div className="relative">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-4 flex items-center gap-2">
-                     <Activity className="w-3 h-3" /> Charge Active
-                   </p>
-                   <p className="text-4xl font-black text-white tracking-tight mb-4">{dept.in_progress}</p>
-                   <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                     <div className="h-full bg-white rounded-full transition-all duration-1000 shadow-sm" style={{ width: `${(dept.in_progress / (dept.total || 1)) * 100}%` }} />
-                   </div>
-                </div>
-              </div>
-              <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-100 group hover:bg-white hover:shadow-xl transition-all">
-                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-                   <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Missions Résolues
-                 </p>
-                 <p className="text-4xl font-black text-[#0A1628] tracking-tight mb-4">{dept.resolved}</p>
-                 <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Segment accompli</p>
-              </div>
-            </div>
+          <Field label="Nom anglais">
+            <input className={inputCls} value={form.name_en}
+              onChange={e => set('name_en', e.target.value)} placeholder="Roads & Pavements"/>
+          </Field>
 
-            <div className="flex-1 overflow-y-auto space-y-6">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Dernières interventions</h4>
-                <div className="h-px flex-1 bg-slate-100 mx-6" />
-                <button className="text-[9px] font-black text-[#1557FF] uppercase tracking-widest hover:underline">Vue Globale</button>
-              </div>
-              
-              {loading ? (
-                <div className="flex justify-center py-12"><div className="w-10 h-10 border-4 border-blue-500/20 border-t-[#1557FF] rounded-full animate-spin" /></div>
-              ) : decls.length === 0 ? (
-                <p className="text-sm text-slate-300 italic text-center py-12 font-medium">Aucun historique récent pour ce pôle.</p>
-              ) : decls.map((d, i) => {
-                const cfg = statusConfig[d.status] || { label: d.status.toUpperCase(), color: 'text-slate-400', bg: 'bg-slate-50' }
-                return (
-                  <div key={i} className="flex items-center gap-6 p-6 rounded-3xl bg-slate-50 border border-slate-50 hover:bg-white hover:border-blue-100 hover:shadow-xl transition-all group">
-                    <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-lg border border-slate-100 group-hover:scale-110 transition-transform">
-                      {DEPT_ICONS[dept.code] || '🏢'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-base font-black text-[#0A1628] truncate tracking-tight mb-1 group-hover:text-[#1557FF] transition-colors">{d.title}</p>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5" /> {new Date(d.created_at).toLocaleDateString('fr-FR')}
-                      </p>
-                    </div>
-                    <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border border-slate-100 shadow-sm ${cfg.bg} ${cfg.color}`}>
-                      {cfg.label}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-            
-            <div className="mt-8 pt-8 border-t border-slate-100 flex gap-4">
-              <button className="flex-1 h-14 rounded-2xl bg-[#1557FF] text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3">
-                Modifier Configuration <Award className="w-4 h-4" />
-              </button>
-              <button className="h-14 px-8 rounded-2xl border border-slate-200 text-[#0A1628] text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-3">
-                Responsable <Shield className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+          <Field label="Description">
+            <textarea className={`${inputCls} resize-none h-20`}
+              value={form.description} onChange={e => set('description', e.target.value)}
+              placeholder="Description du service et de ses missions…"/>
+          </Field>
+        </div>
+
+        <div className="sticky bottom-0 bg-white border-t border-slate-100 px-6 py-4 flex gap-3">
+          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">
+            Annuler
+          </button>
+          <button onClick={save} disabled={saving}
+            className="flex-1 py-3 rounded-xl bg-[#1557FF] text-sm font-black text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/25">
+            {saving && <Loader2 className="w-4 h-4 animate-spin"/>}
+            {isEdit ? 'Enregistrer' : 'Créer le service'}
+          </button>
         </div>
       </div>
     </div>
   )
 }
 
-const PresidentServices: React.FC = () => {
-  const [depts, setDepts] = useState<Dept[]>([])
-  const [selected, setSelected] = useState<Dept | null>(null)
+// ─── Detail Drawer ────────────────────────────────────────────────────────────
+const DetailDrawer: React.FC<{
+  dept: Department
+  onClose: () => void
+  onEdit: () => void
+  onToggle: () => void
+  onDelete: () => void
+}> = ({ dept, onClose, onEdit, onToggle, onDelete }) => {
+  const color   = dynamicColor(dept.code, dept.id)
+  const icon    = getIcon(dept.code)
+  const resRate = pct(dept.resolved, dept.total)
+  const accRate = pct(dept.accepted, dept.total)
+
+  const [agents,  setAgents]  = useState<Agent[]>([])
+  const [decls,   setDecls]   = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [dTab,    setDTab]    = useState<'agents'|'decls'>('agents')
 
   useEffect(() => {
     const load = async () => {
       setLoading(true)
       try {
-        const res = await fetch(`${API}/president/departments`, {
-          headers: { Authorization: `Bearer ${token()}` }
-        })
-        if (res.ok) {
-          const data = await res.json()
-          const list = Array.isArray(data) ? data : (data.departments || [])
-          setDepts(list.map((d: any) => ({
-            id: d.id,
-            name_fr: d.name || d.name_fr,
-            code: d.code,
-            is_active: d.is_active !== undefined ? d.is_active : true,
-            chef: d.chef_name || d.chef || 'Non assigné',
-            total: d.total || 0,
-            in_progress: d.in_progress || Math.round((d.total || 0) * 0.3),
-            resolved: d.resolved || 0,
-            agents: d.agents_count || d.agents || 0,
-            rate: d.total > 0 ? Math.round((d.resolved / d.total) * 100) : 0,
-            overloaded: (d.in_progress || 0) > 100
-          })))
-        }
-      } catch (e) {
-        console.error('Failed to load departments', e)
-      } finally {
-        setLoading(false)
-      }
+        const [aRes, dRes] = await Promise.all([
+          apiFetch(`/president/users?role=agent&department_id=${dept.id}&limit=50`),
+          apiFetch(`/president/declarations?department_id=${dept.id}&limit=10`),
+        ])
+        if (aRes.users) setAgents(aRes.users)
+        if (dRes.declarations) setDecls(dRes.declarations)
+      } catch {}
+      setLoading(false)
     }
     load()
-  }, [])
+  }, [dept.id])
 
-  const overloaded = depts.filter(d => d.overloaded).length
-  const avgRate = depts.length > 0 ? Math.round(depts.reduce((a, d) => a + d.rate, 0) / depts.length) : 0
-
-  if (loading) return (
-    <PresidentLayout title="Services Municipaux">
-      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-        <div className="w-12 h-12 border-[3px] border-slate-100 border-t-[#1557FF] rounded-full animate-spin" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Synchronisation des pôles...</p>
-      </div>
-    </PresidentLayout>
-  )
+  const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
+    soumise:         { label: 'SOUMISE',    color: '#64748B', bg: '#F8FAFC' },
+    assignee_chef:   { label: 'CHEF',       color: '#F59E0B', bg: '#FFFBEB' },
+    assignee_agent:  { label: 'AGENT',      color: '#3B82F6', bg: '#EFF6FF' },
+    en_cours:        { label: 'EN COURS',   color: '#8B5CF6', bg: '#F5F3FF' },
+    resolue:         { label: 'RÉSOLUE',    color: '#10B981', bg: '#ECFDF5' },
+    cloturee:        { label: 'CLÔTURÉE',   color: '#059669', bg: '#D1FAE5' },
+    refusee_chef:    { label: 'REF. CHEF',  color: '#EF4444', bg: '#FEF2F2' },
+    refusee_agent:   { label: 'REF. AGENT', color: '#EF4444', bg: '#FEF2F2' },
+  }
 
   return (
-    <PresidentLayout title="Services Municipaux">
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-        
-        {/* Header Content */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12">
-          <div>
-            <h1 className="text-4xl font-black text-[#0A1628] tracking-tight mb-3">Pôles Opérationnels</h1>
-            <p className="text-sm font-medium text-slate-400 italic">Pilotage stratégique et monitoring des pôles techniques de la ville.</p>
+    <div className="fixed inset-0 z-[100] flex">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose}/>
+      <div className="relative ml-auto h-full w-full max-w-md bg-white shadow-2xl flex flex-col overflow-hidden"
+        style={{ animation: 'slideInRight .25s cubic-bezier(.22,1,.36,1) forwards' }}>
+
+        {/* Header */}
+        <div className="flex-shrink-0 border-b border-slate-100 px-6 pt-6 pb-5">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0 shadow-sm"
+              style={{ background: `${color}15` }}>
+              {icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <h2 className="font-black text-[#0A1628] text-base leading-tight truncate">{dept.name_fr}</h2>
+                <span className="text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest flex-shrink-0 text-white"
+                  style={{ background: color }}>{dept.code}</span>
+              </div>
+              {dept.name_ar && <p className="text-xs text-slate-400 font-semibold" dir="rtl">{dept.name_ar}</p>}
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className={`flex items-center gap-1 text-[10px] font-bold ${dept.is_active ? 'text-emerald-600' : 'text-slate-400'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${dept.is_active ? 'bg-emerald-500' : 'bg-slate-300'}`}/>
+                  {dept.is_active ? 'Actif' : 'Inactif'}
+                </span>
+                {dept.description && (
+                  <span className="text-[10px] text-slate-400 font-semibold truncate">· {dept.description}</span>
+                )}
+              </div>
+            </div>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 flex-shrink-0">
+              <X className="w-4 h-4 text-slate-500"/>
+            </button>
           </div>
-          <button className="h-14 px-10 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-[#1557FF] transition-all active:scale-[0.98] flex items-center gap-3">
-            <Plus className="w-4 h-4" />
-            Nouveau Pôle
+        </div>
+
+        {/* Chef de service */}
+        <div className="flex-shrink-0 px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-black flex-shrink-0"
+            style={{ background: color }}>
+            {initials(dept.chef_name)}
+          </div>
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Chef de Service</p>
+            <p className="text-sm font-black text-[#0A1628]">{dept.chef_name ?? 'Non assigné'}</p>
+          </div>
+          <Shield className="w-4 h-4 text-slate-300 ml-auto"/>
+        </div>
+
+        {/* Stats grid */}
+        <div className="flex-shrink-0 px-6 py-5 border-b border-slate-100">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Statistiques</p>
+          <div className="flex items-center gap-4 mb-4">
+            <Ring value={resRate} color={color} size={72} label="résolution"/>
+            <div className="flex-1 grid grid-cols-2 gap-2">
+              {[
+                { label: 'Total',     val: dept.total,       bg: 'bg-slate-50',   tx: 'text-[#0A1628]', border: 'border-slate-100' },
+                { label: 'En cours',  val: dept.in_progress, bg: 'bg-blue-50',    tx: 'text-blue-600',  border: 'border-blue-100'  },
+                { label: 'Acceptées', val: dept.accepted,    bg: 'bg-amber-50',   tx: 'text-amber-600', border: 'border-amber-100' },
+                { label: 'Résolues',  val: dept.resolved,    bg: 'bg-emerald-50', tx: 'text-emerald-600', border: 'border-emerald-100' },
+              ].map(s => (
+                <div key={s.label} className={`${s.bg} rounded-xl p-2.5 text-center border ${s.border}`}>
+                  <p className={`text-lg font-black ${s.tx}`}>{s.val}</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Accepted & Rejected bars */}
+          <div className="space-y-2">
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Tâches acceptées</span>
+                <span className="text-[10px] font-black text-amber-600">{dept.accepted}</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div className="h-1.5 rounded-full bg-amber-400 transition-all duration-700"
+                  style={{ width: `${accRate}%` }}/>
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Tâches rejetées</span>
+                <span className="text-[10px] font-black text-red-500">{dept.rejected}</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div className="h-1.5 rounded-full bg-red-400 transition-all duration-700"
+                  style={{ width: `${pct(dept.rejected, dept.total)}%` }}/>
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Taux de résolution</span>
+                <span className="text-[10px] font-black" style={{ color }}>{resRate}%</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div className="h-1.5 rounded-full transition-all duration-700"
+                  style={{ width: `${resRate}%`, background: color }}/>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs — Agents / Déclarations */}
+        <div className="flex-shrink-0 flex border-b border-slate-100 px-6">
+          {(['agents','decls'] as const).map(t => (
+            <button key={t} onClick={() => setDTab(t)}
+              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${dTab === t ? 'border-[#1557FF] text-[#1557FF]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>
+              {t === 'agents' ? `👷 Agents (${agents.length})` : `📋 Déclarations récentes`}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {loading ? (
+            <div className="flex items-center justify-center h-24">
+              <Loader2 className="w-6 h-6 text-[#1557FF] animate-spin"/>
+            </div>
+          ) : dTab === 'agents' ? (
+            agents.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <Users className="w-8 h-8 mx-auto mb-2 opacity-30"/>
+                <p className="text-xs font-bold">Aucun agent assigné</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {agents.map(a => {
+                  const total    = a.total_tasks    ?? 0
+                  const resolved = a.resolved_tasks ?? 0
+                  const prog     = pct(resolved, total)
+                  const agColor  = dynamicColor('', a.id)
+                  return (
+                    <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-black flex-shrink-0"
+                        style={{ background: agColor }}>
+                        {initials(`${a.first_name} ${a.last_name}`)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-xs font-black text-[#0A1628] truncate">{a.first_name} {a.last_name}</p>
+                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${a.is_active ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                            {a.is_active ? 'Actif' : 'Inactif'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-slate-200 rounded-full h-1 overflow-hidden">
+                            <div className="h-1 rounded-full transition-all duration-500"
+                              style={{ width: `${prog}%`, background: agColor }}/>
+                          </div>
+                          <span className="text-[9px] font-black text-slate-400 flex-shrink-0">{resolved}/{total}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          ) : (
+            decls.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <BarChart2 className="w-8 h-8 mx-auto mb-2 opacity-30"/>
+                <p className="text-xs font-bold">Aucune déclaration</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {decls.map((d: any) => {
+                  const meta = STATUS_META[d.status] ?? { label: d.status, color: '#64748B', bg: '#F8FAFC' }
+                  return (
+                    <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
+                        style={{ background: `${color}15` }}>{icon}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-[#0A1628] truncate">{d.title}</p>
+                        <p className="text-[9px] text-slate-400 font-semibold">
+                          {d.ref_citoyen} · {new Date(d.created_at).toLocaleDateString('fr-FR')}
+                        </p>
+                      </div>
+                      <span className="text-[8px] font-black px-2 py-1 rounded-lg flex-shrink-0"
+                        style={{ color: meta.color, background: meta.bg }}>
+                        {meta.label}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex-shrink-0 border-t border-slate-100 px-6 py-5 space-y-2.5">
+          <button onClick={onEdit}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#1557FF] text-white text-sm font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">
+            <Pencil className="w-4 h-4"/> Modifier le service
+          </button>
+          <div className="grid grid-cols-2 gap-2.5">
+            <button onClick={onToggle}
+              className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black border-2 transition-all ${dept.is_active ? 'border-amber-300 text-amber-600 hover:bg-amber-50' : 'border-emerald-300 text-emerald-600 hover:bg-emerald-50'}`}>
+              {dept.is_active ? <><EyeOff className="w-4 h-4"/> Désactiver</> : <><Eye className="w-4 h-4"/> Réactiver</>}
+            </button>
+            <button onClick={onDelete}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-red-200 text-red-500 text-sm font-black hover:bg-red-50 transition-all">
+              <Trash2 className="w-4 h-4"/> Supprimer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Service Card ─────────────────────────────────────────────────────────────
+const ServiceCard: React.FC<{
+  dept: Department
+  onClick: () => void
+  onToggle: (e: React.MouseEvent) => void
+  onEdit: (e: React.MouseEvent) => void
+}> = ({ dept, onClick, onToggle, onEdit }) => {
+  const color   = dynamicColor(dept.code, dept.id)
+  const icon    = getIcon(dept.code)
+  const resRate = pct(dept.resolved, dept.total)
+
+  return (
+    <div onClick={onClick}
+      className={`group relative bg-white rounded-3xl border overflow-hidden cursor-pointer transition-all hover:shadow-xl hover:shadow-blue-500/8 hover:-translate-y-0.5 flex flex-col ${dept.is_active ? 'border-slate-200 hover:border-blue-200' : 'border-slate-200 opacity-60 hover:opacity-80'}`}>
+
+      {/* Color band top */}
+      <div className="h-1.5 w-full" style={{ background: color }}/>
+
+      {/* Inactive badge */}
+      {!dept.is_active && (
+        <div className="absolute top-4 right-4 z-10">
+          <span className="text-[9px] font-black px-2 py-1 rounded-lg bg-slate-100 text-slate-500 uppercase tracking-widest border border-slate-200">
+            Inactif
+          </span>
+        </div>
+      )}
+
+      {/* Main content */}
+      <div className="p-5 flex-1 flex flex-col gap-4">
+        {/* Icon + Name + Code */}
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform"
+            style={{ background: `${color}12` }}>
+            {icon}
+          </div>
+          <div className="flex-1 min-w-0 pt-0.5">
+            <h3 className="font-black text-[#0A1628] text-sm leading-tight truncate group-hover:text-blue-600 transition-colors">
+              {dept.name_fr}
+            </h3>
+            {dept.name_ar && (
+              <p className="text-[10px] text-slate-400 font-semibold truncate mt-0.5" dir="rtl">{dept.name_ar}</p>
+            )}
+            <span className="inline-block mt-1 text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest text-white"
+              style={{ background: color }}>{dept.code}</span>
+          </div>
+          {/* Quick edit */}
+          <button onClick={onEdit}
+            className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-500 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
+            title="Modifier">
+            <Pencil className="w-3.5 h-3.5"/>
           </button>
         </div>
 
-        {/* KPI Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
-          <KpiCard label="Unités Actives" value={depts.length} sub="Pôles en fonction" color={{ bg: 'bg-blue-50', text: 'text-blue-600' }} icon={LayoutGrid} />
-          <KpiCard label="Effectif Total" value={depts.reduce((a,d)=>a+d.agents, 0)} sub="Spécialistes déployés" color={{ bg: 'bg-violet-50', text: 'text-violet-600' }} icon={Users} trend="+4.2%" />
-          <KpiCard label="Performance" value={`${avgRate}%`} sub="Taux de réussite avg" color={{ bg: 'bg-emerald-50', text: 'text-emerald-600' }} icon={Activity} trend="+5.4%" />
-          <KpiCard label="Alertes Surcharge" value={overloaded} sub="Interventions critiques" color={{ bg: overloaded > 0 ? 'bg-rose-50' : 'bg-slate-50', text: overloaded > 0 ? 'text-rose-600' : 'text-slate-400' }} icon={AlertTriangle} />
+        {/* Chef de service */}
+        <div className="flex items-center gap-2.5 bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[9px] font-black flex-shrink-0"
+            style={{ background: color }}>
+            {initials(dept.chef_name)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Chef de Service</p>
+            <p className="text-xs font-black text-[#0A1628] truncate">{dept.chef_name ?? 'Non assigné'}</p>
+          </div>
+          <Shield className="w-3.5 h-3.5 text-slate-300 flex-shrink-0"/>
         </div>
 
-        {/* Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 pb-12">
-          {depts.map(dept => {
-            const color = DEPT_COLORS[dept.code] || '#1557FF'
-            return (
-              <div 
-                key={dept.id}
-                onClick={() => setSelected(dept)}
-                className="group bg-white rounded-[3.5rem] border border-slate-200/60 p-10 hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] hover:border-[#1557FF]/30 transition-all duration-500 cursor-pointer relative overflow-hidden"
-              >
-                {/* Surcharge Badge */}
-                {dept.overloaded && (
-                  <div className="absolute top-10 right-10">
-                    <span className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest shadow-xl shadow-rose-500/30 animate-pulse">
-                      <Zap className="w-3 h-3 fill-current" /> Surcharge
-                    </span>
-                  </div>
-                )}
+        {/* Stats: Acceptées / Rejetées */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-amber-50 rounded-xl p-2.5 text-center border border-amber-100">
+            <p className="text-lg font-black text-amber-600">{dept.accepted}</p>
+            <p className="text-[8px] font-black uppercase tracking-widest text-amber-400">Acceptées</p>
+          </div>
+          <div className="bg-red-50 rounded-xl p-2.5 text-center border border-red-100">
+            <p className="text-lg font-black text-red-500">{dept.rejected}</p>
+            <p className="text-[8px] font-black uppercase tracking-widest text-red-400">Rejetées</p>
+          </div>
+        </div>
 
-                <div className="flex items-center gap-6 mb-10">
-                  <div 
-                    className="w-20 h-20 rounded-[2rem] flex items-center justify-center text-4xl shadow-2xl group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-500"
-                    style={{ backgroundColor: `${color}10`, color }}
-                  >
-                    {DEPT_ICONS[dept.code] || '🏢'}
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-black text-[#0A1628] tracking-tight group-hover:text-[#1557FF] transition-colors leading-none mb-2">{dept.name_fr}</h3>
-                    <div className="flex items-center gap-3">
-                       <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-slate-100 bg-slate-50 text-slate-400">{dept.code}</span>
-                       <span className="text-[10px] font-black uppercase tracking-widest text-[#1557FF]">{dept.agents} Experts</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-8 mb-10">
-                   <div className="shrink-0">
-                     <ServiceDonut rate={dept.rate} color={dept.overloaded ? '#F43F5E' : color} />
-                   </div>
-                   <div className="flex-1 space-y-6">
-                      <div className="flex justify-between items-end">
-                        <div>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-300 mb-1">Missions</p>
-                          <p className="text-xl font-black text-[#0A1628] tracking-tight">{dept.total}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-300 mb-1">En cours</p>
-                          <p className="text-xl font-black tracking-tight" style={{ color: dept.overloaded ? '#F43F5E' : color }}>{dept.in_progress}</p>
-                        </div>
-                      </div>
-                      <div className="h-2 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100">
-                        <div className="h-full rounded-full transition-all duration-1000 shadow-sm" style={{ width: `${dept.rate}%`, backgroundColor: dept.overloaded ? '#F43F5E' : color }} />
-                      </div>
-                   </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-8 border-t border-slate-50 group-hover:bg-slate-50/50 transition-colors rounded-b-[3.5rem] -mx-10 -mb-10 px-10 pb-10">
-                   <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-[1.25rem] bg-white border border-slate-100 shadow-xl flex items-center justify-center text-[#1557FF] text-xs font-black group-hover:scale-110 transition-transform">
-                        {dept.chef.split(' ').map(w=>w[0]).join('').slice(0,2)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-black text-[#0A1628] tracking-tight truncate leading-none mb-1.5">{dept.chef}</p>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Manager Pôle</p>
-                      </div>
-                   </div>
-                   <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-300 group-hover:text-[#1557FF] group-hover:border-[#1557FF]/30 group-hover:rotate-12 transition-all">
-                      <ArrowUpRight className="w-6 h-6" />
-                   </div>
-                </div>
-              </div>
-            )
-          })}
+        {/* Progress */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Taux résolution</span>
+            <span className="text-[10px] font-black" style={{ color }}>{resRate}%</span>
+          </div>
+          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+            <div className="h-1.5 rounded-full transition-all duration-700"
+              style={{ width: `${resRate}%`, background: color }}/>
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className="text-[8px] font-semibold text-slate-400">{dept.resolved} résolues</span>
+            <span className="text-[8px] font-semibold text-slate-400">{dept.total} total</span>
+          </div>
         </div>
       </div>
 
-      {selected && <DetailModal dept={selected} onClose={() => setSelected(null)} />}
+      {/* Footer */}
+      <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/60">
+        <div className="flex items-center gap-1.5">
+          {/* Toggle active btn */}
+          <button onClick={onToggle}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black border transition-all ${dept.is_active ? 'border-emerald-200 text-emerald-600 hover:bg-emerald-50' : 'border-slate-200 text-slate-400 hover:bg-slate-100'}`}
+            title={dept.is_active ? 'Désactiver' : 'Réactiver'}>
+            {dept.is_active ? <CheckCircle className="w-3 h-3"/> : <XCircle className="w-3 h-3"/>}
+            {dept.is_active ? 'Actif' : 'Inactif'}
+          </button>
+          <span className="text-[9px] font-bold text-slate-400">{dept.agents_count} agents</span>
+        </div>
+        <div className="flex items-center gap-1 text-[10px] font-black text-slate-400 group-hover:text-[#1557FF] transition-colors">
+          Détails <ChevronRight className="w-3.5 h-3.5"/>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+const PresidentServices: React.FC = () => {
+  const [depts,       setDepts]      = useState<Department[]>([])
+  const [loading,     setLoading]    = useState(true)
+  const [search,      setSearch]     = useState('')
+  const [statusFilter,setStatus]     = useState<'all'|'active'|'inactive'>('all')
+  const [drawer,      setDrawer]     = useState<Department | null>(null)
+  const [editTarget,  setEditTarget] = useState<Department | null>(null)
+  const [showForm,    setShowForm]   = useState(false)
+  const [confirm,     setConfirm]    = useState<{ msg: string; sub?: string; onYes: () => void } | null>(null)
+  const [toast,       setToast]      = useState<{ msg: string; type: 'ok'|'err' } | null>(null)
+
+  const flash = (msg: string, type: 'ok'|'err' = 'ok') => setToast({ msg, type })
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await apiFetch('/president/departments')
+      if (res.departments) {
+        // Fetch per-dept accepted/rejected counts via enriched listDepartments
+        setDepts(res.departments.map((d: any) => ({
+          id:           d.id,
+          name_fr:      d.name_fr || d.name,
+          name_ar:      d.name_ar ?? null,
+          name_en:      d.name_en ?? null,
+          code:         d.code,
+          description:  d.description ?? null,
+          is_active:    d.is_active ?? true,
+          chef_name:    d.chef_name ?? null,
+          chef_id:      d.chef_id   ?? null,
+          total:        d.total       ?? 0,
+          accepted:     d.accepted    ?? 0,
+          resolved:     d.resolved    ?? 0,
+          rejected:     d.rejected    ?? 0,
+          in_progress:  d.in_progress ?? 0,
+          agents_count: d.agents_count ?? 0,
+          created_at:   d.created_at,
+        })))
+      }
+    } catch { flash('Erreur lors du chargement.', 'err') }
+    finally  { setLoading(false) }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  // ── Toggle active ──
+  const toggleDept = async (d: Department, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    const next = !d.is_active
+    try {
+      const res = await apiFetch(`/president/departments/${d.id}/status`, {
+        method: 'PATCH', body: JSON.stringify({ is_active: next })
+      })
+      if (res.error) { flash(res.error, 'err'); return }
+      setDepts(prev => prev.map(p => p.id === d.id ? { ...p, is_active: next } : p))
+      if (drawer?.id === d.id) setDrawer(x => x ? { ...x, is_active: next } : null)
+      flash(next ? 'Service réactivé.' : 'Service désactivé.')
+    } catch { flash('Erreur serveur.', 'err') }
+  }
+
+  // ── Delete ──
+  const deleteDept = (d: Department) => {
+    setConfirm({
+      msg: `Supprimer le service "${d.name_fr}" ?`,
+      sub: 'Cette action est irréversible. Un service ne peut être supprimé que s\'il n\'a aucune déclaration active.',
+      onYes: async () => {
+        setConfirm(null)
+        try {
+          const res = await apiFetch(`/president/departments/${d.id}`, { method: 'DELETE' })
+          if (res.error) { flash(res.error, 'err'); return }
+          setDepts(prev => prev.filter(p => p.id !== d.id))
+          setDrawer(null)
+          flash('Service supprimé.')
+        } catch { flash('Erreur serveur.', 'err') }
+      }
+    })
+  }
+
+  // ── Filter ──
+  const filtered = depts.filter(d => {
+    if (search && !`${d.name_fr} ${d.code} ${d.chef_name ?? ''}`.toLowerCase().includes(search.toLowerCase())) return false
+    if (statusFilter === 'active'   && !d.is_active) return false
+    if (statusFilter === 'inactive' &&  d.is_active) return false
+    return true
+  })
+
+  // ── KPIs ──
+  const active    = depts.filter(d => d.is_active).length
+  const totalDecl = depts.reduce((s,d) => s + d.total, 0)
+  const totalRes  = depts.reduce((s,d) => s + d.resolved, 0)
+  const avgRate   = totalDecl > 0 ? pct(totalRes, totalDecl) : 0
+
+  return (
+    <PresidentLayout title="Gestion des Services Municipaux">
+      <style>{`
+        @keyframes slideUp { from { transform: translateY(16px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+        @keyframes slideInRight { from { transform: translateX(100%) } to { transform: translateX(0) } }
+      `}</style>
+
+      <div className="flex-1 bg-[#f8fafc] p-6 min-h-screen">
+
+        {/* ── KPI row ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {[
+            { label: 'Total Services',    val: depts.length, sub: 'Départements',    color: '#1557FF', icon: '🏢' },
+            { label: 'Services Actifs',   val: active,       sub: `${depts.length - active} inactifs`, color: '#10B981', icon: '⚡' },
+            { label: 'Déclarations',      val: totalDecl,    sub: 'Total reçues',    color: '#F59E0B', icon: '📋' },
+            { label: 'Taux Résolution',   val: `${avgRate}%`,sub: 'Moyenne globale', color: '#8B5CF6', icon: '✅' },
+          ].map(k => (
+            <div key={k.label} className="group bg-white rounded-3xl p-5 border border-slate-200 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5 transition-all relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-20 h-20 rounded-bl-[3rem]" style={{ background: `${k.color}0A` }}/>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-2xl">{k.icon}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg"
+                    style={{ background: `${k.color}15`, color: k.color }}>{k.sub}</span>
+                </div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">{k.label}</p>
+                <p className="text-3xl font-black text-[#0A1628]">{k.val}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Toolbar ── */}
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          {/* Search */}
+          <div className="flex-1 min-w-[260px] flex items-center gap-2.5 bg-white border border-slate-200 rounded-2xl px-4 py-2.5 shadow-sm focus-within:border-blue-400 transition-all">
+            <Search className="w-4 h-4 text-slate-400 flex-shrink-0"/>
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher par nom, code, chef…"
+              className="flex-1 text-xs font-bold text-slate-600 placeholder-slate-300 outline-none bg-transparent"/>
+            {search && <button onClick={() => setSearch('')}><X className="w-3.5 h-3.5 text-slate-400"/></button>}
+          </div>
+
+          {/* Status filter */}
+          <div className="flex bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
+            {([['all','Tous'],['active','Actifs'],['inactive','Inactifs']] as const).map(([v,l]) => (
+              <button key={v} onClick={() => setStatus(v)}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === v ? 'text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                style={statusFilter === v ? { background: '#1557FF' } : {}}>
+                {l}
+              </button>
+            ))}
+          </div>
+
+          {/* Create btn */}
+          <button onClick={() => { setEditTarget(null); setShowForm(true) }}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 active:scale-95 transition-all ml-auto"
+            style={{ background: '#1557FF' }}>
+            <Plus className="w-4 h-4"/> Nouveau service
+          </button>
+        </div>
+
+        {/* ── Count ── */}
+        <p className="text-xs font-bold text-slate-400 mb-5">
+          {filtered.length} service(s) trouvé(s)
+        </p>
+
+        {/* ── Cards grid ── */}
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="w-10 h-10 text-[#1557FF] animate-spin"/>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
+            <Building2 className="w-10 h-10 mb-3 opacity-30"/>
+            <p className="text-sm font-bold">Aucun service trouvé</p>
+            <p className="text-xs mt-1">Créez un nouveau service ou modifiez vos filtres</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
+            {filtered.map(d => (
+              <ServiceCard key={d.id} dept={d}
+                onClick={() => setDrawer(d)}
+                onToggle={e => toggleDept(d, e)}
+                onEdit={e => { e.stopPropagation(); setEditTarget(d); setShowForm(true) }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Detail Drawer ── */}
+      {drawer && (
+        <DetailDrawer dept={drawer}
+          onClose={() => setDrawer(null)}
+          onEdit={() => { setEditTarget(drawer); setShowForm(true) }}
+          onToggle={() => toggleDept(drawer)}
+          onDelete={() => deleteDept(drawer)}
+        />
+      )}
+
+      {/* ── Create / Edit form ── */}
+      {showForm && (
+        <ServiceModal
+          dept={editTarget}
+          onClose={() => { setShowForm(false); setEditTarget(null) }}
+          onSaved={msg => {
+            setShowForm(false); setEditTarget(null); setDrawer(null)
+            flash(msg); load()
+          }}
+        />
+      )}
+
+      {/* ── Confirm ── */}
+      {confirm && (
+        <Confirm msg={confirm.msg} sub={confirm.sub}
+          onYes={confirm.onYes} onNo={() => setConfirm(null)}/>
+      )}
+
+      {/* ── Toast ── */}
+      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)}/>}
     </PresidentLayout>
   )
 }

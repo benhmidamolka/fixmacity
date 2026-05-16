@@ -1,13 +1,11 @@
 // src/pages/president/PresidentDeclarations.tsx
-import React, { useState, useEffect, useMemo } from 'react'
-import toast from 'react-hot-toast'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import PresidentLayout from '../../layouts/PresidentLayout'
-import DeclarationCommentsPanel from '../../components/president/DeclarationCommentsPanel'
+import DeclarationDetailDrawer from '../../components/president/DeclarationDetailDrawer'
 import { 
   Search, MapPin, X, AlertTriangle, ChevronDown, List, Map, 
   BrainCircuit, MessageSquare, ChevronRight, CheckCircle2, 
-  Filter, Calendar, Users, ArrowUpRight, TrendingUp, 
-  BarChart3, Clock, LayoutGrid, FileText, Smartphone, Flame,
+  Filter, Calendar, Users, ArrowUpRight, BarChart3, Clock, LayoutGrid, FileText, Smartphone, Flame,
   Zap, Shield, School, Hospital, ArrowUpDown, ThumbsUp, Activity,
   Check, RotateCcw, ArrowLeft, Share2, Building2, Mail
 } from 'lucide-react'
@@ -186,27 +184,6 @@ interface Decl {
 
 // ── UI Components ─────────────────────────────────────────────────────────────
 
-const KpiCard = ({ label, value, sub, color, icon: Icon, trend }: any) => (
-  <div className="group bg-white rounded-[2.5rem] p-8 border border-slate-200/60 hover:border-blue-400/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500 relative overflow-hidden">
-    <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50/50 rounded-bl-[5rem] -mr-10 -mt-10 group-hover:bg-blue-50/50 transition-colors duration-500" />
-    <div className="relative">
-      <div className="flex items-center justify-between mb-6">
-        <div className={`p-4 rounded-2xl ${color.bg} ${color.text} shadow-sm group-hover:scale-110 transition-transform duration-500`}>
-          <Icon className="w-6 h-6" />
-        </div>
-        {trend && (
-          <span className="flex items-center gap-1 text-[10px] font-black text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg">
-            <TrendingUp className="w-3 h-3" /> {trend}
-          </span>
-        )}
-      </div>
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{label}</p>
-      <h3 className="text-4xl font-black text-[#0A1628] tracking-tight">{value}</h3>
-      <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-widest">{sub}</p>
-    </div>
-  </div>
-)
-
 const createCustomIcon = (color: string, isUrgent: boolean = false, sensitive?: string) => {
   if (sensitive && sensitive !== 'none') {
     const iconHtml = sensitive === 'school' 
@@ -274,6 +251,48 @@ const PresidentDeclarations: React.FC = () => {
     } catch { return undefined }
   })()
 
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${API}/president/declarations?limit=50`, {
+        headers: { Authorization: `Bearer ${token()}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const rows = data.declarations || []
+        setDecls(rows.map((d: any) => {
+          const cit = d.users
+          const citizenName = cit
+            ? [cit.first_name, cit.last_name].filter(Boolean).join(' ').trim()
+            : ''
+          return {
+            id: d.id, ref_citoyen: d.ref_citoyen || '—',
+            ref_service: d.ref_service || null,
+            title: d.title, category: d.category || 'Voirie',
+            status: d.status, priority: d.priority || 'moyenne',
+            arrondissement: d.delegation_name || 'Sousse Riadh',
+            agent: d.agent_name || null, votes: d.votes_count || 0,
+            date: new Date(d.created_at).toLocaleDateString('fr-FR'),
+            created_at: d.created_at,
+            lat: d.latitude ? parseFloat(d.latitude) : null,
+            lng: d.longitude ? parseFloat(d.longitude) : null,
+            image: d.image_url || undefined,
+            resolution_image: d.resolution_image_url || undefined,
+            description: d.description ?? '',
+            is_sensitive: d.is_sensitive || false,
+            sensitive_type: d.sensitive_type || 'none',
+            citizen_name: citizenName || `Réf. ${d.ref_citoyen || String(d.id).slice(0, 8)}`,
+            citizen_email: cit?.email || '—',
+            citizen_avatar: undefined
+          }
+        }))
+      }
+    } catch (_) {} finally {
+      setLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     const loadDepts = async () => {
       try {
@@ -287,61 +306,9 @@ const PresidentDeclarations: React.FC = () => {
       } catch (_) {}
     }
     loadDepts()
-
-    const load = async () => {
-      setLoading(true)
-      try {
-        const res = await fetch(`${API}/president/declarations?limit=50`, {
-          headers: { Authorization: `Bearer ${token()}` }
-        })
-        if (res.ok) {
-          const data = await res.json()
-          if (data.declarations?.length) {
-            setDecls(data.declarations.map((d: any) => ({
-              id: d.id, ref_citoyen: d.ref_citoyen || '—',
-              ref_service: d.ref_service || null,
-              title: d.title, category: d.category || 'Voirie',
-              status: d.status, priority: d.priority || 'moyenne',
-              arrondissement: d.delegation_name || 'Sousse Riadh',
-              agent: d.agent_name || null, votes: d.votes_count || 0,
-              date: new Date(d.created_at).toLocaleDateString('fr-FR'),
-              created_at: d.created_at,
-              lat: d.latitude ? parseFloat(d.latitude) : null,
-              lng: d.longitude ? parseFloat(d.longitude) : null,
-              image: d.image_url || 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&q=80&w=400',
-              resolution_image: d.resolution_image_url || null,
-              description: d.description || d.title,
-              is_sensitive: d.is_sensitive || false,
-              sensitive_type: d.sensitive_type || 'none',
-              citizen_name: d.citizen_name || `Citoyen #${d.ref_citoyen?.slice(-4) || '??'}`,
-              citizen_email: d.citizen_email || 'citoyen@fixmacity.tn',
-              citizen_avatar: d.citizen_avatar || `https://i.pravatar.cc/150?u=${d.id}`
-            })))
-          }
-        }
-      } catch (_) {} finally {
-        setLoading(false)
-      }
-    }
     load()
-  }, [])
+  }, [load])
 
-  const handleAssign = async (decl: Decl, deptId: string) => {
-    try {
-      const res = await fetch(`${API}/president/declarations/${decl.id}/assign`, {
-        method:'POST',
-        headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token()}` },
-        body: JSON.stringify({ department_id: deptId })
-      })
-      if (res.ok) {
-        setDecls(prev => prev.map(d => d.id === decl.id ? { ...d, status:'assignee_chef' } : d ))
-        if (selectedDecl?.id === decl.id) {
-          setSelectedDecl({ ...selectedDecl, status: 'assignee_chef' })
-        }
-        toast.success('Déclaration affectée avec succès')
-      }
-    } catch (_) {}
-  }
 
   const filtered = useMemo(() => {
     let result = decls.filter(d => {
@@ -380,13 +347,6 @@ const PresidentDeclarations: React.FC = () => {
     return result
   }, [decls, search, categoryF, priorityF, arrondissementF, statusF, mode, sortBy, dateOrder])
 
-  const stats = {
-    total: decls.length,
-    urgent: decls.filter(d => d.priority === 'haute').length,
-    pending: decls.filter(d => d.status === 'soumise').length,
-    resolved: decls.filter(d => ['resolue', 'cloturee'].includes(d.status)).length
-  }
-
   if (loading) return (
     <PresidentLayout title="Gestion des Signalements">
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
@@ -418,9 +378,9 @@ const PresidentDeclarations: React.FC = () => {
             <div className="flex bg-slate-50/50 backdrop-blur-md border border-slate-200/50 rounded-2xl p-1 shadow-sm">
               {[
                 { id: 'all', label: 'Toutes', icon: LayoutGrid },
-                { id: 'critical', label: 'Critiques', icon: Flame },
-                { id: 'assigned', label: 'Assignées', icon: Users },
-                { id: 'resolved', label: 'Résolues', icon: CheckCircle2 }
+                { id: 'urgent', label: 'Critiques', icon: Flame },
+                { id: 'en_cours', label: 'Assignées', icon: Users },
+                { id: 'resolue', label: 'Résolues', icon: CheckCircle2 }
               ].map((tab) => (
                 <button 
                   key={tab.id}
@@ -650,7 +610,7 @@ const PresidentDeclarations: React.FC = () => {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={9} className="py-32 text-center">
+                      <td colSpan={10} className="py-32 text-center">
                         <div className="w-20 h-20 rounded-[2rem] bg-slate-50 flex items-center justify-center mx-auto mb-6 text-slate-200">
                           <Smartphone className="w-10 h-10" />
                         </div>
@@ -680,190 +640,13 @@ const PresidentDeclarations: React.FC = () => {
           )}
         </div>
 
-        {/* Premium Detail Modal */}
-        <AnimatePresence>
-          {selectedDecl && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden">
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
-                onClick={() => setSelectedDecl(null)} 
-              />
-              
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9, y: 40 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 40 }}
-                className="relative bg-white rounded-[3rem] w-full max-w-6xl h-[90vh] overflow-hidden shadow-2xl flex flex-col"
-              >
-                {/* Header Bar */}
-                <div className="flex items-center justify-between px-10 py-6 border-b border-slate-100 flex-shrink-0 bg-white">
-                  <button 
-                    onClick={() => setSelectedDecl(null)}
-                    className="flex items-center gap-2 text-slate-500 hover:text-[#0A1628] transition-colors group"
-                  >
-                    <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                    <span className="text-sm font-bold tracking-tight">Retour à la liste</span>
-                  </button>
-                  
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">ID Signalement</p>
-                      <p className="text-sm font-black text-[#0A1628]">#{selectedDecl.ref_citoyen}</p>
-                    </div>
-                    <button className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-[#1557FF] hover:bg-blue-50 transition-all">
-                      <Share2 size={18} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-10 bg-[#F8F9FD]/50">
-                  {/* Hero Section */}
-                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 mb-10">
-                    {/* Left Info Column */}
-                    <div className="lg:col-span-2 flex flex-col">
-                      <h2 className="text-4xl font-black text-[#0A1628] tracking-tight leading-tight mb-4">
-                        {selectedDecl.title}
-                      </h2>
-
-                      <div className="space-y-8">
-                        {[
-                          { icon: MapPin, label: 'Localisation', value: selectedDecl.arrondissement + ', Sousse' },
-                          { icon: Calendar, label: 'Date du Signalement', value: selectedDecl.date },
-                          { icon: Users, label: 'Assigné à', value: selectedDecl.agent || 'Pôle Technique - Services Municipaux' },
-                          { icon: LayoutGrid, label: 'Catégorie', value: selectedDecl.category, type: 'badge', config: { bg: 'bg-emerald-50', text: 'text-emerald-600' } },
-                          { icon: Activity, label: 'État Actuel', value: STATUS_CONFIG[selectedDecl.status]?.label, type: 'badge', config: { bg: STATUS_CONFIG[selectedDecl.status]?.bg, text: STATUS_CONFIG[selectedDecl.status]?.color } },
-                        ].map((item, idx) => (
-                          <div key={idx} className="flex items-start gap-4">
-                            <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-slate-400 flex-shrink-0 shadow-sm">
-                              <item.icon size={16} />
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest leading-none mb-1.5">{item.label}</p>
-                              {item.type === 'badge' ? (
-                                <span className={cn("inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest", item.config.bg, item.config.text)}>
-                                  {item.value}
-                                </span>
-                              ) : (
-                                <p className="text-sm font-bold text-[#0A1628] leading-tight">{item.value}</p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Right Images Column */}
-                    <div className="lg:col-span-3 flex items-center gap-4 relative h-[450px]">
-                      <div className="flex-1 h-full rounded-[2.5rem] overflow-hidden border-4 border-white shadow-xl relative group">
-                        <img src={selectedDecl.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Avant" />
-                        <div className="absolute top-6 left-6 px-4 py-2 rounded-2xl bg-rose-500/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                           <X className="w-3 h-3" /> Avant
-                        </div>
-                      </div>
-
-                      {['resolue', 'cloturee'].includes(selectedDecl.status) && selectedDecl.resolution_image ? (
-                        <>
-                          <div className="w-12 h-12 rounded-full bg-white shadow-xl flex items-center justify-center text-[#0A1628] z-10 -mx-6 border border-slate-100">
-                             <ChevronRight className="w-6 h-6" />
-                          </div>
-                          <div className="flex-1 h-full rounded-[2.5rem] overflow-hidden border-4 border-white shadow-xl relative group">
-                            <img src={selectedDecl.resolution_image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Après" />
-                            <div className="absolute top-6 left-6 px-4 py-2 rounded-2xl bg-emerald-500/90 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                               <CheckCircle2 className="w-3 h-3" /> Après
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex-1 h-full rounded-[2.5rem] bg-slate-100 border-4 border-white shadow-inner flex flex-col items-center justify-center text-slate-300 p-10 text-center">
-                           <div className="w-20 h-20 rounded-[2rem] bg-white flex items-center justify-center mb-6 shadow-sm">
-                              <LayoutGrid className="w-10 h-10 opacity-20" />
-                           </div>
-                           <p className="text-xs font-black uppercase tracking-[0.2em] mb-2 opacity-50">Intervention en cours</p>
-                           <p className="text-[10px] font-bold opacity-30">La photo "Après" sera disponible dès la résolution.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Bottom Grid */}
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                    {/* Assigned To & Description Column */}
-                    <div className="lg:col-span-12 space-y-10">
-                      {/* Department Info */}
-                      <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200/60 shadow-sm flex items-center justify-between">
-                         <div className="flex items-center gap-6">
-                            <div className="w-16 h-16 rounded-[1.5rem] bg-blue-50 flex items-center justify-center text-[#1557FF] border border-blue-100">
-                               <Building2 size={32} />
-                            </div>
-                            <div>
-                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Département Responsable</p>
-                               <h5 className="text-xl font-black text-[#0A1628]">{selectedDecl.agent || 'Pôle Technique Municipal'}</h5>
-                               <p className="text-xs font-bold text-slate-400">Municipalité de Sousse, Tunisie</p>
-                            </div>
-                         </div>
-                         <button className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest transition-all">
-                            <Mail size={16} /> Contacter
-                         </button>
-                      </div>
-
-                      {/* Citizen Message / Description Block */}
-                      <div className="bg-[#F1F5FF] rounded-[2.5rem] p-10 border border-blue-100 relative overflow-hidden group">
-                         <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform text-[#1557FF]">
-                            <MessageSquare size={120} />
-                         </div>
-                         <div className="relative">
-                            <p className="text-[10px] font-black text-[#1557FF] uppercase tracking-widest mb-6 flex items-center gap-2">
-                               <MessageSquare size={14} /> Description
-                            </p>
-                            <blockquote className="text-xl font-bold text-[#0A1628] leading-relaxed italic mb-8">
-                               "{selectedDecl.description || "Aucune description supplémentaire n'a été fournie pour ce signalement."}"
-                            </blockquote>
-                            
-                            <div className="flex items-center justify-between pt-8 border-t border-blue-200/50">
-                               <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#1557FF] shadow-sm">
-                                     <MapPin size={14} />
-                                  </div>
-                                  <div>
-                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Localisation</p>
-                                     <p className="text-xs font-bold text-[#0A1628]">{selectedDecl.arrondissement || 'Non spécifié'}</p>
-                                  </div>
-                               </div>
-                            </div>
-                         </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer Actions */}
-                <div className="px-10 py-6 border-t border-slate-100 flex items-center justify-between bg-white flex-shrink-0">
-                  <div className="flex items-center gap-4">
-                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dernière mise à jour</span>
-                     <span className="text-xs font-black text-[#0A1628]">Il y a 2 heures</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-4">
-                    <button 
-                      onClick={() => setSelectedDecl(null)}
-                      className="px-8 py-4 rounded-2xl border border-slate-200 text-slate-500 text-sm font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
-                    >
-                      Fermer
-                    </button>
-                    {selectedDecl.status === 'soumise' && (
-                      <button className="px-8 py-4 rounded-2xl bg-[#1557FF] text-white text-sm font-black uppercase tracking-widest hover:bg-[#1557FF]/90 transition-all shadow-xl shadow-blue-200">
-                        Affecter une équipe
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
+        <DeclarationDetailDrawer
+          declarationId={selectedDecl?.id ?? null}
+          onClose={() => setSelectedDecl(null)}
+          onAssigned={() => { load(); setSelectedDecl(null) }}
+          departments={departments}
+          currentUserId={currentUserId}
+        />
 
         {/* Floating Bulk Action Bar */}
         <AnimatePresence>
