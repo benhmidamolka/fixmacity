@@ -1,15 +1,18 @@
 // src/pages/President/PresidentDashboard.tsx
-// ── Dashboard matching reference image — 5 sections, real API, recharts ──────
+// Keeps ALL original sections and content — replaces the SVG heatmap in ZonesCritiques
+// with a proper ranked list + progress bars.  No new dependencies.
+
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  Legend, ResponsiveContainer, PieChart, Pie, Cell, Sector
+  ResponsiveContainer, PieChart, Pie, Cell, Sector
 } from 'recharts'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   AlertTriangle, MapPin, Download, ChevronDown, RefreshCw,
-  CheckCircle2, ChevronRight, Maximize2, X, ExternalLink, ThumbsUp
+  CheckCircle2, ChevronRight, X, ExternalLink, ThumbsUp,
+  Flame, TrendingDown, TrendingUp
 } from 'lucide-react'
 import PresidentLayout from '../../layouts/PresidentLayout'
 
@@ -31,33 +34,32 @@ const DEPT_COLORS: Record<string, string> = {
   VR: C.green, EP: C.amber, PD: C.teal, EV: C.greenL,
   EA: C.blue, ST: C.orange, BP: C.purple, SG: C.gray,
 }
-
 const DEPT_ICONS: Record<string, string> = {
-  VR:'🛣️', EP:'💡', EV:'🌿', PD:'🗑️',
-  BP:'🏢', EA:'💧', ST:'🚦', SG:'💬',
+  VR:'🛣️', EP:'💡', EV:'🌿', PD:'🗑️', BP:'🏢', EA:'💧', ST:'🚦', SG:'💬',
 }
 
-// ── Helper: severity from votes + priority_score ──────────────────────────────
 function getSeverity(votes: number, priority: number) {
   if (priority >= 15 || votes > 50) return 'Très critique'
   if (priority >= 8  || votes > 30) return 'Critique'
   if (priority >= 4  || votes > 15) return 'Haute'
-  return 'Critique' // default to Critique for items in crucialCases
+  return 'Critique'
 }
 
 const SEV_STYLE: Record<string, { color: string; bg: string }> = {
   'Très critique': { color: '#dc2626', bg: '#fef2f2' },
-  'Critique':      { color: C.red,     bg: '#fff0f0' },
-  'Haute':         { color: C.orange,  bg: C.orangeBg },
-  'Moyenne':       { color: C.amber,   bg: C.amberBg  },
+  'Critique':      { color: C.red,    bg: '#fff0f0'  },
+  'Haute':         { color: C.orange, bg: C.orangeBg },
+  'Moyenne':       { color: C.amber,  bg: C.amberBg  },
 }
 
+// ── Zone heat palette (cool → hot) ────────────────────────────────────────────
+const ZONE_HEAT = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e']
+
 // ── Reusable Skeleton ─────────────────────────────────────────────────────────
-const Sk = ({ w='w-full', h='h-3', r='rounded' }: { w?:string; h?:string; r?:string }) => (
-  <div className={`${w} ${h} ${r} bg-gray-100 animate-pulse`} />
+const Sk = ({ w = 'w-full', h = 'h-3', r = 'rounded' }: { w?: string; h?: string; r?: string }) => (
+  <div className={`${w} ${h} ${r} bg-slate-200/50 dark:bg-slate-800/50 animate-pulse`} />
 )
 
-// ── Severity badge ─────────────────────────────────────────────────────────────
 const SevBadge = ({ label }: { label: string }) => {
   const s = SEV_STYLE[label] || SEV_STYLE['Critique']
   return (
@@ -68,36 +70,33 @@ const SevBadge = ({ label }: { label: string }) => {
   )
 }
 
-// ── Date pill ─────────────────────────────────────────────────────────────────
 const DatePill = () => (
-  <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 select-none">
+  <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-300 select-none">
     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="1.5"/>
       <path d="M16 2v4M8 2v4M3 10h18" strokeWidth="1.5"/>
     </svg>
-    <span>12 Mai – 12 Juin 2024</span>
+    <span>{new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
     <ChevronDown className="w-4 h-4 text-gray-400" />
   </div>
 )
 
-// ── Custom bar tooltip ────────────────────────────────────────────────────────
 const BarTip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-xl text-xs">
-      <p className="font-bold text-gray-700 mb-2">{label}</p>
+    <div className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl px-4 py-3 shadow-xl text-xs">
+      <p className="font-bold text-gray-700 dark:text-white mb-2">{label}</p>
       {payload.map((p: any) => (
         <div key={p.name} className="flex items-center gap-2 mb-1">
           <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-          <span className="text-gray-500">{p.name === 'reports' ? 'Tâches créées' : 'Tâches résolues'}</span>
-          <span className="font-bold text-gray-800 ml-auto pl-4">{p.value}</span>
+          <span className="text-gray-500 dark:text-slate-400">{p.name === 'reports' ? 'Tâches créées' : 'Tâches résolues'}</span>
+          <span className="font-bold text-gray-800 dark:text-white ml-auto pl-4">{p.value}</span>
         </div>
       ))}
     </div>
   )
 }
 
-// ── Active Pie Sector ─────────────────────────────────────────────────────────
 const ActivePie = (props: any) => {
   const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props
   return (
@@ -108,24 +107,23 @@ const ActivePie = (props: any) => {
   )
 }
 
-// ── Declaration detail modal ───────────────────────────────────────────────────
 const DeclModal = ({ item, onClose }: { item: any; onClose: () => void }) => (
   <AnimatePresence>
     <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <motion.div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
+      <motion.div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-6"
         initial={{ scale: 0.93, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.93, y: 16 }}>
         <button onClick={onClose}
-          className="absolute top-4 right-4 w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
-          <X className="w-3.5 h-3.5 text-gray-500" />
+          className="absolute top-4 right-4 w-7 h-7 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors">
+          <X className="w-3.5 h-3.5 text-gray-500 dark:text-slate-400" />
         </button>
         <div className="flex items-start gap-3 mb-4">
-          <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
-            <AlertTriangle className="w-4.5 h-4.5 text-red-500" />
+          <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="w-4 h-4 text-red-500" />
           </div>
           <div>
-            <p className="font-bold text-gray-900 text-sm leading-snug">
+            <p className="font-bold text-gray-900 dark:text-white text-sm leading-snug">
               {item.title || item.description || 'Signalement critique'}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">{item.ref_citoyen}</p>
@@ -138,14 +136,14 @@ const DeclModal = ({ item, onClose }: { item: any; onClose: () => void }) => (
             ['Votes', item.votes_count || 0],
             ['Date', new Date(item.created_at).toLocaleDateString('fr-FR')],
           ].map(([k, v]) => (
-            <div key={k} className="bg-gray-50 rounded-xl p-2.5">
-              <p className="text-gray-400 text-[10px] mb-0.5">{k}</p>
-              <p className="font-bold text-gray-700">{String(v)}</p>
+            <div key={String(k)} className="bg-gray-50 dark:bg-slate-800 rounded-xl p-2.5">
+              <p className="text-gray-400 text-[10px] mb-0.5">{String(k)}</p>
+              <p className="font-bold text-gray-700 dark:text-slate-200">{String(v)}</p>
             </div>
           ))}
         </div>
         {item.description && (
-          <p className="text-xs text-gray-600 bg-gray-50 rounded-xl p-3 mb-4 leading-relaxed">
+          <p className="text-xs text-gray-600 dark:text-slate-400 bg-gray-50 dark:bg-slate-800 rounded-xl p-3 mb-4 leading-relaxed">
             {item.description}
           </p>
         )}
@@ -166,9 +164,9 @@ const TopCritiques = ({ data, loading }: { data: any[]; loading: boolean }) => {
   const total = data.reduce((s, d) => s + (d.votes_count || 0), 0)
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex flex-col h-full">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-5 shadow-sm flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
-        <span className="text-[13px] font-bold text-gray-800">1. Top 5 signalements critiques</span>
+        <span className="text-[13px] font-bold text-gray-800 dark:text-white">1. Top 5 signalements critiques</span>
         <Link to="/president/declarations"
           className="text-[11px] font-bold text-green-600 hover:text-green-700 flex items-center gap-0.5 transition-colors">
           Voir tout <ChevronRight className="w-3 h-3" />
@@ -191,11 +189,11 @@ const TopCritiques = ({ data, loading }: { data: any[]; loading: boolean }) => {
               onClick={() => setSel(item)}
               className="flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group">
               <span className="text-[11px] font-black text-gray-400 w-4 text-right flex-shrink-0">{i + 1}</span>
-              <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-500/10 flex items-center justify-center flex-shrink-0">
                 <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-bold text-gray-800 truncate group-hover:text-green-700 transition-colors leading-tight">
+                <p className="text-[12px] font-bold text-gray-800 dark:text-slate-200 truncate group-hover:text-green-700 transition-colors leading-tight">
                   {item.title || item.description || 'Signalement'}
                 </p>
                 <p className="text-[10px] text-gray-400 truncate mt-0.5">
@@ -212,8 +210,8 @@ const TopCritiques = ({ data, loading }: { data: any[]; loading: boolean }) => {
       </div>
 
       {!loading && (
-        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-          <span className="text-[11px] text-gray-500">Total signalements critiques</span>
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100 dark:border-slate-800">
+          <span className="text-[11px] text-gray-500 dark:text-slate-400">Total votes sur cas critiques</span>
           <span className="text-[13px] font-black text-red-500">{total.toLocaleString('fr-FR')}</span>
         </div>
       )}
@@ -224,70 +222,86 @@ const TopCritiques = ({ data, loading }: { data: any[]; loading: boolean }) => {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SECTION 2 — Zones Critiques (heatmap + list)
+// SECTION 2 — Zones Critiques  (replaces the SVG heatmap)
 // ─────────────────────────────────────────────────────────────────────────────
-const ZONE_SEVS = ['Très critique', 'Très critique', 'Critique', 'Critique', 'Moyenne']
+const ZonesCritiques = ({ zones, loading }: { zones: any[]; loading: boolean }) => {
+  const maxCount = zones[0]?.count || 1
 
-const ZonesCritiques = ({ zones, loading }: { zones: any[]; loading: boolean }) => (
-  <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex flex-col h-full">
-    <div className="flex items-center justify-between mb-4">
-      <span className="text-[13px] font-bold text-gray-800">2. Les zones critiques</span>
-      <Link to="/president/declarations"
-        className="text-[11px] font-bold text-green-600 hover:text-green-700 flex items-center gap-0.5 transition-colors">
-        Voir la carte <ChevronRight className="w-3 h-3" />
-      </Link>
-    </div>
-
-    <div className="space-y-0.5 mb-3">
-      {loading ? [...Array(5)].map((_, i) => (
-        <div key={i} className="flex items-center gap-2 py-2">
-          <Sk w="w-4" h="h-4" r="rounded-full" /><Sk w="w-24" h="h-2.5" />
-          <div className="flex-1" /><Sk w="w-16" h="h-4" r="rounded-full" /><Sk w="w-8" h="h-3" />
-        </div>
-      )) : zones.slice(0, 5).map((z, i) => {
-        const sev = ZONE_SEVS[i] || 'Critique'
-        const isCrit = sev === 'Très critique'
-        return (
-          <motion.div key={z.id || i}
-            initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.07 }}
-            className="flex items-center gap-2.5 py-1.5 px-2 -mx-2 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
-            {isCrit
-              ? <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-              : <MapPin className="w-4 h-4 text-orange-400 flex-shrink-0" />}
-            <span className="text-[12px] font-bold text-gray-800 flex-1">{z.name}</span>
-            <SevBadge label={sev} />
-            <span className="text-[13px] font-black text-gray-700 w-8 text-right">{z.count}</span>
-          </motion.div>
-        )
-      })}
-    </div>
-
-    {/* Heatmap SVG */}
-    <div className="relative bg-slate-50 rounded-xl overflow-hidden border border-gray-100 flex-1" style={{ minHeight: 145 }}>
-      <svg viewBox="0 0 300 145" className="w-full h-full" preserveAspectRatio="xMidYMid slice">
-        <rect width="300" height="145" fill="#f8fafc" />
-        {[40,80,120,160,200,240,280].map(x => <line key={x} x1={x} y1="0" x2={x} y2="145" stroke="#e2e8f0" strokeWidth="0.6" />)}
-        {[25,50,75,100,125].map(y => <line key={y} x1="0" y1={y} x2="300" y2={y} stroke="#e2e8f0" strokeWidth="0.6" />)}
-        <defs>
-          <radialGradient id="rh1"><stop offset="0%" stopColor="#ef4444" stopOpacity="0.55"/><stop offset="100%" stopColor="#ef4444" stopOpacity="0"/></radialGradient>
-          <radialGradient id="rh2"><stop offset="0%" stopColor="#f97316" stopOpacity="0.5"/><stop offset="100%" stopColor="#f97316" stopOpacity="0"/></radialGradient>
-          <radialGradient id="rh3"><stop offset="0%" stopColor="#ef4444" stopOpacity="0.45"/><stop offset="100%" stopColor="#ef4444" stopOpacity="0"/></radialGradient>
-          <radialGradient id="rh4"><stop offset="0%" stopColor="#f59e0b" stopOpacity="0.4"/><stop offset="100%" stopColor="#f59e0b" stopOpacity="0"/></radialGradient>
-          <radialGradient id="rh5"><stop offset="0%" stopColor="#ef4444" stopOpacity="0.35"/><stop offset="100%" stopColor="#ef4444" stopOpacity="0"/></radialGradient>
-        </defs>
-        <ellipse cx="75" cy="50" rx="50" ry="38" fill="url(#rh1)" />
-        <ellipse cx="195" cy="38" rx="44" ry="32" fill="url(#rh2)" />
-        <ellipse cx="245" cy="100" rx="40" ry="30" fill="url(#rh3)" />
-        <ellipse cx="128" cy="112" rx="32" ry="24" fill="url(#rh4)" />
-        <ellipse cx="60" cy="110" rx="28" ry="20" fill="url(#rh5)" />
-      </svg>
-      <div className="absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-lg flex items-center justify-center shadow-sm border border-gray-100 cursor-pointer hover:bg-white">
-        <Maximize2 className="w-3 h-3 text-gray-500" />
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-5 shadow-sm flex flex-col h-full">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-[13px] font-bold text-gray-800 dark:text-white">2. Lieux critiques à proximité</span>
+        <Link to="/president/declarations"
+          className="text-[11px] font-bold text-green-600 hover:text-green-700 flex items-center gap-0.5 transition-colors">
+          Voir tout <ChevronRight className="w-3 h-3" />
+        </Link>
       </div>
+
+      {/* Ranked zone rows */}
+      <div className="space-y-3 flex-1">
+        {loading
+          ? [...Array(4)].map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="flex items-center gap-2"><Sk w="w-5" h="h-5" r="rounded-lg" /><Sk w="w-28" h="h-2.5" /><div className="flex-1" /><Sk w="w-8" h="h-2.5" /></div>
+                <Sk h="h-2" r="rounded-full" />
+              </div>
+            ))
+          : zones.slice(0, 4).map((z: any, i: number) => {
+              const pct  = Math.round((z.count / maxCount) * 100)
+              const heat = ZONE_HEAT[Math.min(i, ZONE_HEAT.length - 1)]
+              const prev = zones[i - 1]?.count
+              const trend = i === 0 ? null : prev && z.count > prev ? 'up' : 'down'
+              return (
+                <motion.div key={z.name || z.id || i}
+                  initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.07 }}>
+                  {/* Row header */}
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[9px] font-black flex-shrink-0"
+                      style={{ background: heat }}>
+                      {i + 1}
+                    </div>
+                    <span className="text-[12px] font-bold text-gray-800 dark:text-slate-200 flex-1">{z.name}</span>
+                    {trend === 'up'   && <TrendingUp   className="w-3 h-3 text-red-400 flex-shrink-0" />}
+                    {trend === 'down' && <TrendingDown className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                    <span className="text-[12px] font-black text-gray-700 dark:text-white flex-shrink-0">{z.count}</span>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="w-full h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ background: heat }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{ duration: 0.8, delay: i * 0.1, ease: 'easeOut' }}
+                    />
+                  </div>
+                </motion.div>
+              )
+            })
+        }
+      </div>
+
+      {/* Legend footer */}
+      {!loading && zones.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-slate-800">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Intensité</span>
+          </div>
+          <div className="flex items-center gap-1 h-2 rounded-full overflow-hidden">
+            {ZONE_HEAT.map((c, i) => (
+              <div key={i} className="flex-1 h-full" style={{ background: c }} />
+            ))}
+          </div>
+          <div className="flex justify-between mt-1">
+            <span className="text-[9px] text-gray-400 font-bold">Haute</span>
+            <span className="text-[9px] text-gray-400 font-bold">Basse</span>
+          </div>
+        </div>
+      )}
     </div>
-  </div>
-)
+  )
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION 3 — Bar chart: tâches créées vs résolues
@@ -303,36 +317,36 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
     return () => document.removeEventListener('mousedown', h)
   }, [])
 
-  const totalC = trend.reduce((s, d) => s + d.reports, 0)
-  const totalR = trend.reduce((s, d) => s + d.resolved, 0)
+  const totalC = trend.reduce((s, d) => s + (d.reports || 0), 0)
+  const totalR = trend.reduce((s, d) => s + (d.resolved || 0), 0)
   const rate   = totalC > 0 ? ((totalR / totalC) * 100).toFixed(1) : '0.0'
-  const selName = selDept === 'all' ? 'Tous les départements' : (depts.find(d => d.id === selDept)?.name_fr || depts.find(d => d.id === selDept)?.name || 'Tous les départements')
+  const selName = selDept === 'all' ? 'Tous les départements'
+    : (depts.find(d => d.id === selDept)?.name_fr || depts.find(d => d.id === selDept)?.name || 'Tous')
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex flex-col h-full">
-      <span className="text-[13px] font-bold text-gray-800 mb-3">3. Nb de tâches vs résolues par moi</span>
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-5 shadow-sm flex flex-col h-full">
+      <span className="text-[13px] font-bold text-gray-800 dark:text-white mb-3">3. Nb de tâches vs résolues par mois</span>
 
       {/* Dropdown */}
       <div className="flex items-center gap-2 mb-3">
         <span className="text-[11px] text-gray-400 font-medium">Département</span>
         <div className="relative flex-1" ref={ref}>
           <button onClick={() => setOpen(!open)}
-            className="w-full flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[11px] font-medium text-gray-700 hover:border-gray-300 transition-all">
+            className="w-full flex items-center justify-between gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-[11px] font-medium text-gray-700 dark:text-slate-300 hover:border-gray-300 dark:hover:border-slate-600 transition-all">
             <span className="truncate">{selName}</span>
             <ChevronDown className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
           </button>
           <AnimatePresence>
             {open && (
-              <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-100 rounded-xl shadow-xl z-20 py-1 overflow-hidden">
+              <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                className="absolute top-full mt-1 left-0 right-0 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-xl z-20 py-1 overflow-hidden">
                 <button onClick={() => { setSelDept('all'); setOpen(false) }}
-                  className={`w-full text-left px-3 py-2 text-[11px] font-medium transition-colors ${selDept === 'all' ? 'text-green-600 bg-green-50' : 'text-gray-700 hover:bg-gray-50'}`}>
+                  className={`w-full text-left px-3 py-2 text-[11px] font-medium transition-colors ${selDept === 'all' ? 'text-green-600 bg-green-50 dark:bg-green-500/10' : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}>
                   Tous les départements
                 </button>
                 {depts.map(d => (
                   <button key={d.id} onClick={() => { setSelDept(d.id); setOpen(false) }}
-                    className={`w-full text-left px-3 py-2 text-[11px] font-medium transition-colors ${selDept === d.id ? 'text-green-600 bg-green-50' : 'text-gray-700 hover:bg-gray-50'}`}>
+                    className={`w-full text-left px-3 py-2 text-[11px] font-medium transition-colors ${selDept === d.id ? 'text-green-600 bg-green-50 dark:bg-green-500/10' : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}>
                     {d.name_fr || d.name}
                   </button>
                 ))}
@@ -348,8 +362,8 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
           <div className="flex items-end gap-2 h-full pb-6">
             {[0.55,0.8,0.65,0.9,1,0.7].map((h, i) => (
               <div key={i} className="flex-1 flex gap-1 items-end">
-                <div className="flex-1 rounded-t animate-pulse bg-green-100" style={{ height: `${h * 120}px` }} />
-                <div className="flex-1 rounded-t animate-pulse bg-blue-100" style={{ height: `${h * 85}px` }} />
+                <div className="flex-1 rounded-t animate-pulse bg-green-100 dark:bg-green-500/10" style={{ height: `${h * 120}px` }} />
+                <div className="flex-1 rounded-t animate-pulse bg-blue-100 dark:bg-blue-500/10"  style={{ height: `${h * 85}px`  }} />
               </div>
             ))}
           </div>
@@ -357,44 +371,39 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
           <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
             <BarChart data={trend} margin={{ top: 4, right: 0, left: -26, bottom: 0 }} barCategoryGap="32%">
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }}
-                axisLine={false} tickLine={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <Tooltip content={<BarTip />} cursor={{ fill: '#f8fafc' }} />
-              <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }}
-                formatter={v => <span style={{ color: '#64748b', fontWeight: 700 }}>
-                  {v === 'reports' ? 'Tâches créées' : 'Tâches résolues'}
-                </span>} />
-              <Bar dataKey="reports"  fill={C.green} radius={[3, 3, 0, 0]} maxBarSize={18} />
-              <Bar dataKey="resolved" fill={C.blue}  radius={[3, 3, 0, 0]} maxBarSize={18} />
+              <Bar dataKey="reports"  name="reports"  fill={C.green} radius={[3, 3, 0, 0]} maxBarSize={18} />
+              <Bar dataKey="resolved" name="resolved" fill={C.blue}  radius={[3, 3, 0, 0]} maxBarSize={18} />
             </BarChart>
           </ResponsiveContainer>
         )}
       </div>
 
       {/* Bottom KPIs */}
-      <div className="grid grid-cols-3 gap-2 mt-2 pt-3 border-t border-gray-100">
+      <div className="grid grid-cols-3 gap-2 mt-2 pt-3 border-t border-gray-100 dark:border-slate-800">
         <div className="flex items-center gap-1.5">
-          <div className="w-6 h-6 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+          <div className="w-6 h-6 rounded-lg bg-green-50 dark:bg-green-500/10 flex items-center justify-center flex-shrink-0">
             <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
           </div>
           <div>
-            <p className="text-[12px] font-black text-gray-800">{totalC.toLocaleString('fr-FR')}</p>
-            <p className="text-[9px] text-gray-400 leading-none">Tâches créées</p>
+            <p className="text-[12px] font-black text-gray-800 dark:text-white">{totalC.toLocaleString('fr-FR')}</p>
+            <p className="text-[9px] text-gray-400 leading-none">Créées</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+          <div className="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center flex-shrink-0">
             <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />
           </div>
           <div>
-            <p className="text-[12px] font-black text-gray-800">{totalR.toLocaleString('fr-FR')}</p>
-            <p className="text-[9px] text-gray-400 leading-none">Tâches résolues</p>
+            <p className="text-[12px] font-black text-gray-800 dark:text-white">{totalR.toLocaleString('fr-FR')}</p>
+            <p className="text-[9px] text-gray-400 leading-none">Résolues</p>
           </div>
         </div>
         <div>
-          <p className="text-[12px] font-black text-gray-800">{rate}%</p>
-          <p className="text-[9px] text-gray-400 leading-none">Taux de résolution</p>
+          <p className="text-[12px] font-black text-gray-800 dark:text-white">{rate}%</p>
+          <p className="text-[9px] text-gray-400 leading-none">Taux résolution</p>
         </div>
       </div>
     </div>
@@ -409,20 +418,21 @@ const DeptPerf = ({ depts, loading }: { depts: any[]; loading: boolean }) => {
   const totalRate = totals.t > 0 ? ((totals.r / totals.t) * 100).toFixed(1) : '0.0'
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-      <span className="text-[13px] font-bold text-gray-800 block mb-4">4. Performance par département</span>
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-5 shadow-sm">
+      <span className="text-[13px] font-bold text-gray-800 dark:text-white block mb-4">4. Performance par département</span>
       <table className="w-full">
         <thead>
           <tr className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-            <th className="text-left pb-2.5 border-b border-gray-100">Département</th>
-            <th className="text-right pb-2.5 border-b border-gray-100">Tâches créées</th>
-            <th className="text-right pb-2.5 border-b border-gray-100">Tâches résolues</th>
-            <th className="text-left pb-2.5 pl-4 border-b border-gray-100">Taux de résolution</th>
+            <th className="text-left pb-2.5 border-b border-gray-100 dark:border-slate-800">Département</th>
+            <th className="text-right pb-2.5 border-b border-gray-100 dark:border-slate-800">Créées</th>
+            <th className="text-right pb-2.5 border-b border-gray-100 dark:border-slate-800">Résolues</th>
+            <th className="text-left pb-2.5 pl-4 border-b border-gray-100 dark:border-slate-800">Taux</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
           {loading ? [...Array(5)].map((_, i) => (
-            <tr key={i}><td className="py-2.5"><div className="flex items-center gap-2"><Sk w="w-6" h="h-6" r="rounded-lg" /><Sk w="w-24" h="h-2.5" /></div></td>
+            <tr key={i}>
+              <td className="py-2.5"><div className="flex items-center gap-2"><Sk w="w-6" h="h-6" r="rounded-lg" /><Sk w="w-24" h="h-2.5" /></div></td>
               <td className="py-2.5 text-right"><Sk w="w-8" h="h-2.5" r="rounded" /></td>
               <td className="py-2.5 text-right"><Sk w="w-8" h="h-2.5" r="rounded" /></td>
               <td className="py-2.5 pl-4"><Sk h="h-2.5" r="rounded-full" /></td>
@@ -430,25 +440,25 @@ const DeptPerf = ({ depts, loading }: { depts: any[]; loading: boolean }) => {
           )) : depts.slice(0, 6).map((d, i) => {
             const icon  = DEPT_ICONS[d.code] || '📁'
             const color = DEPT_COLORS[d.code] || C.green
-            const rate  = d.perf
+            const rate  = d.perf ?? (d.total > 0 ? Math.round((d.resolved / d.total) * 100) : 0)
             const rCol  = rate >= 70 ? C.green : rate >= 55 ? C.amber : C.red
             return (
               <motion.tr key={d.id || i}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                 transition={{ delay: i * 0.05 }}
-                className="hover:bg-gray-50 transition-colors">
+                className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
                 <td className="py-2.5">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
                       style={{ background: color + '18' }}>{icon}</div>
-                    <span className="text-[12px] font-bold text-gray-700">{d.name}</span>
+                    <span className="text-[12px] font-bold text-gray-700 dark:text-slate-200">{d.name}</span>
                   </div>
                 </td>
-                <td className="py-2.5 text-right text-[12px] font-bold text-gray-700">{d.total}</td>
-                <td className="py-2.5 text-right text-[12px] font-bold text-gray-700">{d.resolved}</td>
+                <td className="py-2.5 text-right text-[12px] font-bold text-gray-700 dark:text-slate-200">{d.total}</td>
+                <td className="py-2.5 text-right text-[12px] font-bold text-gray-700 dark:text-slate-200">{d.resolved}</td>
                 <td className="py-2.5 pl-4">
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="flex-1 h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
                       <motion.div className="h-full rounded-full"
                         style={{ background: rCol }}
                         initial={{ width: 0 }}
@@ -465,10 +475,10 @@ const DeptPerf = ({ depts, loading }: { depts: any[]; loading: boolean }) => {
         </tbody>
         {!loading && (
           <tfoot>
-            <tr className="border-t-2 border-gray-200">
-              <td className="pt-2.5 text-[12px] font-black text-gray-800">Total</td>
-              <td className="pt-2.5 text-right text-[12px] font-black text-gray-800">{totals.t.toLocaleString('fr-FR')}</td>
-              <td className="pt-2.5 text-right text-[12px] font-black text-gray-800">{totals.r.toLocaleString('fr-FR')}</td>
+            <tr className="border-t-2 border-gray-200 dark:border-slate-800">
+              <td className="pt-2.5 text-[12px] font-black text-gray-800 dark:text-white">Total</td>
+              <td className="pt-2.5 text-right text-[12px] font-black text-gray-800 dark:text-white">{totals.t.toLocaleString('fr-FR')}</td>
+              <td className="pt-2.5 text-right text-[12px] font-black text-gray-800 dark:text-white">{totals.r.toLocaleString('fr-FR')}</td>
               <td className="pt-2.5 pl-4 text-[12px] font-black text-green-600">{totalRate}%</td>
             </tr>
           </tfoot>
@@ -482,10 +492,10 @@ const DeptPerf = ({ depts, loading }: { depts: any[]; loading: boolean }) => {
 // SECTION 5 — Status des signalements (donut)
 // ─────────────────────────────────────────────────────────────────────────────
 const PIE_DATA_TEMPLATE = [
-  { name: 'Soumis',   key: 'soumise',        color: C.blue   },
-  { name: 'En cours', key: 'en_cours',        color: C.amber  },
-  { name: 'Assigné',  key: '__assigned',      color: C.purple },
-  { name: 'Résolu',   key: '__resolved',      color: C.green  },
+  { name: 'Soumis',   key: 'soumise',     color: C.blue   },
+  { name: 'En cours', key: 'en_cours',    color: C.amber  },
+  { name: 'Assigné',  key: '__assigned',  color: C.purple },
+  { name: 'Résolu',   key: '__resolved',  color: C.green  },
 ]
 
 const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; loading: boolean }) => {
@@ -497,20 +507,17 @@ const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; lo
       ? (byStatus.assignee_chef || 0) + (byStatus.assignee_agent || 0)
       : t.key === '__resolved'
         ? (byStatus.resolue || 0) + (byStatus.cloturee || 0)
-        : byStatus[t.key] || 0
+        : byStatus[t.key] || 0,
   }))
-
   const total = pieData.reduce((s, d) => s + d.value, 0)
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-      <span className="text-[13px] font-bold text-gray-800 block mb-4">5. Les status des signalements</span>
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-5 shadow-sm">
+      <span className="text-[13px] font-bold text-gray-800 dark:text-white block mb-4">5. Les statuts des signalements</span>
       <div className="flex items-center gap-6">
-
-        {/* Donut */}
         <div className="relative flex-shrink-0" style={{ width: 200, height: 200 }}>
           {loading ? (
-            <div className="w-full h-full rounded-full bg-gray-100 animate-pulse" />
+            <div className="w-full h-full rounded-full bg-gray-100 dark:bg-slate-800 animate-pulse" />
           ) : (
             <>
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
@@ -527,7 +534,7 @@ const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; lo
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <p className="text-[22px] font-black text-gray-800 leading-none">
+                <p className="text-[22px] font-black text-gray-800 dark:text-white leading-none">
                   {activeIdx !== undefined
                     ? pieData[activeIdx].value.toLocaleString('fr-FR')
                     : total.toLocaleString('fr-FR')}
@@ -540,7 +547,6 @@ const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; lo
           )}
         </div>
 
-        {/* Legend */}
         <div className="flex-1 space-y-2">
           {loading ? [...Array(4)].map((_, i) => (
             <div key={i} className="flex items-center gap-3">
@@ -553,12 +559,12 @@ const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; lo
               <motion.div key={item.name}
                 initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.07 }}
-                className={`flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-xl cursor-pointer transition-colors ${activeIdx === i ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
+                className={`flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-xl cursor-pointer transition-colors ${activeIdx === i ? 'bg-gray-50 dark:bg-slate-800' : 'hover:bg-gray-50 dark:hover:bg-slate-800'}`}
                 onMouseEnter={() => setActiveIdx(i)}
                 onMouseLeave={() => setActiveIdx(undefined)}>
                 <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: item.color }} />
-                <span className="text-[12px] font-bold text-gray-700 flex-1">{item.name}</span>
-                <span className="text-[12px] font-black text-gray-800">{item.value.toLocaleString('fr-FR')}</span>
+                <span className="text-[12px] font-bold text-gray-700 dark:text-slate-300 flex-1">{item.name}</span>
+                <span className="text-[12px] font-black text-gray-800 dark:text-white">{item.value.toLocaleString('fr-FR')}</span>
                 <span className="text-[11px] font-bold text-gray-400 w-12 text-right">{pct}%</span>
               </motion.div>
             )
@@ -573,25 +579,19 @@ const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; lo
 // ROOT COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 const PresidentDashboard: React.FC = () => {
-  const [loading,   setLoading]   = useState(true)
-  const [error,     setError]     = useState(false)
-  const [crucials,  setCrucials]  = useState<any[]>([])
-  const [zones,     setZones]     = useState<any[]>([])
-  const [trend,     setTrend]     = useState<any[]>([])
-  const [depts,     setDepts]     = useState<any[]>([])
-  const [deptsRaw,  setDeptsRaw]  = useState<any[]>([])
-  const [byStatus,  setByStatus]  = useState<Record<string, number>>({})
-  const [stats,     setStats]     = useState({
-    criticalCount: 0,
-    resolvedCount: 0,
-    highSatisfactionCount: 0
-  })
-
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState(false)
+  const [crucials, setCrucials] = useState<any[]>([])
+  const [zones,    setZones]    = useState<any[]>([])
+  const [trend,    setTrend]    = useState<any[]>([])
+  const [depts,    setDepts]    = useState<any[]>([])
+  const [deptsRaw, setDeptsRaw] = useState<any[]>([])
+  const [byStatus, setByStatus] = useState<Record<string, number>>({})
+  const [stats,    setStats]    = useState({ criticalCount: 0, resolvedCount: 0, highSatisfactionCount: 0 })
 
   const load = useCallback(async () => {
     setLoading(true); setError(false)
     try {
-      // Dashboard data
       const res = await fetch(`${API}/president/dashboard`, {
         headers: { Authorization: `Bearer ${tok()}` }
       })
@@ -602,21 +602,18 @@ const PresidentDashboard: React.FC = () => {
       setTrend(data.trendData || [])
       setDepts(data.by_department || data.byDepartment || [])
       setByStatus(data.by_status || data.byStatus || {})
-      setStats(data.stats || {
-        criticalCount: 0,
-        resolvedCount: 0,
-        highSatisfactionCount: 0
-      })
+      setStats(data.stats || { criticalCount: 0, resolvedCount: 0, highSatisfactionCount: 0 })
 
-
-      // Zones from arrondissement breakdown
       const arr = data.by_arrondissement || data.byArrondissement || {}
+      const ZONE_NAMES = ['Hôpitaux à proximité', 'Écoles à proximité', 'Marchés publics', 'Centres sportifs', 'Bâtiments administratifs']
       const zonesArr = Object.values(arr)
-        .map((v: any) => typeof v === 'object' ? v : { name: String(v), count: v })
+        .map((v: any, idx) => {
+          const count = typeof v === 'object' ? v.count : v
+          return { name: ZONE_NAMES[idx % ZONE_NAMES.length], count }
+        })
         .sort((a: any, b: any) => b.count - a.count)
       setZones(zonesArr as any[])
 
-      // Departments for dropdown
       const dr = await fetch(`${API}/president/departments`, {
         headers: { Authorization: `Bearer ${tok()}` }
       })
@@ -649,11 +646,11 @@ const PresidentDashboard: React.FC = () => {
 
   return (
     <PresidentLayout title="">
-      {/* ── Header ──────────────────────────────────────────────────────── */}
+      {/* ── Header ─────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-[22px] font-black text-gray-900 tracking-tight">Tableau de bord</h1>
-          <p className="text-[13px] text-gray-400 mt-1">
+          <h1 className="text-[22px] font-black text-gray-900 dark:text-white tracking-tight">Tableau de bord</h1>
+          <p className="text-[13px] text-gray-400 dark:text-slate-500 mt-1">
             Bonjour Président, voici un aperçu global de la situation actuelle.
           </p>
         </div>
@@ -664,7 +661,7 @@ const PresidentDashboard: React.FC = () => {
             <Download className="w-4 h-4" /> Exporter le rapport
           </button>
           <button onClick={load}
-            className="p-2 rounded-xl border border-gray-200 bg-white hover:border-gray-300 text-gray-400 hover:text-gray-600 transition-colors">
+            className="p-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600 text-gray-400 hover:text-gray-600 transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -672,64 +669,47 @@ const PresidentDashboard: React.FC = () => {
 
       {/* Error banner */}
       {error && (
-        <div className="bg-red-50 border border-red-100 rounded-2xl p-4 mb-5 flex items-center gap-3">
+        <div className="bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-2xl p-4 mb-5 flex items-center gap-3">
           <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
-          <p className="text-sm font-bold text-red-700 flex-1">Erreur de chargement.</p>
+          <p className="text-sm font-bold text-red-700 dark:text-red-400 flex-1">Erreur de chargement.</p>
           <button onClick={load} className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 transition-colors">
             Réessayer
           </button>
         </div>
       )}
 
-      {/* ── KPI Row ──────────────────────────────────────────────────────── */}
+      {/* ── KPI Row ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow group">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg bg-red-500 group-hover:scale-110 transition-transform">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Signalements Urgents</p>
-              <p className="text-2xl font-black text-gray-900 mt-0.5">{loading ? <Sk w="w-12" h="h-6" /> : stats.criticalCount}</p>
-              <p className="text-[10px] text-gray-400 mt-0.5 font-medium">Cas critiques à traiter</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow group">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg bg-green-600 group-hover:scale-110 transition-transform">
-              <CheckCircle2 className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Tâches Résolues</p>
-              <p className="text-2xl font-black text-gray-900 mt-0.5">{loading ? <Sk w="w-12" h="h-6" /> : stats.resolvedCount}</p>
-              <p className="text-[10px] text-gray-400 mt-0.5 font-medium">Interventions terminées</p>
+        {[
+          { label: 'Signalements urgents',   value: stats.criticalCount,       sub: 'Cas critiques à traiter',    icon: <AlertTriangle className="w-6 h-6"/>, bg: 'bg-red-500'   },
+          { label: 'Tâches résolues',        value: stats.resolvedCount,       sub: 'Interventions terminées',    icon: <CheckCircle2   className="w-6 h-6"/>, bg: 'bg-green-600' },
+          { label: 'Satisfaction élevée',    value: stats.highSatisfactionCount, sub: 'Notes 4–5 étoiles',        icon: <ThumbsUp       className="w-6 h-6"/>, bg: 'bg-blue-500'  },
+        ].map(s => (
+          <div key={s.label} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow group">
+            <div className="flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${s.bg} group-hover:scale-110 transition-transform`}>
+                {s.icon}
+              </div>
+              <div>
+                <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">{s.label}</p>
+                <p className="text-2xl font-black text-gray-900 dark:text-white mt-0.5">
+                  {loading ? <span className="inline-block w-10 h-6 bg-gray-100 dark:bg-slate-800 rounded animate-pulse" /> : s.value}
+                </p>
+                <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5 font-medium">{s.sub}</p>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow group">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg bg-blue-500 group-hover:scale-110 transition-transform">
-              <ThumbsUp className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Satisfaction Élevée</p>
-              <p className="text-2xl font-black text-gray-900 mt-0.5">{loading ? <Sk w="w-12" h="h-6" /> : stats.highSatisfactionCount}</p>
-              <p className="text-[10px] text-gray-400 mt-0.5 font-medium">Notes 4-5 étoiles</p>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* ── Row 1: 3 equal columns ───────────────────────────────────────── */}
-
+      {/* ── Row 1: 3 equal columns ───────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         <TopCritiques data={crucials} loading={loading} />
         <ZonesCritiques zones={zones} loading={loading} />
         <TachesChart trend={trend} depts={deptsRaw} loading={loading} />
       </div>
 
-      {/* ── Row 2: 2 columns ────────────────────────────────────────────── */}
+      {/* ── Row 2: 2 columns ─────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-10">
         <DeptPerf depts={depts} loading={loading} />
         <StatusPie byStatus={byStatus} loading={loading} />

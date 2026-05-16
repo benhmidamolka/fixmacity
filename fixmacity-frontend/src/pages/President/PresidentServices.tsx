@@ -90,16 +90,16 @@ const Ring: React.FC<{ value: number; color: string; size?: number; label?: stri
   const dash = (Math.min(value, 100) / 100) * circ
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="flex-shrink-0">
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#F1F5F9" strokeWidth="6"/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" className="stroke-slate-100 dark:stroke-slate-800" strokeWidth="6"/>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="6"
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
         transform={`rotate(-90 ${size/2} ${size/2})`}
         style={{ transition: 'stroke-dasharray .7s ease' }}/>
       <text x="50%" y={label ? '44%' : '54%'} dominantBaseline="middle" textAnchor="middle"
-        fontSize="12" fontWeight="800" fill="#0A1628">{value}%</text>
+        fontSize="12" fontWeight="800" className="fill-slate-900 dark:fill-white">{value}%</text>
       {label && (
         <text x="50%" y="62%" dominantBaseline="middle" textAnchor="middle"
-          fontSize="7" fontWeight="700" fill="#94A3B8">{label}</text>
+          fontSize="7" fontWeight="700" className="fill-slate-400 dark:fill-slate-500">{label}</text>
       )}
     </svg>
   )
@@ -123,15 +123,15 @@ const Confirm: React.FC<{ msg: string; sub?: string; onYes: () => void; onNo: ()
 }) => (
   <div className="fixed inset-0 z-[180] flex items-center justify-center p-4">
     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onNo}/>
-    <div className="relative bg-white rounded-2xl shadow-2xl p-7 w-full max-w-xs text-center">
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 ${danger ? 'bg-red-50' : 'bg-amber-50'}`}>
-        <AlertTriangle className={`w-6 h-6 ${danger ? 'text-red-500' : 'text-amber-500'}`}/>
+    <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-7 w-full max-w-xs text-center border border-transparent dark:border-slate-800">
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 ${danger ? 'bg-red-50 dark:bg-red-900/20' : 'bg-amber-50 dark:bg-amber-900/20'}`}>
+        <AlertTriangle className={`w-6 h-6 ${danger ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}/>
       </div>
-      <p className="text-sm font-black text-[#0A1628] mb-1">{msg}</p>
-      {sub && <p className="text-xs text-slate-400 font-semibold mb-6">{sub}</p>}
+      <p className="text-sm font-black text-[#0A1628] dark:text-white mb-1">{msg}</p>
+      {sub && <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold mb-6">{sub}</p>}
       {!sub && <div className="mb-6"/>}
       <div className="flex gap-3">
-        <button onClick={onNo} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Annuler</button>
+        <button onClick={onNo} className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">Annuler</button>
         <button onClick={onYes} className={`flex-1 py-2.5 rounded-xl text-sm font-bold text-white ${danger ? 'bg-red-500 hover:bg-red-600' : 'bg-amber-500 hover:bg-amber-600'}`}>Confirmer</button>
       </div>
     </div>
@@ -213,12 +213,12 @@ const ServiceModal: React.FC<{
     }
   }
 
-  const inputCls = "w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 outline-none focus:border-[#1557FF] focus:ring-2 focus:ring-blue-100 transition-all bg-white"
+  const inputCls = "w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-700 dark:text-white outline-none focus:border-[#1557FF] focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/20 transition-all bg-white dark:bg-slate-900"
 
   const Field: React.FC<{ label: string; req?: boolean; children: React.ReactNode }> = ({ label, req, children }) => (
     <div>
-      <label className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-        {label}{req && <span className="text-red-400">*</span>}
+      <label className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5">
+        {label}{req && <span className="text-red-400 dark:text-red-500">*</span>}
       </label>
       {children}
     </div>
@@ -227,25 +227,25 @@ const ServiceModal: React.FC<{
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}/>
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-transparent dark:border-slate-800">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 pt-6 pb-4 flex items-center justify-between z-10">
+        <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-6 pt-6 pb-4 flex items-center justify-between z-10">
           <div>
-            <h2 className="text-lg font-black text-[#0A1628]">
+            <h2 className="text-lg font-black text-[#0A1628] dark:text-white">
               {isEdit ? 'Modifier le service' : 'Nouveau service municipal'}
             </h2>
-            <p className="text-xs text-slate-400 font-semibold mt-0.5">
+            <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold mt-0.5">
               {isEdit ? dept!.name_fr : 'Créer un département opérationnel'}
             </p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200">
-            <X className="w-4 h-4 text-slate-500"/>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700">
+            <X className="w-4 h-4 text-slate-500 dark:text-slate-400"/>
           </button>
         </div>
 
         <div className="px-6 py-5 space-y-4">
           {err && (
-            <div className="bg-red-50 border border-red-200 text-red-600 text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-2">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 flex-shrink-0"/>{err}
             </div>
           )}
@@ -256,7 +256,7 @@ const ServiceModal: React.FC<{
               {ICON_OPTIONS.map(opt => (
                 <button key={opt.emoji} type="button"
                   onClick={() => setSelectedIcon(opt.emoji)}
-                  className={`h-10 rounded-xl text-xl flex items-center justify-center border-2 transition-all ${selectedIcon === opt.emoji ? 'border-[#1557FF] bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}
+                  className={`h-10 rounded-xl text-xl flex items-center justify-center border-2 transition-all ${selectedIcon === opt.emoji ? 'border-[#1557FF] bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}
                   title={opt.label}>
                   {opt.emoji}
                 </button>
@@ -275,8 +275,8 @@ const ServiceModal: React.FC<{
               <input className={`${inputCls} uppercase font-black text-center tracking-widest`}
                 value={form.code} onChange={e => set('code', e.target.value.toUpperCase().slice(0,3))}
                 placeholder="VR" maxLength={3} disabled={isEdit}
-                style={isEdit ? { background: '#F8FAFC', color: '#94A3B8' } : {}}/>
-              {isEdit && <p className="text-[9px] text-slate-400 mt-1 font-semibold">Non modifiable</p>}
+                style={isEdit ? { background: 'transparent', color: '#94A3B8' } : {}}/>
+              {isEdit && <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1 font-semibold">Non modifiable</p>}
             </Field>
           </div>
 
@@ -297,12 +297,12 @@ const ServiceModal: React.FC<{
           </Field>
         </div>
 
-        <div className="sticky bottom-0 bg-white border-t border-slate-100 px-6 py-4 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">
+        <div className="sticky bottom-0 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 px-6 py-4 flex gap-3">
+          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">
             Annuler
           </button>
           <button onClick={save} disabled={saving}
-            className="flex-1 py-3 rounded-xl bg-[#1557FF] text-sm font-black text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/25">
+            className="flex-1 py-3 rounded-xl bg-[#1557FF] text-sm font-black text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/25 dark:shadow-none">
             {saving && <Loader2 className="w-4 h-4 animate-spin"/>}
             {isEdit ? 'Enregistrer' : 'Créer le service'}
           </button>
@@ -360,11 +360,11 @@ const DetailDrawer: React.FC<{
   return (
     <div className="fixed inset-0 z-[100] flex">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose}/>
-      <div className="relative ml-auto h-full w-full max-w-md bg-white shadow-2xl flex flex-col overflow-hidden"
+      <div className="relative ml-auto h-full w-full max-w-md bg-white dark:bg-slate-950 shadow-2xl flex flex-col overflow-hidden"
         style={{ animation: 'slideInRight .25s cubic-bezier(.22,1,.36,1) forwards' }}>
 
         {/* Header */}
-        <div className="flex-shrink-0 border-b border-slate-100 px-6 pt-6 pb-5">
+        <div className="flex-shrink-0 border-b border-slate-100 dark:border-slate-800 px-6 pt-6 pb-5 bg-white dark:bg-slate-900">
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0 shadow-sm"
               style={{ background: `${color}15` }}>
@@ -372,55 +372,55 @@ const DetailDrawer: React.FC<{
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
-                <h2 className="font-black text-[#0A1628] text-base leading-tight truncate">{dept.name_fr}</h2>
+                <h2 className="font-black text-[#0A1628] dark:text-white text-base leading-tight truncate">{dept.name_fr}</h2>
                 <span className="text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest flex-shrink-0 text-white"
                   style={{ background: color }}>{dept.code}</span>
               </div>
-              {dept.name_ar && <p className="text-xs text-slate-400 font-semibold" dir="rtl">{dept.name_ar}</p>}
+              {dept.name_ar && <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold" dir="rtl">{dept.name_ar}</p>}
               <div className="flex items-center gap-2 mt-1.5">
-                <span className={`flex items-center gap-1 text-[10px] font-bold ${dept.is_active ? 'text-emerald-600' : 'text-slate-400'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${dept.is_active ? 'bg-emerald-500' : 'bg-slate-300'}`}/>
+                <span className={`flex items-center gap-1 text-[10px] font-bold ${dept.is_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${dept.is_active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}/>
                   {dept.is_active ? 'Actif' : 'Inactif'}
                 </span>
                 {dept.description && (
-                  <span className="text-[10px] text-slate-400 font-semibold truncate">· {dept.description}</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold truncate">· {dept.description}</span>
                 )}
               </div>
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 flex-shrink-0">
-              <X className="w-4 h-4 text-slate-500"/>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 flex-shrink-0 transition-colors">
+              <X className="w-4 h-4 text-slate-500 dark:text-slate-400"/>
             </button>
           </div>
         </div>
 
         {/* Chef de service */}
-        <div className="flex-shrink-0 px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+        <div className="flex-shrink-0 px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3 bg-white dark:bg-slate-900">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-black flex-shrink-0"
             style={{ background: color }}>
             {initials(dept.chef_name)}
           </div>
           <div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Chef de Service</p>
-            <p className="text-sm font-black text-[#0A1628]">{dept.chef_name ?? 'Non assigné'}</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Chef de Service</p>
+            <p className="text-sm font-black text-[#0A1628] dark:text-white">{dept.chef_name ?? 'Non assigné'}</p>
           </div>
-          <Shield className="w-4 h-4 text-slate-300 ml-auto"/>
+          <Shield className="w-4 h-4 text-slate-300 dark:text-slate-700 ml-auto"/>
         </div>
 
         {/* Stats grid */}
-        <div className="flex-shrink-0 px-6 py-5 border-b border-slate-100">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Statistiques</p>
+        <div className="flex-shrink-0 px-6 py-5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-4">Statistiques</p>
           <div className="flex items-center gap-4 mb-4">
             <Ring value={resRate} color={color} size={72} label="résolution"/>
             <div className="flex-1 grid grid-cols-2 gap-2">
               {[
-                { label: 'Total',     val: dept.total,       bg: 'bg-slate-50',   tx: 'text-[#0A1628]', border: 'border-slate-100' },
-                { label: 'En cours',  val: dept.in_progress, bg: 'bg-blue-50',    tx: 'text-blue-600',  border: 'border-blue-100'  },
-                { label: 'Acceptées', val: dept.accepted,    bg: 'bg-amber-50',   tx: 'text-amber-600', border: 'border-amber-100' },
-                { label: 'Résolues',  val: dept.resolved,    bg: 'bg-emerald-50', tx: 'text-emerald-600', border: 'border-emerald-100' },
+                { label: 'Total',     val: dept.total,       bg: 'bg-slate-50 dark:bg-slate-800/50',   tx: 'text-[#0A1628] dark:text-white', border: 'border-slate-100 dark:border-slate-800' },
+                { label: 'En cours',  val: dept.in_progress, bg: 'bg-blue-50 dark:bg-blue-900/10',    tx: 'text-blue-600 dark:text-blue-400',  border: 'border-blue-100 dark:border-blue-900/20'  },
+                { label: 'Acceptées', val: dept.accepted,    bg: 'bg-amber-50 dark:bg-amber-900/10',   tx: 'text-amber-600 dark:text-amber-400', border: 'border-amber-100 dark:border-amber-900/20' },
+                { label: 'Résolues',  val: dept.resolved,    bg: 'bg-emerald-50 dark:bg-emerald-900/10', tx: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-100 dark:border-emerald-900/20' },
               ].map(s => (
                 <div key={s.label} className={`${s.bg} rounded-xl p-2.5 text-center border ${s.border}`}>
                   <p className={`text-lg font-black ${s.tx}`}>{s.val}</p>
-                  <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">{s.label}</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -430,30 +430,30 @@ const DetailDrawer: React.FC<{
           <div className="space-y-2">
             <div>
               <div className="flex justify-between mb-1">
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Tâches acceptées</span>
-                <span className="text-[10px] font-black text-amber-600">{dept.accepted}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Tâches acceptées</span>
+                <span className="text-[10px] font-black text-amber-600 dark:text-amber-400">{dept.accepted}</span>
               </div>
-              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
                 <div className="h-1.5 rounded-full bg-amber-400 transition-all duration-700"
                   style={{ width: `${accRate}%` }}/>
               </div>
             </div>
             <div>
               <div className="flex justify-between mb-1">
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Tâches rejetées</span>
-                <span className="text-[10px] font-black text-red-500">{dept.rejected}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Tâches rejetées</span>
+                <span className="text-[10px] font-black text-red-500 dark:text-red-400">{dept.rejected}</span>
               </div>
-              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
                 <div className="h-1.5 rounded-full bg-red-400 transition-all duration-700"
                   style={{ width: `${pct(dept.rejected, dept.total)}%` }}/>
               </div>
             </div>
             <div>
               <div className="flex justify-between mb-1">
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Taux de résolution</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Taux de résolution</span>
                 <span className="text-[10px] font-black" style={{ color }}>{resRate}%</span>
               </div>
-              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
                 <div className="h-1.5 rounded-full transition-all duration-700"
                   style={{ width: `${resRate}%`, background: color }}/>
               </div>
@@ -462,24 +462,24 @@ const DetailDrawer: React.FC<{
         </div>
 
         {/* Tabs — Agents / Déclarations */}
-        <div className="flex-shrink-0 flex border-b border-slate-100 px-6">
+        <div className="flex-shrink-0 flex border-b border-slate-100 dark:border-slate-800 px-6 bg-white dark:bg-slate-900">
           {(['agents','decls'] as const).map(t => (
             <button key={t} onClick={() => setDTab(t)}
-              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${dTab === t ? 'border-[#1557FF] text-[#1557FF]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>
+              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${dTab === t ? 'border-[#1557FF] text-[#1557FF]' : 'border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
               {t === 'agents' ? `👷 Agents (${agents.length})` : `📋 Déclarations récentes`}
             </button>
           ))}
         </div>
 
         {/* Tab content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4 bg-white dark:bg-slate-950">
           {loading ? (
             <div className="flex items-center justify-center h-24">
               <Loader2 className="w-6 h-6 text-[#1557FF] animate-spin"/>
             </div>
           ) : dTab === 'agents' ? (
             agents.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
+              <div className="text-center py-8 text-slate-400 dark:text-slate-600">
                 <Users className="w-8 h-8 mx-auto mb-2 opacity-30"/>
                 <p className="text-xs font-bold">Aucun agent assigné</p>
               </div>
@@ -491,24 +491,24 @@ const DetailDrawer: React.FC<{
                   const prog     = pct(resolved, total)
                   const agColor  = dynamicColor('', a.id)
                   return (
-                    <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-black flex-shrink-0"
                         style={{ background: agColor }}>
                         {initials(`${a.first_name} ${a.last_name}`)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <p className="text-xs font-black text-[#0A1628] truncate">{a.first_name} {a.last_name}</p>
-                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${a.is_active ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                          <p className="text-xs font-black text-[#0A1628] dark:text-white truncate">{a.first_name} {a.last_name}</p>
+                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${a.is_active ? 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}>
                             {a.is_active ? 'Actif' : 'Inactif'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-slate-200 rounded-full h-1 overflow-hidden">
+                          <div className="flex-1 bg-slate-200 dark:bg-slate-800 rounded-full h-1 overflow-hidden">
                             <div className="h-1 rounded-full transition-all duration-500"
                               style={{ width: `${prog}%`, background: agColor }}/>
                           </div>
-                          <span className="text-[9px] font-black text-slate-400 flex-shrink-0">{resolved}/{total}</span>
+                          <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 flex-shrink-0">{resolved}/{total}</span>
                         </div>
                       </div>
                     </div>
@@ -518,7 +518,7 @@ const DetailDrawer: React.FC<{
             )
           ) : (
             decls.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
+              <div className="text-center py-8 text-slate-400 dark:text-slate-600">
                 <BarChart2 className="w-8 h-8 mx-auto mb-2 opacity-30"/>
                 <p className="text-xs font-bold">Aucune déclaration</p>
               </div>
@@ -527,12 +527,12 @@ const DetailDrawer: React.FC<{
                 {decls.map((d: any) => {
                   const meta = STATUS_META[d.status] ?? { label: d.status, color: '#64748B', bg: '#F8FAFC' }
                   return (
-                    <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all">
+                    <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
                         style={{ background: `${color}15` }}>{icon}</div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-[#0A1628] truncate">{d.title}</p>
-                        <p className="text-[9px] text-slate-400 font-semibold">
+                        <p className="text-xs font-bold text-[#0A1628] dark:text-white truncate">{d.title}</p>
+                        <p className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold">
                           {d.ref_citoyen} · {new Date(d.created_at).toLocaleDateString('fr-FR')}
                         </p>
                       </div>
@@ -549,18 +549,18 @@ const DetailDrawer: React.FC<{
         </div>
 
         {/* Actions */}
-        <div className="flex-shrink-0 border-t border-slate-100 px-6 py-5 space-y-2.5">
+        <div className="flex-shrink-0 border-t border-slate-100 dark:border-slate-800 px-6 py-5 space-y-2.5 bg-white dark:bg-slate-900">
           <button onClick={onEdit}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#1557FF] text-white text-sm font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#1557FF] text-white text-sm font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 dark:shadow-none">
             <Pencil className="w-4 h-4"/> Modifier le service
           </button>
           <div className="grid grid-cols-2 gap-2.5">
             <button onClick={onToggle}
-              className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black border-2 transition-all ${dept.is_active ? 'border-amber-300 text-amber-600 hover:bg-amber-50' : 'border-emerald-300 text-emerald-600 hover:bg-emerald-50'}`}>
+              className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black border-2 transition-all ${dept.is_active ? 'border-amber-300 dark:border-amber-900/50 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20' : 'border-emerald-300 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}`}>
               {dept.is_active ? <><EyeOff className="w-4 h-4"/> Désactiver</> : <><Eye className="w-4 h-4"/> Réactiver</>}
             </button>
             <button onClick={onDelete}
-              className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-red-200 text-red-500 text-sm font-black hover:bg-red-50 transition-all">
+              className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-red-200 dark:border-red-900/50 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
               <Trash2 className="w-4 h-4"/> Supprimer
             </button>
           </div>
@@ -583,7 +583,7 @@ const ServiceCard: React.FC<{
 
   return (
     <div onClick={onClick}
-      className={`group relative bg-white rounded-3xl border overflow-hidden cursor-pointer transition-all hover:shadow-xl hover:shadow-blue-500/8 hover:-translate-y-0.5 flex flex-col ${dept.is_active ? 'border-slate-200 hover:border-blue-200' : 'border-slate-200 opacity-60 hover:opacity-80'}`}>
+      className={`group relative bg-white dark:bg-slate-900 rounded-3xl border overflow-hidden cursor-pointer transition-all hover:shadow-xl hover:shadow-blue-500/8 dark:hover:shadow-none hover:-translate-y-0.5 flex flex-col ${dept.is_active ? 'border-slate-200 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/50' : 'border-slate-200 dark:border-slate-800 opacity-60 hover:opacity-80'}`}>
 
       {/* Color band top */}
       <div className="h-1.5 w-full" style={{ background: color }}/>
@@ -591,7 +591,7 @@ const ServiceCard: React.FC<{
       {/* Inactive badge */}
       {!dept.is_active && (
         <div className="absolute top-4 right-4 z-10">
-          <span className="text-[9px] font-black px-2 py-1 rounded-lg bg-slate-100 text-slate-500 uppercase tracking-widest border border-slate-200">
+          <span className="text-[9px] font-black px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase tracking-widest border border-slate-200 dark:border-slate-700">
             Inactif
           </span>
         </div>
@@ -606,45 +606,45 @@ const ServiceCard: React.FC<{
             {icon}
           </div>
           <div className="flex-1 min-w-0 pt-0.5">
-            <h3 className="font-black text-[#0A1628] text-sm leading-tight truncate group-hover:text-blue-600 transition-colors">
+            <h3 className="font-black text-[#0A1628] dark:text-white text-sm leading-tight truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
               {dept.name_fr}
             </h3>
             {dept.name_ar && (
-              <p className="text-[10px] text-slate-400 font-semibold truncate mt-0.5" dir="rtl">{dept.name_ar}</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold truncate mt-0.5" dir="rtl">{dept.name_ar}</p>
             )}
             <span className="inline-block mt-1 text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest text-white"
               style={{ background: color }}>{dept.code}</span>
           </div>
           {/* Quick edit */}
           <button onClick={onEdit}
-            className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-500 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
+            className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-500 dark:hover:text-blue-400 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0"
             title="Modifier">
             <Pencil className="w-3.5 h-3.5"/>
           </button>
         </div>
 
         {/* Chef de service */}
-        <div className="flex items-center gap-2.5 bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+        <div className="flex items-center gap-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 border border-slate-100 dark:border-slate-800">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[9px] font-black flex-shrink-0"
             style={{ background: color }}>
             {initials(dept.chef_name)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Chef de Service</p>
-            <p className="text-xs font-black text-[#0A1628] truncate">{dept.chef_name ?? 'Non assigné'}</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Chef de Service</p>
+            <p className="text-xs font-black text-[#0A1628] dark:text-white truncate">{dept.chef_name ?? 'Non assigné'}</p>
           </div>
-          <Shield className="w-3.5 h-3.5 text-slate-300 flex-shrink-0"/>
+          <Shield className="w-3.5 h-3.5 text-slate-300 dark:text-slate-700 flex-shrink-0"/>
         </div>
 
         {/* Stats: Acceptées / Rejetées */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="bg-amber-50 rounded-xl p-2.5 text-center border border-amber-100">
-            <p className="text-lg font-black text-amber-600">{dept.accepted}</p>
-            <p className="text-[8px] font-black uppercase tracking-widest text-amber-400">Acceptées</p>
+          <div className="bg-amber-50 dark:bg-amber-900/10 rounded-xl p-2.5 text-center border border-amber-100 dark:border-amber-900/20">
+            <p className="text-lg font-black text-amber-600 dark:text-amber-400">{dept.accepted}</p>
+            <p className="text-[8px] font-black uppercase tracking-widest text-amber-400 dark:text-amber-500">Acceptées</p>
           </div>
-          <div className="bg-red-50 rounded-xl p-2.5 text-center border border-red-100">
-            <p className="text-lg font-black text-red-500">{dept.rejected}</p>
-            <p className="text-[8px] font-black uppercase tracking-widest text-red-400">Rejetées</p>
+          <div className="bg-red-50 dark:bg-red-900/10 rounded-xl p-2.5 text-center border border-red-100 dark:border-red-900/20">
+            <p className="text-lg font-black text-red-500 dark:text-red-400">{dept.rejected}</p>
+            <p className="text-[8px] font-black uppercase tracking-widest text-red-400 dark:text-red-500">Rejetées</p>
           </div>
         </div>
 
@@ -745,7 +745,6 @@ const PresidentServices: React.FC = () => {
     } catch { flash('Erreur serveur.', 'err') }
   }
 
-  // ── Delete ──
   const deleteDept = (d: Department) => {
     setConfirm({
       msg: `Supprimer le service "${d.name_fr}" ?`,
@@ -763,7 +762,6 @@ const PresidentServices: React.FC = () => {
     })
   }
 
-  // ── Filter ──
   const filtered = depts.filter(d => {
     if (search && !`${d.name_fr} ${d.code} ${d.chef_name ?? ''}`.toLowerCase().includes(search.toLowerCase())) return false
     if (statusFilter === 'active'   && !d.is_active) return false
@@ -771,7 +769,6 @@ const PresidentServices: React.FC = () => {
     return true
   })
 
-  // ── KPIs ──
   const active    = depts.filter(d => d.is_active).length
   const totalDecl = depts.reduce((s,d) => s + d.total, 0)
   const totalRes  = depts.reduce((s,d) => s + d.resolved, 0)
@@ -784,9 +781,24 @@ const PresidentServices: React.FC = () => {
         @keyframes slideInRight { from { transform: translateX(100%) } to { transform: translateX(0) } }
       `}</style>
 
-      <div className="flex-1 bg-[#f8fafc] p-6 min-h-screen">
+      <div className="flex-1 bg-slate-50 dark:bg-slate-950 p-6 min-h-screen">
+        <div className="max-w-[1600px] mx-auto animate-in fade-in duration-500">
+        {/* ── Header ── */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-6 bg-[#1557FF] rounded-full"/>
+              <h1 className="text-2xl font-black text-[#0A1628] dark:text-white uppercase tracking-tight">Services Municipaux</h1>
+            </div>
+            <p className="text-slate-400 dark:text-slate-500 font-bold text-xs uppercase tracking-widest pl-4">Gestion des départements opérationnels de Sousse</p>
+          </div>
+          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-4 py-2 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/>
+            <span className="text-[10px] font-black text-[#0A1628] dark:text-white uppercase tracking-widest">{depts.length} Services</span>
+          </div>
+        </div>
 
-        {/* ── KPI row ── */}
+        {/* ── KPIs ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
             { label: 'Total Services',    val: depts.length, sub: 'Départements',    color: '#1557FF', icon: '🏢' },
@@ -794,7 +806,7 @@ const PresidentServices: React.FC = () => {
             { label: 'Déclarations',      val: totalDecl,    sub: 'Total reçues',    color: '#F59E0B', icon: '📋' },
             { label: 'Taux Résolution',   val: `${avgRate}%`,sub: 'Moyenne globale', color: '#8B5CF6', icon: '✅' },
           ].map(k => (
-            <div key={k.label} className="group bg-white rounded-3xl p-5 border border-slate-200 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5 transition-all relative overflow-hidden">
+            <div key={k.label} className="group bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/50 hover:shadow-lg hover:shadow-blue-500/5 dark:hover:shadow-none transition-all relative overflow-hidden">
               <div className="absolute top-0 right-0 w-20 h-20 rounded-bl-[3rem]" style={{ background: `${k.color}0A` }}/>
               <div className="relative">
                 <div className="flex items-center justify-between mb-4">
@@ -802,8 +814,8 @@ const PresidentServices: React.FC = () => {
                   <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg"
                     style={{ background: `${k.color}15`, color: k.color }}>{k.sub}</span>
                 </div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">{k.label}</p>
-                <p className="text-3xl font-black text-[#0A1628]">{k.val}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">{k.label}</p>
+                <p className="text-3xl font-black text-[#0A1628] dark:text-white">{k.val}</p>
               </div>
             </div>
           ))}
@@ -812,19 +824,19 @@ const PresidentServices: React.FC = () => {
         {/* ── Toolbar ── */}
         <div className="flex flex-wrap items-center gap-3 mb-6">
           {/* Search */}
-          <div className="flex-1 min-w-[260px] flex items-center gap-2.5 bg-white border border-slate-200 rounded-2xl px-4 py-2.5 shadow-sm focus-within:border-blue-400 transition-all">
-            <Search className="w-4 h-4 text-slate-400 flex-shrink-0"/>
+          <div className="flex-1 min-w-[260px] flex items-center gap-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-2.5 shadow-sm focus-within:border-blue-400 dark:focus-within:border-blue-500 transition-all">
+            <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0"/>
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher par nom, code, chef…"
-              className="flex-1 text-xs font-bold text-slate-600 placeholder-slate-300 outline-none bg-transparent"/>
-            {search && <button onClick={() => setSearch('')}><X className="w-3.5 h-3.5 text-slate-400"/></button>}
+              className="flex-1 text-xs font-bold text-slate-600 dark:text-white placeholder-slate-300 dark:placeholder-slate-600 outline-none bg-transparent"/>
+            {search && <button onClick={() => setSearch('')}><X className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500"/></button>}
           </div>
 
           {/* Status filter */}
-          <div className="flex bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
+          <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-1 shadow-sm">
             {([['all','Tous'],['active','Actifs'],['inactive','Inactifs']] as const).map(([v,l]) => (
               <button key={v} onClick={() => setStatus(v)}
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === v ? 'text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === v ? 'text-white shadow-md' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
                 style={statusFilter === v ? { background: '#1557FF' } : {}}>
                 {l}
               </button>
@@ -840,7 +852,7 @@ const PresidentServices: React.FC = () => {
         </div>
 
         {/* ── Count ── */}
-        <p className="text-xs font-bold text-slate-400 mb-5">
+        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 mb-5">
           {filtered.length} service(s) trouvé(s)
         </p>
 
@@ -850,7 +862,7 @@ const PresidentServices: React.FC = () => {
             <Loader2 className="w-10 h-10 text-[#1557FF] animate-spin"/>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
+          <div className="flex flex-col items-center justify-center h-48 bg-white dark:bg-slate-900 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-600">
             <Building2 className="w-10 h-10 mb-3 opacity-30"/>
             <p className="text-sm font-bold">Aucun service trouvé</p>
             <p className="text-xs mt-1">Créez un nouveau service ou modifiez vos filtres</p>

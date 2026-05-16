@@ -54,23 +54,23 @@ const KpiCard: React.FC<{
 }> = ({ label, value, sub, icon, color, progressPct }) => {
   const pct = Math.min(100, Math.max(0, progressPct))
   return (
-  <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200/60 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.05)] hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] transition-all duration-500 group relative overflow-hidden">
-    <div className="absolute top-0 right-0 w-32 h-32 translate-x-8 -translate-y-8 blur-3xl opacity-10 group-hover:opacity-20 transition-opacity duration-700" style={{ backgroundColor: color }} />
+  <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 border border-slate-200/60 dark:border-slate-800 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.05)] hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] transition-all duration-500 group relative overflow-hidden">
+    <div className="absolute top-0 right-0 w-32 h-32 translate-x-8 -translate-y-8 blur-3xl opacity-10 dark:opacity-5 group-hover:opacity-20 transition-opacity duration-700" style={{ backgroundColor: color }} />
     <div className="relative z-10">
       <div className="flex items-center justify-between mb-6">
         <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6" style={{ background: `linear-gradient(135deg, ${color} 0%, ${color}CC 100%)` }}>
           {icon}
         </div>
         <div className="text-right">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{label}</p>
-          <p className="text-3xl font-black text-[#0A1628] tracking-tighter mt-1">{value}</p>
+          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{label}</p>
+          <p className="text-3xl font-black text-[#0A1628] dark:text-white tracking-tighter mt-1">{value}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
           <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, backgroundColor: color }} />
         </div>
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{sub}</span>
+        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{sub}</span>
       </div>
     </div>
   </div>
@@ -98,37 +98,37 @@ const AssignModal: React.FC<{ decl: Decl; departments: {id:string, name:string}[
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-      <div className="absolute inset-0 bg-[#0A1628]/80 backdrop-blur-xl" onClick={onClose}/>
-      <div className="relative bg-white rounded-[3rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] w-full max-w-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 border border-white/10">
+      <div className="absolute inset-0 bg-[#0A1628]/80 dark:bg-[#020617]/90 backdrop-blur-xl" onClick={onClose}/>
+      <div className="relative bg-white dark:bg-slate-900 rounded-[3rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] w-full max-w-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 border border-white/10 dark:border-slate-800">
         
         {/* Header */}
-        <div className="px-10 pt-10 pb-8 flex items-start justify-between border-b border-slate-100">
+        <div className="px-10 pt-10 pb-8 flex items-start justify-between border-b border-slate-100 dark:border-slate-800">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <span className="text-[10px] font-black text-[#1557FF] uppercase tracking-[0.2em] bg-blue-50 px-3 py-1 rounded-lg">AFFECTATION</span>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{decl.ref_citoyen}</span>
+              <span className="text-[10px] font-black text-[#1557FF] uppercase tracking-[0.2em] bg-blue-50 dark:bg-blue-500/10 px-3 py-1 rounded-lg">AFFECTATION</span>
+              <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{decl.ref_citoyen}</span>
             </div>
-            <h2 className="text-3xl font-black text-[#0A1628] tracking-tight">Délégation de pouvoir</h2>
-            <p className="text-sm text-slate-400 font-medium italic mt-1">Transférer la responsabilité opérationnelle au département compétent.</p>
+            <h2 className="text-3xl font-black text-[#0A1628] dark:text-white tracking-tight">Délégation de pouvoir</h2>
+            <p className="text-sm text-slate-400 dark:text-slate-500 font-medium italic mt-1">Transférer la responsabilité opérationnelle au département compétent.</p>
           </div>
-          <button onClick={onClose} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all group">
+          <button onClick={onClose} className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group">
             <X className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500"/>
           </button>
         </div>
 
         <div className="p-10 space-y-8">
           {/* Declaration preview */}
-          <div className="flex gap-6 p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100 border-dashed">
+          <div className="flex gap-6 p-6 bg-slate-50/50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-800 border-dashed">
             {decl.image ? (
-              <img src={decl.image} alt="" className="w-24 h-24 rounded-2xl object-cover shadow-lg border-2 border-white flex-shrink-0"/>
+              <img src={decl.image} alt="" className="w-24 h-24 rounded-2xl object-cover shadow-lg border-2 border-white dark:border-slate-700 flex-shrink-0"/>
             ) : (
-              <div className="w-24 h-24 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-3xl shadow-sm flex-shrink-0">
+              <div className="w-24 h-24 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center text-3xl shadow-sm flex-shrink-0">
                 {DEPT_UI[decl.category]?.icon || '📋'}
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-lg font-black text-[#0A1628] leading-tight mb-2 line-clamp-2">{decl.title}</p>
-              <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-slate-400">
+              <p className="text-lg font-black text-[#0A1628] dark:text-white leading-tight mb-2 line-clamp-2">{decl.title}</p>
+              <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-slate-400 dark:text-slate-500">
                 <span className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-blue-500"/>{decl.address}</span>
                 <span className="flex items-center gap-2"><ThumbsUp className="w-3.5 h-3.5 text-emerald-500"/>{decl.votes} soutiens</span>
                 <span className="flex items-center gap-2"><Clock className="w-3.5 h-3.5 text-amber-500"/>{timeAgo(decl.submitted_at)}</span>
@@ -147,16 +147,16 @@ const AssignModal: React.FC<{ decl: Decl; departments: {id:string, name:string}[
                   <button key={dept.id} onClick={() => setSelected(dept.id)}
                     className={`flex items-center gap-4 p-5 rounded-2xl border-2 transition-all text-left group/dept ${
                       isSelected
-                        ? 'border-[#1557FF] bg-blue-50/50'
-                        : 'border-slate-50 hover:border-slate-200 bg-white'
+                        ? 'border-[#1557FF] bg-blue-50/50 dark:bg-blue-500/10'
+                        : 'border-slate-50 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 bg-white dark:bg-slate-900'
                     }`}>
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 shadow-sm transition-transform group-hover/dept:scale-110"
                       style={{ background:`${cfg.color}15`, color: cfg.color }}>
                       {cfg.icon}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className={`text-sm font-black tracking-tight mb-0.5 ${isSelected ? 'text-[#1557FF]' : 'text-[#0A1628]'}`}>{dept.name}</p>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Unité Opérationnelle</p>
+                      <p className={`text-sm font-black tracking-tight mb-0.5 ${isSelected ? 'text-[#1557FF]' : 'text-[#0A1628] dark:text-white'}`}>{dept.name}</p>
+                      <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Unité Opérationnelle</p>
                     </div>
                     {isSelected && (
                       <div className="w-6 h-6 rounded-full bg-[#1557FF] flex items-center justify-center shadow-lg shadow-blue-500/30">
@@ -173,7 +173,7 @@ const AssignModal: React.FC<{ decl: Decl; departments: {id:string, name:string}[
         {/* Footer */}
         <div className="px-10 pb-10 flex gap-4">
           <button onClick={onClose}
-            className="flex-1 h-16 rounded-2xl border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all">
+            className="flex-1 h-16 rounded-2xl border border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
             Abandonner
           </button>
           <button onClick={handleAssign} disabled={!selected || loading}
@@ -278,16 +278,16 @@ const PresidentIncoming: React.FC = () => {
           <div>
             <div className="flex items-center gap-3 mb-3">
               <span className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
-              <span className="text-[10px] font-black text-[#1557FF] uppercase tracking-[0.2em] bg-blue-50 px-3 py-1 rounded-lg">LIVE FEED</span>
+              <span className="text-[10px] font-black text-[#1557FF] uppercase tracking-[0.2em] bg-blue-50 dark:bg-blue-500/10 px-3 py-1 rounded-lg">LIVE FEED</span>
             </div>
-            <h1 className="text-4xl font-black text-[#0A1628] tracking-tight mb-2">Signalements à affecter</h1>
-            <p className="text-sm font-medium text-slate-400 italic">Prenez connaissance des signalements citoyens et déléguez-les aux unités compétentes.</p>
+            <h1 className="text-4xl font-black text-[#0A1628] dark:text-white tracking-tight mb-2">Signalements à affecter</h1>
+            <p className="text-sm font-medium text-slate-400 dark:text-slate-500 italic">Prenez connaissance des signalements citoyens et déléguez-les aux unités compétentes.</p>
           </div>
           <div className="flex items-center gap-4">
-            <Link to="/president/suivi" className="h-14 px-8 rounded-2xl bg-white border border-slate-200 text-[#0A1628] font-black text-[10px] uppercase tracking-widest flex items-center gap-3 hover:bg-slate-50 transition-all shadow-sm">
+            <Link to="/president/suivi" className="h-14 px-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[#0A1628] dark:text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm">
               <Eye className="w-5 h-5" /> Suivi Opérationnel
             </Link>
-            <button onClick={() => window.location.reload()} className="w-14 h-14 rounded-2xl bg-[#0A1628] flex items-center justify-center text-white hover:bg-[#1557FF] transition-all shadow-xl shadow-slate-900/10">
+            <button onClick={() => window.location.reload()} className="w-14 h-14 rounded-2xl bg-[#0A1628] dark:bg-slate-900 flex items-center justify-center text-white hover:bg-[#1557FF] transition-all shadow-xl shadow-slate-900/10">
               <RefreshCw className="w-5 h-5" />
             </button>
           </div>
@@ -302,15 +302,15 @@ const PresidentIncoming: React.FC = () => {
         </div>
 
         {/* Filters & Content Area */}
-        <div className="bg-white rounded-[3rem] border border-slate-200/60 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.03)] overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200/60 dark:border-slate-800 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.03)] overflow-hidden">
           
           {/* Action Bar */}
-          <div className="px-10 py-8 border-b border-slate-100 bg-slate-50/30 flex flex-wrap items-center justify-between gap-6">
+          <div className="px-10 py-8 border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/20 flex flex-wrap items-center justify-between gap-6">
             <div className="flex-1 min-w-[300px] relative group">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-[#1557FF] transition-colors" />
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 dark:text-slate-600 group-focus-within:text-[#1557FF] transition-colors" />
               <input value={search} onChange={e=>setSearch(e.target.value)}
                 placeholder="Rechercher une référence ou un titre..."
-                className="w-full h-14 bg-white border border-slate-100 rounded-2xl pl-16 pr-6 text-sm font-bold text-[#0A1628] focus:ring-4 focus:ring-blue-50 focus:border-[#1557FF]/30 outline-none transition-all shadow-sm" />
+                className="w-full h-14 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl pl-16 pr-6 text-sm font-bold text-[#0A1628] dark:text-white focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-500/10 focus:border-[#1557FF]/30 outline-none transition-all shadow-sm" />
             </div>
             
             <div className="flex flex-wrap items-center gap-4">
@@ -324,10 +324,10 @@ const PresidentIncoming: React.FC = () => {
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{f.label}</span>
                   </div>
                   <select value={f.value} onChange={e=>f.set(e.target.value)}
-                    className="h-14 pl-28 pr-12 bg-white border border-slate-100 rounded-2xl text-xs font-black text-[#0A1628] appearance-none outline-none focus:ring-4 focus:ring-blue-50 transition-all cursor-pointer shadow-sm">
+                    className="h-14 pl-28 pr-12 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl text-xs font-black text-[#0A1628] dark:text-white appearance-none outline-none focus:ring-4 focus:ring-blue-50 transition-all cursor-pointer shadow-sm">
                     {f.opts.map(o => <option key={o} value={o}>{o === 'Tous' ? 'Tout' : o}</option>)}
                   </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 pointer-events-none" />
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 dark:text-slate-600 pointer-events-none" />
                 </div>
               ))}
             </div>
@@ -337,30 +337,30 @@ const PresidentIncoming: React.FC = () => {
           <div className="overflow-x-auto">
             {loading ? (
               <div className="flex flex-col items-center justify-center py-32">
-                <div className="w-12 h-12 border-4 border-slate-100 border-t-[#1557FF] rounded-full animate-spin mb-6" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Synchronisation des données...</p>
+                <div className="w-12 h-12 border-4 border-slate-100 dark:border-slate-800 border-t-[#1557FF] rounded-full animate-spin mb-6" />
+                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Synchronisation des données...</p>
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-32 text-center">
-                <div className="w-24 h-24 rounded-[2.5rem] bg-emerald-50 flex items-center justify-center text-4xl mb-8 border border-emerald-100">
+                <div className="w-24 h-24 rounded-[2.5rem] bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-4xl mb-8 border border-emerald-100 dark:border-emerald-500/20">
                   ✅
                 </div>
-                <h3 className="text-2xl font-black text-[#0A1628] tracking-tight mb-2">File d'attente vide</h3>
-                <p className="text-sm font-medium text-slate-400 italic">Tous les signalements ont été affectés aux départements respectifs.</p>
+                <h3 className="text-2xl font-black text-[#0A1628] dark:text-white tracking-tight mb-2">File d'attente vide</h3>
+                <p className="text-sm font-medium text-slate-400 dark:text-slate-500 italic">Tous les signalements ont été affectés aux départements respectifs.</p>
               </div>
             ) : (
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/50">
-                    <th className="px-10 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Identité Visuelle</th>
-                    <th className="px-6 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Signalement & Source</th>
-                    <th className="px-6 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Spécification</th>
-                    <th className="px-6 py-6 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Priorité</th>
-                    <th className="px-6 py-6 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Soutiens</th>
-                    <th className="px-10 py-6 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Arbitrage</th>
+                  <tr className="bg-slate-50/50 dark:bg-slate-800/30">
+                    <th className="px-10 py-6 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Identité Visuelle</th>
+                    <th className="px-6 py-6 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Signalement & Source</th>
+                    <th className="px-6 py-6 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Spécification</th>
+                    <th className="px-6 py-6 text-center text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Priorité</th>
+                    <th className="px-6 py-6 text-center text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Soutiens</th>
+                    <th className="px-10 py-6 text-right text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Arbitrage</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filtered.map((d) => {
                     const pri = PRIORITY_MAP[d.priority] || PRIORITY_MAP['moyenne']
                     const dept = DEPT_UI[d.category]
@@ -368,31 +368,31 @@ const PresidentIncoming: React.FC = () => {
                     const waitHours = Math.floor((Date.now()-new Date(d.submitted_at).getTime())/3600000)
 
                     return (
-                      <tr key={d.id} className="group hover:bg-slate-50/80 transition-colors">
+                      <tr key={d.id} className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="px-10 py-8">
                           {d.image ? (
                             <div className="relative w-20 h-20 group-hover:scale-105 transition-transform duration-500">
-                              <img src={d.image} alt="" className="w-full h-full rounded-2xl object-cover shadow-lg border-2 border-white" />
-                              {isUrgent && <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 border-2 border-white animate-bounce" />}
+                              <img src={d.image} alt="" className="w-full h-full rounded-2xl object-cover shadow-lg border-2 border-white dark:border-slate-800" />
+                              {isUrgent && <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 border-2 border-white dark:border-slate-900 animate-bounce" />}
                             </div>
                           ) : (
-                            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl shadow-sm border border-slate-100 bg-white group-hover:bg-blue-50 transition-all duration-500"
+                            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl shadow-sm border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 group-hover:bg-blue-50 dark:group-hover:bg-blue-500/10 transition-all duration-500"
                               style={{ color: dept?.color }}>
                               {dept?.icon || '📋'}
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-8 max-w-md">
+                          <td className="px-6 py-8 max-w-md">
                           <div className="flex items-center gap-3 mb-2">
-                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{d.ref_citoyen}</span>
-                             <span className="text-slate-200 text-xs">|</span>
+                             <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{d.ref_citoyen}</span>
+                             <span className="text-slate-200 dark:text-slate-700 text-xs">|</span>
                              <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest flex items-center gap-1.5">
                                <Clock className="w-3 h-3" /> {timeAgo(d.submitted_at)}
                              </span>
                           </div>
-                          <p className="text-lg font-black text-[#0A1628] leading-tight mb-2 group-hover:text-[#1557FF] transition-colors">{d.title}</p>
-                          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 italic">
-                             <MapPin className="w-3 h-3 text-slate-300" /> {d.address}
+                          <p className="text-lg font-black text-[#0A1628] dark:text-white leading-tight mb-2 group-hover:text-[#1557FF] transition-colors">{d.title}</p>
+                          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 dark:text-slate-500 italic">
+                             <MapPin className="w-3 h-3 text-slate-300 dark:text-slate-600" /> {d.address}
                           </div>
                         </td>
                         <td className="px-6 py-8">
@@ -401,21 +401,21 @@ const PresidentIncoming: React.FC = () => {
                               style={{ background: dept?`${dept.color}15`:'#F1F5F9', color: dept?.color||'#64748B' }}>
                               {dept?.icon} {d.category}
                             </span>
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">{d.delegation}</span>
+                            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">{d.delegation}</span>
                           </div>
                         </td>
                         <td className="px-6 py-8 text-center">
                           <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 ${
-                            isUrgent ? 'bg-red-50 border-red-100 text-red-500' : 'bg-slate-50 border-slate-100 text-slate-400'
+                            isUrgent ? 'bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20 text-red-500' : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500'
                           }`}>
                             {isUrgent && <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
                             {pri.label}
                           </span>
                         </td>
                         <td className="px-6 py-8 text-center">
-                          <div className="inline-flex flex-col items-center p-3 rounded-2xl bg-slate-50 border border-slate-100 min-w-[70px]">
+                          <div className="inline-flex flex-col items-center p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 min-w-[70px]">
                             <span className="text-lg font-black text-[#1557FF]">{d.votes}</span>
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">CITOYENS</span>
+                            <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">CITOYENS</span>
                           </div>
                         </td>
                         <td className="px-10 py-8 text-right">
@@ -424,7 +424,7 @@ const PresidentIncoming: React.FC = () => {
                                className="h-14 px-8 rounded-2xl bg-[#1557FF] text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-3 hover:scale-[1.05] active:scale-95 transition-all shadow-xl shadow-blue-500/20">
                                <Zap className="w-5 h-5" /> Affecter
                              </button>
-                             <button className="w-14 h-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-[#0A1628] hover:border-[#0A1628] transition-all shadow-sm">
+                             <button className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-[#0A1628] dark:hover:text-white hover:border-[#0A1628] dark:hover:border-white transition-all shadow-sm">
                                <MoreHorizontal className="w-5 h-5" />
                              </button>
                           </div>
@@ -438,17 +438,17 @@ const PresidentIncoming: React.FC = () => {
           </div>
 
           {/* Footer Info */}
-          <div className="px-10 py-8 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+          <div className="px-10 py-8 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
              <div className="flex items-center gap-6">
                 <div className="flex -space-x-3">
                    {[1,2,3,4].map(i => (
-                     <div key={i} className="w-10 h-10 rounded-full border-4 border-white bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-400"
+                     <div key={i} className="w-10 h-10 rounded-full border-4 border-white dark:border-slate-900 bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-black text-slate-400 dark:text-slate-500"
                        style={{ background: `linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%)` }}>
                        {i}
                      </div>
                    ))}
                 </div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
                   {filtered.length} dossiers prioritaires en attente de traitement
                 </p>
              </div>

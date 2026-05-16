@@ -74,8 +74,8 @@ const FacetedFilter: React.FC<FacetedFilterProps> = ({ title, options, selected,
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-full border border-dashed border-slate-300 text-xs font-medium hover:border-slate-400 transition-all bg-white",
-          selected.length > 0 && "border-solid border-[#1557FF] bg-blue-50/50 text-[#1557FF]"
+          "flex items-center gap-2 px-3 py-1.5 rounded-full border border-dashed border-slate-300 dark:border-slate-700 text-xs font-medium hover:border-slate-400 dark:hover:border-slate-600 transition-all bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300",
+          selected.length > 0 && "border-solid border-[#1557FF] dark:border-[#1557FF] bg-blue-50/50 dark:bg-blue-500/10 text-[#1557FF]"
         )}
       >
         <Icon className="w-3.5 h-3.5" />
@@ -107,16 +107,16 @@ const FacetedFilter: React.FC<FacetedFilterProps> = ({ title, options, selected,
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute top-full left-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] z-[100] overflow-hidden"
+            className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-none z-[100] overflow-hidden"
           >
-            <div className="p-2 border-b border-slate-100 flex items-center gap-2">
+            <div className="p-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
               <Search className="w-3.5 h-3.5 text-slate-400" />
               <input 
                 autoFocus
                 placeholder={`Filtrer ${title.toLowerCase()}...`}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full py-1.5 text-xs border-none outline-none placeholder-slate-400"
+                className="w-full py-1.5 text-xs border-none outline-none placeholder-slate-400 bg-transparent text-slate-700 dark:text-slate-200"
               />
             </div>
             <div className="max-h-64 overflow-y-auto p-1 custom-scrollbar">
@@ -136,12 +136,12 @@ const FacetedFilter: React.FC<FacetedFilterProps> = ({ title, options, selected,
                     >
                       <div className={cn(
                         "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                        isSelected ? "bg-[#1557FF] border-[#1557FF]" : "border-slate-200 bg-white group-hover:border-slate-300"
+                        isSelected ? "bg-[#1557FF] border-[#1557FF]" : "border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 group-hover:border-slate-300 dark:group-hover:border-slate-500"
                       )}>
                         {isSelected && <Check className="w-3 h-3 text-white" />}
                       </div>
-                      {opt.icon && <opt.icon className={cn("w-3.5 h-3.5", isSelected ? "text-[#1557FF]" : "text-slate-400")} />}
-                      <span className={cn("text-xs font-medium", isSelected ? "text-[#1557FF]" : "text-slate-600")}>
+                      {opt.icon && <opt.icon className={cn("w-3.5 h-3.5", isSelected ? "text-[#1557FF]" : "text-slate-400 dark:text-slate-500")} />}
+                      <span className={cn("text-xs font-medium", isSelected ? "text-[#1557FF]" : "text-slate-600 dark:text-slate-300")}>
                         {opt.label}
                       </span>
                     </button>
@@ -374,8 +374,8 @@ const PresidentDeclarations: React.FC = () => {
   if (loading) return (
     <PresidentLayout title="Gestion des Signalements">
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-        <div className="w-12 h-12 border-[3px] border-slate-100 border-t-[#1557FF] rounded-full animate-spin" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Synchronisation des signalements...</p>
+        <div className="w-12 h-12 border-[3px] border-slate-100 dark:border-slate-800 border-t-[#1557FF] rounded-full animate-spin" />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Synchronisation des signalements...</p>
       </div>
     </PresidentLayout>
   )
@@ -387,19 +387,19 @@ const PresidentDeclarations: React.FC = () => {
         {/* Header Section */}
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12">
           <div>
-            <h1 className="text-4xl font-black text-[#0A1628] tracking-tight mb-3">Signalements Citoyens</h1>
-            <p className="text-sm font-medium text-slate-400 italic">Supervisez et affectez les interventions urbaines en temps réel.</p>
+            <h1 className="text-4xl font-black text-[#0A1628] dark:text-white tracking-tight mb-3">Signalements Citoyens</h1>
+            <p className="text-sm font-medium text-slate-400 dark:text-slate-500 italic">Supervisez et affectez les interventions urbaines en temps réel.</p>
           </div>
           <div className="flex items-center gap-4">
-            <div className="bg-white/50 backdrop-blur-md border border-slate-200/50 rounded-2xl p-1.5 shadow-sm flex items-center gap-1">
-              <button onClick={() => setViewMode('list')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'bg-[#1557FF] text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>
+            <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 rounded-2xl p-1.5 shadow-sm flex items-center gap-1">
+              <button onClick={() => setViewMode('list')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'bg-[#1557FF] text-white shadow-lg' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
                 <List className="w-5 h-5"/>
               </button>
-              <button onClick={() => setViewMode('map')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'map' ? 'bg-[#1557FF] text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>
+              <button onClick={() => setViewMode('map')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'map' ? 'bg-[#1557FF] text-white shadow-lg' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
                 <Map className="w-5 h-5"/>
               </button>
             </div>
-            <div className="flex bg-slate-50/50 backdrop-blur-md border border-slate-200/50 rounded-2xl p-1 shadow-sm">
+            <div className="flex bg-slate-50/50 dark:bg-slate-800/50 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 rounded-2xl p-1 shadow-sm">
               {[
                 { id: 'all', label: 'Toutes', icon: LayoutGrid },
                 { id: 'urgent', label: 'Critiques', icon: Flame },
@@ -412,8 +412,8 @@ const PresidentDeclarations: React.FC = () => {
                   className={cn(
                     "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
                     mode === tab.id 
-                      ? "bg-white text-[#1557FF] shadow-sm border border-slate-200/60" 
-                      : "text-slate-400 hover:text-slate-600"
+                      ? "bg-white dark:bg-slate-700 text-[#1557FF] shadow-sm border border-slate-200/60 dark:border-slate-600" 
+                      : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                   )}
                 >
                   <tab.icon className="w-3.5 h-3.5" />
@@ -425,7 +425,7 @@ const PresidentDeclarations: React.FC = () => {
         </div>
 
         {/* Filters Panel */}
-        <div className="flex flex-wrap items-center gap-2 mb-8 bg-slate-50/50 p-2 rounded-2xl border border-slate-100">
+        <div className="flex flex-wrap items-center gap-2 mb-8 bg-slate-50/50 dark:bg-slate-800/30 p-2 rounded-2xl border border-slate-100 dark:border-slate-800">
           <div className="relative group flex-1 min-w-[200px] max-w-xs">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-[#1557FF] transition-colors" />
             <input 
@@ -433,7 +433,7 @@ const PresidentDeclarations: React.FC = () => {
               placeholder="Rechercher..." 
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full h-9 pl-10 pr-4 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-[#0A1628] placeholder-slate-400 focus:ring-2 focus:ring-blue-500/5 focus:border-[#1557FF] outline-none transition-all shadow-sm"
+              className="w-full h-9 pl-10 pr-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-[#0A1628] dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/5 focus:border-[#1557FF] outline-none transition-all shadow-sm"
             />
           </div>
 
@@ -500,7 +500,7 @@ const PresidentDeclarations: React.FC = () => {
           <div className="ml-auto flex gap-2">
              <button 
                 onClick={() => setDateOrder(dateOrder === 'newest' ? 'oldest' : 'newest')}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-[#1557FF] hover:text-[#1557FF] transition-all shadow-sm"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:border-[#1557FF] hover:text-[#1557FF] transition-all shadow-sm"
               >
                 <Calendar className="w-3 h-3"/> 
                 {dateOrder === 'newest' ? 'Récents' : 'Anciens'}
@@ -538,10 +538,10 @@ const PresidentDeclarations: React.FC = () => {
         <div className="min-h-[600px]">
 
           {viewMode === 'list' ? (
-            <div className="bg-white rounded-[3rem] border border-slate-200/60 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200/60 dark:border-slate-800 shadow-sm overflow-hidden">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
+                  <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
                     <th className="pl-10 pr-4 py-6 w-14">
                       <div 
                         onClick={(e) => {
@@ -553,24 +553,24 @@ const PresidentDeclarations: React.FC = () => {
                           "w-5 h-5 rounded-md border flex items-center justify-center cursor-pointer transition-all",
                           selectedIds.length === filtered.length && filtered.length > 0
                             ? "bg-[#1557FF] border-[#1557FF]" 
-                            : "border-slate-200 bg-white hover:border-slate-300"
+                            : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600"
                         )}
                       >
                         {selectedIds.length === filtered.length && filtered.length > 0 && <Check className="w-3.5 h-3.5 text-white" />}
                       </div>
                     </th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628]">ID</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628]">Titre</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628]">Email</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] text-center">Status</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628]">Priorité</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628]">Assigné</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] text-center">Votes</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628]">Date</th>
-                    <th className="pr-10 pl-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] text-right">Action</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">ID</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Titre</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Email</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white text-center">Status</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Priorité</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Assigné</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white text-center">Votes</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Date</th>
+                    <th className="pr-10 pl-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50/50">
+                <tbody className="divide-y divide-slate-50/50 dark:divide-slate-800/50">
                   {filtered.length > 0 ? (
                     filtered.map(d => {
                       const isRowSelected = selectedIds.includes(d.id);
@@ -579,8 +579,8 @@ const PresidentDeclarations: React.FC = () => {
                           key={d.id} 
                           onClick={() => setSelectedDecl(d)} 
                           className={cn(
-                            "group cursor-pointer transition-all hover:bg-slate-50/40",
-                            isRowSelected && "bg-blue-50/30"
+                            "group cursor-pointer transition-all hover:bg-slate-50/40 dark:hover:bg-slate-800/40",
+                            isRowSelected && "bg-blue-50/30 dark:bg-blue-500/5"
                           )}
                         >
                           <td className="pl-10 pr-4 py-6" onClick={(e) => e.stopPropagation()}>
@@ -591,7 +591,7 @@ const PresidentDeclarations: React.FC = () => {
                               }}
                               className={cn(
                                 "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
-                                isRowSelected ? "bg-[#1557FF] border-[#1557FF]" : "border-slate-200 bg-white group-hover:border-slate-300"
+                                isRowSelected ? "bg-[#1557FF] border-[#1557FF]" : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 group-hover:border-slate-300 dark:group-hover:border-slate-600"
                               )}
                             >
                               {isRowSelected && <Check className="w-3.5 h-3.5 text-white" />}
@@ -602,8 +602,8 @@ const PresidentDeclarations: React.FC = () => {
                           </td>
                           <td className="px-4 py-6">
                             <div className="flex flex-col gap-1">
-                              <span className="text-xs font-bold text-[#0A1628] truncate max-w-[200px]">{d.title}</span>
-                              <div className="flex items-center gap-1.5 opacity-50">
+                              <span className="text-xs font-bold text-[#0A1628] dark:text-white truncate max-w-[200px]">{d.title}</span>
+                              <div className="flex items-center gap-1.5 opacity-50 text-slate-400">
                                  <MapPin className="w-2.5 h-2.5"/>
                                  <span className="text-[8px] font-bold uppercase tracking-tight">{d.arrondissement}</span>
                               </div>
@@ -617,8 +617,8 @@ const PresidentDeclarations: React.FC = () => {
                               className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border"
                               style={{ 
                                 color: STATUS_CONFIG[d.status]?.color, 
-                                backgroundColor: STATUS_CONFIG[d.status]?.bg,
-                                borderColor: `${STATUS_CONFIG[d.status]?.color}15`
+                                backgroundColor: STATUS_CONFIG[d.status]?.bg.includes('#') ? `${STATUS_CONFIG[d.status]?.bg}` : undefined,
+                                borderColor: `${STATUS_CONFIG[d.status]?.color}30`
                               }}
                             >
                               {STATUS_CONFIG[d.status]?.label}
@@ -627,16 +627,16 @@ const PresidentDeclarations: React.FC = () => {
                           <td className="px-4 py-6">
                              <div className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: PRIORITY_CONFIG[d.priority]?.color }} />
-                                <span className="text-xs font-bold text-slate-600">{PRIORITY_CONFIG[d.priority]?.label}</span>
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{PRIORITY_CONFIG[d.priority]?.label}</span>
                              </div>
                           </td>
                           <td className="px-4 py-6">
-                            {d.agent ? (
+                             {d.agent ? (
                               <div className="flex items-center gap-2">
-                                 <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center text-[9px] font-black text-blue-600 border border-blue-100">
+                                 <div className="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-[9px] font-black text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20">
                                    {d.agent.split(' ').map(n=>n[0]).join('')}
                                  </div>
-                                 <span className="text-[11px] font-bold text-slate-600">{d.agent}</span>
+                                 <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{d.agent}</span>
                               </div>
                             ) : (
                               <span className="text-[9px] font-bold text-slate-300 italic uppercase tracking-widest">En attente</span>
@@ -670,11 +670,11 @@ const PresidentDeclarations: React.FC = () => {
                   ) : (
                     <tr>
                       <td colSpan={10} className="py-32 text-center">
-                        <div className="w-20 h-20 rounded-[2rem] bg-slate-50 flex items-center justify-center mx-auto mb-6 text-slate-200">
+                        <div className="w-20 h-20 rounded-[2rem] bg-slate-50 dark:bg-slate-800 flex items-center justify-center mx-auto mb-6 text-slate-200 dark:text-slate-700">
                           <Smartphone className="w-10 h-10" />
                         </div>
-                        <h3 className="text-xl font-black text-[#0A1628] mb-2">Aucun résultat</h3>
-                        <p className="text-sm text-slate-400 font-medium italic">Essayez de modifier vos filtres.</p>
+                        <h3 className="text-xl font-black text-[#0A1628] dark:text-white mb-2">Aucun résultat</h3>
+                        <p className="text-sm text-slate-400 dark:text-slate-500 font-medium italic">Essayez de modifier vos filtres.</p>
                       </td>
                     </tr>
                   )}
@@ -682,7 +682,7 @@ const PresidentDeclarations: React.FC = () => {
               </table>
             </div>
           ) : (
-            <div className="bg-white rounded-[3rem] border border-slate-200/60 shadow-sm overflow-hidden h-[700px] relative">
+            <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200/60 dark:border-slate-800 shadow-sm overflow-hidden h-[700px] relative">
               <MapContainer center={[35.8256, 10.6369]} zoom={13} className="w-full h-full z-0" zoomControl={false}>
                 <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
                 {filtered.filter(d => d.lat && d.lng).map(d => (
