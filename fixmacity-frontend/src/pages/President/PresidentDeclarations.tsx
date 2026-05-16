@@ -7,7 +7,7 @@ import {
   BrainCircuit, MessageSquare, ChevronRight, CheckCircle2, 
   Filter, Calendar, Users, ArrowUpRight, BarChart3, Clock, LayoutGrid, FileText, Smartphone, Flame,
   Zap, Shield, School, Hospital, ArrowUpDown, ThumbsUp, Activity,
-  Check, RotateCcw, ArrowLeft, Share2, Building2, Mail
+  Check, RotateCcw, ArrowLeft, Share2, Building2, Mail, Trash2
 } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -242,6 +242,30 @@ const PresidentDeclarations: React.FC = () => {
   const [mode, setMode] = useState<'all' | 'soumise' | 'en_cours' | 'urgent' | 'resolue'>('all')
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+
+  const handleDelete = async (ids: string[]) => {
+    if (!window.confirm(`Supprimer ${ids.length} signalement(s) ? Cette action est irréversible.`)) return
+    try {
+      const res = await fetch(`${API}/president/declarations/bulk-delete`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token()}`
+        },
+        body: JSON.stringify({ ids })
+      })
+      if (res.ok) {
+        setDecls(prev => prev.filter(d => !ids.includes(d.id)))
+        setSelectedIds([])
+      } else {
+        alert("Erreur lors de la suppression.")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Erreur réseau.")
+    }
+  }
+
 
   const currentUserId = (() => {
     try {
@@ -484,8 +508,35 @@ const PresidentDeclarations: React.FC = () => {
           </div>
         </div>
 
+        {/* Bulk Actions */}
+        {selectedIds.length > 0 && (
+          <div className="bg-[#1557FF] text-white p-4 rounded-3xl mb-6 flex items-center justify-between shadow-lg animate-in slide-in-from-top-4">
+            <div className="flex items-center gap-4 pl-4">
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center font-black text-sm">
+                {selectedIds.length}
+              </div>
+              <p className="text-xs font-black uppercase tracking-[0.2em]">Éléments sélectionnés</p>
+            </div>
+            <div className="flex items-center gap-3 pr-2">
+              <button 
+                onClick={() => handleDelete(selectedIds)}
+                className="px-6 py-2 bg-rose-500 hover:bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Supprimer la sélection
+              </button>
+              <button 
+                onClick={() => setSelectedIds([])}
+                className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* View Mode Content */}
         <div className="min-h-[600px]">
+
           {viewMode === 'list' ? (
             <div className="bg-white rounded-[3rem] border border-slate-200/60 shadow-sm overflow-hidden">
               <table className="w-full text-left border-collapse">
@@ -598,12 +649,20 @@ const PresidentDeclarations: React.FC = () => {
                             <span className="text-[11px] font-medium text-slate-400">{d.date}</span>
                           </td>
                           <td className="pr-10 pl-4 py-6 text-right">
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); setSelectedDecl(d); }}
-                              className="px-4 py-2 rounded-xl bg-[#1557FF]/5 text-[#1557FF] text-[10px] font-black uppercase tracking-widest hover:bg-[#1557FF] hover:text-white transition-all shadow-sm border border-[#1557FF]/10"
-                            >
-                              Détails
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                               <button 
+                                 onClick={(e) => { e.stopPropagation(); setSelectedDecl(d); }}
+                                 className="px-4 py-2 rounded-xl bg-[#1557FF]/5 text-[#1557FF] text-[10px] font-black uppercase tracking-widest hover:bg-[#1557FF] hover:text-white transition-all shadow-sm border border-[#1557FF]/10"
+                               >
+                                 Détails
+                               </button>
+                               <button 
+                                 onClick={(e) => { e.stopPropagation(); handleDelete([d.id]) }}
+                                 className="p-2 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-all border border-rose-100"
+                               >
+                                 <Trash2 className="w-4 h-4" />
+                               </button>
+                            </div>
                           </td>
                         </tr>
                       )

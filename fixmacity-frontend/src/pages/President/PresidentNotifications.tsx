@@ -75,6 +75,17 @@ const PresidentNotifications: React.FC = () => {
       setLoading(false)
     }
     load()
+
+    // Fallback polling every 60s
+    const poll = setInterval(() => {
+      fetch(`${API}/notifications?limit=50`, {
+        headers: { Authorization: `Bearer ${token()}` }
+      }).then(r => r.json()).then(data => {
+        if (data.notifications) setNotifs(data.notifications)
+      }).catch(() => {})
+    }, 60000)
+
+    return () => clearInterval(poll)
   }, [])
 
   const markRead = async (id: string) => {

@@ -9,7 +9,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   AlertTriangle, MapPin, Download, ChevronDown, RefreshCw,
-  CheckCircle2, ChevronRight, Maximize2, X, ExternalLink
+  CheckCircle2, ChevronRight, Maximize2, X, ExternalLink, ThumbsUp
 } from 'lucide-react'
 import PresidentLayout from '../../layouts/PresidentLayout'
 
@@ -354,7 +354,7 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
             ))}
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
             <BarChart data={trend} margin={{ top: 4, right: 0, left: -26, bottom: 0 }} barCategoryGap="32%">
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }}
@@ -513,7 +513,7 @@ const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; lo
             <div className="w-full h-full rounded-full bg-gray-100 animate-pulse" />
           ) : (
             <>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                 <PieChart>
                   <Pie data={pieData} cx="50%" cy="50%"
                     innerRadius={62} outerRadius={88}
@@ -581,6 +581,12 @@ const PresidentDashboard: React.FC = () => {
   const [depts,     setDepts]     = useState<any[]>([])
   const [deptsRaw,  setDeptsRaw]  = useState<any[]>([])
   const [byStatus,  setByStatus]  = useState<Record<string, number>>({})
+  const [stats,     setStats]     = useState({
+    criticalCount: 0,
+    resolvedCount: 0,
+    highSatisfactionCount: 0
+  })
+
 
   const load = useCallback(async () => {
     setLoading(true); setError(false)
@@ -596,6 +602,12 @@ const PresidentDashboard: React.FC = () => {
       setTrend(data.trendData || [])
       setDepts(data.by_department || data.byDepartment || [])
       setByStatus(data.by_status || data.byStatus || {})
+      setStats(data.stats || {
+        criticalCount: 0,
+        resolvedCount: 0,
+        highSatisfactionCount: 0
+      })
+
 
       // Zones from arrondissement breakdown
       const arr = data.by_arrondissement || data.byArrondissement || {}
@@ -669,7 +681,48 @@ const PresidentDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* ── KPI Row ──────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow group">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg bg-red-500 group-hover:scale-110 transition-transform">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Signalements Urgents</p>
+              <p className="text-2xl font-black text-gray-900 mt-0.5">{loading ? <Sk w="w-12" h="h-6" /> : stats.criticalCount}</p>
+              <p className="text-[10px] text-gray-400 mt-0.5 font-medium">Cas critiques à traiter</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow group">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg bg-green-600 group-hover:scale-110 transition-transform">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Tâches Résolues</p>
+              <p className="text-2xl font-black text-gray-900 mt-0.5">{loading ? <Sk w="w-12" h="h-6" /> : stats.resolvedCount}</p>
+              <p className="text-[10px] text-gray-400 mt-0.5 font-medium">Interventions terminées</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow group">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg bg-blue-500 group-hover:scale-110 transition-transform">
+              <ThumbsUp className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Satisfaction Élevée</p>
+              <p className="text-2xl font-black text-gray-900 mt-0.5">{loading ? <Sk w="w-12" h="h-6" /> : stats.highSatisfactionCount}</p>
+              <p className="text-[10px] text-gray-400 mt-0.5 font-medium">Notes 4-5 étoiles</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ── Row 1: 3 equal columns ───────────────────────────────────────── */}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         <TopCritiques data={crucials} loading={loading} />
         <ZonesCritiques zones={zones} loading={loading} />

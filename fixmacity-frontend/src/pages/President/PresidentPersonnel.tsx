@@ -450,7 +450,8 @@ const PersonCard: React.FC<{
   user: Personnel
   onClick: () => void
   onToggle: (e: React.MouseEvent) => void
-}> = ({ user, onClick, onToggle }) => {
+  onDelete: (u: Personnel) => void
+}> = ({ user, onClick, onToggle, onDelete }) => {
   const color = avatarColor(user.first_name)
   const done  = user.resolved_tasks ?? 0
   const total = user.total_tasks    ?? 0
@@ -484,12 +485,19 @@ const PersonCard: React.FC<{
           </div>
         </div>
 
-        {/* Toggle button (activate/deactivate) */}
-        <button onClick={onToggle}
-          className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center border-2 transition-all ${user.is_active ? 'border-emerald-200 text-emerald-500 hover:bg-emerald-50' : 'border-slate-200 text-slate-400 hover:bg-slate-50'}`}
-          title={user.is_active ? 'Désactiver' : 'Réactiver'}>
-          {user.is_active ? <CheckCircle className="w-4 h-4"/> : <XCircle className="w-4 h-4"/>}
-        </button>
+        {/* Actions */}
+        <div className="flex flex-col gap-2">
+          <button onClick={onToggle}
+            className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center border-2 transition-all ${user.is_active ? 'border-emerald-200 text-emerald-500 hover:bg-emerald-50' : 'border-slate-200 text-slate-400 hover:bg-slate-50'}`}
+            title={user.is_active ? 'Désactiver' : 'Réactiver'}>
+            {user.is_active ? <CheckCircle className="w-4 h-4"/> : <XCircle className="w-4 h-4"/>}
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(user); }}
+            className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center border-2 border-red-100 text-red-400 hover:bg-red-50 transition-all"
+            title="Supprimer">
+            <Trash2 className="w-4 h-4"/>
+          </button>
+        </div>
       </div>
 
       {/* Stats row */}
@@ -635,9 +643,9 @@ const PresidentPersonnel: React.FC = () => {
           department_code: u.department_code || '—',
           location:        u.location || 'Sousse',
           phone:           u.phone || '—',
-          total_tasks:     u.total_tasks?.total    ?? 0,
-          resolved_tasks:  u.total_tasks?.resolved ?? 0,
-          accepted_tasks:  u.total_tasks?.accepted ?? 0,
+          total_tasks:     typeof u.total_tasks === 'object' ? (u.total_tasks?.total    ?? 0) : (u.total_tasks    ?? 0),
+          resolved_tasks:  typeof u.total_tasks === 'object' ? (u.total_tasks?.resolved ?? 0) : (u.resolved_tasks  ?? 0),
+          accepted_tasks:  typeof u.total_tasks === 'object' ? (u.total_tasks?.accepted ?? 0) : (u.accepted_tasks  ?? 0),
           is_active:       u.is_active ?? true,
         })))
       }
@@ -678,6 +686,21 @@ const PresidentPersonnel: React.FC = () => {
           setUsers(prev => prev.filter(p => p.id !== u.id))
           setDrawer(null)
           showToast('Compte supprimé.')
+        } catch { showToast('Erreur serveur.', 'err') }
+      }
+    })
+  }
+
+  const deleteDepartment = (d: Department) => {
+    setConfirm({
+      msg: `Supprimer le département "${d.name_fr}" ? Cela peut affecter les agents qui y sont rattachés.`,
+      onYes: async () => {
+        setConfirm(null)
+        try {
+          const res = await apiFetch(`/president/departments/${d.id}`, { method: 'DELETE' })
+          if (res.error) { showToast(res.error, 'err'); return }
+          setDepts(prev => prev.filter(p => p.id !== d.id))
+          showToast('Département supprimé.')
         } catch { showToast('Erreur serveur.', 'err') }
       }
     })
@@ -810,7 +833,8 @@ const PresidentPersonnel: React.FC = () => {
             {filtered.map(u => (
               <PersonCard key={u.id} user={u}
                 onClick={() => setDrawer(u)}
-                onToggle={e => toggleUser(u, e)}/>
+                onToggle={e => toggleUser(u, e)}
+                onDelete={deleteUser}/>
             ))}
           </div>
         )}

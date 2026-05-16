@@ -268,7 +268,6 @@ const PresidentIncoming: React.FC = () => {
   const urgentCount = filtered.filter(d=>d.priority==='haute').length
   const voteSum = filtered.reduce((a,d)=>a+d.votes,0)
   const queueTotal = filtered.length + assigned.size
-  const kpiMax = Math.max(1, filtered.length, urgentCount, voteSum, assigned.size)
 
   return (
     <PresidentLayout title="Flux Entrant">
@@ -296,9 +295,9 @@ const PresidentIncoming: React.FC = () => {
 
         {/* KPIs Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <KpiCard label="En attente" value={filtered.length} sub="Signalements" icon={<Activity className="w-6 h-6"/>} color="#1557FF" progressPct={(filtered.length / kpiMax) * 100} />
-          <KpiCard label="Urgent" value={urgentCount} sub="Critique" icon={<AlertTriangle className="w-6 h-6"/>} color="#EF4444" progressPct={(urgentCount / kpiMax) * 100} />
-          <KpiCard label="Engagements" value={voteSum} sub="Votes Citoyens" icon={<ThumbsUp className="w-6 h-6"/>} color="#10B981" progressPct={(voteSum / kpiMax) * 100} />
+          <KpiCard label="En attente" value={filtered.length} sub="Signalements" icon={<Activity className="w-6 h-6"/>} color="#1557FF" progressPct={queueTotal > 0 ? (filtered.length / queueTotal) * 100 : 0} />
+          <KpiCard label="Urgent" value={urgentCount} sub="Critique" icon={<AlertTriangle className="w-6 h-6"/>} color="#EF4444" progressPct={filtered.length > 0 ? (urgentCount / filtered.length) * 100 : 0} />
+          <KpiCard label="Engagements" value={voteSum} sub="Votes Citoyens" icon={<ThumbsUp className="w-6 h-6"/>} color="#10B981" progressPct={Math.min(100, (voteSum / 50) * 100)} />
           <KpiCard label="Délégués" value={assigned.size} sub="Aujourd'hui" icon={<Zap className="w-6 h-6"/>} color="#8B5CF6" progressPct={queueTotal > 0 ? (assigned.size / queueTotal) * 100 : 0} />
         </div>
 

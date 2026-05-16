@@ -10,6 +10,8 @@ router.use(authenticate, rbac('president'));
 // ── Declarations ──
 router.get('/declarations', ctrl.listDeclarations);
 router.get('/declarations/:id', ctrl.getDeclarationDetail);
+router.delete('/declarations/:id', ctrl.deleteDeclaration);
+router.post('/declarations/bulk-delete', ctrl.bulkDeleteDeclarations);
 
 router.post('/declarations/:id/assign', [
   body('department_id').isUUID().withMessage('Département invalide (UUID attendu).'),
@@ -63,13 +65,6 @@ router.patch('/departments/:id', [
  
 // DELETE /api/president/departments/:id  — remove department
 router.delete('/departments/:id', ctrl.deleteDepartment);
-router.post('/departments', [
-  body('name_fr').notEmpty().trim().withMessage('Nom français requis.'),
-  body('code').notEmpty().trim().withMessage('Code requis.'),
-  body('name_ar').optional().trim(),
-  body('name_en').optional().trim(),
-  body('description').optional().trim(),
-], ctrl.createDepartment);
 
 // ── Propositions ──
 router.get('/propositions', ctrl.listPropositions);

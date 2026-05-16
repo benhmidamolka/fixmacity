@@ -536,7 +536,67 @@ exports.updateUser = async (req, res) => {
       .update(updates)
       .eq('id', id)
       .select('id, email, first_name, last_name, role, department_id, delegation_id, is_active')
-      exports.listDepartments = async (req, res) => {
+      .single();
+
+    if (error) {
+      console.error('[President] UpdateUser error:', error.message);
+      return res.status(500).json({ error: 'Erreur lors de la mise à jour.' });
+    }
+
+    return res.status(200).json({ user });
+  } catch (err) {
+    console.error('[President] UpdateUser error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── DELETE /api/president/users/:id ──────────── */
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Exception 3: Impossible de désactiver ou supprimer un agent ayant des missions en cours
+    const { count: activeMissions } = await supabase
+      .from('declarations')
+      .select('id', { count: 'exact', head: true })
+      .eq('agent_id', id)
+      .in('status', ['assignee_agent', 'en_cours'])
+      .is('deleted_at', null);
+
+    if ((activeMissions || 0) > 0) {
+      return res.status(400).json({ error: 'Impossible de supprimer cet agent car il a des missions en cours (assignées ou en cours d\'exécution).' });
+    }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', id)
+      .select('id, email')
+      .single();
+
+    if (error) {
+      if (error.code === '23503') {
+        await supabase.from('users').update({ is_active: false }).eq('id', id);
+        return res.status(200).json({ 
+          message: 'L\'utilisateur ne peut pas être supprimé définitivement car il possède un historique d\'activité (déclarations archivées). Il a été désactivé à la place.',
+          is_active: false 
+        });
+      }
+      throw error;
+    }
+
+    return res.status(200).json({ 
+      message: 'Utilisateur supprimé définitivement.',
+      id: id 
+    });
+  } catch (err) {
+    console.error('[President] DeleteUser error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── GET /api/president/departments ──────────── */
+exports.listDepartments = async (req, res) => {
   try {
     /* 1 ── Fetch all services */
     const { data: services, error } = await supabase
@@ -631,49 +691,6 @@ exports.updateUser = async (req, res) => {
   }
 };
  
-
-    // Fetch declaration counts per department
-    const { data: countsRes } = await supabase.rpc('count_declarations_per_department');
-    // If RPC doesn't exist, we fallback to a manual count or skip. 
-    // Let's do a manual join/count if RPC fails or just use a query.
-    const countsMap = {};
-    const { data: declCounts } = await supabase
-      .from('declarations')
-      .select('department_id, count:id.count()')
-      .is('deleted_at', null)
-      .not('department_id', 'is', null);
-
-    if (declCounts) {
-      declCounts.forEach(d => {
-        countsMap[d.department_id] = d.count;
-      });
-    }
-
-    const departments = (services || []).map(dept => {
-      const chef = chefMap[dept.id] || null;
-      const total = countsMap[dept.id] || 0;
-
-      // Determine a mock status based on activity for the UI
-      let status = 'Stable';
-      if (total > 15) status = 'Surcharge';
-      if (total < 5) status = 'Optimal';
-
-      return {
-        ...dept,
-        name: dept.name_fr,
-        chef_name: chef ? `${chef.first_name} ${chef.last_name}` : null,
-        chef_id: chef?.id || null,
-        total: total,
-        status: status
-      };
-    });
-
-    return res.status(200).json({ departments, success: true });
-  } catch (err) {
-    console.error('[President] ListDept error:', err);
-    return res.status(500).json({ error: 'Erreur serveur.' });
-  }
-};
 
 /* ──────────── POST /api/president/propositions ──────────── */
 exports.createProposition = async (req, res) => {
@@ -914,33 +931,55 @@ exports.dashboard = async (req, res) => {
     }));
 
     // ── Department Performance ──
-    const deptRes = await supabase.pool.query(`
-      SELECT 
-        s.name_fr as name,
-        s.id,
-        s.code,
-        COUNT(d.id) as total,
-        COUNT(d.id) FILTER (WHERE d.status IN ('resolue', 'cloturee')) as resolved,
-        COUNT(d.id) FILTER (
-          WHERE EXISTS (
-            SELECT 1 FROM ratings r
-            WHERE r.declaration_id = d.id AND r.score > 3
-          )
-        ) as high_satisfaction_count
-      FROM services s
-      LEFT JOIN declarations d ON d.department_id = s.id ${sqlFilter}
-      GROUP BY s.id, s.name_fr, s.code
-      ORDER BY total DESC
-    `);
+    let byDepartment = [];
+    try {
+      const deptRes = await supabase.pool.query(`
+        SELECT
+          s.name_fr as name,
+          s.id,
+          s.code,
+          COUNT(d.id)                                                      AS total,
+          COUNT(d.id) FILTER (WHERE d.status IN ('resolue','cloturee'))   AS resolved
+        FROM services s
+        LEFT JOIN declarations d
+          ON d.department_id = s.id
+          AND d.deleted_at IS NULL
+          AND COALESCE(d.is_deleted, false) = false
+        GROUP BY s.id, s.name_fr, s.code
+        ORDER BY total DESC
+      `);
+      byDepartment = deptRes.rows.map(r => ({
+        id:       r.id,
+        name:     r.name,
+        code:     r.code,
+        total:    parseInt(r.total,    10),
+        resolved: parseInt(r.resolved, 10),
+        perf:     parseInt(r.total, 10) > 0
+          ? Math.round((parseInt(r.resolved, 10) / parseInt(r.total, 10)) * 100)
+          : 0,
+        highSatisfactionCount: 0,   // computed separately below
+      }));
 
-    const byDepartment = deptRes.rows.map(r => ({
-      name: r.name,
-      code: r.code,
-      total: parseInt(r.total, 10),
-      resolved: parseInt(r.resolved, 10),
-      perf: r.total > 0 ? Math.round((parseInt(r.resolved, 10) / parseInt(r.total, 10)) * 100) : 0,
-      highSatisfactionCount: parseInt(r.high_satisfaction_count, 10) || 0
-    }));
+      // Satisfaction counts in a separate, isolated query to avoid JOIN explosion
+      if (byDepartment.length > 0) {
+        const satRes = await supabase.pool.query(`
+          SELECT d.department_id, COUNT(DISTINCT d.id) AS sat_count
+          FROM declarations d
+          INNER JOIN ratings rt ON rt.declaration_id = d.id AND rt.score > 3
+          WHERE d.deleted_at IS NULL AND COALESCE(d.is_deleted, false) = false
+          GROUP BY d.department_id
+        `);
+        const satMap = {};
+        (satRes.rows || []).forEach(r => { satMap[r.department_id] = parseInt(r.sat_count, 10); });
+        byDepartment = byDepartment.map(d => ({
+          ...d,
+          highSatisfactionCount: satMap[d.id] || 0,
+        }));
+      }
+    } catch (deptErr) {
+      console.error('[President] Dashboard deptPerf query error:', deptErr);
+      // Non-fatal — dashboard still renders without department performance data
+    }
 
     // ── Aggregate KPI stats (same filters as dashboard) ──
     let stats = { criticalCount: 0, resolvedCount: 0, highSatisfactionCount: 0 };
@@ -1530,6 +1569,37 @@ exports.getPropositionSummary = async (req, res) => {
     return res.status(200).json({ success: true, summary: data[0] || null });
   } catch (err) {
     console.error('[President] getPropositionSummary error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── DELETE /api/president/declarations/:id ──────────── */
+exports.deleteDeclaration = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // 1. Nettoyage des commentaires internes
+    await supabase.from('internal_comments').delete().eq('declaration_id', id);
+    // 2. Suppression de la déclaration
+    const { error } = await supabase.from('declarations').delete().eq('id', id);
+    if (error) throw error;
+    return res.status(200).json({ success: true, message: 'Signalement supprimé.' });
+  } catch (err) {
+    console.error('[President] deleteDeclaration error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── POST /api/president/declarations/bulk-delete ──────────── */
+exports.bulkDeleteDeclarations = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'Liste d\'identifiants requise.' });
+    await supabase.from('internal_comments').delete().in('declaration_id', ids);
+    const { error } = await supabase.from('declarations').delete().in('id', ids);
+    if (error) throw error;
+    return res.status(200).json({ success: true, message: `${ids.length} signalements supprimés.` });
+  } catch (err) {
+    console.error('[President] bulkDelete error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
