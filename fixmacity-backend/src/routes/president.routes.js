@@ -75,17 +75,22 @@ router.post('/departments', [
 router.get('/propositions', ctrl.listPropositions);
 router.post('/propositions', [
   body('title').notEmpty().trim().withMessage('Titre requis.'),
-  body('description').notEmpty().trim().withMessage('Description requise.'),
+  body('description').optional().isString(),
+  body('start_date').optional().isISO8601(),
+  body('end_date').optional().isISO8601(),
+  body('category').optional().isString(),
+  body('status').optional().isIn(['active', 'closed', 'draft']),
 ], ctrl.createProposition);
+// NEW ↓
 router.put('/propositions/:id', ctrl.updateProposition);
 router.delete('/propositions/:id', ctrl.deleteProposition);
-
+// existing ↓
 router.post('/propositions/:id/confirmer', ctrl.confirmProposition);
 router.post('/propositions/:id/retenu', ctrl.retainProposition);
 router.get('/propositions/:id/summary', ctrl.getPropositionSummary);
 router.patch('/propositions/:id/respond', [
   body('status').isIn(['a_discuter', 'retenu', 'refuse']).withMessage('Statut invalide.'),
-  body('president_response').optional().isString()
+  body('president_response').optional().isString(),
 ], ctrl.respondToProposition);
 
 // ── Dashboard & Export ──

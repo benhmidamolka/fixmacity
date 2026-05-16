@@ -679,34 +679,28 @@ exports.updateUser = async (req, res) => {
 exports.createProposition = async (req, res) => {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { title, description, start_date, end_date, category } = req.body;
-
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+ 
+    const { title, description, start_date, end_date, category, status = 'active' } = req.body;
+    if (!title?.trim()) return res.status(400).json({ error: 'Titre requis.' });
+ 
     const { data: prop, error } = await supabase
       .from('propositions')
       .insert({
         title: title.trim(),
-        description: description.trim(),
+        description: description?.trim() || '',
         category: category || 'Général',
         start_date: start_date || null,
         end_date: end_date || null,
         created_by: req.user.id,
-        status: 'active',
+        status,
       })
-      .select('*')
-      .single();
-
-    if (error) {
-      console.error('[President] CreateProp error:', error.message);
-      return res.status(500).json({ error: 'Erreur serveur.' });
-    }
-
-    return res.status(201).json({ proposition: prop });
+      .select('*').single();
+ 
+    if (error) throw error;
+    return res.status(201).json({ success: true, proposition: prop });
   } catch (err) {
-    console.error('[President] CreateProp error:', err);
+    console.error('[President] createProposition error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
@@ -715,102 +709,94 @@ exports.createProposition = async (req, res) => {
 exports.updateProposition = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, start_date, end_date, category, status } = req.body;
-    
-    const { data: prop, error } = await supabase
-      .from('propositions')
-      .update({
-        title: title?.trim(),
-        description: description?.trim(),
-        category: category || 'Général',
-        start_date: start_date || null,
-        end_date: end_date || null,
-        status: status || 'active'
-      })
-      .eq('id', id)
-      .select('*')
-      .single();
-
-    if (error) {
-      console.error('[President] UpdateProp error:', error.message);
-      return res.status(500).json({ error: 'Erreur serveur.' });
-    }
-
-    return res.status(200).json({ proposition: prop });
+    const { title, description, category, start_date, end_date, status } = req.body;
+ 
+    const updates = { updated_at: new Date().toISOString() };
+    if (title)       updates.title       = title.trim();
+    if (description !== undefined) updates.description = description.trim();
+    if (category)    updates.category    = category;
+    if (start_date !== undefined) updates.start_date = start_date || null;
+    if (end_date !== undefined)   updates.end_date   = end_date || null;
+    if (status)      updates.status      = status;
+ 
+    const { data, error } = await supabase
+      .from('propositions').update(updates).eq('id', id).select('*').single();
+ 
+    if (error) throw error;
+    return res.status(200).json({ success: true, proposition: data });
   } catch (err) {
-    console.error('[President] UpdateProp error:', err);
+    console.error('[President] updateProposition error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
+ 
 
-/* ──────────── DELETE /api/president/propositions/:id ──────────── */
+/* ──────────── DELETE /api/president/propositions/:id  ──────────── (NEW) */
 exports.deleteProposition = async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const { error } = await supabase
-      .from('propositions')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('[President] DeleteProp error:', error.message);
-      return res.status(500).json({ error: 'Erreur serveur.' });
-    }
-
-    return res.status(200).json({ success: true, message: 'Proposition supprimée' });
+    // Delete votes first (FK constraint)
+    await supabase.from('proposition_votes').delete().eq('proposition_id', id);
+    const { error } = await supabase.from('propositions').delete().eq('id', id);
+    if (error) throw error;
+    return res.status(200).json({ success: true, message: 'Proposition supprimée.' });
   } catch (err) {
-    console.error('[President] DeleteProp error:', err);
+    console.error('[President] deleteProposition error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
+
 
 /* ──────────── GET /api/president/propositions ──────────── */
 exports.listPropositions = async (req, res) => {
   try {
-    const { status, page = 1, limit = 20 } = req.query;
+    const { status, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
-
+ 
     let query = supabase
       .from('propositions')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
-
-    if (status) query = query.eq('status', status);
-
+ 
+    if (status && status !== 'all') query = query.eq('status', status);
+ 
     const { data, error, count } = await query;
-
-    if (error) {
-      console.error('[President] ListProp error:', error.message);
-      return res.status(500).json({ error: 'Erreur serveur.' });
+    if (error) throw error;
+ 
+    // Enrich with creator info
+    const userIds = [...new Set((data || []).map(p => p.created_by).filter(Boolean))];
+    let userMap = {};
+    if (userIds.length > 0) {
+      const { data: usersData } = await supabase
+        .from('users').select('id, role, first_name, last_name').in('id', userIds);
+      if (usersData) usersData.forEach(u => (userMap[u.id] = u));
     }
-
-    // Join with users to check role
-    const userIds = [...new Set(data.map(p => p.created_by))];
-    const { data: userData } = await supabase.from('users').select('id, role, first_name, last_name').in('id', userIds);
-    const userMap = {};
-    if (userData) userData.forEach(u => userMap[u.id] = u);
-
-    const structured = data.map(p => ({
-      ...p,
-      is_presidential: userMap[p.created_by]?.role === 'president',
-      citizen: userMap[p.created_by] ? `${userMap[p.created_by].first_name} ${userMap[p.created_by].last_name}` : 'Anonyme',
-      category: p.category || 'Général',
-      pour: p.votes_pour || 0,
-      contre: p.votes_contre || 0,
-      total: (p.votes_pour || 0) + (p.votes_contre || 0)
-    }));
-
+ 
+    const structured = (data || []).map(p => {
+      const creator = userMap[p.created_by];
+      const isPresidential = creator?.role === 'president';
+      return {
+        ...p,
+        is_presidential: isPresidential,
+        citizen: creator ? `${creator.first_name} ${creator.last_name}` : 'Anonyme',
+        citizen_role: creator?.role || 'citizen',
+        pour: p.votes_pour || 0,
+        contre: p.votes_contre || 0,
+        total: (p.votes_pour || 0) + (p.votes_contre || 0),
+        category: p.category || 'Général',
+      };
+    });
+ 
     return res.status(200).json({
       success: true,
       propositions: structured,
       presidential: structured.filter(p => p.is_presidential),
       citizen: structured.filter(p => !p.is_presidential),
-      total: count
+      total: count,
     });
   } catch (err) {
-    console.error('[President] ListProp error:', err);
+    console.error('[President] listPropositions error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
@@ -1309,17 +1295,18 @@ exports.deleteDepartment = async (req, res) => {
 exports.confirmProposition = async (req, res) => {
   try {
     const { id } = req.params;
-    const { data, error } = await supabase
-      .from('propositions')
-      .update({ status: 'confirmed' })
-      .eq('id', id)
-      .select()
-      .single();
-
+    const { president_note } = req.body;
+    const { data, error } = await supabase.from('propositions')
+      .update({
+        status: 'active',
+        president_response: president_note ? `[CONFIRMÉ] ${president_note}` : '[CONFIRMÉ]',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id).select('*').single();
     if (error) throw error;
     return res.status(200).json({ success: true, data });
   } catch (err) {
-    console.error('[President] ConfirmProp error:', err);
+    console.error('[President] confirmProposition error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
@@ -1328,17 +1315,18 @@ exports.confirmProposition = async (req, res) => {
 exports.retainProposition = async (req, res) => {
   try {
     const { id } = req.params;
-    const { data, error } = await supabase
-      .from('propositions')
-      .update({ status: 'retained' })
-      .eq('id', id)
-      .select()
-      .single();
-
+    const { president_note } = req.body;
+    const { data, error } = await supabase.from('propositions')
+      .update({
+        status: 'closed',
+        president_response: president_note ? `[RETENU] ${president_note}` : '[RETENU]',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id).select('*').single();
     if (error) throw error;
     return res.status(200).json({ success: true, data });
   } catch (err) {
-    console.error('[President] RetainProp error:', err);
+    console.error('[President] retainProposition error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
@@ -1450,26 +1438,25 @@ exports.respondToProposition = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, president_response } = req.body;
-
+    const validDecisions = ['a_discuter', 'retenu', 'refuse'];
+    if (!validDecisions.includes(status)) {
+      return res.status(400).json({ error: 'Statut invalide.' });
+    }
+    const dbStatus = status === 'a_discuter' ? 'active' : 'closed';
     const { data, error } = await supabase
       .from('propositions')
       .update({
-        status,
-        president_response,
-        updated_at: new Date().toISOString()
+        status: dbStatus,
+        president_response: president_response
+          ? `[${status.toUpperCase()}] ${president_response}`
+          : `[${status.toUpperCase()}]`,
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('[President] RespondToProp error:', error.message);
-      return res.status(500).json({ error: 'Erreur lors de la réponse.' });
-    }
-
-    return res.status(200).json({ success: true, data });
+      .eq('id', id).select('*').single();
+    if (error) throw error;
+    return res.status(200).json({ success: true, decision: status, proposition: data });
   } catch (err) {
-    console.error('[President] RespondToProp error:', err);
+    console.error('[President] respondToProposition error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
@@ -1479,15 +1466,10 @@ exports.getPropositionSummary = async (req, res) => {
   try {
     const { id } = req.params;
     const { data, error } = await supabase.rpc('get_proposition_summary', { p_proposition_id: id });
-
-    if (error) {
-      console.error('[President] GetPropSummary error:', error.message);
-      return res.status(500).json({ error: 'Erreur lors de la récupération du résumé.' });
-    }
-
+    if (error) throw error;
     return res.status(200).json({ success: true, summary: data[0] || null });
   } catch (err) {
-    console.error('[President] GetPropSummary error:', err);
+    console.error('[President] getPropositionSummary error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
