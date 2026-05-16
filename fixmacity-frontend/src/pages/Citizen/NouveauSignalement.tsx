@@ -522,18 +522,29 @@ function Step3({ data, onChange, onNext, onBack }: any) {
     }
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!data.title || !data.description) {
       toast.error("L'information [Titre / Description] est manquante")
       return
     }
     
-    // Simulate finding similar declarations randomly or always (Exception 3)
-    // To be realistic but not annoying, we'll only show it if the word "test" is in the title, 
-    // or just randomly 30% of the time. Let's do a pseudo-random check.
-    if (Math.random() > 0.7 && !showSimilar) {
-      setShowSimilar(true)
-      return
+    // Replace Math.random() with real fetch to /api/declarations/nearby
+    if (!showSimilar) {
+      try {
+        const token = localStorage.getItem('fmc_token')
+        const res = await fetch(`${API}/declarations/nearby?lat=${data.latitude}&lng=${data.longitude}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (res.ok) {
+          const result = await res.json()
+          if (result.declarations && result.declarations.length > 0) {
+            setShowSimilar(true)
+            return
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching nearby declarations", err)
+      }
     }
     
     onNext()
@@ -829,6 +840,7 @@ const NouveauSignalement: React.FC = () => {
       body.append('latitude',      String(formData.latitude))
       body.append('longitude',     String(formData.longitude))
       body.append('address',       formData.address)
+      body.append('priority',      formData.urgency || 'moyen')
       if (formData.photo) body.append('photo', formData.photo)
       const res  = await fetch(`${API}/declarations`, {
         method: 'POST', headers: { Authorization: `Bearer ${token}` }, body,

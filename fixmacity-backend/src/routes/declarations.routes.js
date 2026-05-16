@@ -47,29 +47,29 @@ router.post('/',
   ctrl.create
 );
 
-// 3. Citizen-only mutations
-router.use(authenticate, rbac('citizen'));
+// 3. Citizen-only mutations (explicitly defined per route)
+
 // PUT /api/declarations/:id — Edit (soumise only)
-router.put('/:id', [
+router.put('/:id', authenticate, rbac('citizen'), [
   body('title').optional().notEmpty().trim(),
   body('description').optional().notEmpty().trim(),
 ], ctrl.update);
 
 // DELETE /api/declarations/:id — Soft delete (soumise only)
-router.delete('/:id', ctrl.remove);
+router.delete('/:id', authenticate, rbac('citizen'), ctrl.remove);
 
 // POST /api/declarations/:id/vote — Vote
-router.post('/:id/vote', ctrl.vote);
+router.post('/:id/vote', authenticate, rbac('citizen'), ctrl.vote);
 
 // POST /api/declarations/:id/rate — Rate (after resolue)
-router.post('/:id/rate', [
+router.post('/:id/rate', authenticate, rbac('citizen'), [
   body('score').isInt({ min: 1, max: 5 }).withMessage('Note entre 1 et 5.'),
   body('comment').optional().trim(),
 ], ctrl.rate);
 
 // ── Declaration Comments (citizen sees agent_citizen channel) ──
-router.get('/:id/comments', ctrl.listComments);
-router.post('/:id/comments', [
+router.get('/:id/comments', authenticate, rbac('citizen'), ctrl.listComments);
+router.post('/:id/comments', authenticate, rbac('citizen'), [
   body('content').notEmpty().trim().withMessage('Contenu requis.'),
 ], ctrl.addComment);
 

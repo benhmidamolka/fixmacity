@@ -11,7 +11,7 @@ function signToken(user) {
   return jwt.sign(
     { id: user.id, role: user.role, email: user.email },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '1h' } // Shorter access token
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } // Shorter access token
   );
 }
 
@@ -181,6 +181,12 @@ exports.updatePassword = async (req, res) => {
       .eq('id', req.user.id);
 
     if (updateErr) throw updateErr;
+
+    // Revoke all refresh tokens for this user for security
+    await supabase.from('refresh_tokens')
+      .update({ revoked_at: new Date().toISOString() })
+      .eq('user_id', req.user.id)
+      .is('revoked_at', null);
 
     res.json({ message: 'Mot de passe mis à jour avec succès' });
   } catch (err) {

@@ -15,7 +15,10 @@ export function useSocket(onNotification: (data: unknown) => void) {
       auth: { token },
     });
 
-    socket.emit('join', user.id);
+    socket.on('connect', () => {
+      socket.emit('join', user.id);
+    });
+
     socket.on('notification', onNotification);
 
     return () => {

@@ -164,7 +164,7 @@ const TopCritiques = ({ data, loading }: { data: any[]; loading: boolean }) => {
   const total = data.reduce((s, d) => s + (d.votes_count || 0), 0)
 
   return (
-    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-gray-100 dark:border-slate-800 p-5 shadow-sm flex flex-col h-full">
+    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800 p-5 hover:border-blue-400/50 dark:hover:border-blue-500/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500 flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <span className="text-[13px] font-bold text-gray-800 dark:text-white">1. Top 5 signalements critiques</span>
         <Link to="/president/declarations"
@@ -228,7 +228,7 @@ const ZonesCritiques = ({ zones, loading }: { zones: any[]; loading: boolean }) 
   const maxCount = zones[0]?.count || 1
 
   return (
-    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-gray-100 dark:border-slate-800 p-5 shadow-sm flex flex-col h-full">
+    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800 p-5 hover:border-blue-400/50 dark:hover:border-blue-500/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500 flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <span className="text-[13px] font-bold text-gray-800 dark:text-white">2. Lieux critiques à proximité</span>
         <Link to="/president/declarations"
@@ -324,7 +324,7 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
     : (depts.find(d => d.id === selDept)?.name_fr || depts.find(d => d.id === selDept)?.name || 'Tous')
 
   return (
-    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-gray-100 dark:border-slate-800 p-5 shadow-sm flex flex-col h-full">
+    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800 p-5 hover:border-blue-400/50 dark:hover:border-blue-500/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500 flex flex-col h-full">
       <span className="text-[13px] font-bold text-gray-800 dark:text-white mb-3">3. Nb de tâches vs résolues par mois</span>
 
       {/* Dropdown */}
@@ -418,7 +418,7 @@ const DeptPerf = ({ depts, loading }: { depts: any[]; loading: boolean }) => {
   const totalRate = totals.t > 0 ? ((totals.r / totals.t) * 100).toFixed(1) : '0.0'
 
   return (
-    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-gray-100 dark:border-slate-800 p-5 shadow-sm">
+    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800 p-5 hover:border-blue-400/50 dark:hover:border-blue-500/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500">
       <span className="text-[13px] font-bold text-gray-800 dark:text-white block mb-4">4. Performance par département</span>
       <table className="w-full">
         <thead>
@@ -512,7 +512,7 @@ const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; lo
   const total = pieData.reduce((s, d) => s + d.value, 0)
 
   return (
-    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-gray-100 dark:border-slate-800 p-5 shadow-sm">
+    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800 p-5 hover:border-blue-400/50 dark:hover:border-blue-500/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500">
       <span className="text-[13px] font-bold text-gray-800 dark:text-white block mb-4">5. Les statuts des signalements</span>
       <div className="flex items-center gap-6">
         <div className="relative flex-shrink-0" style={{ width: 200, height: 200 }}>
@@ -646,7 +646,7 @@ const PresidentDashboard: React.FC = () => {
 
   return (
     <PresidentLayout title="">
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950/50 -m-6 p-6 transition-colors duration-500 backdrop-blur-sm">
+      <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/50 -m-6 p-6 transition-colors duration-500 backdrop-blur-sm">
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
@@ -686,8 +686,9 @@ const PresidentDashboard: React.FC = () => {
           { label: 'Tâches résolues', value: stats.resolvedCount, sub: 'Interventions terminées', icon: <CheckCircle2 className="w-6 h-6" />, bg: 'bg-green-600' },
           { label: 'Satisfaction élevée', value: stats.highSatisfactionCount, sub: 'Notes 4–5 étoiles', icon: <ThumbsUp className="w-6 h-6" />, bg: 'bg-blue-500' },
         ].map(s => (
-          <div key={s.label} className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] p-6 border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow group">
-            <div className="flex items-center gap-4">
+          <div key={s.label} className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] p-6 border border-slate-200/60 dark:border-slate-800 hover:border-blue-400/50 dark:hover:border-blue-500/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500 group relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50/50 dark:bg-slate-800/10 rounded-bl-[4rem] -mr-8 -mt-8 group-hover:bg-blue-50/50 dark:group-hover:bg-blue-500/5 transition-colors duration-500" />
+            <div className="relative flex items-center gap-4">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${s.bg} group-hover:scale-110 transition-transform`}>
                 {s.icon}
               </div>
@@ -714,6 +715,7 @@ const PresidentDashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-10">
         <DeptPerf depts={depts} loading={loading} />
         <StatusPie byStatus={byStatus} loading={loading} />
+      </div>
       </div>
     </PresidentLayout>
   )

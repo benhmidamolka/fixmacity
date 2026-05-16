@@ -326,6 +326,10 @@ exports.vote = async (req, res) => {
       return res.status(404).json({ error: 'Déclaration introuvable.' });
     }
 
+    if (decl.citizen_id === req.user.id) {
+      return res.status(403).json({ error: 'Vous ne pouvez pas voter pour votre propre déclaration.' });
+    }
+
     // Check duplicate vote — DB unique on (declaration_id, user_id)
     const { data: existingVote } = await supabase
       .from('votes')
@@ -384,7 +388,7 @@ exports.rate = async (req, res) => {
     // Check declaration exists and is resolue or cloturee
     const { data: decl, error: fetchErr } = await supabase
       .from('declarations')
-      .select('id, citizen_id, user_id, status')
+      .select('id, citizen_id, user_id, status, resolved_at')
       .eq('id', id)
       .is('deleted_at', null)
       .eq('is_deleted', false)
@@ -409,6 +413,10 @@ exports.rate = async (req, res) => {
       .eq('declaration_id', id)
       .eq('citizen_id', req.user.id)
       .maybeSingle();
+
+    if (existingRating) {
+      return res.status(409).json({ error: 'Vous avez déjà évalué cette déclaration.' });
+    }
 
     if (decl.status === 'resolue' && decl.resolved_at) {
       const resolvedDate = new Date(decl.resolved_at);

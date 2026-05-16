@@ -109,8 +109,8 @@ const StatusBadge = ({ status }: { status: string }) => {
 // ─── Overlay Modal ────────────────────────────────────────────────────────────
 const Overlay = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => (
   <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-    <div className="absolute inset-0 bg-[#0A1628]/60 dark:bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
-    <div className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-white/10 dark:border-slate-800">
+    <div className="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
+    <div className="relative bg-white dark:bg-slate-900/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-white dark:border-slate-800/50">
       {children}
     </div>
   </div>
@@ -253,7 +253,8 @@ const CitizenDecisionModal = ({ prop, onDecide, onClose }: { prop: Prop; onDecid
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
   const displayStatus = CITIZEN_STATUS_MAP[prop.status] || prop.status
-  const isPending = displayStatus === 'en_attente'
+  // Propositions are editable as long as they are 'active' in DB
+  const isEditable = !['retenu', 'rejete', 'closed'].includes(displayStatus)
 
   const decide = async (decision: string) => {
     setLoading(true)
@@ -301,26 +302,30 @@ const CitizenDecisionModal = ({ prop, onDecide, onClose }: { prop: Prop; onDecid
           )}
         </div>
 
-        {isPending ? (
+        {isEditable ? (
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Note interne (optionnel)</label>
+              <label className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Note ou réponse (visible par le citoyen)</label>
               <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
                 className="w-full border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/50 text-[#0A1628] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1557FF]/20 focus:border-[#1557FF] transition-all resize-none"
-                placeholder="Ajouter une note..." />
+                placeholder="Ajouter une réponse..." />
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button onClick={() => decide('a_discuter')} disabled={loading}
-                className="py-3 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-400 font-bold text-xs hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-all flex flex-col items-center gap-1">
+                className="py-3 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-400 font-bold text-xs hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-all flex items-center justify-center gap-2">
                 <MessageSquare className="w-4 h-4" /> À discuter
               </button>
               <button onClick={() => decide('confirme')} disabled={loading}
-                className="py-3 rounded-2xl bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-600 transition-all shadow-md shadow-emerald-200 dark:shadow-none flex flex-col items-center gap-1">
+                className="py-3 rounded-2xl bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-600 transition-all shadow-md shadow-emerald-200 dark:shadow-none flex items-center justify-center gap-2">
                 <CheckCircle2 className="w-4 h-4" /> Confirmer
               </button>
               <button onClick={() => decide('retenu')} disabled={loading}
-                className="py-3 rounded-2xl bg-purple-500 text-white font-bold text-xs hover:bg-purple-600 transition-all shadow-md shadow-purple-200 dark:shadow-none flex flex-col items-center gap-1">
+                className="py-3 rounded-2xl bg-purple-500 text-white font-bold text-xs hover:bg-purple-600 transition-all shadow-md shadow-purple-200 dark:shadow-none flex items-center justify-center gap-2">
                 <Star className="w-4 h-4" /> Retenu
+              </button>
+              <button onClick={() => decide('refuse')} disabled={loading}
+                className="py-3 rounded-2xl bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 text-rose-600 dark:text-rose-400 font-bold text-xs hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-all flex items-center justify-center gap-2">
+                <X className="w-4 h-4" /> Refuser
               </button>
             </div>
           </div>
@@ -328,10 +333,15 @@ const CitizenDecisionModal = ({ prop, onDecide, onClose }: { prop: Prop; onDecid
           <div className={`flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold border ${
             displayStatus === 'confirme' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800' :
             displayStatus === 'retenu' ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-100 dark:border-purple-800' :
+            displayStatus === 'rejete' ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-800' :
             'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
           }`}>
-            {displayStatus === 'confirme' ? <CheckCircle2 className="w-4 h-4" /> : <Star className="w-4 h-4" />}
-            {displayStatus === 'confirme' ? 'Proposition confirmée' : 'Proposition retenue'}
+            {displayStatus === 'confirme' ? <CheckCircle2 className="w-4 h-4" /> : 
+             displayStatus === 'retenu' ? <Star className="w-4 h-4" /> :
+             displayStatus === 'rejete' ? <X className="w-4 h-4" /> : <Activity className="w-4 h-4" />}
+            {displayStatus === 'confirme' ? 'Proposition confirmée' : 
+             displayStatus === 'retenu' ? 'Proposition retenue' :
+             displayStatus === 'rejete' ? 'Proposition rejetée' : 'Décision enregistrée'}
           </div>
         )}
       </div>
@@ -347,7 +357,7 @@ const PresCard = ({ prop, onEdit, onDelete }: { prop: Prop; onEdit: (p: Prop) =>
   const pourPct = prop.total > 0 ? Math.round((prop.votes_pour / prop.total) * 100) : 0
 
   return (
-    <div className="group bg-white dark:bg-slate-900/40 backdrop-blur-sm rounded-3xl border border-slate-100 dark:border-slate-800/60 p-6 hover:shadow-lg hover:shadow-slate-100 dark:hover:shadow-none hover:-translate-y-0.5 transition-all duration-300 flex flex-col relative overflow-hidden">
+    <div className="group bg-white dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 p-7 hover:shadow-2xl hover:shadow-slate-200/50 dark:hover:shadow-none hover:-translate-y-1 transition-all duration-300 flex flex-col relative overflow-hidden">
       {/* Urgency stripe */}
       {isExpiring && <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-400 rounded-t-3xl" />}
 
@@ -422,7 +432,7 @@ const CitiCard = ({ prop, onOpen }: { prop: Prop; onOpen: (p: Prop) => void }) =
   const isPending = displayStatus === 'en_attente'
 
   return (
-    <div className="group bg-white dark:bg-slate-900/40 backdrop-blur-sm rounded-3xl border border-slate-100 dark:border-slate-800/60 p-6 hover:shadow-lg hover:shadow-slate-100 dark:hover:shadow-none hover:-translate-y-0.5 transition-all duration-300 flex flex-col relative overflow-hidden cursor-pointer"
+    <div className="group bg-white dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 p-7 hover:shadow-2xl hover:shadow-slate-200/50 dark:hover:shadow-none hover:-translate-y-1 transition-all duration-300 flex flex-col relative overflow-hidden cursor-pointer"
       onClick={() => onOpen(prop)}>
 
       {isPending && (
@@ -473,14 +483,14 @@ const CitiCard = ({ prop, onOpen }: { prop: Prop; onOpen: (p: Prop) => void }) =
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 const KpiCard = ({ label, value, sub, icon: Icon, color }: { label: string; value: string | number; sub: string; icon: React.ElementType; color: string }) => (
-  <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-5 flex items-center gap-4 transition-all duration-300">
-    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${color}`}>
-      <Icon className="w-5 h-5" />
+  <div className="bg-white dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 p-6 flex items-center gap-5 transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/20 dark:hover:shadow-none">
+    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${color} shadow-sm`}>
+      <Icon className="w-6 h-6" />
     </div>
     <div>
-      <p className="text-2xl font-black text-[#0A1628] dark:text-white leading-none">{value}</p>
-      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mt-1">{label}</p>
-      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{sub}</p>
+      <p className="text-3xl font-black text-[#0A1628] dark:text-white leading-none">{value}</p>
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-1.5">{label}</p>
+      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{sub}</p>
     </div>
   </div>
 )
@@ -514,15 +524,23 @@ export default function PresidentPropositions() {
           status: p.status || 'active',
           category: p.category || 'Général',
         })))
-        setCitiProps((data.citizen || []).map((p: any) => ({
-          ...p,
-          citizen: p.citizen || 'Anonyme',
-          votes_pour: p.pour || p.votes_pour || 0,
-          votes_contre: p.contre || p.votes_contre || 0,
-          total: p.total || 0,
-          status: p.status || 'active',
-          category: p.category || 'Général',
-        })))
+        setCitiProps((data.citizen || []).map((p: any) => {
+          let derivedStatus = p.status || 'active';
+          if (p.president_response) {
+            if (p.president_response.includes('[CONFIRMÉ]')) derivedStatus = 'confirme';
+            else if (p.president_response.includes('[RETENU]')) derivedStatus = 'retenu';
+            else if (p.president_response.includes('[REFUSE]')) derivedStatus = 'rejete';
+          }
+          return {
+            ...p,
+            citizen: p.citizen || 'Anonyme',
+            votes_pour: p.pour || p.votes_pour || 0,
+            votes_contre: p.contre || p.votes_contre || 0,
+            total: p.total || 0,
+            status: derivedStatus,
+            category: p.category || 'Général',
+          };
+        }))
       }
     } catch (e: any) {
       toast.error('Impossible de charger les propositions')
@@ -567,9 +585,9 @@ export default function PresidentPropositions() {
       ? `/president/propositions/${prop.id}/retenu`
       : `/president/propositions/${prop.id}/respond`
 
-    const body = decision === 'a_discuter' || decision === 'refuse'
-      ? JSON.stringify({ status: decision, president_response: note })
-      : JSON.stringify({ president_note: note })
+    const body = (decision === 'a_discuter' || decision === 'refuse' || decision === 'confirme' || decision === 'retenu')
+      ? JSON.stringify({ status: decision, president_response: note, president_note: note })
+      : JSON.stringify({ president_note: note });
 
     const method = (decision === 'a_discuter' || decision === 'refuse') ? 'PATCH' : 'POST'
 
@@ -609,8 +627,8 @@ export default function PresidentPropositions() {
 
   return (
     <PresidentLayout title="Propositions">
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 -m-6 p-6 transition-colors duration-500">
-        <div className="max-w-[1600px] mx-auto space-y-8">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 -m-6 p-8 transition-colors duration-500">
+        <div className="max-w-[1600px] mx-auto space-y-10">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -656,7 +674,7 @@ export default function PresidentPropositions() {
         )}
 
         {/* ── Tabs ───────────────────────────────────────────────────────── */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-1.5 flex gap-1 shadow-sm transition-all duration-300">
+        <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-[2rem] p-1.5 flex gap-1 shadow-sm transition-all duration-300">
           {[
             { key: 'president' as const, label: '🏛️ Propositions présidentielles', count: presProps.length },
             { key: 'citizen' as const, label: '👥 Suggestions citoyennes', count: stats.pending, highlight: stats.pending > 0 },
@@ -680,18 +698,18 @@ export default function PresidentPropositions() {
         {/* ── Filters ────────────────────────────────────────────────────── */}
         <div className="flex flex-wrap gap-3 items-center">
           <div className="relative flex-1 min-w-[200px] max-w-xs">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-[#0A1628] dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#1557FF]/20 focus:border-[#1557FF] transition-all" />
+              className="w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-[#0A1628] dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#1557FF]/20 focus:border-[#1557FF] transition-all" />
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <Filter className="w-4 h-4 text-slate-400 mr-1" />
             {(tab === 'president' ? presFilters : citiFilters).map(([v, l]) => (
               <button key={v} onClick={() => setFilterStatus(v)}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
-                  filterStatus === v ? 'bg-[#1557FF] text-white shadow-md shadow-blue-200 dark:shadow-none' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'
+                className={`px-5 py-2.5 rounded-2xl text-xs font-black transition-all ${
+                  filterStatus === v ? 'bg-[#1557FF] text-white shadow-lg shadow-blue-200 dark:shadow-none' : 'bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'
                 }`}>
                 {l}
               </button>
@@ -761,7 +779,7 @@ export default function PresidentPropositions() {
           prop={decisionProp}
           onDecide={decideProp}
           onClose={() => setDecisionProp(null)} />
-        </div>
+      )}
       </div>
     </PresidentLayout>
   )

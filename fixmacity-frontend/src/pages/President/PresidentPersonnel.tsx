@@ -101,12 +101,12 @@ const Toast: React.FC<{ msg: string; type: 'ok' | 'err'; onDone: () => void }> =
 // ─── Confirm dialog ───────────────────────────────────────────────────────────
 const Confirm: React.FC<{ msg: string; onYes: () => void; onNo: () => void }> = ({ msg, onYes, onNo }) => (
   <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onNo} />
-    <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-slate-100 dark:border-slate-800">
-      <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-6 text-center">{msg}</p>
+    <div className="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-md" onClick={onNo} />
+    <div className="relative bg-white dark:bg-slate-900/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl p-8 w-full max-w-sm border border-white dark:border-slate-800/50">
+      <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-8 text-center leading-relaxed">{msg}</p>
       <div className="flex gap-3">
-        <button onClick={onNo} className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Annuler</button>
-        <button onClick={onYes} className="flex-1 py-2.5 rounded-xl bg-red-500 text-sm font-bold text-white hover:bg-red-600 transition-colors">Confirmer</button>
+        <button onClick={onNo} className="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Annuler</button>
+        <button onClick={onYes} className="flex-1 py-3 rounded-2xl bg-red-500 text-sm font-bold text-white hover:bg-red-600 transition-colors shadow-lg shadow-red-200 dark:shadow-none">Confirmer</button>
       </div>
     </div>
   </div>
@@ -193,8 +193,8 @@ const UserModal: React.FC<{
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-slate-100 dark:border-slate-800">
+      <div className="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
+      <div className="relative bg-white dark:bg-slate-900/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-white dark:border-slate-800/50">
         {/* Header */}
         <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-6 pt-6 pb-4 flex items-center justify-between z-10">
           <div>
@@ -312,9 +312,9 @@ const ProfileDrawer: React.FC<{
 
   return (
     <div className="fixed inset-0 z-[90] flex">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
       {/* Drawer slides in from right */}
-      <div className="relative ml-auto h-full w-full max-w-sm bg-white dark:bg-[#0B1121] shadow-2xl flex flex-col overflow-y-auto animate-slide-in-right border-l border-slate-100 dark:border-slate-800">
+      <div className="relative ml-auto h-full w-full max-w-md bg-white dark:bg-slate-950/90 backdrop-blur-xl shadow-2xl flex flex-col overflow-y-auto animate-slide-in-right border-l border-white dark:border-slate-800/50">
         {/* Top bar */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800">
           <span className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Fiche Personnel</span>
@@ -460,7 +460,7 @@ const PersonCard: React.FC<{
 
   return (
     <div onClick={onClick}
-      className="group bg-white dark:bg-slate-900/50 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-xl hover:shadow-blue-500/8 transition-all cursor-pointer flex flex-col gap-4 relative overflow-hidden backdrop-blur-sm">
+      className="group bg-white dark:bg-slate-900/40 rounded-[2rem] border border-slate-200 dark:border-slate-800/60 p-6 hover:border-blue-400 dark:hover:border-blue-700 hover:shadow-2xl hover:shadow-blue-500/10 transition-all cursor-pointer flex flex-col gap-5 relative overflow-hidden backdrop-blur-xl">
       {/* subtle bg deco */}
       <div className="absolute top-0 right-0 w-20 h-20 rounded-bl-[3rem] opacity-50"
         style={{ background: `${color}0D` }} />
@@ -567,8 +567,8 @@ const DeptModal: React.FC<{ onClose: () => void; onSaved: (msg: string) => void 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md border border-slate-100 dark:border-slate-800 overflow-hidden">
+      <div className="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
+      <div className="relative bg-white dark:bg-slate-900/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl w-full max-w-md border border-white dark:border-slate-800/50 overflow-hidden">
         <div className="border-b border-slate-100 dark:border-slate-800 px-6 pt-6 pb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-black text-[#0A1628] dark:text-white">Nouveau département</h2>
@@ -742,18 +742,20 @@ const PresidentPersonnel: React.FC = () => {
       <div className="flex-1 bg-slate-50 dark:bg-slate-950 p-6 min-h-screen transition-colors duration-300">
 
         {/* ── KPI row ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
           {KPIS.map(k => (
-            <div key={k.label} className="group bg-white dark:bg-slate-900/50 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-lg hover:shadow-blue-500/5 transition-all relative overflow-hidden backdrop-blur-sm">
-              <div className="absolute top-0 right-0 w-20 h-20 rounded-bl-[3rem]" style={{ background: `${k.color}0A` }} />
+            <div key={k.label} className="group bg-white dark:bg-slate-900/40 rounded-[2.5rem] p-6 border border-slate-200 dark:border-slate-800/60 hover:border-blue-400 dark:hover:border-blue-700 hover:shadow-2xl hover:shadow-blue-500/10 transition-all relative overflow-hidden backdrop-blur-xl">
+              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-[4rem]" style={{ background: `${k.color}10` }} />
               <div className="relative">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-2xl">{k.icon}</span>
-                  <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg"
-                    style={{ background: `${k.color}15`, color: k.color }}>{k.sub}</span>
+                <div className="flex items-center justify-between mb-5">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-2xl shadow-inner">
+                    {k.icon}
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-sm"
+                    style={{ background: `${k.color}20`, color: k.color }}>{k.sub}</span>
                 </div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">{k.label}</p>
-                <p className="text-3xl font-black text-[#0A1628] dark:text-white">{k.value}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5">{k.label}</p>
+                <p className="text-4xl font-black text-[#0A1628] dark:text-white leading-none">{k.value}</p>
               </div>
             </div>
           ))}
@@ -773,7 +775,7 @@ const PresidentPersonnel: React.FC = () => {
           </div>
 
           {/* Search */}
-          <div className="flex-1 min-w-[240px] flex items-center gap-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-2.5 shadow-sm focus-within:border-blue-400 dark:focus-within:border-blue-600 transition-all">
+          <div className="flex-1 min-w-[240px] flex items-center gap-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-3 shadow-sm focus-within:border-blue-400 dark:focus-within:border-blue-600 transition-all">
             <Search className="w-4 h-4 text-slate-400 dark:text-slate-600 flex-shrink-0" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher par nom ou email…"

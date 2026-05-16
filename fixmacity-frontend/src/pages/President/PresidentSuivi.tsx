@@ -187,12 +187,11 @@ function TableRow({ d }: { d: Decl }) {
   const dIcon = DEPT_ICONS[d.category] || '📋'
 
   return (
-  return (
-    <div className="grid items-center gap-4 px-8 py-5 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-all group border-b border-slate-50 dark:border-slate-800/50 last:border-0 cursor-pointer"
+    <div className="grid items-center gap-4 px-8 py-5 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-all group border-b border-slate-50 dark:border-slate-800/50 last:border-0 cursor-pointer"
       style={{ gridTemplateColumns: '24px 1fr 140px 140px 110px 90px 80px 80px 90px' }}>
 
       <div className="flex items-center justify-center">
-        <input type="checkbox" className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer" />
+        <input type="checkbox" className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer" />
       </div>
 
       <div className="flex items-center gap-4 min-w-0">
@@ -303,7 +302,7 @@ function GroupSection({
       {/* Group header */}
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-4 px-6 py-5 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-[2rem] transition-all group">
+        className="w-full flex items-center gap-4 px-6 py-5 hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-[2rem] transition-all group">
         <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm text-slate-400 dark:text-slate-600 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
           {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </div>
@@ -324,7 +323,7 @@ function GroupSection({
 
       {/* Table */}
       {open && filtered.length > 0 && (
-        <div className="ml-8 mt-2 mb-6 bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-100 dark:border-slate-800 overflow-hidden shadow-2xl shadow-blue-900/5 dark:shadow-none">
+        <div className="ml-8 mt-2 mb-6 bg-white dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-100 dark:border-slate-800 overflow-hidden shadow-2xl shadow-blue-900/5 dark:shadow-none">
           <TableHead />
           <div className="divide-y divide-slate-50 dark:divide-slate-800/50">
             {filtered.map(d => <TableRow key={d.id} d={d} />)}

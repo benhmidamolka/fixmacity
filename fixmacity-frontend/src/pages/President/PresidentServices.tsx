@@ -3,7 +3,7 @@ import PresidentLayout from '../../layouts/PresidentLayout'
 import {
   Plus, X, Search, Pencil, Trash2, Eye, EyeOff, AlertTriangle,
   Check, Loader2, ChevronRight, Building2, Users, CheckCircle,
-  XCircle, Clock, TrendingUp, BarChart2, Shield, User
+  XCircle, Clock, TrendingUp, BarChart2, Shield, User, ArrowRight
 } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
@@ -123,16 +123,16 @@ const Confirm: React.FC<{ msg: string; sub?: string; onYes: () => void; onNo: ()
 }) => (
   <div className="fixed inset-0 z-[180] flex items-center justify-center p-4">
     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onNo}/>
-    <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-7 w-full max-w-xs text-center border border-transparent dark:border-slate-800">
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 ${danger ? 'bg-red-50 dark:bg-red-900/20' : 'bg-amber-50 dark:bg-amber-900/20'}`}>
-        <AlertTriangle className={`w-6 h-6 ${danger ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}/>
+    <div className="relative bg-slate-950/90 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl p-10 w-full max-w-sm text-center border border-slate-800/80">
+      <div className={`w-16 h-16 rounded-[1.25rem] flex items-center justify-center mx-auto mb-6 ${danger ? 'bg-red-50 dark:bg-red-500/10' : 'bg-amber-50 dark:bg-amber-500/10'}`}>
+        <AlertTriangle className={`w-8 h-8 ${danger ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}/>
       </div>
-      <p className="text-sm font-black text-[#0A1628] dark:text-white mb-1">{msg}</p>
-      {sub && <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold mb-6">{sub}</p>}
-      {!sub && <div className="mb-6"/>}
-      <div className="flex gap-3">
-        <button onClick={onNo} className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">Annuler</button>
-        <button onClick={onYes} className={`flex-1 py-2.5 rounded-xl text-sm font-bold text-white ${danger ? 'bg-red-500 hover:bg-red-600' : 'bg-amber-500 hover:bg-amber-600'}`}>Confirmer</button>
+      <p className="text-lg font-black text-[#0A1628] dark:text-white mb-2 leading-tight">{msg}</p>
+      {sub && <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold mb-8 leading-relaxed px-2">{sub}</p>}
+      {!sub && <div className="mb-8"/>}
+      <div className="flex gap-4">
+        <button onClick={onNo} className="flex-1 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all">Annuler</button>
+        <button onClick={onYes} className={`flex-1 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-95 ${danger ? 'bg-red-500 hover:bg-red-600 shadow-red-500/20' : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'}`}>Confirmer</button>
       </div>
     </div>
   </div>
@@ -213,7 +213,7 @@ const ServiceModal: React.FC<{
     }
   }
 
-  const inputCls = "w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-700 dark:text-white outline-none focus:border-[#1557FF] focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/20 transition-all bg-white dark:bg-slate-900"
+  const inputCls = "w-full px-5 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-700 dark:text-white outline-none focus:border-[#1557FF] focus:ring-4 focus:ring-blue-500/5 transition-all bg-white dark:bg-slate-900/50 backdrop-blur-sm placeholder:text-slate-300 dark:placeholder:text-slate-700"
 
   const Field: React.FC<{ label: string; req?: boolean; children: React.ReactNode }> = ({ label, req, children }) => (
     <div>
@@ -226,37 +226,37 @@ const ServiceModal: React.FC<{
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}/>
-      <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-transparent dark:border-slate-800">
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={onClose}/>
+      <div className="relative bg-slate-950/95 backdrop-blur-3xl rounded-[3rem] shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden border border-slate-800/80 flex flex-col animate-in zoom-in-95 duration-500">
         {/* Header */}
-        <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-6 pt-6 pb-4 flex items-center justify-between z-10">
+        <div className="flex-shrink-0 border-b border-slate-100 dark:border-slate-800 px-8 pt-8 pb-6 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-black text-[#0A1628] dark:text-white">
-              {isEdit ? 'Modifier le service' : 'Nouveau service municipal'}
+            <h2 className="text-2xl font-black text-[#0A1628] dark:text-white tracking-tight">
+              {isEdit ? 'Modifier le service' : 'Nouveau service'}
             </h2>
-            <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold mt-0.5">
-              {isEdit ? dept!.name_fr : 'Créer un département opérationnel'}
+            <p className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-1">
+              {isEdit ? `Configuration de ${dept!.name_fr}` : 'Créer un département opérationnel'}
             </p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700">
-            <X className="w-4 h-4 text-slate-500 dark:text-slate-400"/>
+          <button onClick={onClose} className="w-10 h-10 rounded-2xl bg-slate-100/50 dark:bg-slate-800/50 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-90">
+            <X className="w-5 h-5 text-slate-500 dark:text-slate-400"/>
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-4">
+        <div className="flex-1 overflow-y-auto px-8 py-8 space-y-6">
           {err && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0"/>{err}
+            <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest px-5 py-4 rounded-2xl flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 flex-shrink-0"/>{err}
             </div>
           )}
 
           {/* Icon picker */}
-          <Field label="Icône représentative">
-            <div className="grid grid-cols-6 gap-2">
+          <Field label="Identité visuelle">
+            <div className="grid grid-cols-6 gap-3">
               {ICON_OPTIONS.map(opt => (
                 <button key={opt.emoji} type="button"
                   onClick={() => setSelectedIcon(opt.emoji)}
-                  className={`h-10 rounded-xl text-xl flex items-center justify-center border-2 transition-all ${selectedIcon === opt.emoji ? 'border-[#1557FF] bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'}`}
+                  className={`h-12 rounded-2xl text-xl flex items-center justify-center border-2 transition-all active:scale-95 ${selectedIcon === opt.emoji ? 'border-[#1557FF] bg-blue-500/10 shadow-lg shadow-blue-500/10' : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50'}`}
                   title={opt.label}>
                   {opt.emoji}
                 </button>
@@ -264,47 +264,47 @@ const ServiceModal: React.FC<{
             </div>
           </Field>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
               <Field label="Nom français" req>
                 <input className={inputCls} value={form.name_fr}
-                  onChange={e => set('name_fr', e.target.value)} placeholder="Voirie & Routes"/>
+                  onChange={e => set('name_fr', e.target.value)} placeholder="Ex: Voirie & Réseaux"/>
               </Field>
             </div>
-            <Field label="Code" req>
-              <input className={`${inputCls} uppercase font-black text-center tracking-widest`}
+            <Field label="Code ID" req>
+              <input className={`${inputCls} uppercase font-black text-center tracking-widest text-lg`}
                 value={form.code} onChange={e => set('code', e.target.value.toUpperCase().slice(0,3))}
                 placeholder="VR" maxLength={3} disabled={isEdit}
-                style={isEdit ? { background: 'transparent', color: '#94A3B8' } : {}}/>
-              {isEdit && <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1 font-semibold">Non modifiable</p>}
+                style={isEdit ? { opacity: 0.5, cursor: 'not-allowed' } : {}}/>
             </Field>
           </div>
 
-          <Field label="Nom arabe">
-            <input className={inputCls} value={form.name_ar}
-              onChange={e => set('name_ar', e.target.value)} placeholder="الطرق والأرصفة" dir="rtl"/>
-          </Field>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Nom arabe">
+              <input className={`${inputCls} text-right`} value={form.name_ar}
+                onChange={e => set('name_ar', e.target.value)} placeholder="الاسم بالعربية" dir="rtl"/>
+            </Field>
+            <Field label="Nom anglais">
+              <input className={inputCls} value={form.name_en}
+                onChange={e => set('name_en', e.target.value)} placeholder="Name in English"/>
+            </Field>
+          </div>
 
-          <Field label="Nom anglais">
-            <input className={inputCls} value={form.name_en}
-              onChange={e => set('name_en', e.target.value)} placeholder="Roads & Pavements"/>
-          </Field>
-
-          <Field label="Description">
-            <textarea className={`${inputCls} resize-none h-20`}
+          <Field label="Missions du service">
+            <textarea className={`${inputCls} resize-none h-28`}
               value={form.description} onChange={e => set('description', e.target.value)}
-              placeholder="Description du service et de ses missions…"/>
+              placeholder="Décrivez les responsabilités de ce département…"/>
           </Field>
         </div>
 
-        <div className="sticky bottom-0 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 px-6 py-4 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">
+        <div className="flex-shrink-0 border-t border-slate-800 px-8 py-6 flex gap-4 bg-slate-900/40 backdrop-blur-sm">
+          <button onClick={onClose} className="flex-1 py-4 rounded-2xl border border-slate-800 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-800/50 transition-all">
             Annuler
           </button>
           <button onClick={save} disabled={saving}
-            className="flex-1 py-3 rounded-xl bg-[#1557FF] text-sm font-black text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/25 dark:shadow-none">
-            {saving && <Loader2 className="w-4 h-4 animate-spin"/>}
-            {isEdit ? 'Enregistrer' : 'Créer le service'}
+            className="flex-[1.5] py-4 rounded-2xl bg-[#1557FF] text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-3 transition-all shadow-xl shadow-blue-500/25 active:scale-[0.98]">
+            {saving ? <Loader2 className="w-5 h-5 animate-spin"/> : <Check className="w-5 h-5"/>}
+            {isEdit ? 'Enregistrer les modifications' : 'Confirmer la création'}
           </button>
         </div>
       </div>
@@ -359,12 +359,12 @@ const DetailDrawer: React.FC<{
 
   return (
     <div className="fixed inset-0 z-[100] flex">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose}/>
-      <div className="relative ml-auto h-full w-full max-w-md bg-white dark:bg-slate-950 shadow-2xl flex flex-col overflow-hidden"
-        style={{ animation: 'slideInRight .25s cubic-bezier(.22,1,.36,1) forwards' }}>
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose}/>
+      <div className="relative ml-auto h-full w-full max-w-[500px] bg-slate-950/95 backdrop-blur-3xl shadow-2xl flex flex-col overflow-hidden border-l border-slate-800/50"
+        style={{ animation: 'slideInRight .4s cubic-bezier(.22,1,.36,1) forwards' }}>
 
         {/* Header */}
-        <div className="flex-shrink-0 border-b border-slate-100 dark:border-slate-800 px-6 pt-6 pb-5 bg-white dark:bg-slate-900">
+        <div className="flex-shrink-0 border-b border-slate-800/50 px-6 pt-7 pb-6 bg-slate-900/40 backdrop-blur-md">
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0 shadow-sm"
               style={{ background: `${color}15` }}>
@@ -394,7 +394,7 @@ const DetailDrawer: React.FC<{
         </div>
 
         {/* Chef de service */}
-        <div className="flex-shrink-0 px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3 bg-white dark:bg-slate-900">
+        <div className="flex-shrink-0 px-6 py-4 border-b border-slate-800/50 flex items-center gap-4 bg-slate-900/30 backdrop-blur-sm">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-black flex-shrink-0"
             style={{ background: color }}>
             {initials(dept.chef_name)}
@@ -407,20 +407,20 @@ const DetailDrawer: React.FC<{
         </div>
 
         {/* Stats grid */}
-        <div className="flex-shrink-0 px-6 py-5 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-4">Statistiques</p>
+        <div className="flex-shrink-0 px-6 py-6 border-b border-slate-800/50 bg-transparent">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-5">Statistiques opérationnelles</p>
           <div className="flex items-center gap-4 mb-4">
             <Ring value={resRate} color={color} size={72} label="résolution"/>
             <div className="flex-1 grid grid-cols-2 gap-2">
               {[
-                { label: 'Total',     val: dept.total,       bg: 'bg-slate-50 dark:bg-slate-800/50',   tx: 'text-[#0A1628] dark:text-white', border: 'border-slate-100 dark:border-slate-800' },
-                { label: 'En cours',  val: dept.in_progress, bg: 'bg-blue-50 dark:bg-blue-900/10',    tx: 'text-blue-600 dark:text-blue-400',  border: 'border-blue-100 dark:border-blue-900/20'  },
-                { label: 'Acceptées', val: dept.accepted,    bg: 'bg-amber-50 dark:bg-amber-900/10',   tx: 'text-amber-600 dark:text-amber-400', border: 'border-amber-100 dark:border-amber-900/20' },
-                { label: 'Résolues',  val: dept.resolved,    bg: 'bg-emerald-50 dark:bg-emerald-900/10', tx: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-100 dark:border-emerald-900/20' },
+                { label: 'Total',     val: dept.total,       bg: 'bg-slate-800/40',   tx: 'text-white', border: 'border-slate-700/50' },
+                { label: 'En cours',  val: dept.in_progress, bg: 'bg-blue-500/10',    tx: 'text-blue-400',  border: 'border-blue-500/20'  },
+                { label: 'Acceptées', val: dept.accepted,    bg: 'bg-amber-500/10',   tx: 'text-amber-400', border: 'border-amber-500/20' },
+                { label: 'Résolues',  val: dept.resolved,    bg: 'bg-emerald-500/10', tx: 'text-emerald-400', border: 'border-emerald-500/20' },
               ].map(s => (
-                <div key={s.label} className={`${s.bg} rounded-xl p-2.5 text-center border ${s.border}`}>
-                  <p className={`text-lg font-black ${s.tx}`}>{s.val}</p>
-                  <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{s.label}</p>
+                <div key={s.label} className={`${s.bg} rounded-2xl p-3 text-center border ${s.border} backdrop-blur-sm`}>
+                  <p className={`text-xl font-black ${s.tx}`}>{s.val}</p>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mt-0.5">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -453,8 +453,8 @@ const DetailDrawer: React.FC<{
                 <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Taux de résolution</span>
                 <span className="text-[10px] font-black" style={{ color }}>{resRate}%</span>
               </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                <div className="h-1.5 rounded-full transition-all duration-700"
+              <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div className="h-1.5 rounded-full transition-all duration-1000"
                   style={{ width: `${resRate}%`, background: color }}/>
               </div>
             </div>
@@ -462,17 +462,17 @@ const DetailDrawer: React.FC<{
         </div>
 
         {/* Tabs — Agents / Déclarations */}
-        <div className="flex-shrink-0 flex border-b border-slate-100 dark:border-slate-800 px-6 bg-white dark:bg-slate-900">
+        <div className="flex-shrink-0 flex border-b border-slate-800/50 px-6 bg-slate-900/40 backdrop-blur-md">
           {(['agents','decls'] as const).map(t => (
             <button key={t} onClick={() => setDTab(t)}
-              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${dTab === t ? 'border-[#1557FF] text-[#1557FF]' : 'border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
-              {t === 'agents' ? `👷 Agents (${agents.length})` : `📋 Déclarations récentes`}
+              className={`flex-1 py-4 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 transition-all ${dTab === t ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
+              {t === 'agents' ? `👷 Agents` : `📋 Déclarations`}
             </button>
           ))}
         </div>
 
         {/* Tab content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 bg-white dark:bg-slate-950">
+        <div className="flex-1 overflow-y-auto px-6 py-6 bg-transparent">
           {loading ? (
             <div className="flex items-center justify-center h-24">
               <Loader2 className="w-6 h-6 text-[#1557FF] animate-spin"/>
@@ -549,18 +549,18 @@ const DetailDrawer: React.FC<{
         </div>
 
         {/* Actions */}
-        <div className="flex-shrink-0 border-t border-slate-100 dark:border-slate-800 px-6 py-5 space-y-2.5 bg-white dark:bg-slate-900">
+        <div className="flex-shrink-0 border-t border-slate-800/50 px-6 py-6 space-y-3 bg-slate-900/60 backdrop-blur-md">
           <button onClick={onEdit}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#1557FF] text-white text-sm font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 dark:shadow-none">
+            className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl bg-[#1557FF] text-white text-[11px] font-black uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-xl shadow-blue-500/20 active:scale-95">
             <Pencil className="w-4 h-4"/> Modifier le service
           </button>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-3">
             <button onClick={onToggle}
-              className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black border-2 transition-all ${dept.is_active ? 'border-amber-300 dark:border-amber-900/50 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20' : 'border-emerald-300 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}`}>
+              className={`flex items-center justify-center gap-3 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border border-slate-800 transition-all active:scale-95 ${dept.is_active ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'}`}>
               {dept.is_active ? <><EyeOff className="w-4 h-4"/> Désactiver</> : <><Eye className="w-4 h-4"/> Réactiver</>}
             </button>
             <button onClick={onDelete}
-              className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-red-200 dark:border-red-900/50 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all">
+              className="flex items-center justify-center gap-3 py-4 rounded-2xl border border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all active:scale-95 uppercase text-[10px] font-black tracking-[0.2em]">
               <Trash2 className="w-4 h-4"/> Supprimer
             </button>
           </div>
@@ -583,7 +583,7 @@ const ServiceCard: React.FC<{
 
   return (
     <div onClick={onClick}
-      className={`group relative bg-white dark:bg-slate-900/50 backdrop-blur-sm rounded-3xl border overflow-hidden cursor-pointer transition-all hover:shadow-xl hover:shadow-blue-500/8 dark:hover:shadow-none hover:-translate-y-0.5 flex flex-col ${dept.is_active ? 'border-slate-200 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/50' : 'border-slate-200 dark:border-slate-800 opacity-60 hover:opacity-80'}`}>
+      className={`group relative bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800/80 overflow-hidden cursor-pointer transition-all duration-500 hover:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] hover:-translate-y-1.5 flex flex-col ${!dept.is_active ? 'opacity-50 hover:opacity-100 grayscale-[0.5] hover:grayscale-0' : 'hover:border-[#1557FF]/30'}`}>
 
       {/* Color band top */}
       <div className="h-1.5 w-full" style={{ background: color }}/>
@@ -666,19 +666,15 @@ const ServiceCard: React.FC<{
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 transition-colors">
-        <div className="flex items-center gap-1.5">
-          {/* Toggle active btn */}
-          <button onClick={onToggle}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black border transition-all ${dept.is_active ? 'border-emerald-200 text-emerald-600 hover:bg-emerald-50' : 'border-slate-200 text-slate-400 hover:bg-slate-100'}`}
-            title={dept.is_active ? 'Désactiver' : 'Réactiver'}>
-            {dept.is_active ? <CheckCircle className="w-3 h-3"/> : <XCircle className="w-3 h-3"/>}
-            {dept.is_active ? 'Actif' : 'Inactif'}
-          </button>
-          <span className="text-[9px] font-bold text-slate-400">{dept.agents_count} agents</span>
+      <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 transition-colors">
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${dept.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300 dark:bg-slate-700'}`} />
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            {dept.agents_count} agents
+          </span>
         </div>
-        <div className="flex items-center gap-1 text-[10px] font-black text-slate-400 group-hover:text-[#1557FF] transition-colors">
-          Détails <ChevronRight className="w-3.5 h-3.5"/>
+        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-700 group-hover:text-[#1557FF] dark:group-hover:text-blue-400 transition-all">
+          Détails <ArrowRight className="w-3.5 h-3.5 translate-x-0 group-hover:translate-x-1 transition-transform"/>
         </div>
       </div>
     </div>
@@ -781,20 +777,20 @@ const PresidentServices: React.FC = () => {
         @keyframes slideInRight { from { transform: translateX(100%) } to { transform: translateX(0) } }
       `}</style>
 
-      <div className="flex-1 bg-slate-50 dark:bg-slate-950 p-6 min-h-screen">
-        <div className="max-w-[1600px] mx-auto animate-in fade-in duration-500">
+      <div className="flex-1 bg-transparent p-6 min-h-screen">
+        <div className="max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* ── Header ── */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-6 bg-[#1557FF] rounded-full"/>
-              <h1 className="text-2xl font-black text-[#0A1628] dark:text-white uppercase tracking-tight">Services Municipaux</h1>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-3 h-10 bg-[#1557FF] rounded-full shadow-[0_0_20px_rgba(21,87,255,0.4)]"/>
+              <h1 className="text-4xl font-black text-[#0A1628] dark:text-white tracking-tight uppercase">Services Municipaux</h1>
             </div>
-            <p className="text-slate-400 dark:text-slate-500 font-bold text-xs uppercase tracking-widest pl-4">Gestion des départements opérationnels de Sousse</p>
+            <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em] pl-6">Administration & Performance des pôles opérationnels</p>
           </div>
-          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-4 py-2 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/>
-            <span className="text-[10px] font-black text-[#0A1628] dark:text-white uppercase tracking-widest">{depts.length} Services</span>
+          <div className="flex items-center gap-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl px-6 py-3 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-xl shadow-black/5">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"/>
+            <span className="text-xs font-black text-[#0A1628] dark:text-white uppercase tracking-widest">{depts.length} Départements</span>
           </div>
         </div>
 
@@ -806,16 +802,18 @@ const PresidentServices: React.FC = () => {
             { label: 'Déclarations',      val: totalDecl,    sub: 'Total reçues',    color: '#F59E0B', icon: '📋' },
             { label: 'Taux Résolution',   val: `${avgRate}%`,sub: 'Moyenne globale', color: '#8B5CF6', icon: '✅' },
           ].map(k => (
-            <div key={k.label} className="group bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/50 hover:shadow-lg hover:shadow-blue-500/5 dark:hover:shadow-none transition-all relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-20 h-20 rounded-bl-[3rem]" style={{ background: `${k.color}0A` }}/>
+            <div key={k.label} className="group bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] p-8 border border-slate-200/60 dark:border-slate-800 hover:border-[#1557FF]/30 hover:shadow-2xl hover:shadow-blue-500/5 transition-all duration-500 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 rounded-bl-[5rem] group-hover:scale-110 transition-transform duration-700" style={{ background: `linear-gradient(135deg, ${k.color}10, transparent)` }}/>
               <div className="relative">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-2xl">{k.icon}</span>
-                  <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg"
-                    style={{ background: `${k.color}15`, color: k.color }}>{k.sub}</span>
+                <div className="flex items-center justify-between mb-8">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-sm group-hover:rotate-6 transition-transform duration-500" style={{ background: `${k.color}15` }}>
+                    {k.icon}
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-xl backdrop-blur-md border border-white/20 dark:border-slate-800"
+                    style={{ background: `${k.color}10`, color: k.color }}>{k.sub}</span>
                 </div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">{k.label}</p>
-                <p className="text-3xl font-black text-[#0A1628] dark:text-white">{k.val}</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500 mb-2">{k.label}</p>
+                <p className="text-4xl font-black text-[#0A1628] dark:text-white tracking-tighter">{k.val}</p>
               </div>
             </div>
           ))}
@@ -824,20 +822,19 @@ const PresidentServices: React.FC = () => {
         {/* ── Toolbar ── */}
         <div className="flex flex-wrap items-center gap-3 mb-6">
           {/* Search */}
-          <div className="flex-1 min-w-[260px] flex items-center gap-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-2.5 shadow-sm focus-within:border-blue-400 dark:focus-within:border-blue-500 transition-all">
-            <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0"/>
+          <div className="flex-1 min-w-[320px] flex items-center gap-4 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl px-6 py-3.5 shadow-sm focus-within:border-[#1557FF]/50 focus-within:shadow-[0_0_30px_rgba(21,87,255,0.05)] transition-all">
+            <Search className="w-5 h-5 text-slate-300 dark:text-slate-600 flex-shrink-0"/>
             <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher par nom, code, chef…"
-              className="flex-1 text-xs font-bold text-slate-600 dark:text-white placeholder-slate-300 dark:placeholder-slate-600 outline-none bg-transparent"/>
-            {search && <button onClick={() => setSearch('')}><X className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500"/></button>}
+              placeholder="Rechercher un pôle, un code ou un responsable…"
+              className="flex-1 text-sm font-bold text-slate-600 dark:text-white placeholder-slate-300 dark:placeholder-slate-700 outline-none bg-transparent"/>
+            {search && <button onClick={() => setSearch('')} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"><X className="w-4 h-4 text-slate-400"/></button>}
           </div>
 
           {/* Status filter */}
-          <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-1 shadow-sm">
+          <div className="flex bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl p-1.5 shadow-sm">
             {([['all','Tous'],['active','Actifs'],['inactive','Inactifs']] as const).map(([v,l]) => (
               <button key={v} onClick={() => setStatus(v)}
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === v ? 'text-white shadow-md' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                style={statusFilter === v ? { background: '#1557FF' } : {}}>
+                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${statusFilter === v ? 'bg-slate-900 dark:bg-[#1557FF] text-white shadow-lg' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
                 {l}
               </button>
             ))}
@@ -845,9 +842,8 @@ const PresidentServices: React.FC = () => {
 
           {/* Create btn */}
           <button onClick={() => { setEditTarget(null); setShowForm(true) }}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 active:scale-95 transition-all ml-auto"
-            style={{ background: '#1557FF' }}>
-            <Plus className="w-4 h-4"/> Nouveau service
+            className="flex items-center gap-3 px-8 h-[56px] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white bg-[#1557FF] shadow-2xl shadow-blue-500/30 hover:bg-blue-600 hover:-translate-y-0.5 active:scale-95 transition-all ml-auto">
+            <Plus className="w-5 h-5"/> Nouveau service
           </button>
         </div>
 
@@ -910,6 +906,7 @@ const PresidentServices: React.FC = () => {
 
       {/* ── Toast ── */}
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)}/>}
+    </div>
     </PresidentLayout>
   )
 }

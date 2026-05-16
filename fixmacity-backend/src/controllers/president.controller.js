@@ -1537,11 +1537,11 @@ exports.respondToProposition = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, president_response } = req.body;
-    const validDecisions = ['a_discuter', 'retenu', 'refuse'];
+    const validDecisions = ['a_discuter', 'confirme', 'retenu', 'refuse'];
     if (!validDecisions.includes(status)) {
       return res.status(400).json({ error: 'Statut invalide.' });
     }
-    const dbStatus = status === 'a_discuter' ? 'active' : 'closed';
+    const dbStatus = (status === 'a_discuter' || status === 'confirme') ? 'active' : 'closed';
     const { data, error } = await supabase
       .from('propositions')
       .update({

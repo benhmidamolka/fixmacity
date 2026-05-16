@@ -129,8 +129,8 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
                       isCollapsed ? 'w-10 h-10 justify-center' : 'px-3 py-2.5 w-full'
                     } ${
                       active 
-                        ? (darkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-[#1557FF] text-white shadow-lg shadow-blue-200') 
-                        : (darkMode ? 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200' : 'text-slate-500 hover:bg-slate-50')
+                        ? (darkMode ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)]' : 'bg-[#1557FF] text-white shadow-lg shadow-blue-200') 
+                        : (darkMode ? 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 border border-transparent' : 'text-slate-500 hover:bg-slate-50 border border-transparent')
                     }`}>
                     <item.icon className={`${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'} flex-shrink-0 transition-transform group-hover:scale-110`} />
                     {!isCollapsed && <span className="text-sm font-bold tracking-tight flex-1 truncate">{item.label}</span>}
@@ -186,7 +186,7 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
     <div className={`min-h-screen flex transition-colors duration-500 ${darkMode ? 'dark bg-slate-950' : 'bg-[#F9FAFB]'}`}>
 
       {/* Sidebar desktop */}
-      <aside className={`hidden md:flex flex-col ${sidebarWidth} flex-shrink-0 fixed top-0 left-0 bottom-0 ${darkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-100'} border-r transition-all duration-300 z-40 backdrop-blur-xl`}>
+      <aside className={`hidden md:flex flex-col ${sidebarWidth} flex-shrink-0 fixed top-0 left-0 bottom-0 ${darkMode ? 'bg-slate-900/60 border-slate-800/50 shadow-2xl shadow-black/20' : 'bg-white border-slate-100 shadow-sm'} border-r transition-all duration-300 z-40 backdrop-blur-2xl`}>
         <SidebarContent />
       </aside>
 
@@ -206,7 +206,7 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
       <div className={`flex-1 ${mainMargin} flex flex-col min-h-screen transition-all duration-300`}>
 
         {/* Topbar */}
-        <header className={`fixed top-0 right-0 left-0 ${mainMargin} h-20 ${darkMode ? 'bg-slate-950/40' : 'bg-[#F9FAFB]/80'} backdrop-blur-xl z-30 flex items-center gap-4 px-8 transition-all duration-300`}>
+        <header className={`fixed top-0 right-0 left-0 ${mainMargin} h-20 ${darkMode ? 'bg-slate-950/60 border-b border-slate-800/50' : 'bg-[#F9FAFB]/80 border-b border-slate-100'} backdrop-blur-2xl z-30 flex items-center gap-4 px-8 transition-all duration-300`}>
           <button className="md:hidden p-2 text-slate-500 rounded-xl hover:bg-white shadow-sm"
             onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}

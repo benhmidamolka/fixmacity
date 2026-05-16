@@ -145,13 +145,13 @@ exports.respondToProposition = async (req, res) => {
     const { id } = req.params;
     const { status: decision, president_response } = req.body;
 
-    const validDecisions = ['a_discuter', 'retenu', 'refuse'];
+    const validDecisions = ['a_discuter', 'confirme', 'retenu', 'refuse'];
     if (!validDecisions.includes(decision)) {
-      return res.status(400).json({ error: 'Décision invalide. Valeurs acceptées: a_discuter, retenu, refuse.' });
+      return res.status(400).json({ error: 'Décision invalide. Valeurs acceptées: a_discuter, confirme, retenu, refuse.' });
     }
 
     // Map decision to DB-compatible status enum
-    const dbStatus = decision === 'a_discuter' ? 'active' : 'closed';
+    const dbStatus = (decision === 'a_discuter' || decision === 'confirme') ? 'active' : 'closed';
 
     const { data: updated, error } = await supabase
       .from('propositions')

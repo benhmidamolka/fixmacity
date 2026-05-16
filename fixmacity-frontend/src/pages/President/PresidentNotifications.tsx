@@ -13,14 +13,14 @@ const token = () => localStorage.getItem('fmc_token')
 
 // ─── Notification type config ─────────────────────────────────────────────────
 const NOTIF_TYPES: Record<string, { icon: React.ReactNode; color: string; bg: string; label: string }> = {
-  URGENT_DECLARATION:   { icon: <AlertTriangle className="w-5 h-5"/>, color: '#EF4444', bg: 'bg-rose-50',    label: 'CRITIQUE'     },
-  NEW_DECLARATION:      { icon: <FileText      className="w-5 h-5"/>, color: '#1557FF', bg: 'bg-blue-50',    label: 'SIGNALEMENT'  },
-  STATUS_CHANGE:        { icon: <Zap           className="w-5 h-5"/>, color: '#F59E0B', bg: 'bg-amber-50',   label: 'WORKFLOW'     },
-  ASSIGNED_CHEF:        { icon: <UserPlus      className="w-5 h-5"/>, color: '#10B981', bg: 'bg-emerald-50', label: 'MISSION'      },
-  DECLARATION_REJECTED: { icon: <AlertTriangle className="w-5 h-5"/>, color: '#EF4444', bg: 'bg-rose-50',    label: 'ALERTE'       },
-  INTERNAL_COMMENT:     { icon: <MessageSquare className="w-5 h-5"/>, color: '#8B5CF6', bg: 'bg-violet-50',  label: 'COMMENTAIRE'  },
-  PROPOSITION_VOTE:     { icon: <ThumbsUp      className="w-5 h-5"/>, color: '#0891B2', bg: 'bg-cyan-50',    label: 'CONSULTATION' },
-  SYSTEM:               { icon: <Settings      className="w-5 h-5"/>, color: '#64748B', bg: 'bg-slate-50',   label: 'SYSTÈME'      },
+  URGENT_DECLARATION:   { icon: <AlertTriangle className="w-5 h-5"/>, color: '#EF4444', bg: 'bg-red-500/15',    label: 'CRITIQUE'     },
+  NEW_DECLARATION:      { icon: <FileText      className="w-5 h-5"/>, color: '#1557FF', bg: 'bg-blue-500/15',   label: 'SIGNALEMENT'  },
+  STATUS_CHANGE:        { icon: <Zap           className="w-5 h-5"/>, color: '#F59E0B', bg: 'bg-amber-500/15',  label: 'WORKFLOW'     },
+  ASSIGNED_CHEF:        { icon: <UserPlus      className="w-5 h-5"/>, color: '#10B981', bg: 'bg-emerald-500/15', label: 'MISSION'      },
+  DECLARATION_REJECTED: { icon: <AlertTriangle className="w-5 h-5"/>, color: '#EF4444', bg: 'bg-red-500/15',    label: 'ALERTE'       },
+  INTERNAL_COMMENT:     { icon: <MessageSquare className="w-5 h-5"/>, color: '#8B5CF6', bg: 'bg-violet-500/15', label: 'COMMENTAIRE'  },
+  PROPOSITION_VOTE:     { icon: <ThumbsUp      className="w-5 h-5"/>, color: '#06B6D4', bg: 'bg-cyan-500/15',   label: 'CONSULTATION' },
+  SYSTEM:               { icon: <Settings      className="w-5 h-5"/>, color: '#94A3B8', bg: 'bg-slate-500/15',  label: 'SYSTÈME'      },
 }
 const getCfg = (type: string) => NOTIF_TYPES[type] ?? NOTIF_TYPES['SYSTEM']
 
@@ -58,8 +58,8 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 const KpiCard: React.FC<{ label: string; value: number | string; color: string; icon: React.ReactNode; sub: string }> = ({ label, value, color, icon, sub }) => (
-  <div className="group bg-white rounded-[2.5rem] p-8 border border-slate-200/60 hover:border-blue-400/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500 relative overflow-hidden">
-    <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50/50 rounded-bl-[5rem] -mr-10 -mt-10 group-hover:bg-blue-50/50 transition-colors duration-500" />
+  <div className="group bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] p-8 border border-slate-200/60 dark:border-slate-800 hover:border-blue-400/50 dark:hover:border-blue-500/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500 relative overflow-hidden">
+    <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50/50 dark:bg-slate-800/10 rounded-bl-[5rem] -mr-10 -mt-10 group-hover:bg-blue-50/50 dark:group-hover:bg-blue-500/5 transition-colors duration-500" />
     <div className="relative">
       <div className="flex items-center justify-between mb-6">
         <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-500"
@@ -67,11 +67,11 @@ const KpiCard: React.FC<{ label: string; value: number | string; color: string; 
           {icon}
         </div>
         <div className="text-right">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{label}</p>
-          <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">{sub}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-1">{label}</p>
+          <p className="text-[9px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-widest">{sub}</p>
         </div>
       </div>
-      <div className="text-4xl font-black text-[#0A1628] tracking-tight">{value}</div>
+      <div className="text-4xl font-black text-[#0A1628] dark:text-white tracking-tight">{value}</div>
     </div>
   </div>
 )
@@ -110,11 +110,11 @@ const DetailDrawer: React.FC<{ notif: any; onClose: () => void }> = ({ notif, on
   return (
     <div className="fixed inset-0 z-[150] flex">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative ml-auto h-full w-full max-w-[480px] bg-white shadow-2xl flex flex-col overflow-hidden"
-        style={{ animation: 'slideInRight .25s cubic-bezier(.22,1,.36,1) forwards' }}>
+      <div className="relative ml-auto h-full w-full max-w-[500px] bg-slate-950/95 backdrop-blur-3xl shadow-2xl flex flex-col overflow-hidden border-l border-slate-800/50"
+        style={{ animation: 'slideInRight .4s cubic-bezier(.22,1,.36,1) forwards' }}>
 
         {/* ── Drawer header ── */}
-        <div className="flex-shrink-0 border-b border-slate-100 px-6 pt-6 pb-5">
+        <div className="flex-shrink-0 border-b border-slate-100 dark:border-slate-800 px-6 pt-6 pb-5">
           <div className="flex items-start gap-3">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${cfg.bg}`}
               style={{ color: cfg.color }}>
@@ -122,31 +122,31 @@ const DetailDrawer: React.FC<{ notif: any; onClose: () => void }> = ({ notif, on
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="font-black text-[#0A1628] text-base leading-tight">{notif.title}</h2>
+                <h2 className="font-black text-[#0A1628] dark:text-white text-base leading-tight">{notif.title}</h2>
                 {isUrgent(notif) && (
                   <span className="text-[8px] font-black px-2 py-0.5 rounded-lg bg-red-500 text-white flex items-center gap-1">
                     <AlertTriangle className="w-2.5 h-2.5"/> URGENT
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 font-semibold mt-1">{fmt(notif.created_at)}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold mt-1">{fmt(notif.created_at)}</p>
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 flex-shrink-0 transition-all">
-              <X className="w-4 h-4 text-slate-500" />
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 flex-shrink-0 transition-all">
+              <X className="w-4 h-4 text-slate-500 dark:text-slate-400" />
             </button>
           </div>
 
           {/* Notification body */}
-          <div className="mt-4 px-4 py-3 bg-slate-50 rounded-2xl border border-slate-100">
-            <p className="text-sm text-slate-600 font-semibold leading-relaxed">{notif.body || '—'}</p>
+          <div className="mt-4 px-5 py-4 bg-slate-900/40 rounded-3xl border border-slate-800/50 backdrop-blur-sm">
+            <p className="text-sm text-slate-300 font-bold leading-relaxed">{notif.body || '—'}</p>
           </div>
 
           {/* Status read badge */}
-          <div className="flex items-center gap-2 mt-3">
-            <span className={`text-[9px] font-black px-2.5 py-1 rounded-lg ${notif.is_read ? 'bg-slate-100 text-slate-400' : 'bg-blue-50 text-blue-600'}`}>
-              {notif.is_read ? '✓ Lu' : '● Non lu'}
+          <div className="flex items-center gap-2 mt-4">
+            <span className={`text-[9px] font-black px-3 py-1.5 rounded-xl border ${notif.is_read ? 'bg-slate-800/40 border-slate-700 text-slate-500' : 'bg-blue-500/10 border-blue-500/30 text-blue-400'}`}>
+              {notif.is_read ? '✓ LU' : '● NON LU'}
             </span>
-            <span className="text-[9px] font-black px-2.5 py-1 rounded-lg" style={{ background: `${cfg.color}15`, color: cfg.color }}>
+            <span className="text-[9px] font-black px-3 py-1.5 rounded-xl border" style={{ background: `${cfg.color}15`, color: cfg.color, borderColor: `${cfg.color}30` }}>
               {cfg.label}
             </span>
           </div>
@@ -161,7 +161,7 @@ const DetailDrawer: React.FC<{ notif: any; onClose: () => void }> = ({ notif, on
           ) : detail ? (
             <>
               {/* Tabs */}
-              <div className="flex-shrink-0 flex border-b border-slate-100">
+              <div className="flex-shrink-0 flex border-b border-slate-100 dark:border-slate-800">
                 {([
                   ['info',     'Déclaration'],
                   ['history',  `Historique (${history.length})`],
@@ -169,25 +169,25 @@ const DetailDrawer: React.FC<{ notif: any; onClose: () => void }> = ({ notif, on
                   ['photos',   `Photos (${photos.length})`],
                 ] as const).map(([v, l]) => (
                   <button key={v} onClick={() => setTab(v as any)}
-                    className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest border-b-2 transition-all ${tab === v ? 'border-[#1557FF] text-[#1557FF]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>
+                    className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest border-b-2 transition-all ${tab === v ? 'border-[#1557FF] text-[#1557FF]' : 'border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
                     {l}
                   </button>
                 ))}
               </div>
 
-              <div className="flex-1 overflow-y-auto px-6 py-5 min-h-0">
+              <div className="flex-1 overflow-y-auto px-6 py-6 min-h-0 bg-transparent">
 
                 {/* ── Info tab ── */}
                 {tab === 'info' && (
                   <div className="space-y-4">
                     {/* Status badge */}
                     {statusMeta && (
-                      <div className="flex items-center gap-3 p-4 rounded-2xl border"
-                        style={{ background: statusMeta.bg, borderColor: `${statusMeta.color}30` }}>
-                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: statusMeta.color }} />
+                      <div className="flex items-center gap-4 p-5 rounded-3xl border backdrop-blur-md"
+                        style={{ background: `${statusMeta.color}10`, borderColor: `${statusMeta.color}30` }}>
+                        <div className="w-3 h-3 rounded-full flex-shrink-0 shadow-[0_0_12px_rgba(0,0,0,0.1)]" style={{ background: statusMeta.color, boxShadow: `0 0 15px ${statusMeta.color}40` }} />
                         <div>
-                          <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: statusMeta.color }}>Statut actuel</p>
-                          <p className="text-sm font-black text-[#0A1628]">{statusMeta.label}</p>
+                          <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60" style={{ color: statusMeta.color }}>Statut actuel</p>
+                          <p className="text-sm font-black text-white">{statusMeta.label}</p>
                         </div>
                       </div>
                     )}
@@ -203,33 +203,33 @@ const DetailDrawer: React.FC<{ notif: any; onClose: () => void }> = ({ notif, on
                       { icon: MapPin,    label: 'Adresse',         val: detail.address ?? '—' },
                       { icon: Calendar,  label: 'Soumise le',      val: fmt(detail.created_at) },
                     ].map(({ icon: Icon, label, val }) => (
-                      <div key={label} className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Icon className="w-3.5 h-3.5 text-slate-400" />
+                      <div key={label} className="flex items-start gap-4">
+                        <div className="w-10 h-10 rounded-2xl bg-slate-900/60 flex items-center justify-center flex-shrink-0 mt-0.5 border border-slate-800/40">
+                          <Icon className="w-4 h-4 text-slate-500" />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-                          <p className="text-xs font-bold text-slate-700 mt-0.5 break-words">{val}</p>
+                        <div className="flex-1 min-w-0 pt-1">
+                          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600">{label}</p>
+                          <p className="text-xs font-bold text-slate-300 mt-0.5 break-words">{val}</p>
                         </div>
                       </div>
                     ))}
 
                     {detail.description && (
-                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Description</p>
-                        <p className="text-xs text-slate-600 font-semibold leading-relaxed">{detail.description}</p>
+                      <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">Description</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold leading-relaxed">{detail.description}</p>
                       </div>
                     )}
 
                     {/* Votes / score */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-blue-50 rounded-xl p-3 text-center border border-blue-100">
-                        <p className="text-xl font-black text-blue-600">{detail.votes_count ?? 0}</p>
-                        <p className="text-[8px] font-black uppercase tracking-widest text-blue-400">Votes</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-blue-500/10 rounded-3xl p-4 text-center border border-blue-500/20 backdrop-blur-sm">
+                        <p className="text-2xl font-black text-blue-400">{detail.votes_count ?? 0}</p>
+                        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500/60 mt-1">Votes</p>
                       </div>
-                      <div className="bg-amber-50 rounded-xl p-3 text-center border border-amber-100">
-                        <p className="text-xl font-black text-amber-600">{detail.priority_score ?? 0}</p>
-                        <p className="text-[8px] font-black uppercase tracking-widest text-amber-400">Score urgence</p>
+                      <div className="bg-amber-500/10 rounded-3xl p-4 text-center border border-amber-500/20 backdrop-blur-sm">
+                        <p className="text-2xl font-black text-amber-400">{detail.priority_score ?? 0}</p>
+                        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-500/60 mt-1">Score urgence</p>
                       </div>
                     </div>
                   </div>
@@ -238,23 +238,23 @@ const DetailDrawer: React.FC<{ notif: any; onClose: () => void }> = ({ notif, on
                 {/* ── History tab ── */}
                 {tab === 'history' && (
                   history.length === 0 ? (
-                    <div className="text-center py-10 text-slate-400">
+                    <div className="text-center py-10 text-slate-400 dark:text-slate-600">
                       <Clock className="w-8 h-8 mx-auto mb-2 opacity-30" />
                       <p className="text-xs font-bold">Aucun historique</p>
                     </div>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {history.map((h: any, i: number) => (
-                        <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                        <div key={i} className="flex items-start gap-4 p-4 rounded-2xl bg-slate-900/40 border border-slate-800/40 backdrop-blur-sm">
                           <div className="w-2 h-2 rounded-full bg-[#1557FF] flex-shrink-0 mt-1.5" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[9px] font-black text-slate-400 uppercase">{h.old_status}</span>
-                              <ChevronRight className="w-3 h-3 text-slate-300" />
-                              <span className="text-[9px] font-black text-[#1557FF] uppercase">{h.new_status}</span>
+                              <span className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase">{h.old_status}</span>
+                              <ChevronRight className="w-3 h-3 text-slate-300 dark:text-slate-700" />
+                              <span className="text-[9px] font-black text-[#1557FF] dark:text-blue-400 uppercase">{h.new_status}</span>
                             </div>
-                            {h.raison && <p className="text-[10px] text-slate-500 font-semibold mt-0.5 italic">"{h.raison}"</p>}
-                            <p className="text-[9px] text-slate-400 mt-0.5">
+                            {h.raison && <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5 italic">"{h.raison}"</p>}
+                            <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">
                               {h.user ? `${h.user.first_name} ${h.user.last_name}` : 'Système'} · {fmt(h.created_at)}
                             </p>
                           </div>
@@ -267,25 +267,25 @@ const DetailDrawer: React.FC<{ notif: any; onClose: () => void }> = ({ notif, on
                 {/* ── Comments tab ── */}
                 {tab === 'comments' && (
                   comments.length === 0 ? (
-                    <div className="text-center py-10 text-slate-400">
+                    <div className="text-center py-10 text-slate-400 dark:text-slate-600">
                       <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
                       <p className="text-xs font-bold">Aucun commentaire interne</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {comments.map((c: any) => (
-                        <div key={c.id} className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                        <div key={c.id} className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800/40 backdrop-blur-sm">
                           <div className="flex items-center gap-2 mb-1.5">
                             <div className="w-6 h-6 rounded-lg bg-[#1557FF] flex items-center justify-center text-white text-[8px] font-black flex-shrink-0">
                               {c.user?.first_name?.[0]}{c.user?.last_name?.[0]}
                             </div>
-                            <p className="text-[9px] font-black text-slate-500">
+                            <p className="text-[9px] font-black text-slate-500 dark:text-slate-400">
                               {c.user ? `${c.user.first_name} ${c.user.last_name}` : '—'}
-                              <span className="ml-1 text-slate-300 font-semibold">·</span>
-                              <span className="ml-1 font-semibold text-slate-400">{fmt(c.created_at)}</span>
+                              <span className="ml-1 text-slate-300 dark:text-slate-700 font-semibold">·</span>
+                              <span className="ml-1 font-semibold text-slate-400 dark:text-slate-600">{fmt(c.created_at)}</span>
                             </p>
                           </div>
-                          <p className="text-xs text-slate-700 font-semibold leading-relaxed">{c.content}</p>
+                          <p className="text-xs text-slate-700 dark:text-slate-300 font-semibold leading-relaxed">{c.content}</p>
                         </div>
                       ))}
                     </div>
@@ -295,14 +295,14 @@ const DetailDrawer: React.FC<{ notif: any; onClose: () => void }> = ({ notif, on
                 {/* ── Photos tab ── */}
                 {tab === 'photos' && (
                   photos.length === 0 ? (
-                    <div className="text-center py-10 text-slate-400">
+                    <div className="text-center py-10 text-slate-400 dark:text-slate-600">
                       <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-30" />
                       <p className="text-xs font-bold">Aucune photo</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-4">
                       {photos.map((p: any) => (
-                        <div key={p.id} className="rounded-2xl overflow-hidden border border-slate-100 aspect-square bg-slate-100">
+                        <div key={p.id} className="rounded-2xl overflow-hidden border border-slate-800/50 aspect-square bg-slate-900/40 backdrop-blur-sm group/photo">
                           <img src={p.url} alt={p.photo_type ?? 'Photo'}
                             className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                             onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
@@ -440,8 +440,8 @@ const PresidentNotifications: React.FC = () => {
   if (loading) return (
     <PresidentLayout title="Centre de Notifications">
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-        <div className="w-12 h-12 border-[3px] border-slate-100 border-t-[#1557FF] rounded-full animate-spin" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Chargement…</p>
+        <div className="w-12 h-12 border-[3px] border-slate-100 dark:border-slate-800 border-t-[#1557FF] rounded-full animate-spin" />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Chargement…</p>
       </div>
     </PresidentLayout>
   )
@@ -452,22 +452,22 @@ const PresidentNotifications: React.FC = () => {
         @keyframes slideInRight { from{transform:translateX(100%)} to{transform:translateX(0)} }
       `}</style>
 
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 bg-slate-50/50 dark:bg-slate-950/50 -m-6 p-6 transition-colors duration-500 backdrop-blur-sm min-h-screen">
 
         {/* ── Header ── */}
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12">
           <div>
-            <h1 className="text-4xl font-black text-[#0A1628] tracking-tight mb-3">Centre d'Alerte</h1>
-            <p className="text-sm font-medium text-slate-400 italic">Pilotage temps réel des événements et urgences municipales.</p>
+            <h1 className="text-4xl font-black text-[#0A1628] dark:text-white tracking-tight mb-3">Centre d'Alerte</h1>
+            <p className="text-sm font-medium text-slate-400 dark:text-slate-500 italic">Pilotage temps réel des événements et urgences municipales.</p>
           </div>
           <div className="flex items-center gap-4">
             <button onClick={markAllRead}
-              className="h-14 px-8 rounded-2xl bg-white border border-slate-200 text-[#0A1628] text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-3 active:scale-[0.98]">
+              className="h-14 px-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[#0A1628] dark:text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-3 active:scale-[0.98]">
               <CheckCheck className="w-5 h-5 text-[#1557FF]" /> Tout marquer lu
             </button>
             {selected.length > 0 && (
               <button onClick={deleteSelected}
-                className="h-14 px-8 rounded-2xl bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest shadow-xl shadow-rose-500/20 hover:bg-rose-600 transition-all active:scale-[0.98] flex items-center gap-3">
+                className="h-14 px-8 rounded-2xl bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 transition-all flex items-center gap-3 active:scale-[0.98] shadow-xl shadow-rose-500/20">
                 <Trash2 className="w-5 h-5" /> Supprimer ({selected.length})
               </button>
             )}
@@ -483,19 +483,19 @@ const PresidentNotifications: React.FC = () => {
         </div>
 
         {/* ── Main card ── */}
-        <div className="bg-white rounded-[3.5rem] border border-slate-200/60 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-2xl rounded-[3.5rem] border border-slate-200/60 dark:border-slate-800 shadow-2xl overflow-hidden transition-all duration-500">
 
           {/* Toolbar */}
-          <div className="px-10 py-8 border-b border-slate-100 bg-slate-50/30 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          <div className="px-10 py-8 border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/20 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
             {/* Tab switcher */}
-            <div className="flex items-center gap-1 bg-white p-1.5 rounded-[1.5rem] border border-slate-200 shadow-sm self-start">
+            <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1.5 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-sm self-start">
               {([
                 ['all',    `Toutes (${notifs.length})`],
                 ['unread', `Non lues (${unreadCount})`],
                 ['read',   'Lues'],
               ] as const).map(([k, l]) => (
                 <button key={k} onClick={() => setFilter(k)}
-                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === k ? 'bg-slate-900 text-white shadow-xl' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}>
+                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === k ? 'bg-slate-900 dark:bg-[#1557FF] text-white shadow-xl' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
                   {l}
                 </button>
               ))}
@@ -504,14 +504,16 @@ const PresidentNotifications: React.FC = () => {
             <div className="flex items-center gap-4 flex-wrap">
               {/* Search */}
               <div className="relative group">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-[#1557FF] transition-colors" />
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 dark:text-slate-600 group-focus-within:text-[#1557FF] transition-colors" />
                 <input type="text" placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)}
-                  className="pl-12 pr-5 h-12 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-[#0A1628] placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-[#1557FF]/30 transition-all w-60" />
+                  className="pl-12 pr-5 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold text-[#0A1628] dark:text-white placeholder-slate-300 dark:placeholder-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-500/10 focus:border-[#1557FF]/30 transition-all w-60" />
               </div>
 
               {/* Type filter */}
               <select value={typeF} onChange={e => setTypeF(e.target.value)}
-                className="h-12 bg-white border border-slate-200 rounded-2xl px-5 text-[10px] font-black uppercase tracking-widest text-slate-500 outline-none cursor-pointer hover:border-[#1557FF]/30 transition-all">
+                className="h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 outline-none cursor-pointer hover:border-[#1557FF]/30 transition-all appearance-none pr-12"
+                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.25rem center', backgroundSize: '1rem' }}
+              >
                 <option value="">Tous les types</option>
                 <option value="NEW_DECLARATION">Signalements</option>
                 <option value="URGENT_DECLARATION">Urgences</option>
@@ -525,14 +527,14 @@ const PresidentNotifications: React.FC = () => {
           </div>
 
           {/* ── List ── */}
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-slate-50 dark:divide-slate-800">
             {filtered.length === 0 ? (
               <div className="py-32 text-center">
-                <div className="w-24 h-24 rounded-[2.5rem] bg-slate-50 flex items-center justify-center mx-auto mb-8 text-slate-200 shadow-inner">
+                <div className="w-24 h-24 rounded-[2.5rem] bg-slate-50 dark:bg-slate-800 flex items-center justify-center mx-auto mb-8 text-slate-200 dark:text-slate-700 shadow-inner">
                   <Bell className="w-10 h-10" />
                 </div>
-                <h3 className="text-2xl font-black text-[#0A1628] tracking-tight">Signal Néant</h3>
-                <p className="text-slate-400 font-medium mt-2 italic">Aucune alerte correspondante.</p>
+                <h3 className="text-2xl font-black text-[#0A1628] dark:text-white tracking-tight">Signal Néant</h3>
+                <p className="text-slate-400 dark:text-slate-500 font-medium mt-2 italic">Aucune alerte correspondante.</p>
               </div>
             ) : (
               filtered.map(n => {
@@ -543,83 +545,77 @@ const PresidentNotifications: React.FC = () => {
                 return (
                   <div key={n.id}
                     onClick={() => openDrawer(n)}
-                    className={`flex items-start gap-8 px-10 py-7 transition-all cursor-pointer group relative ${!n.is_read ? 'bg-blue-50/30' : 'hover:bg-slate-50'} ${isSelected ? 'bg-blue-50/60' : ''}`}>
-
-                    {/* Unread left bar */}
-                    {!n.is_read && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#1557FF]" />}
+                    className={`flex items-start gap-8 px-10 py-8 transition-all cursor-pointer group relative border-l-[4px] ${!n.is_read ? 'bg-blue-500/5 border-blue-500/60' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40 border-transparent'} ${isSelected ? 'bg-blue-500/10' : ''}`}>
 
                     {/* Checkbox */}
                     <div
                       onClick={e => toggleSelect(n.id, e)}
-                      className={`w-6 h-6 rounded-xl border-2 mt-2 flex-shrink-0 flex items-center justify-center cursor-pointer transition-all ${isSelected ? 'border-[#1557FF] bg-[#1557FF] shadow-lg shadow-blue-500/20' : 'border-slate-200 group-hover:border-[#1557FF]/30 bg-white'}`}>
+                      className={`w-6 h-6 rounded-xl border-2 mt-2 flex-shrink-0 flex items-center justify-center cursor-pointer transition-all ${isSelected ? 'border-blue-500 bg-blue-500 shadow-lg shadow-blue-500/30' : 'border-slate-200 dark:border-slate-700 group-hover:border-blue-500/40 bg-white dark:bg-slate-800'}`}>
                       {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
                     </div>
 
                     {/* Type icon */}
-                    <div className={`w-14 h-14 rounded-[1.5rem] flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-100 group-hover:scale-105 transition-transform duration-300 ${cfg.bg}`}
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-100 dark:border-slate-800/50 group-hover:scale-110 transition-transform duration-500 ${cfg.bg}`}
                       style={{ color: cfg.color }}>
                       {cfg.icon}
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0 pt-1">
-                      <div className="flex items-start justify-between gap-4 mb-1.5">
+                      <div className="flex items-start justify-between gap-4 mb-2">
                         <div className="flex items-center flex-wrap gap-3">
-                          <h3 className={`text-base tracking-tight leading-snug ${!n.is_read ? 'font-black text-[#0A1628]' : 'font-bold text-slate-500'}`}>
+                          <h3 className={`text-base tracking-tight leading-snug ${!n.is_read ? 'font-black text-[#0A1628] dark:text-white' : 'font-bold text-slate-500 dark:text-slate-600'}`}>
                             {n.title}
                           </h3>
                           {/* Type label */}
-                          <span className={`px-2.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest ${cfg.bg}`} style={{ color: cfg.color }}>
+                          <span className={`px-3 py-1 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] ${cfg.bg} border border-white/10`} style={{ color: cfg.color }}>
                             {cfg.label}
                           </span>
                           {/* Urgent badge */}
                           {urgent && (
-                            <span className="px-2.5 py-0.5 text-[8px] font-black uppercase tracking-widest rounded-lg bg-rose-500 text-white shadow-lg shadow-rose-500/25 flex items-center gap-1 animate-pulse">
-                              <AlertTriangle className="w-2.5 h-2.5" /> CRITIQUE
+                            <span className="px-3 py-1 text-[8px] font-black uppercase tracking-[0.2em] rounded-xl bg-red-500 text-white shadow-xl shadow-red-500/30 flex items-center gap-1.5 animate-pulse">
+                              <AlertTriangle className="w-3 h-3" /> CRITIQUE
                             </span>
                           )}
-                          {/* Unread badge */}
+                          {/* Unread dot */}
                           {!n.is_read && (
-                            <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-[8px] font-black text-[#1557FF] flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#1557FF]" /> NOUVEAU
-                            </span>
+                            <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_12px_rgba(21,87,255,0.6)] animate-pulse" />
                           )}
                         </div>
-                        <div className="flex items-center gap-1.5 text-slate-300 flex-shrink-0">
-                          <Clock className="w-3.5 h-3.5" />
+                        <div className="flex items-center gap-2 text-slate-300 dark:text-slate-700 flex-shrink-0">
+                          <Clock className="w-4 h-4" />
                           <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">{timeAgo(n.created_at)}</span>
                         </div>
                       </div>
 
-                      <p className={`text-sm leading-relaxed max-w-2xl ${!n.is_read ? 'text-slate-600 font-medium' : 'text-slate-400 italic'}`}>
+                      <p className={`text-sm leading-relaxed max-w-3xl ${!n.is_read ? 'text-slate-600 dark:text-slate-300 font-bold' : 'text-slate-400 dark:text-slate-500 italic font-medium'}`}>
                         {n.body}
                       </p>
 
                       {/* "Voir détails" hint */}
                       {n.reference_id && (
-                        <p className="text-[9px] font-black text-[#1557FF] mt-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                          Cliquer pour voir les détails <ArrowRight className="w-3 h-3" />
-                        </p>
+                        <div className="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
+                          <p className="text-[10px] font-black text-[#1557FF] dark:text-blue-400 uppercase tracking-widest">Voir détails</p>
+                          <ArrowRight className="w-3.5 h-3.5 text-[#1557FF] dark:text-blue-400" />
+                        </div>
                       )}
                     </div>
 
-                    {/* Row actions (hover) */}
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 translate-x-3 group-hover:translate-x-0 pt-2">
-                      {/* Lu button — only shows when unread */}
+                    {/* Row actions */}
+                    <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 translate-x-4 group-hover:translate-x-0 pt-1">
                       {!n.is_read && (
                         <button
                           onClick={e => markRead(n.id, e)}
-                          className="w-10 h-10 rounded-2xl flex items-center justify-center bg-white border border-slate-200 text-[#1557FF] hover:bg-blue-50 hover:border-blue-200 transition-all shadow-sm"
-                          title="Marquer comme lu">
-                          <Check className="w-4 h-4" />
+                          className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 hover:shadow-lg transition-all active:scale-90"
+                          title="Marquer lu">
+                          <Check className="w-5 h-5" />
                         </button>
                       )}
-                      {/* Delete button — always visible on hover */}
                       <button
                         onClick={e => deleteNotif(n.id, e)}
-                        className="w-10 h-10 rounded-2xl flex items-center justify-center bg-white border border-slate-200 text-slate-300 hover:text-rose-500 hover:bg-rose-50 hover:border-rose-100 transition-all shadow-sm"
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/40 hover:shadow-lg transition-all active:scale-90"
                         title="Supprimer">
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
@@ -629,9 +625,9 @@ const PresidentNotifications: React.FC = () => {
           </div>
 
           {/* Footer */}
-          <div className="px-10 py-8 bg-slate-50/50 border-t border-slate-100 flex items-center justify-center gap-3">
-            <Info className="w-4 h-4 text-slate-300" />
-            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">
+          <div className="px-10 py-8 bg-slate-50/50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-3">
+            <Info className="w-4 h-4 text-slate-300 dark:text-slate-700" />
+            <p className="text-[10px] font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.2em]">
               Notifications synchronisées avec les pôles opérationnels
             </p>
           </div>

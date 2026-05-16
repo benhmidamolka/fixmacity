@@ -15,15 +15,15 @@ const token = () => localStorage.getItem('fmc_token')
 const Toggle: React.FC<{ value: boolean; onChange: (v: boolean) => void }> = ({ value, onChange }) => (
   <button
     onClick={() => onChange(!value)}
-    className={`relative w-14 h-7 rounded-full transition-all flex-shrink-0 focus:outline-none focus:ring-4 focus:ring-blue-100/50 dark:focus:ring-blue-900/20 ${value ? 'bg-[#1557FF]' : 'bg-slate-200 dark:bg-slate-800'}`}>
-    <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-lg transition-all ${value ? 'left-8' : 'left-1'}`} />
+    className={`relative w-14 h-7 rounded-full transition-all duration-300 flex-shrink-0 focus:outline-none ring-offset-2 dark:ring-offset-slate-950 focus:ring-2 focus:ring-blue-500/20 ${value ? 'bg-[#1557FF] shadow-[0_0_20px_rgba(21,87,255,0.3)]' : 'bg-slate-200 dark:bg-slate-800'}`}>
+    <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 transform ${value ? 'translate-x-8' : 'translate-x-1'}`} />
   </button>
 )
 
 const Section: React.FC<{ title: string; subtitle?: string; icon: React.ReactNode; children: React.ReactNode }> = ({ title, subtitle, icon, children }) => (
-  <div className="bg-white dark:bg-slate-900/50 rounded-[3rem] border border-slate-200/60 dark:border-slate-800 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.03)] overflow-hidden mb-10 group hover:border-[#1557FF]/20 dark:hover:border-[#1557FF]/40 transition-all duration-500 backdrop-blur-xl">
-    <div className="flex items-center gap-6 px-10 py-8 border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/40">
-      <div className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-[#1557FF] shadow-sm group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
+  <div className="bg-slate-900/40 dark:bg-slate-950/90 rounded-[3rem] border border-slate-200/60 dark:border-slate-800/50 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.03)] overflow-hidden mb-10 group hover:border-[#1557FF]/20 dark:hover:border-[#1557FF]/40 transition-all duration-500 backdrop-blur-3xl">
+    <div className="flex items-center gap-6 px-10 py-8 border-b border-slate-100 dark:border-slate-800/50 bg-slate-50/30 dark:bg-slate-900/20">
+      <div className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center bg-white dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800/50 text-[#1557FF] shadow-sm group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
         {icon}
       </div>
       <div>
@@ -128,11 +128,11 @@ const PresidentSettings: React.FC = () => {
             <p className="text-sm font-medium text-slate-400 dark:text-slate-500 italic">Pilotage des accès, sécurité et préférences du portail présidentiel.</p>
           </div>
           <div className="flex items-center gap-4">
-            <button onClick={() => window.location.reload()} className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-[#1557FF] transition-all">
+            <button onClick={() => window.location.reload()} className="w-14 h-14 rounded-2xl bg-slate-900/10 dark:bg-slate-950/90 border border-slate-200 dark:border-slate-800/50 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-[#1557FF] transition-all backdrop-blur-3xl">
               <RefreshCw className="w-5 h-5" />
             </button>
             <button onClick={handleSave} disabled={loading}
-              className={`h-14 px-10 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 shadow-2xl flex items-center gap-3 ${saved ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-slate-900 dark:bg-slate-800 shadow-slate-900/10 hover:bg-[#1557FF]'
+              className={`h-14 px-10 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 shadow-2xl flex items-center gap-3 ${saved ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-slate-900 dark:bg-[#1557FF] shadow-slate-900/10'
                 }`}>
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -152,8 +152,8 @@ const PresidentSettings: React.FC = () => {
 
             {/* PROFILE SECTION */}
             <Section title="Profil Présidentiel" subtitle="Identité Opérationnelle" icon={<User className="w-6 h-6" />}>
-              <div className="flex flex-col md:flex-row items-center gap-10 mb-12 p-8 bg-slate-50/50 dark:bg-slate-800/30 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 border-dashed relative overflow-hidden group/avatar">
-                <div className="absolute inset-0 bg-blue-50/20 dark:bg-blue-900/10 translate-y-full group-hover/avatar:translate-y-0 transition-transform duration-700" />
+              <div className="flex flex-col md:flex-row items-center gap-10 mb-12 p-8 bg-slate-50/50 dark:bg-slate-950/40 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/50 border-dashed relative overflow-hidden group/avatar backdrop-blur-3xl">
+                <div className="absolute inset-0 bg-blue-50/10 dark:bg-blue-500/5 translate-y-full group-hover/avatar:translate-y-0 transition-transform duration-700" />
                 <div className="relative">
                   <div className="w-28 h-28 rounded-[2.5rem] flex items-center justify-center text-white text-4xl font-black shadow-2xl transition-all group-hover/avatar:scale-105 group-hover/avatar:rotate-3"
                     style={{ background: 'linear-gradient(135deg, #0A1628 0%, #1557FF 100%)' }}>
@@ -171,10 +171,10 @@ const PresidentSettings: React.FC = () => {
                 <div className="text-center md:text-left flex-1 relative">
                   <p className="text-3xl font-black text-[#0A1628] dark:text-white tracking-tight leading-tight mb-2">{profile.first_name} {profile.last_name}</p>
                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mb-4">
-                    <span className="text-[9px] font-black text-[#1557FF] uppercase tracking-[0.2em] bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 px-4 py-1.5 rounded-xl">
+                    <span className="text-[9px] font-black text-[#1557FF] uppercase tracking-[0.2em] bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-900/30 px-4 py-1.5 rounded-xl">
                       ID: {user.id?.slice(0, 10).toUpperCase()}
                     </span>
-                    <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-500 uppercase tracking-[0.2em] bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 px-4 py-1.5 rounded-xl flex items-center gap-2">
+                    <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-500 uppercase tracking-[0.2em] bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-900/30 px-4 py-1.5 rounded-xl flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> ACTIF
                     </span>
                   </div>
@@ -190,13 +190,13 @@ const PresidentSettings: React.FC = () => {
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 mb-3 block uppercase tracking-[0.2em] group-focus-within/input:text-[#1557FF] transition-colors">Prénom Civil</label>
                   <input value={profile.first_name}
                     onChange={e => setProfile(p => ({ ...p, first_name: e.target.value }))}
-                    className="w-full h-16 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-8 text-base font-bold text-[#0A1628] dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-900/20 focus:border-[#1557FF]/30 outline-none transition-all" />
+                    className="w-full h-16 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/50 rounded-2xl px-8 text-base font-bold text-[#0A1628] dark:text-white focus:bg-white dark:focus:bg-slate-900/60 focus:ring-4 focus:ring-blue-500/10 focus:border-[#1557FF]/30 outline-none transition-all" />
                 </div>
                 <div className="group/input">
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 mb-3 block uppercase tracking-[0.2em] group-focus-within/input:text-[#1557FF] transition-colors">Nom de famille</label>
                   <input value={profile.last_name}
                     onChange={e => setProfile(p => ({ ...p, last_name: e.target.value }))}
-                    className="w-full h-16 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-8 text-base font-bold text-[#0A1628] dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-900/20 focus:border-[#1557FF]/30 outline-none transition-all" />
+                    className="w-full h-16 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/50 rounded-2xl px-8 text-base font-bold text-[#0A1628] dark:text-white focus:bg-white dark:focus:bg-slate-900/60 focus:ring-4 focus:ring-blue-500/10 focus:border-[#1557FF]/30 outline-none transition-all" />
                 </div>
                 <div className="md:col-span-2 group/input">
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 mb-3 block uppercase tracking-[0.2em] group-focus-within/input:text-[#1557FF] transition-colors">Canal de communication principal</label>
@@ -204,7 +204,7 @@ const PresidentSettings: React.FC = () => {
                     <Mail className="absolute left-7 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 dark:text-slate-600 group-focus-within/input:text-[#1557FF] transition-all" />
                     <input value={profile.email}
                       onChange={e => setProfile(p => ({ ...p, email: e.target.value }))}
-                      className="w-full h-16 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-16 pr-8 text-base font-bold text-[#0A1628] dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-900/20 focus:border-[#1557FF]/30 outline-none transition-all" />
+                      className="w-full h-16 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/50 rounded-2xl pl-16 pr-8 text-base font-bold text-[#0A1628] dark:text-white focus:bg-white dark:focus:bg-slate-900/60 focus:ring-4 focus:ring-blue-500/10 focus:border-[#1557FF]/30 outline-none transition-all" />
                   </div>
                 </div>
               </div>
@@ -225,11 +225,11 @@ const PresidentSettings: React.FC = () => {
                         value={passwords[k]}
                         onChange={e => setPasswords(p => ({ ...p, [k]: e.target.value }))}
                         placeholder="••••••••••••••••"
-                        className="w-full h-16 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl pl-16 pr-16 text-base font-bold text-[#0A1628] dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-900/20 focus:border-[#1557FF]/30 outline-none transition-all" />
+                        className="w-full h-16 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/50 rounded-2xl pl-16 pr-16 text-base font-bold text-[#0A1628] dark:text-white focus:bg-white dark:focus:bg-slate-900/60 focus:ring-4 focus:ring-blue-500/10 focus:border-[#1557FF]/30 outline-none transition-all" />
                       <button
                         type="button"
                         onClick={() => setShowPwd(p => ({ ...p, [k]: !p[k] }))}
-                        className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 hover:text-[#1557FF] transition-colors p-2 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20">
+                        className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 hover:text-[#1557FF] transition-colors p-2 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-500/10">
                         {showPwd[k] ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
@@ -260,8 +260,8 @@ const PresidentSettings: React.FC = () => {
                 ].map(l => (
                   <button key={l.code} onClick={() => setLanguage(l.code)}
                     className={`w-full flex items-center justify-between p-6 rounded-[1.75rem] border-2 transition-all group ${language === l.code
-                        ? 'border-[#1557FF] bg-blue-50/30 dark:bg-blue-900/20'
-                        : 'border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 hover:border-slate-200 dark:hover:border-slate-700'
+                        ? 'border-[#1557FF] bg-blue-50/50 dark:bg-blue-500/10'
+                        : 'border-slate-50 dark:border-slate-800/40 bg-slate-50/50 dark:bg-slate-800/20 hover:border-slate-200 dark:hover:border-slate-700'
                       }`}>
                     <div className="flex items-center gap-5">
                       <span className="text-3xl group-hover:scale-125 group-hover:rotate-6 transition-transform duration-500">{l.flag}</span>
@@ -282,21 +282,21 @@ const PresidentSettings: React.FC = () => {
             {/* NOTIFICATIONS SECTION */}
             <Section title="Flux d'Alerte" subtitle="Notifications Push" icon={<Bell className="w-6 h-6" />}>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between p-4 bg-slate-50/50 dark:bg-slate-800/20 rounded-2xl border border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-3">
                     <Activity className="w-4 h-4 text-blue-500" />
                     <span className="text-[11px] font-black text-[#0A1628] dark:text-white uppercase tracking-widest">Signalements</span>
                   </div>
                   <Toggle value={notifSettings.new_declaration} onChange={v => setN('new_declaration', v)} />
                 </div>
-                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between p-4 bg-slate-50/50 dark:bg-slate-800/20 rounded-2xl border border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-3">
                     <Zap className="w-4 h-4 text-amber-500" />
                     <span className="text-[11px] font-black text-[#0A1628] dark:text-white uppercase tracking-widest">Mises à jour</span>
                   </div>
                   <Toggle value={notifSettings.status_change} onChange={v => setN('status_change', v)} />
                 </div>
-                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between p-4 bg-slate-50/50 dark:bg-slate-800/20 rounded-2xl border border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-3">
                     <Mail className="w-4 h-4 text-violet-500" />
                     <span className="text-[11px] font-black text-[#0A1628] dark:text-white uppercase tracking-widest">Rapport Email</span>
@@ -307,20 +307,20 @@ const PresidentSettings: React.FC = () => {
             </Section>
 
             {/* HELP CARD */}
-            <div className="bg-[#0A1628] rounded-[3rem] p-10 text-white relative overflow-hidden group shadow-2xl">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-blue-600/20 blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-1000" />
-              <div className="w-16 h-16 rounded-[1.5rem] bg-white/10 flex items-center justify-center mb-8 backdrop-blur-md border border-white/10 group-hover:rotate-12 transition-transform duration-500">
-                <HelpCircle className="w-8 h-8 text-blue-400" />
+            <div className="bg-slate-900/40 dark:bg-slate-950/90 rounded-[3rem] p-10 border border-slate-200/60 dark:border-slate-800/50 backdrop-blur-3xl relative overflow-hidden group shadow-2xl">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-blue-600/10 dark:bg-blue-500/5 blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-1000" />
+              <div className="w-16 h-16 rounded-[1.5rem] bg-[#1557FF]/10 flex items-center justify-center mb-8 backdrop-blur-md border border-[#1557FF]/10 group-hover:rotate-12 transition-transform duration-500">
+                <HelpCircle className="w-8 h-8 text-[#1557FF]" />
               </div>
-              <h3 className="text-2xl font-black tracking-tight mb-4">Assistance FMC</h3>
-              <p className="text-slate-400 text-sm font-medium leading-relaxed mb-10 opacity-80">
+              <h3 className="text-2xl font-black tracking-tight mb-4 text-[#0A1628] dark:text-white">Assistance FMC</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm font-medium leading-relaxed mb-10">
                 L'équipe technique de FixMaCity est à votre disposition pour tout audit de sécurité ou configuration avancée.
               </p>
               <div className="space-y-4">
                 <button className="w-full py-5 bg-[#1557FF] text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 hover:bg-blue-600 transition-all active:scale-[0.98]">
                   Contacter le Support
                 </button>
-                <button className="w-full py-5 bg-white/5 text-white/60 border border-white/10 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all flex items-center justify-center gap-3">
+                <button onClick={() => window.location.href = '/login'} className="w-full py-5 bg-slate-900/10 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800/50 rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all flex items-center justify-center gap-3">
                   <LogOut className="w-4 h-4" /> Déconnexion Session
                 </button>
               </div>
