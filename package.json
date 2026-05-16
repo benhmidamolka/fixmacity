@@ -1,5 +1,15 @@
 {
-  "dependencies": {
-    "nodemailer": "^8.0.5"
-  }
+  "name": "fixmacity",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FixMaCity — Citizen request management platform for Municipality of Sousse",
+  "scripts": {
+    "dev:backend":  "cd fixmacity-backend && npm run dev",
+    "dev:frontend": "cd fixmacity-frontend && npm run dev",
+    "install:all":  "cd fixmacity-backend && npm install && cd ../fixmacity-frontend && npm install"
+  },
+  "workspaces": [
+    "fixmacity-backend",
+    "fixmacity-frontend"
+  ]
 }

@@ -1,6 +1,6 @@
 # FixMaCity backend — API overview
 
-Base URL: `http://localhost:5000` (or your `PORT`).
+Base URL: `http://localhost:5005` (or your `PORT`).
 
 ## Mounted routes (`src/app.js`)
 

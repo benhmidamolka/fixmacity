@@ -1,6 +1,10 @@
-const supabase = require('../config/db');
+// src/controllers/chatbot.controller.js
+const supabase      = require('../config/db');
 const { validationResult } = require('express-validator');
+const geminiService = require('../services/gemini.service');
+const g4fService    = require('../services/g4f.service');
 
+// ─── System Prompt ───────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `
 You are "Baladia", the intelligent assistant of FixMaCity — the official digital platform for the Municipality of Sousse, Tunisia.
 
@@ -50,28 +54,47 @@ You are a helpful, professional, and friendly municipal assistant. You ONLY answ
 - Be warm and helpful — you represent the Municipality of Sousse.
 `;
 
+// ─── Status label map ────────────────────────────────────────────────────────
+const STATUS_MAP = {
+  soumise:        'EN ATTENTE',
+  assignee_chef:  'EN ATTENTE',
+  assignee_agent: 'EN ATTENTE',
+  en_cours:       'EN COURS',
+  resolue:        'TERMINÉ',
+  cloturee:       'TERMINÉ',
+  refusee_chef:   'EN ATTENTE',
+  refusee_agent:  'EN ATTENTE',
+};
+
+// ─── Graceful fallback replies ────────────────────────────────────────────────
+function fallbackReply(lang = 'fr') {
+  if (lang === 'ar') return 'عذراً، الخدمة غير متاحة حالياً. يرجى المحاولة مجدداً.';
+  if (lang === 'en') return 'Sorry, the assistant is temporarily unavailable. Please try again.';
+  return "Désolé, l'assistant est temporairement indisponible. Veuillez réessayer.";
+}
+
+// ─── Controller ──────────────────────────────────────────────────────────────
 exports.sendMessage = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { message, session_id, lang = 'fr' } = req.body;
+  const userId = req.user?.id;
+
+  if (!message || !message.trim()) {
+    return res.status(400).json({ error: 'Message requis.' });
+  }
+
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { message, session_id } = req.body;
-    const userId = req.user.id;
-
-    if (!message || !message.trim()) {
-      return res.status(400).json({ error: 'Message requis.' });
-    }
-
-    // Get user context
+    // ── 1. Fetch user context ─────────────────────────────────────────────
     const { data: user } = await supabase
       .from('users')
       .select('first_name, last_name, lang_pref')
       .eq('id', userId)
       .single();
 
-    // Get user's recent declarations
     const { data: decls } = await supabase
       .from('declarations')
       .select('ref_citoyen, title, status, category, created_at')
@@ -81,31 +104,19 @@ exports.sendMessage = async (req, res) => {
       .order('created_at', { ascending: false })
       .limit(10);
 
-    // Build context string
     const userName = user ? `${user.first_name} ${user.last_name}` : 'Citoyen';
-    
-    const statusMap = {
-      soumise: 'EN ATTENTE',
-      assignee_chef: 'EN ATTENTE',
-      assignee_agent: 'EN ATTENTE',
-      en_cours: 'EN COURS',
-      resolue: 'TERMINÉ',
-      cloturee: 'TERMINÉ',
-      refusee_chef: 'EN ATTENTE',
-      refusee_agent: 'EN ATTENTE'
-    };
 
     let userContext = `Utilisateur connecté: ${userName}\n`;
     if (decls && decls.length > 0) {
       userContext += `Signalements récents:\n`;
       decls.forEach(d => {
-        userContext += `- ${d.ref_citoyen}: "${d.title}" — ${statusMap[d.status] || d.status}\n`;
+        userContext += `- ${d.ref_citoyen}: "${d.title}" — ${STATUS_MAP[d.status] || d.status}\n`;
       });
     } else {
       userContext += `Aucun signalement trouvé pour cet utilisateur.\n`;
     }
 
-    // Get or create session
+    // ── 2. Load or create session ─────────────────────────────────────────
     let session = null;
     if (session_id) {
       const { data } = await supabase
@@ -126,119 +137,91 @@ exports.sendMessage = async (req, res) => {
       session = newSession;
     }
 
-    // Build conversation history
+    // ── 3. Build conversation array for gemini.service / g4f.service ─────
     let rawMessages = session?.messages || [];
     if (typeof rawMessages === 'string') {
-      try { rawMessages = JSON.parse(rawMessages); } catch(e) { rawMessages = []; }
+      try { rawMessages = JSON.parse(rawMessages); } catch (e) { rawMessages = []; }
     }
     if (!Array.isArray(rawMessages)) rawMessages = [];
 
     const history = rawMessages.map(m => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: m.content }]
+      role:  m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: m.content }],
     }));
 
-    const { getNextGenAI, getKeysCount } = require('../services/gemini.rotation');
-    
-    const attempts = getKeysCount();
-    if (attempts === 0) {
-      return res.status(200).json({
-        reply: "Le service IA n'est pas configuré (clé API manquante). Veuillez contacter l'administrateur.",
-        success: false,
-        error: "NO_API_KEYS"
-      });
-    }
-    let result = null;
-    let lastError = null;
     const fullSystemPrompt = `${SYSTEM_PROMPT}\n\nContexte actuel:\n${userContext}`;
 
-    if (attempts === 0) {
-      throw new Error("CONFIGURATION_ERROR: Aucune clé Gemini n'est configurée dans le fichier .env.");
-    }
+    // messages = [system primer, primer ack, ...history, current user turn]
+    const messages = [
+      { role: 'user',  parts: [{ text: fullSystemPrompt }] },
+      { role: 'model', parts: [{ text: `Compris. Je suis Baladia, prêt à aider ${userName}.` }] },
+      ...history,
+      { role: 'user',  parts: [{ text: message.trim() }] },
+    ];
 
-    for (let i = 0; i < attempts; i++) {
-      try {
-        const genAI = getNextGenAI();
-        const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-flash-8b'];
-        let modelSuccess = false;
+    // ── 4. STEP 1 — Try Gemini (primary, paid, reliable) ──────────────────
+    let reply;
 
-        for (const modelName of modelsToTry) {
-          try {
-            const model = genAI.getGenerativeModel({ model: modelName });
-            
-            const chat = model.startChat({
-              history: [
-                {
-                  role: 'user',
-                  parts: [{ text: fullSystemPrompt }]
-                },
-                {
-                  role: 'model',
-                  parts: [{ text: `Compris. Je suis Baladia, prêt à aider ${userName}.` }]
-                },
-                ...history
-              ]
-            });
+    try {
+      reply = await geminiService.chat(messages, lang);
+      console.log('[Chatbot] Gemini responded OK');
+    } catch (geminiErr) {
+      console.warn('[Chatbot] Gemini failed:', geminiErr.message);
 
-            result = await chat.sendMessage(message.trim());
-            modelSuccess = true;
-            break; // Success
-          } catch (modelErr) {
-            console.warn(`[Chatbot] Model ${modelName} failed on key ${i+1}:`, modelErr.message);
-            lastError = modelErr;
-            if (modelErr.message?.includes('429')) continue;
-            else throw modelErr;
-          }
+      // ── 5. STEP 2 — Only use G4F if Gemini actually failed ──────────────
+      if (process.env.USE_G4F !== 'false') {
+        // G4F uses OpenAI-format messages (role/content), convert:
+        const openAiMessages = messages.map(m => ({
+          role:    m.role === 'model' ? 'assistant' : m.role,
+          content: m.parts[0].text,
+        }));
+
+        try {
+          reply = await g4fService.chat(openAiMessages, lang);
+          console.log('[Chatbot] G4F backup responded OK');
+        } catch (g4fErr) {
+          console.error('[Chatbot] G4F backup also failed:', g4fErr.message);
         }
-
-        if (modelSuccess) break; // Success with this key!
-      } catch (err) {
-        console.error(`[Chatbot] Key ${i+1}/${attempts} failed:`, err.message);
-        lastError = err;
       }
     }
 
-    if (!result) {
-      throw lastError || new Error("All Gemini keys failed");
+    // ── 6. STEP 3 — If both failed, return a graceful error (never crash) ─
+    if (!reply) {
+      return res.status(200).json({
+        reply:    fallbackReply(lang),
+        fallback: true,
+        success:  false,
+      });
     }
 
-    const reply = result.response.text();
-
-    // Save to session
+    // ── 7. Persist conversation to session ────────────────────────────────
     const updatedMessages = [
       ...rawMessages,
-      { role: 'user', content: message.trim(), timestamp: new Date().toISOString() },
-      { role: 'model', content: reply, timestamp: new Date().toISOString() }
+      { role: 'user',  content: message.trim(),         timestamp: new Date().toISOString() },
+      { role: 'model', content: reply,                   timestamp: new Date().toISOString() },
     ];
 
     if (session?.id) {
       await supabase
         .from('chatbot_sessions')
-        .update({ 
-          messages: updatedMessages, 
-          updated_at: new Date().toISOString() 
-        })
+        .update({ messages: updatedMessages, updated_at: new Date().toISOString() })
         .eq('id', session.id);
     }
 
-    return res.status(200).json({ 
-      reply, 
+    return res.status(200).json({
+      reply,
       session_id: session?.id,
-      success: true 
+      success:    true,
     });
 
   } catch (err) {
-    console.error('[Chatbot] Error:', err.message);
-    
-    // Return a fallback message instead of crashing
-    const isQuotaError = err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('Too Many Requests');
-    
+    // Truly unexpected error (DB failure, etc.)
+    console.error('[Chatbot] Unexpected error:', err.message);
     return res.status(200).json({
-      reply: isQuotaError 
-        ? "Le service est temporairement saturé. Veuillez réessayer dans quelques instants."
-        : "Je rencontre une difficulté technique. Veuillez réessayer dans quelques instants.",
-      success: false,
-      error: err.message
+      reply:   fallbackReply(lang),
+      fallback: true,
+      success:  false,
+      error:    err.message,
     });
   }
 };
