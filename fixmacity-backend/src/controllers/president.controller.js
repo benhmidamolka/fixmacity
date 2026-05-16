@@ -981,12 +981,12 @@ exports.dashboard = async (req, res) => {
 
     let crucialQuery = supabase
       .from('declarations')
-      .select('id, ref_citoyen, title, status, description, category, priority, votes_count, created_at, citizen_id, delegation_id')
+      .select('id, ref_citoyen, title, status, description, created_at, citizen_id, votes_count, priority_score, address, category, delegation_id')
       .is('deleted_at', null)
       .eq('is_deleted', false)
 
       .in('status', ['soumise', 'assignee_chef', 'assignee_agent', 'en_cours'])
-      .order('created_at', { ascending: true })
+      .order('priority_score', { ascending: false })
       .limit(8);
 
     if (period && period !== 'all') {
@@ -1092,6 +1092,66 @@ exports.dashboard = async (req, res) => {
     });
   } catch (err) {
     console.error('[President] Dashboard error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+
+/* ──────────── GET /api/president/analytics ──────────── */
+exports.analytics = async (req, res) => {
+  try {
+    const { department_id, delegation_id, period } = req.query;
+    let filter = `d.deleted_at IS NULL`;
+
+    if (period && !isNaN(parseInt(period, 10))) {
+      filter += ` AND d.created_at >= NOW() - INTERVAL '${parseInt(period, 10)} days'`;
+    }
+    if (department_id && /^[0-9a-f-]{36}$/i.test(department_id)) {
+      filter += ` AND d.department_id = '${department_id}'`;
+    }
+    if (delegation_id && /^[0-9a-f-]{36}$/i.test(delegation_id)) {
+      filter += ` AND d.delegation_id = '${delegation_id}'`;
+    }
+
+    // Top zones (delegation + count of open critical declarations)
+    const zonesRes = await supabase.pool.query(`
+      SELECT
+        dg.id,
+        dg.name,
+        COUNT(d.id) as count,
+        COUNT(d.id) FILTER (WHERE d.priority_score >= 8) as critical_count
+      FROM delegations dg
+      LEFT JOIN declarations d ON d.delegation_id = dg.id AND ${filter}
+      GROUP BY dg.id, dg.name
+      ORDER BY count DESC
+    `);
+
+    // Agent workload
+    const agentRes = await supabase.pool.query(`
+      SELECT
+        u.id, u.first_name, u.last_name,
+        COUNT(d.id) FILTER (WHERE d.status = 'en_cours') as active,
+        COUNT(d.id) FILTER (WHERE d.status IN ('resolue','cloturee')) as resolved
+      FROM users u
+      LEFT JOIN declarations d ON d.agent_id = u.id AND ${filter}
+      WHERE u.role = 'agent' AND u.is_active = true
+      GROUP BY u.id, u.first_name, u.last_name
+      ORDER BY active DESC
+      LIMIT 10
+    `);
+
+    return res.status(200).json({
+      success: true,
+      zones: zonesRes.rows.map(r => ({
+        id: r.id,
+        name: r.name,
+        count: parseInt(r.count, 10),
+        critical_count: parseInt(r.critical_count, 10),
+      })),
+      agents: agentRes.rows,
+    });
+  } catch (err) {
+    console.error('[President] analytics error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };

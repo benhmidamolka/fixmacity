@@ -95,6 +95,7 @@ router.patch('/propositions/:id/respond', [
 
 // ── Dashboard & Export ──
 router.get('/dashboard', ctrl.dashboard);
+router.get('/analytics', ctrl.analytics);
 router.get('/export', ctrl.exportData);
 
 module.exports = router;

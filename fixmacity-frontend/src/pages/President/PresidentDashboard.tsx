@@ -1,639 +1,685 @@
-// src/pages/president/PresidentDashboard.tsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import {
-  FileText, CheckCircle2, TrendingUp, ArrowRight, AlertTriangle, Activity,
-  RefreshCw, Flame, ThumbsUp, Star, Users, Inbox, Vote, BarChart3,
-  ShieldAlert, Filter, ChevronDown, Clock, MapPin
-} from 'lucide-react'
+// src/pages/President/PresidentDashboard.tsx
+// ── Dashboard matching reference image — 5 sections, real API, recharts ──────
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Line, ComposedChart
+  Legend, ResponsiveContainer, PieChart, Pie, Cell, Sector
 } from 'recharts'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  AlertTriangle, MapPin, Download, ChevronDown, RefreshCw,
+  CheckCircle2, ChevronRight, Maximize2, X, ExternalLink
+} from 'lucide-react'
 import PresidentLayout from '../../layouts/PresidentLayout'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const tok = () => localStorage.getItem('fmc_token') || ''
 
-type ByStatus = Record<string, number>
-
-interface DeptRow {
-  name: string
-  code: string
-  total: number
-  resolved: number
-  perf?: number
-  highSatisfactionCount?: number
+// ── Colour constants ──────────────────────────────────────────────────────────
+const C = {
+  green:  '#16a34a', greenL: '#22c55e', greenBg: '#f0fdf4',
+  blue:   '#3b82f6', blueBg: '#eff6ff',
+  red:    '#ef4444', redBg:  '#fef2f2',
+  orange: '#f97316', orangeBg: '#fff7ed',
+  amber:  '#f59e0b', amberBg: '#fffbeb',
+  purple: '#8b5cf6', purpleBg: '#f5f3ff',
+  teal:   '#14b8a6', gray: '#64748b',
 }
 
-interface DashboardPayload {
-  success?: boolean
-  error?: string
-  total?: number
-  byStatus?: ByStatus
-  byDepartment?: DeptRow[]
-  trendData?: { name: string; reports: number; resolved: number }[]
-  stats?: { criticalCount?: number; resolvedCount?: number; highSatisfactionCount?: number }
-  recentDeclarations?: any[]
-  crucialCases?: any[]
-  topVotedDeclarations?: any[]
-  moneyVotes?: any[]
-  totalUsers?: number
-  avgRating?: number
+const DEPT_COLORS: Record<string, string> = {
+  VR: C.green, EP: C.amber, PD: C.teal, EV: C.greenL,
+  EA: C.blue, ST: C.orange, BP: C.purple, SG: C.gray,
 }
 
-const PIPELINE_STEPS: { key: keyof ByStatus | string; label: string; color: string }[] = [
-  { key: 'soumise', label: 'Soumise', color: '#F59E0B' },
-  { key: 'assignee_chef', label: 'Chef', color: '#F97316' },
-  { key: 'assignee_agent', label: 'Agent', color: '#1557FF' },
-  { key: 'en_cours', label: 'En cours', color: '#6366F1' },
-  { key: 'resolue', label: 'Résolue', color: '#10B981' },
-  { key: 'cloturee', label: 'Clôturée', color: '#64748B' },
-  { key: 'refusee_chef', label: 'Ref. chef', color: '#EF4444' },
-  { key: 'refusee_agent', label: 'Ref. agent', color: '#BE123C' },
-]
-
-const fmtShort = (iso?: string) =>
-  iso
-    ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
-    : '—'
-
-const STATUS_LABEL: Record<string, string> = {
-  soumise: 'Soumise',
-  assignee_chef: 'Assignée chef',
-  assignee_agent: 'Assignée agent',
-  en_cours: 'En cours',
-  resolue: 'Résolue',
-  cloturee: 'Clôturée',
-  refusee_chef: 'Refusée chef',
-  refusee_agent: 'Refusée agent',
+const DEPT_ICONS: Record<string, string> = {
+  VR:'🛣️', EP:'💡', EV:'🌿', PD:'🗑️',
+  BP:'🏢', EA:'💧', ST:'🚦', SG:'💬',
 }
 
-function MetricCard({
-  label,
-  value,
-  hint,
-  icon: Icon,
-  accent,
-}: {
-  label: string
-  value: string | number
-  hint?: string
-  icon: typeof FileText
-  accent: string
-}) {
+// ── Helper: severity from votes + priority_score ──────────────────────────────
+function getSeverity(votes: number, priority: number) {
+  if (priority >= 15 || votes > 50) return 'Très critique'
+  if (priority >= 8  || votes > 30) return 'Critique'
+  if (priority >= 4  || votes > 15) return 'Haute'
+  return 'Critique' // default to Critique for items in crucialCases
+}
+
+const SEV_STYLE: Record<string, { color: string; bg: string }> = {
+  'Très critique': { color: '#dc2626', bg: '#fef2f2' },
+  'Critique':      { color: C.red,     bg: '#fff0f0' },
+  'Haute':         { color: C.orange,  bg: C.orangeBg },
+  'Moyenne':       { color: C.amber,   bg: C.amberBg  },
+}
+
+// ── Reusable Skeleton ─────────────────────────────────────────────────────────
+const Sk = ({ w='w-full', h='h-3', r='rounded' }: { w?:string; h?:string; r?:string }) => (
+  <div className={`${w} ${h} ${r} bg-gray-100 animate-pulse`} />
+)
+
+// ── Severity badge ─────────────────────────────────────────────────────────────
+const SevBadge = ({ label }: { label: string }) => {
+  const s = SEV_STYLE[label] || SEV_STYLE['Critique']
   return (
-    <div className="relative overflow-hidden rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm transition hover:border-slate-300 hover:shadow-md">
-      <div
-        className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-[0.07]"
-        style={{ background: accent }}
-      />
-      <div className="relative flex items-start justify-between gap-4">
-        <div
-          className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: `${accent}14`, color: accent }}
-        >
-          <Icon className="h-6 w-6" strokeWidth={2} />
+    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border whitespace-nowrap"
+      style={{ color: s.color, background: s.bg, borderColor: s.color + '25' }}>
+      {label}
+    </span>
+  )
+}
+
+// ── Date pill ─────────────────────────────────────────────────────────────────
+const DatePill = () => (
+  <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 select-none">
+    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="1.5"/>
+      <path d="M16 2v4M8 2v4M3 10h18" strokeWidth="1.5"/>
+    </svg>
+    <span>12 Mai – 12 Juin 2024</span>
+    <ChevronDown className="w-4 h-4 text-gray-400" />
+  </div>
+)
+
+// ── Custom bar tooltip ────────────────────────────────────────────────────────
+const BarTip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-xl text-xs">
+      <p className="font-bold text-gray-700 mb-2">{label}</p>
+      {payload.map((p: any) => (
+        <div key={p.name} className="flex items-center gap-2 mb-1">
+          <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+          <span className="text-gray-500">{p.name === 'reports' ? 'Tâches créées' : 'Tâches résolues'}</span>
+          <span className="font-bold text-gray-800 ml-auto pl-4">{p.value}</span>
         </div>
-        {hint ? (
-          <span className="max-w-[45%] text-right text-[9px] font-bold uppercase tracking-wider text-slate-400">{hint}</span>
-        ) : null}
-      </div>
-      <p className="relative mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{label}</p>
-      <p className="relative mt-1 text-3xl font-black tracking-tight text-[#0A1628]">{value}</p>
+      ))}
     </div>
   )
 }
 
-function PipelineBar({ byStatus, total }: { byStatus: ByStatus; total: number }) {
-  const sum = PIPELINE_STEPS.reduce((s, { key }) => s + (Number(byStatus[key as string]) || 0), 0)
-  const base = total > 0 ? total : sum
-  if (!base) {
-    return <p className="py-8 text-center text-xs font-semibold text-slate-400">Aucun signalement sur cette période.</p>
-  }
+// ── Active Pie Sector ─────────────────────────────────────────────────────────
+const ActivePie = (props: any) => {
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props
   return (
-    <div className="space-y-3">
-      <div className="flex h-4 w-full overflow-hidden rounded-full bg-slate-100">
-        {PIPELINE_STEPS.map(({ key, color }) => {
-          const n = Number(byStatus[key as string]) || 0
-          if (!n) return null
-          const pct = Math.max(0.35, (n / base) * 100)
-          return (
-            <div
-              key={key}
-              className="h-full min-w-[3px] transition-all"
-              style={{ width: `${pct}%`, backgroundColor: color }}
-              title={`${key}: ${n}`}
-            />
-          )
-        })}
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-2">
-        {PIPELINE_STEPS.map(({ key, label, color }) => {
-          const n = Number(byStatus[key as string]) || 0
-          if (!n) return null
-          return (
-            <div key={key} className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-              {label} <span className="text-slate-400">({n})</span>
+    <g>
+      <Sector cx={cx} cy={cy} innerRadius={innerRadius - 3} outerRadius={outerRadius + 7}
+        startAngle={startAngle} endAngle={endAngle} fill={fill} />
+    </g>
+  )
+}
+
+// ── Declaration detail modal ───────────────────────────────────────────────────
+const DeclModal = ({ item, onClose }: { item: any; onClose: () => void }) => (
+  <AnimatePresence>
+    <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <motion.div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
+        initial={{ scale: 0.93, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.93, y: 16 }}>
+        <button onClick={onClose}
+          className="absolute top-4 right-4 w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
+          <X className="w-3.5 h-3.5 text-gray-500" />
+        </button>
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="w-4.5 h-4.5 text-red-500" />
+          </div>
+          <div>
+            <p className="font-bold text-gray-900 text-sm leading-snug">
+              {item.title || item.description || 'Signalement critique'}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">{item.ref_citoyen}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs mb-4">
+          {[
+            ['Statut', item.status || '—'],
+            ['Priorité', item.priority_score || '—'],
+            ['Votes', item.votes_count || 0],
+            ['Date', new Date(item.created_at).toLocaleDateString('fr-FR')],
+          ].map(([k, v]) => (
+            <div key={k} className="bg-gray-50 rounded-xl p-2.5">
+              <p className="text-gray-400 text-[10px] mb-0.5">{k}</p>
+              <p className="font-bold text-gray-700">{String(v)}</p>
             </div>
+          ))}
+        </div>
+        {item.description && (
+          <p className="text-xs text-gray-600 bg-gray-50 rounded-xl p-3 mb-4 leading-relaxed">
+            {item.description}
+          </p>
+        )}
+        <Link to="/president/declarations"
+          className="flex items-center justify-center gap-2 w-full py-2.5 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 transition-colors">
+          Voir la déclaration <ExternalLink className="w-3.5 h-3.5" />
+        </Link>
+      </motion.div>
+    </motion.div>
+  </AnimatePresence>
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 1 — Top 5 Signalements Critiques
+// ─────────────────────────────────────────────────────────────────────────────
+const TopCritiques = ({ data, loading }: { data: any[]; loading: boolean }) => {
+  const [sel, setSel] = useState<any>(null)
+  const total = data.reduce((s, d) => s + (d.votes_count || 0), 0)
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex flex-col h-full">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-[13px] font-bold text-gray-800">1. Top 5 signalements critiques</span>
+        <Link to="/president/declarations"
+          className="text-[11px] font-bold text-green-600 hover:text-green-700 flex items-center gap-0.5 transition-colors">
+          Voir tout <ChevronRight className="w-3 h-3" />
+        </Link>
+      </div>
+
+      <div className="space-y-1 flex-1">
+        {loading ? [...Array(5)].map((_, i) => (
+          <div key={i} className="flex items-center gap-3 py-2">
+            <Sk w="w-4" h="h-4" r="rounded-full" />
+            <div className="flex-1 space-y-1"><Sk w="w-3/4" h="h-2.5" /><Sk w="w-1/2" h="h-2" /></div>
+            <Sk w="w-14" h="h-4" r="rounded-full" /><Sk w="w-8" h="h-3" />
+          </div>
+        )) : data.map((item, i) => {
+          const sev = getSeverity(item.votes_count || 0, item.priority_score || 0)
+          return (
+            <motion.div key={item.id || i}
+              initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.06 }}
+              onClick={() => setSel(item)}
+              className="flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group">
+              <span className="text-[11px] font-black text-gray-400 w-4 text-right flex-shrink-0">{i + 1}</span>
+              <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-bold text-gray-800 truncate group-hover:text-green-700 transition-colors leading-tight">
+                  {item.title || item.description || 'Signalement'}
+                </p>
+                <p className="text-[10px] text-gray-400 truncate mt-0.5">
+                  {item.address || item.category || 'Localisation inconnue'}
+                </p>
+              </div>
+              <SevBadge label={sev} />
+              <span className="text-[13px] font-black text-gray-700 w-8 text-right flex-shrink-0">
+                {item.votes_count || 0}
+              </span>
+            </motion.div>
           )
         })}
       </div>
+
+      {!loading && (
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+          <span className="text-[11px] text-gray-500">Total signalements critiques</span>
+          <span className="text-[13px] font-black text-red-500">{total.toLocaleString('fr-FR')}</span>
+        </div>
+      )}
+
+      {sel && <DeclModal item={sel} onClose={() => setSel(null)} />}
     </div>
   )
 }
 
-const PresidentDashboard: React.FC = () => {
-  const navigate = useNavigate()
-  const user = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem('fmc_user') || '{}') as { first_name?: string; last_name?: string }
-    } catch {
-      return {}
-    }
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 2 — Zones Critiques (heatmap + list)
+// ─────────────────────────────────────────────────────────────────────────────
+const ZONE_SEVS = ['Très critique', 'Très critique', 'Critique', 'Critique', 'Moyenne']
+
+const ZonesCritiques = ({ zones, loading }: { zones: any[]; loading: boolean }) => (
+  <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex flex-col h-full">
+    <div className="flex items-center justify-between mb-4">
+      <span className="text-[13px] font-bold text-gray-800">2. Les zones critiques</span>
+      <Link to="/president/declarations"
+        className="text-[11px] font-bold text-green-600 hover:text-green-700 flex items-center gap-0.5 transition-colors">
+        Voir la carte <ChevronRight className="w-3 h-3" />
+      </Link>
+    </div>
+
+    <div className="space-y-0.5 mb-3">
+      {loading ? [...Array(5)].map((_, i) => (
+        <div key={i} className="flex items-center gap-2 py-2">
+          <Sk w="w-4" h="h-4" r="rounded-full" /><Sk w="w-24" h="h-2.5" />
+          <div className="flex-1" /><Sk w="w-16" h="h-4" r="rounded-full" /><Sk w="w-8" h="h-3" />
+        </div>
+      )) : zones.slice(0, 5).map((z, i) => {
+        const sev = ZONE_SEVS[i] || 'Critique'
+        const isCrit = sev === 'Très critique'
+        return (
+          <motion.div key={z.id || i}
+            initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.07 }}
+            className="flex items-center gap-2.5 py-1.5 px-2 -mx-2 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">
+            {isCrit
+              ? <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+              : <MapPin className="w-4 h-4 text-orange-400 flex-shrink-0" />}
+            <span className="text-[12px] font-bold text-gray-800 flex-1">{z.name}</span>
+            <SevBadge label={sev} />
+            <span className="text-[13px] font-black text-gray-700 w-8 text-right">{z.count}</span>
+          </motion.div>
+        )
+      })}
+    </div>
+
+    {/* Heatmap SVG */}
+    <div className="relative bg-slate-50 rounded-xl overflow-hidden border border-gray-100 flex-1" style={{ minHeight: 145 }}>
+      <svg viewBox="0 0 300 145" className="w-full h-full" preserveAspectRatio="xMidYMid slice">
+        <rect width="300" height="145" fill="#f8fafc" />
+        {[40,80,120,160,200,240,280].map(x => <line key={x} x1={x} y1="0" x2={x} y2="145" stroke="#e2e8f0" strokeWidth="0.6" />)}
+        {[25,50,75,100,125].map(y => <line key={y} x1="0" y1={y} x2="300" y2={y} stroke="#e2e8f0" strokeWidth="0.6" />)}
+        <defs>
+          <radialGradient id="rh1"><stop offset="0%" stopColor="#ef4444" stopOpacity="0.55"/><stop offset="100%" stopColor="#ef4444" stopOpacity="0"/></radialGradient>
+          <radialGradient id="rh2"><stop offset="0%" stopColor="#f97316" stopOpacity="0.5"/><stop offset="100%" stopColor="#f97316" stopOpacity="0"/></radialGradient>
+          <radialGradient id="rh3"><stop offset="0%" stopColor="#ef4444" stopOpacity="0.45"/><stop offset="100%" stopColor="#ef4444" stopOpacity="0"/></radialGradient>
+          <radialGradient id="rh4"><stop offset="0%" stopColor="#f59e0b" stopOpacity="0.4"/><stop offset="100%" stopColor="#f59e0b" stopOpacity="0"/></radialGradient>
+          <radialGradient id="rh5"><stop offset="0%" stopColor="#ef4444" stopOpacity="0.35"/><stop offset="100%" stopColor="#ef4444" stopOpacity="0"/></radialGradient>
+        </defs>
+        <ellipse cx="75" cy="50" rx="50" ry="38" fill="url(#rh1)" />
+        <ellipse cx="195" cy="38" rx="44" ry="32" fill="url(#rh2)" />
+        <ellipse cx="245" cy="100" rx="40" ry="30" fill="url(#rh3)" />
+        <ellipse cx="128" cy="112" rx="32" ry="24" fill="url(#rh4)" />
+        <ellipse cx="60" cy="110" rx="28" ry="20" fill="url(#rh5)" />
+      </svg>
+      <div className="absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-lg flex items-center justify-center shadow-sm border border-gray-100 cursor-pointer hover:bg-white">
+        <Maximize2 className="w-3 h-3 text-gray-500" />
+      </div>
+    </div>
+  </div>
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 3 — Bar chart: tâches créées vs résolues
+// ─────────────────────────────────────────────────────────────────────────────
+const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; loading: boolean }) => {
+  const [selDept, setSelDept] = useState('all')
+  const [open,    setOpen]    = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
   }, [])
 
-  const [data, setData] = useState<DashboardPayload | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [selectedDept, setSelectedDept] = useState('all')
-  const [period, setPeriod] = useState<'all' | '7' | '30' | '90'>('30')
-  const [departments, setDepts] = useState<{ id: string; name_fr?: string; name?: string }[]>([])
+  const totalC = trend.reduce((s, d) => s + d.reports, 0)
+  const totalR = trend.reduce((s, d) => s + d.resolved, 0)
+  const rate   = totalC > 0 ? ((totalR / totalC) * 100).toFixed(1) : '0.0'
+  const selName = selDept === 'all' ? 'Tous les départements' : (depts.find(d => d.id === selDept)?.name_fr || depts.find(d => d.id === selDept)?.name || 'Tous les départements')
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex flex-col h-full">
+      <span className="text-[13px] font-bold text-gray-800 mb-3">3. Nb de tâches vs résolues par moi</span>
+
+      {/* Dropdown */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-[11px] text-gray-400 font-medium">Département</span>
+        <div className="relative flex-1" ref={ref}>
+          <button onClick={() => setOpen(!open)}
+            className="w-full flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[11px] font-medium text-gray-700 hover:border-gray-300 transition-all">
+            <span className="truncate">{selName}</span>
+            <ChevronDown className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+          </button>
+          <AnimatePresence>
+            {open && (
+              <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-100 rounded-xl shadow-xl z-20 py-1 overflow-hidden">
+                <button onClick={() => { setSelDept('all'); setOpen(false) }}
+                  className={`w-full text-left px-3 py-2 text-[11px] font-medium transition-colors ${selDept === 'all' ? 'text-green-600 bg-green-50' : 'text-gray-700 hover:bg-gray-50'}`}>
+                  Tous les départements
+                </button>
+                {depts.map(d => (
+                  <button key={d.id} onClick={() => { setSelDept(d.id); setOpen(false) }}
+                    className={`w-full text-left px-3 py-2 text-[11px] font-medium transition-colors ${selDept === d.id ? 'text-green-600 bg-green-50' : 'text-gray-700 hover:bg-gray-50'}`}>
+                    {d.name_fr || d.name}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Bar chart */}
+      <div className="flex-1" style={{ minHeight: 170 }}>
+        {loading ? (
+          <div className="flex items-end gap-2 h-full pb-6">
+            {[0.55,0.8,0.65,0.9,1,0.7].map((h, i) => (
+              <div key={i} className="flex-1 flex gap-1 items-end">
+                <div className="flex-1 rounded-t animate-pulse bg-green-100" style={{ height: `${h * 120}px` }} />
+                <div className="flex-1 rounded-t animate-pulse bg-blue-100" style={{ height: `${h * 85}px` }} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={trend} margin={{ top: 4, right: 0, left: -26, bottom: 0 }} barCategoryGap="32%">
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }}
+                axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+              <Tooltip content={<BarTip />} cursor={{ fill: '#f8fafc' }} />
+              <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }}
+                formatter={v => <span style={{ color: '#64748b', fontWeight: 700 }}>
+                  {v === 'reports' ? 'Tâches créées' : 'Tâches résolues'}
+                </span>} />
+              <Bar dataKey="reports"  fill={C.green} radius={[3, 3, 0, 0]} maxBarSize={18} />
+              <Bar dataKey="resolved" fill={C.blue}  radius={[3, 3, 0, 0]} maxBarSize={18} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* Bottom KPIs */}
+      <div className="grid grid-cols-3 gap-2 mt-2 pt-3 border-t border-gray-100">
+        <div className="flex items-center gap-1.5">
+          <div className="w-6 h-6 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+            <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+          </div>
+          <div>
+            <p className="text-[12px] font-black text-gray-800">{totalC.toLocaleString('fr-FR')}</p>
+            <p className="text-[9px] text-gray-400 leading-none">Tâches créées</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />
+          </div>
+          <div>
+            <p className="text-[12px] font-black text-gray-800">{totalR.toLocaleString('fr-FR')}</p>
+            <p className="text-[9px] text-gray-400 leading-none">Tâches résolues</p>
+          </div>
+        </div>
+        <div>
+          <p className="text-[12px] font-black text-gray-800">{rate}%</p>
+          <p className="text-[9px] text-gray-400 leading-none">Taux de résolution</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 4 — Performance par département
+// ─────────────────────────────────────────────────────────────────────────────
+const DeptPerf = ({ depts, loading }: { depts: any[]; loading: boolean }) => {
+  const totals = depts.reduce((a, d) => ({ t: a.t + d.total, r: a.r + d.resolved }), { t: 0, r: 0 })
+  const totalRate = totals.t > 0 ? ((totals.r / totals.t) * 100).toFixed(1) : '0.0'
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+      <span className="text-[13px] font-bold text-gray-800 block mb-4">4. Performance par département</span>
+      <table className="w-full">
+        <thead>
+          <tr className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+            <th className="text-left pb-2.5 border-b border-gray-100">Département</th>
+            <th className="text-right pb-2.5 border-b border-gray-100">Tâches créées</th>
+            <th className="text-right pb-2.5 border-b border-gray-100">Tâches résolues</th>
+            <th className="text-left pb-2.5 pl-4 border-b border-gray-100">Taux de résolution</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-50">
+          {loading ? [...Array(5)].map((_, i) => (
+            <tr key={i}><td className="py-2.5"><div className="flex items-center gap-2"><Sk w="w-6" h="h-6" r="rounded-lg" /><Sk w="w-24" h="h-2.5" /></div></td>
+              <td className="py-2.5 text-right"><Sk w="w-8" h="h-2.5" r="rounded" /></td>
+              <td className="py-2.5 text-right"><Sk w="w-8" h="h-2.5" r="rounded" /></td>
+              <td className="py-2.5 pl-4"><Sk h="h-2.5" r="rounded-full" /></td>
+            </tr>
+          )) : depts.slice(0, 6).map((d, i) => {
+            const icon  = DEPT_ICONS[d.code] || '📁'
+            const color = DEPT_COLORS[d.code] || C.green
+            const rate  = d.perf
+            const rCol  = rate >= 70 ? C.green : rate >= 55 ? C.amber : C.red
+            return (
+              <motion.tr key={d.id || i}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                transition={{ delay: i * 0.05 }}
+                className="hover:bg-gray-50 transition-colors">
+                <td className="py-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
+                      style={{ background: color + '18' }}>{icon}</div>
+                    <span className="text-[12px] font-bold text-gray-700">{d.name}</span>
+                  </div>
+                </td>
+                <td className="py-2.5 text-right text-[12px] font-bold text-gray-700">{d.total}</td>
+                <td className="py-2.5 text-right text-[12px] font-bold text-gray-700">{d.resolved}</td>
+                <td className="py-2.5 pl-4">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <motion.div className="h-full rounded-full"
+                        style={{ background: rCol }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${rate}%` }}
+                        transition={{ duration: 0.9, delay: i * 0.09, ease: 'easeOut' }} />
+                    </div>
+                    <span className="text-[11px] font-black w-9 text-right flex-shrink-0"
+                      style={{ color: rCol }}>{rate}%</span>
+                  </div>
+                </td>
+              </motion.tr>
+            )
+          })}
+        </tbody>
+        {!loading && (
+          <tfoot>
+            <tr className="border-t-2 border-gray-200">
+              <td className="pt-2.5 text-[12px] font-black text-gray-800">Total</td>
+              <td className="pt-2.5 text-right text-[12px] font-black text-gray-800">{totals.t.toLocaleString('fr-FR')}</td>
+              <td className="pt-2.5 text-right text-[12px] font-black text-gray-800">{totals.r.toLocaleString('fr-FR')}</td>
+              <td className="pt-2.5 pl-4 text-[12px] font-black text-green-600">{totalRate}%</td>
+            </tr>
+          </tfoot>
+        )}
+      </table>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 5 — Status des signalements (donut)
+// ─────────────────────────────────────────────────────────────────────────────
+const PIE_DATA_TEMPLATE = [
+  { name: 'Soumis',   key: 'soumise',        color: C.blue   },
+  { name: 'En cours', key: 'en_cours',        color: C.amber  },
+  { name: 'Assigné',  key: '__assigned',      color: C.purple },
+  { name: 'Résolu',   key: '__resolved',      color: C.green  },
+]
+
+const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; loading: boolean }) => {
+  const [activeIdx, setActiveIdx] = useState<number | undefined>(undefined)
+
+  const pieData = PIE_DATA_TEMPLATE.map(t => ({
+    ...t,
+    value: t.key === '__assigned'
+      ? (byStatus.assignee_chef || 0) + (byStatus.assignee_agent || 0)
+      : t.key === '__resolved'
+        ? (byStatus.resolue || 0) + (byStatus.cloturee || 0)
+        : byStatus[t.key] || 0
+  }))
+
+  const total = pieData.reduce((s, d) => s + d.value, 0)
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+      <span className="text-[13px] font-bold text-gray-800 block mb-4">5. Les status des signalements</span>
+      <div className="flex items-center gap-6">
+
+        {/* Donut */}
+        <div className="relative flex-shrink-0" style={{ width: 200, height: 200 }}>
+          {loading ? (
+            <div className="w-full h-full rounded-full bg-gray-100 animate-pulse" />
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieData} cx="50%" cy="50%"
+                    innerRadius={62} outerRadius={88}
+                    dataKey="value" paddingAngle={2}
+                    activeIndex={activeIdx}
+                    activeShape={<ActivePie />}
+                    onMouseEnter={(_, idx) => setActiveIdx(idx)}
+                    onMouseLeave={() => setActiveIdx(undefined)}>
+                    {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <p className="text-[22px] font-black text-gray-800 leading-none">
+                  {activeIdx !== undefined
+                    ? pieData[activeIdx].value.toLocaleString('fr-FR')
+                    : total.toLocaleString('fr-FR')}
+                </p>
+                <p className="text-[11px] text-gray-400 font-bold mt-1">
+                  {activeIdx !== undefined ? pieData[activeIdx].name : 'Total'}
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Legend */}
+        <div className="flex-1 space-y-2">
+          {loading ? [...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <Sk w="w-3" h="h-3" r="rounded-full" /><Sk w="w-16" h="h-2.5" />
+              <div className="flex-1" /><Sk w="w-10" h="h-2.5" /><Sk w="w-10" h="h-2.5" />
+            </div>
+          )) : pieData.map((item, i) => {
+            const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0.0'
+            return (
+              <motion.div key={item.name}
+                initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.07 }}
+                className={`flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-xl cursor-pointer transition-colors ${activeIdx === i ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
+                onMouseEnter={() => setActiveIdx(i)}
+                onMouseLeave={() => setActiveIdx(undefined)}>
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: item.color }} />
+                <span className="text-[12px] font-bold text-gray-700 flex-1">{item.name}</span>
+                <span className="text-[12px] font-black text-gray-800">{item.value.toLocaleString('fr-FR')}</span>
+                <span className="text-[11px] font-bold text-gray-400 w-12 text-right">{pct}%</span>
+              </motion.div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+const PresidentDashboard: React.FC = () => {
+  const [loading,   setLoading]   = useState(true)
+  const [error,     setError]     = useState(false)
+  const [crucials,  setCrucials]  = useState<any[]>([])
+  const [zones,     setZones]     = useState<any[]>([])
+  const [trend,     setTrend]     = useState<any[]>([])
+  const [depts,     setDepts]     = useState<any[]>([])
+  const [deptsRaw,  setDeptsRaw]  = useState<any[]>([])
+  const [byStatus,  setByStatus]  = useState<Record<string, number>>({})
 
   const load = useCallback(async () => {
-    setLoading(true)
-    setLoadError(null)
+    setLoading(true); setError(false)
     try {
-      const params = new URLSearchParams()
-      if (selectedDept !== 'all') params.set('department_id', selectedDept)
-      if (period !== 'all') params.set('period', period)
-
-      const res = await fetch(`${API}/president/dashboard?${params}`, {
-        headers: { Authorization: `Bearer ${tok()}` },
+      // Dashboard data
+      const res = await fetch(`${API}/president/dashboard`, {
+        headers: { Authorization: `Bearer ${tok()}` }
       })
-      const j = (await res.json()) as DashboardPayload
-      if (!res.ok) {
-        setLoadError((j as { error?: string }).error || `Erreur ${res.status}`)
-        setData(null)
-        return
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+
+      setCrucials(data.crucialCases || [])
+      setTrend(data.trendData || [])
+      setDepts(data.by_department || data.byDepartment || [])
+      setByStatus(data.by_status || data.byStatus || {})
+
+      // Zones from arrondissement breakdown
+      const arr = data.by_arrondissement || data.byArrondissement || {}
+      const zonesArr = Object.values(arr)
+        .map((v: any) => typeof v === 'object' ? v : { name: String(v), count: v })
+        .sort((a: any, b: any) => b.count - a.count)
+      setZones(zonesArr as any[])
+
+      // Departments for dropdown
+      const dr = await fetch(`${API}/president/departments`, {
+        headers: { Authorization: `Bearer ${tok()}` }
+      })
+      if (dr.ok) {
+        const dd = await dr.json()
+        setDeptsRaw(dd.departments || [])
       }
-      setData(j)
     } catch {
-      setLoadError('Réseau indisponible.')
-      setData(null)
+      setError(true)
     } finally {
       setLoading(false)
     }
-  }, [selectedDept, period])
-
-  useEffect(() => {
-    fetch(`${API}/president/departments`, { headers: { Authorization: `Bearer ${tok()}` } })
-      .then(r => r.json())
-      .then(j => setDepts(j.departments || []))
-      .catch(() => setDepts([]))
   }, [])
 
-  useEffect(() => {
-    load()
-  }, [load])
+  useEffect(() => { load() }, [load])
 
-  const byStatus = data?.byStatus || {}
-  const trendChart = useMemo(
-    () =>
-      (data?.trendData || []).map(d => ({
-        name: d.name,
-        Soumis: d.reports || 0,
-        Résolus: d.resolved || 0,
-      })),
-    [data?.trendData]
-  )
-
-  const perfChart = useMemo(
-    () =>
-      (data?.byDepartment || [])
-        .filter(d => (d.total || 0) > 0)
-        .slice(0, 8)
-        .map(d => ({
-          name: d.code || d.name?.slice(0, 3) || '—',
-          Résolus: d.resolved || 0,
-          Satisfaits: d.highSatisfactionCount ?? 0,
-        })),
-    [data?.byDepartment]
-  )
-
-  const inProgress =
-    (byStatus.assignee_chef || 0) + (byStatus.assignee_agent || 0) + (byStatus.en_cours || 0)
-  const total = data?.total ?? 0
-  const resolved = (byStatus.resolue || 0) + (byStatus.cloturee || 0)
-  const greet = user.first_name?.trim() || 'Président'
-
-  if (loading && !data) {
-    return (
-      <PresidentLayout title="Tableau de bord">
-        <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-[3px] border-slate-100 border-t-[#1557FF]" />
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Chargement du tableau de bord…</p>
-        </div>
-      </PresidentLayout>
-    )
+  const handleExport = async () => {
+    try {
+      const res = await fetch(`${API}/president/export?format=csv`, {
+        headers: { Authorization: `Bearer ${tok()}` }
+      })
+      if (!res.ok) return
+      const blob = await res.blob()
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href = url; a.download = `fixmacity-${new Date().toISOString().slice(0, 10)}.csv`
+      a.click(); URL.revokeObjectURL(url)
+    } catch {}
   }
 
   return (
-    <PresidentLayout title="Tableau de bord">
-      <div className="mx-auto max-w-[1600px] space-y-8 pb-12 animate-in fade-in duration-500">
-        {/* Header */}
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-[#0A1628] md:text-4xl">Bonjour, {greet}</h1>
-            <p className="mt-2 max-w-xl text-sm text-slate-500">
-              Vue consolidée des signalements, du traitement et de l&apos;engagement citoyen. Filtrez par période et par
-              département.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              {(
-                [
-                  ['all', 'Tout'],
-                  ['7', '7 j.'],
-                  ['30', '30 j.'],
-                  ['90', '90 j.'],
-                ] as const
-              ).map(([k, lab]) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setPeriod(k)}
-                  className={`rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition ${
-                    period === k
-                      ? 'bg-[#0A1628] text-white shadow-lg'
-                      : 'border border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                  }`}
-                >
-                  {lab}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative group">
-              <Filter className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <select
-                value={selectedDept}
-                onChange={e => setSelectedDept(e.target.value)}
-                className="h-14 w-full min-w-[220px] appearance-none rounded-2xl border border-slate-200 bg-white pl-11 pr-10 text-[10px] font-black uppercase tracking-widest text-[#0A1628] shadow-sm outline-none focus:border-[#1557FF] sm:w-auto"
-              >
-                <option value="all">Tous les départements</option>
-                {departments.map(d => (
-                  <option key={d.id} value={d.id}>
-                    {d.name_fr || d.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            </div>
-            <button
-              type="button"
-              onClick={() => load()}
-              className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-[#1557FF]/40 hover:text-[#1557FF]"
-              aria-label="Actualiser"
-            >
-              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
+    <PresidentLayout title="">
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-[22px] font-black text-gray-900 tracking-tight">Tableau de bord</h1>
+          <p className="text-[13px] text-gray-400 mt-1">
+            Bonjour Président, voici un aperçu global de la situation actuelle.
+          </p>
         </div>
-
-        {loadError ? (
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-800">
-            <span className="font-semibold">{loadError}</span>
-            <button
-              type="button"
-              onClick={() => load()}
-              className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-black uppercase tracking-widest text-white hover:bg-rose-700"
-            >
-              Réessayer
-            </button>
-          </div>
-        ) : null}
-
-        {/* Quick links */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Link
-            to="/president/incoming"
-            className="group flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm transition hover:border-[#1557FF]/40 hover:shadow-md"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#1557FF]">
-                <Inbox className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">À affecter</p>
-                <p className="text-sm font-black text-[#0A1628]">Flux entrant</p>
-              </div>
-            </div>
-            <ArrowRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#1557FF]" />
-          </Link>
-          <Link
-            to="/president/declarations"
-            className="group flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm transition hover:border-[#1557FF]/40 hover:shadow-md"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-[#0A1628]">
-                <FileText className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Opérations</p>
-                <p className="text-sm font-black text-[#0A1628]">Signalements</p>
-              </div>
-            </div>
-            <ArrowRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#1557FF]" />
-          </Link>
-          <Link
-            to="/president/propositions"
-            className="group flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm transition hover:border-[#1557FF]/40 hover:shadow-md"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-                <Vote className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Consultations</p>
-                <p className="text-sm font-black text-[#0A1628]">Propositions</p>
-              </div>
-            </div>
-            <ArrowRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#1557FF]" />
-          </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <DatePill />
+          <button onClick={handleExport}
+            className="flex items-center gap-2 px-5 py-2 bg-green-600 text-white text-[13px] font-bold rounded-xl hover:bg-green-700 transition-colors shadow-sm">
+            <Download className="w-4 h-4" /> Exporter le rapport
+          </button>
+          <button onClick={load}
+            className="p-2 rounded-xl border border-gray-200 bg-white hover:border-gray-300 text-gray-400 hover:text-gray-600 transition-colors">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
+      </div>
 
-        {/* KPI grid */}
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Signalements (filtre)" value={total} hint="Volume total" icon={BarChart3} accent="#1557FF" />
-          <MetricCard
-            label="En traitement"
-            value={inProgress}
-            hint="Chef + agent + en cours"
-            icon={Activity}
-            accent="#6366F1"
-          />
-          <MetricCard label="Clôturés" value={resolved} hint="Résolues + clôturées" icon={CheckCircle2} accent="#10B981" />
-          <MetricCard
-            label="Priorité haute"
-            value={data?.stats?.criticalCount ?? 0}
-            hint="File active"
-            icon={Flame}
-            accent="#EF4444"
-          />
+      {/* Error banner */}
+      {error && (
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-4 mb-5 flex items-center gap-3">
+          <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+          <p className="text-sm font-bold text-red-700 flex-1">Erreur de chargement.</p>
+          <button onClick={load} className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 transition-colors">
+            Réessayer
+          </button>
         </div>
+      )}
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <MetricCard
-            label="Satisfaction > 3★"
-            value={data?.stats?.highSatisfactionCount ?? 0}
-            hint="Déclarations notées"
-            icon={Star}
-            accent="#F59E0B"
-          />
-          <MetricCard
-            label="Note moyenne"
-            value={data?.avgRating != null ? `${Number(data.avgRating).toFixed(1)} / 5` : '—'}
-            hint="Tous avis"
-            icon={ThumbsUp}
-            accent="#8B5CF6"
-          />
-          <MetricCard
-            label="Comptes plateforme"
-            value={data?.totalUsers ?? 0}
-            hint="Utilisateurs"
-            icon={Users}
-            accent="#0891B2"
-          />
-        </div>
+      {/* ── Row 1: 3 equal columns ───────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        <TopCritiques data={crucials} loading={loading} />
+        <ZonesCritiques zones={zones} loading={loading} />
+        <TachesChart trend={trend} depts={deptsRaw} loading={loading} />
+      </div>
 
-        {/* Pipeline */}
-        <div className="rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm md:p-8">
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-black text-[#0A1628]">Répartition par statut</h2>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pipeline des déclarations</p>
-            </div>
-            {total > 0 ? (
-              <span className="text-xs font-bold text-slate-500">
-                Taux de clôture :{' '}
-                <span className="font-black text-emerald-600">{Math.round((resolved / total) * 100)}%</span>
-              </span>
-            ) : null}
-          </div>
-          <PipelineBar byStatus={byStatus} total={total} />
-        </div>
-
-        {/* Charts */}
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm md:p-8 lg:col-span-2">
-            <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-black text-[#0A1628]">Tendance mensuelle</h2>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                  Créations vs résolutions (6 mois)
-                </p>
-              </div>
-              <div className="flex gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                <span className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-slate-200" /> Soumis
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#1557FF]" /> Résolus
-                </span>
-              </div>
-            </div>
-            <div className="h-[300px] w-full md:h-[340px]">
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <BarChart data={trendChart} barGap={10}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis
-                    dataKey="name"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 10, fontWeight: 800, fill: '#94A3B8' }}
-                  />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#94A3B8' }} />
-                  <Tooltip
-                    cursor={{ fill: '#F8FAFC' }}
-                    contentStyle={{ borderRadius: 16, border: 'none', boxShadow: '0 12px 40px rgba(0,0,0,0.08)' }}
-                  />
-                  <Bar dataKey="Soumis" fill="#E2E8F0" radius={[6, 6, 0, 0]} barSize={18} />
-                  <Bar dataKey="Résolus" fill="#1557FF" radius={[6, 6, 0, 0]} barSize={18} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm md:p-8">
-            <h2 className="text-lg font-black text-[#0A1628]">Performance par département</h2>
-            <p className="mb-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Résolus vs avis &gt; 3★
-            </p>
-            <div className="h-[300px] w-full md:h-[340px]">
-              {perfChart.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-xs font-semibold text-slate-400">
-                  Pas encore de données filtrées.
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                  <ComposedChart data={perfChart}>
-                    <XAxis
-                      dataKey="name"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 10, fontWeight: 800, fill: '#94A3B8' }}
-                    />
-                    <YAxis hide />
-                    <Tooltip contentStyle={{ borderRadius: 16, border: 'none', boxShadow: '0 12px 40px rgba(0,0,0,0.08)' }} />
-                    <Line type="monotone" name="Résolus" dataKey="Résolus" stroke="#1557FF" strokeWidth={3} dot={{ r: 3 }} />
-                    <Line
-                      type="monotone"
-                      name="Satisfaits"
-                      dataKey="Satisfaits"
-                      stroke="#F59E0B"
-                      strokeWidth={3}
-                      strokeDasharray="6 4"
-                      dot={{ r: 3 }}
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Lists */}
-        <div className="grid gap-4 lg:grid-cols-12">
-          <div className="rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm md:p-8 lg:col-span-4">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-base font-black text-[#0A1628]">Activité récente</h2>
-              <Clock className="h-5 w-5 text-slate-300" />
-            </div>
-            <ul className="space-y-3">
-              {(data?.recentDeclarations || []).length === 0 ? (
-                <li className="py-8 text-center text-xs text-slate-400">Aucune entrée.</li>
-              ) : (
-                (data?.recentDeclarations || []).map((d: any) => (
-                  <li
-                    key={d.id}
-                    className="cursor-pointer rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition hover:border-[#1557FF]/30 hover:bg-white"
-                    onClick={() => navigate('/president/declarations')}
-                  >
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[#1557FF]">{d.ref_citoyen}</p>
-                    <p className="mt-1 line-clamp-2 text-sm font-bold text-[#0A1628]">
-                      {(d.title || d.description || 'Signalement').slice(0, 80)}
-                    </p>
-                    <p className="mt-2 text-[10px] font-semibold text-slate-400">
-                      {d.citizen_name} · {STATUS_LABEL[d.status] || d.status} · {fmtShort(d.created_at)}
-                    </p>
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
-
-          <div className="rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm md:p-8 lg:col-span-4">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-base font-black text-[#0A1628]">File d&apos;attention</h2>
-              <ShieldAlert className="h-5 w-5 text-rose-400" />
-            </div>
-            <ul className="space-y-3">
-              {(data?.crucialCases || []).length === 0 ? (
-                <li className="flex flex-col items-center py-10 text-center text-xs text-slate-400">
-                  <CheckCircle2 className="mb-2 h-8 w-8 text-emerald-200" />
-                  Aucun dossier ouvert à traiter dans cette vue.
-                </li>
-              ) : (
-                (data?.crucialCases || []).map((d: any) => (
-                  <li
-                    key={d.id}
-                    className="cursor-pointer rounded-2xl border border-rose-100/80 bg-rose-50/30 p-4 transition hover:border-rose-200 hover:bg-white"
-                    onClick={() => navigate('/president/declarations')}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-black text-[#0A1628] line-clamp-2">{d.title || d.description || '—'}</p>
-                      {d.priority === 'haute' ? (
-                        <AlertTriangle className="h-4 w-4 flex-shrink-0 text-rose-500" />
-                      ) : null}
-                    </div>
-                    <p className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-500">
-                      <MapPin className="h-3 w-3" />
-                      {d.arrondissement_name || '—'}
-                      {d.category ? ` · ${d.category}` : ''}
-                    </p>
-                    <p className="mt-1 text-[10px] text-slate-400">
-                      Depuis {fmtShort(d.created_at)} · {d.citizen_name}
-                    </p>
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
-
-          <div className="rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm md:p-8 lg:col-span-4">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-base font-black text-[#0A1628]">Votes citoyens</h2>
-              <TrendingUp className="h-5 w-5 text-amber-500" />
-            </div>
-            <ul className="space-y-4">
-              {(data?.topVotedDeclarations || []).length === 0 ? (
-                <li className="py-8 text-center text-xs text-slate-400">Aucun vote enregistré.</li>
-              ) : (
-                (data?.topVotedDeclarations || []).map((d: any) => (
-                  <li
-                    key={d.id}
-                    className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-slate-100 p-3 transition hover:border-[#1557FF]/30"
-                    onClick={() => navigate('/president/declarations')}
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-[#0A1628]">{d.title}</p>
-                      <p className="text-[10px] text-slate-400">{d.category || '—'}</p>
-                    </div>
-                    <span className="flex-shrink-0 text-lg font-black text-[#1557FF]">
-                      +{d.votes_count ?? 0}
-                    </span>
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
-        </div>
-
-        {/* Propositions */}
-        {(data?.moneyVotes || []).length > 0 ? (
-          <div className="rounded-[1.75rem] border border-slate-200/70 bg-white p-6 shadow-sm md:p-8">
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-black text-[#0A1628]">Propositions les plus soutenues</h2>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Consultations municipales</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate('/president/propositions')}
-                className="text-[10px] font-black uppercase tracking-widest text-[#1557FF] hover:underline"
-              >
-                Voir tout
-              </button>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              {(data?.moneyVotes || []).map((p: any) => (
-                <div
-                  key={p.id}
-                  className="cursor-pointer rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition hover:border-violet-200 hover:bg-violet-50/30"
-                  onClick={() => navigate('/president/propositions')}
-                >
-                  <p className="line-clamp-2 text-xs font-black text-[#0A1628]">{p.title}</p>
-                  <p className="mt-3 text-[10px] font-bold text-slate-400">
-                    Pour : <span className="text-violet-600">{p.votes_pour ?? 0}</span>
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
+      {/* ── Row 2: 2 columns ────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-10">
+        <DeptPerf depts={depts} loading={loading} />
+        <StatusPie byStatus={byStatus} loading={loading} />
       </div>
     </PresidentLayout>
   )
