@@ -76,21 +76,21 @@ function AgentModal({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#0A1628]/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden border border-white">
-        <div className="px-8 pt-8 pb-6 bg-[#F8F9FD]">
+      <div className="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
+      <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden border border-white dark:border-slate-800 transition-colors duration-300">
+        <div className="px-8 pt-8 pb-6 bg-[#F8F9FD] dark:bg-slate-950/30">
           <div className="flex items-center justify-between mb-2">
-            <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-xl">
+            <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center text-xl">
               {isEdit ? '📝' : '👷'}
             </div>
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-white transition-colors text-slate-400">
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-all text-slate-400 dark:text-slate-500">
               <X className="w-5 h-5" />
             </button>
           </div>
-          <h2 className="text-2xl font-black text-[#0A1628]">
+          <h2 className="text-2xl font-black text-[#0A1628] dark:text-white">
             {isEdit ? 'Modifier l\'Agent' : 'Nouvel Agent'}
           </h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
             {isEdit ? 'Mettre à jour les informations du profil' : 'Ajouter un membre à votre équipe technique'}
           </p>
         </div>
@@ -98,50 +98,50 @@ function AgentModal({
         <form onSubmit={handleSubmit} className="p-8 space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Prénom</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-600 ml-1">Prénom</label>
               <input 
                 required
                 type="text" 
                 value={formData.first_name}
                 onChange={e => setFormData({ ...formData, first_name: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all"
+                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all dark:text-white"
                 placeholder="Ex: Aymen"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nom</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-600 ml-1">Nom</label>
               <input 
                 required
                 type="text" 
                 value={formData.last_name}
                 onChange={e => setFormData({ ...formData, last_name: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all"
+                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all dark:text-white"
                 placeholder="Ex: Ben Ali"
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Email Professionnel</label>
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-600 ml-1">Email Professionnel</label>
             <input 
               required
               type="email" 
               value={formData.email}
               onChange={e => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all"
+              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all dark:text-white"
               placeholder="agent@sousse.tn"
             />
           </div>
 
           {!isEdit && (
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Mot de Passe Temporaire</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-600 ml-1">Mot de Passe Temporaire</label>
               <input 
                 required
                 type="password" 
                 value={formData.password}
                 onChange={e => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all"
+                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all dark:text-white"
                 placeholder="••••••••"
               />
             </div>
@@ -151,7 +151,7 @@ function AgentModal({
             <button 
               type="button"
               onClick={onClose}
-              className="flex-1 py-3.5 rounded-2xl border border-slate-100 text-sm font-black text-slate-500 hover:bg-slate-50 transition-all"
+              className="flex-1 py-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 text-sm font-black text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
             >
               Annuler
             </button>
@@ -243,37 +243,37 @@ const ChefAgents: React.FC = () => {
         {/* Quick Stats Header */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {STATS.map(s => (
-            <div key={s.label} className="bg-white rounded-[2rem] border border-white shadow-xl shadow-slate-100 p-6 flex items-center gap-5 group hover:translate-y-[-4px] transition-all">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl" style={{ backgroundColor: s.bg, color: s.color }}>
+            <div key={s.label} className="bg-white dark:bg-slate-900/40 rounded-[2rem] border border-white dark:border-slate-800/50 shadow-xl shadow-slate-100/50 dark:shadow-black/20 p-6 flex items-center gap-5 group hover:translate-y-[-4px] transition-all duration-300">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-inner transition-colors" style={{ backgroundColor: s.bg, color: s.color }}>
                 <s.icon className="w-7 h-7" />
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{s.label}</p>
-                <p className="text-3xl font-black text-[#0A1628] leading-none">{s.value}</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-1">{s.label}</p>
+                <p className="text-3xl font-black text-[#0A1628] dark:text-white leading-none">{s.value}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* Toolbar */}
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-4 bg-white/60 backdrop-blur-md p-4 rounded-[2rem] border border-white shadow-sm">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-4 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md p-4 rounded-[2rem] border border-white dark:border-slate-800/50 shadow-sm transition-all duration-300">
           <div className="relative w-full lg:w-[400px]">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-600" />
             <input 
               type="text" 
               placeholder="Rechercher par nom ou email..." 
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-white border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-50 transition-all shadow-sm"
+              className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-2xl text-sm font-bold outline-none focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-900/20 transition-all shadow-sm dark:text-white dark:placeholder-slate-500"
             />
           </div>
           <div className="flex items-center gap-3 w-full lg:w-auto">
-            <button className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3.5 bg-white border border-slate-200 text-slate-600 font-black text-sm rounded-2xl hover:bg-slate-50 transition-all">
+            <button className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-black text-sm rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm">
               <TrendingUp className="w-4 h-4" /> Performance
             </button>
             <button 
               onClick={() => { setEditingAgent(undefined); setModalOpen(true) }}
-              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-8 py-3.5 bg-[#1557FF] text-white font-black text-sm rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-600 hover:scale-[1.02] active:scale-[0.98] transition-all"
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-8 py-3.5 bg-[#1557FF] text-white font-black text-sm rounded-2xl shadow-xl shadow-blue-500/20 hover:bg-blue-600 hover:scale-[1.02] active:scale-[0.98] transition-all"
             >
               <UserPlus className="w-4 h-4" /> Ajouter un Agent
             </button>
@@ -289,16 +289,16 @@ const ChefAgents: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {filtered.map(agent => (
-              <div key={agent.id} className={`relative bg-white rounded-[2.5rem] border-2 transition-all p-8 group ${agent.is_active ? 'border-white shadow-xl shadow-slate-100' : 'border-slate-100 opacity-75 grayscale bg-slate-50'}`}>
+              <div key={agent.id} className={`relative bg-white dark:bg-slate-900/40 rounded-[2.5rem] border-2 transition-all p-8 group transition-all duration-300 ${agent.is_active ? 'border-white dark:border-slate-800/50 shadow-xl shadow-slate-100/50 dark:shadow-black/20' : 'border-slate-100 dark:border-slate-800 opacity-75 grayscale bg-slate-50 dark:bg-slate-900/20'}`}>
                 {/* Status Dot */}
                 <div className="absolute top-8 right-8 flex items-center gap-2">
                   <div className={`w-2.5 h-2.5 rounded-full ${
                     agent.status === 'available' ? 'bg-green-500 shadow-[0_0_10px_#10B981]' : 
                     agent.status === 'busy' ? 'bg-blue-500 shadow-[0_0_10px_#1557FF]' : 
                     agent.status === 'overloaded' ? 'bg-red-500 animate-pulse shadow-[0_0_10px_#EF4444]' : 
-                    'bg-slate-300'
+                    'bg-slate-300 dark:bg-slate-700'
                   }`} />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                     {agent.status === 'available' ? 'Disponible' : 
                      agent.status === 'busy' ? 'En mission' : 
                      agent.status === 'overloaded' ? 'Surchargé' : 'Inactif'}
@@ -309,41 +309,41 @@ const ChefAgents: React.FC = () => {
                 <div className="flex flex-col items-center text-center mb-8">
                   <div className={`w-20 h-20 rounded-[2rem] flex items-center justify-center text-3xl font-black mb-4 transition-all shadow-inner ${
                     agent.is_active 
-                      ? 'bg-gradient-to-br from-slate-50 to-white text-slate-700' 
-                      : 'bg-slate-200 text-slate-400'
+                      ? 'bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 text-slate-700 dark:text-white' 
+                      : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600'
                   }`}>
                     {agent.first_name[0]}{agent.last_name[0]}
                   </div>
-                  <h3 className="text-xl font-black text-[#0A1628] leading-tight group-hover:text-[#1557FF] transition-colors">
+                  <h3 className="text-xl font-black text-[#0A1628] dark:text-white leading-tight group-hover:text-[#1557FF] transition-colors">
                     {agent.first_name} {agent.last_name}
                   </h3>
-                  <div className="flex items-center gap-2 text-slate-400 font-bold text-xs mt-1.5 bg-slate-50 px-3 py-1 rounded-full">
+                  <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 font-bold text-xs mt-1.5 bg-slate-50 dark:bg-slate-800/50 px-3 py-1 rounded-full border border-slate-100 dark:border-slate-800/50 shadow-sm">
                     <Mail className="w-3 h-3" /> {agent.email}
                   </div>
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-3 gap-4 p-5 bg-slate-50 rounded-3xl border border-slate-100/50 mb-8">
+                <div className="grid grid-cols-3 gap-4 p-5 bg-slate-50 dark:bg-slate-800/30 rounded-3xl border border-slate-100/50 dark:border-slate-800/50 mb-8 shadow-inner">
                   <div className="text-center">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Actives</p>
-                    <p className="text-lg font-black text-[#0A1628]">{agent.workload}</p>
+                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest mb-1">Actives</p>
+                    <p className="text-lg font-black text-[#0A1628] dark:text-white">{agent.workload}</p>
                   </div>
-                  <div className="text-center border-x border-slate-200/50">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Historique</p>
+                  <div className="text-center border-x border-slate-200/50 dark:border-slate-700/50">
+                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest mb-1">Historique</p>
                     <p className={`text-lg font-black ${agent.is_overloaded ? 'text-red-500' : 'text-[#F59E0B]'}`}>{agent.recent_tasks}</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Résolus</p>
+                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest mb-1">Résolus</p>
                     <p className="text-lg font-black text-[#10B981]">{agent.resolved_count}</p>
                   </div>
                 </div>
 
                 {/* Workload Indicator */}
                 <div className="mb-8">
-                  <div className="flex justify-between items-center px-4 py-3 bg-slate-50 rounded-2xl border border-slate-100">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Charge de travail actuelle</p>
+                  <div className="flex justify-between items-center px-4 py-3 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800/50">
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Charge de travail actuelle</p>
                     <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full ${
-                      agent.is_overloaded ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                      agent.is_overloaded ? 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-500' : 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-500'
                     }`}>
                       {agent.is_overloaded ? 'Élevée' : 'Normale'}
                     </span>
@@ -354,16 +354,16 @@ const ChefAgents: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => { setEditingAgent(agent); setModalOpen(true) }}
-                    className="flex-1 py-3.5 rounded-2xl bg-white border border-slate-200 text-[#0A1628] font-black text-xs hover:border-[#1557FF] hover:text-[#1557FF] transition-all flex items-center justify-center gap-2"
+                    className="flex-1 py-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[#0A1628] dark:text-white font-black text-xs hover:border-[#1557FF] dark:hover:border-[#1557FF] hover:text-[#1557FF] transition-all flex items-center justify-center gap-2 shadow-sm"
                   >
                     <Edit3 className="w-3.5 h-3.5" /> Modifier
                   </button>
                   <button 
                     onClick={() => toggleStatus(agent.id)}
-                    className={`p-3.5 rounded-2xl border transition-all ${
+                    className={`p-3.5 rounded-2xl border transition-all shadow-sm ${
                       agent.is_active 
-                        ? 'border-red-100 text-red-500 hover:bg-red-50' 
-                        : 'border-green-100 text-green-500 hover:bg-green-50'
+                        ? 'border-red-100 dark:border-red-900/30 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20' 
+                        : 'border-green-100 dark:border-green-900/30 text-green-500 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
                     }`}
                     title={agent.is_active ? 'Désactiver' : 'Activer'}
                   >

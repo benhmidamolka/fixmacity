@@ -108,7 +108,7 @@ const ChefMap: React.FC = () => {
             <select 
                value={filterStatus}
                onChange={(e) => setFilterStatus(e.target.value)}
-               className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 outline-none focus:ring-2 focus:ring-blue-100"
+               className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20"
             >
                <option value="all">Tous les statuts</option>
                <option value="en_attente">À traiter</option>
@@ -119,13 +119,13 @@ const ChefMap: React.FC = () => {
          </div>
          <button 
             onClick={exportData}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:text-blue-600 hover:border-blue-100 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-100 dark:hover:border-blue-500/50 transition-colors shadow-sm"
          >
             <Download className="w-4 h-4" /> Exporter
          </button>
       </div>
 
-      <div className="h-[calc(100vh-210px)] relative rounded-2xl overflow-hidden border border-slate-200 shadow-xl bg-white">
+      <div className="h-[calc(100vh-210px)] relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-900">
         <MapContainer center={[35.8245, 10.6346]} zoom={13} style={{ width:'100%', height:'100%' }}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <FlyTo coords={flyTo} />
@@ -153,20 +153,20 @@ const ChefMap: React.FC = () => {
         </MapContainer>
 
         {/* Legend */}
-        <div className="absolute bottom-6 left-6 bg-white/95 backdrop-blur-sm p-4 rounded-2xl shadow-xl border border-slate-100 z-[1000]">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Légende</p>
+        <div className="absolute bottom-6 left-6 bg-white/95 dark:bg-slate-900/90 backdrop-blur-sm p-4 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 z-[1000]">
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Légende</p>
           <div className="space-y-2">
             {LEGEND.map(item => (
               <div key={item.label} className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ background: item.color }} />
-                <span className="text-xs font-semibold text-slate-600">{item.label}</span>
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">{item.label}</span>
               </div>
             ))}
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
-             <span className="text-[10px] font-bold text-slate-400 uppercase">Heatmap</span>
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Heatmap</span>
              <button onClick={() => setHeatmap(!heatmap)}
-                className={`relative w-8 h-4 rounded-full transition-all ${heatmap ? 'bg-[#1557FF]' : 'bg-slate-200'}`}>
+                className={`relative w-8 h-4 rounded-full transition-all ${heatmap ? 'bg-[#1557FF]' : 'bg-slate-200 dark:bg-slate-700'}`}>
                 <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${heatmap ? 'left-[18px]' : 'left-0.5'}`} />
              </button>
           </div>
@@ -174,37 +174,37 @@ const ChefMap: React.FC = () => {
 
         {/* Side Detail Panel */}
         {selected && (
-          <div className="absolute top-0 right-0 bottom-0 w-80 bg-white border-l border-slate-100 shadow-2xl z-[1001] flex flex-col animate-in slide-in-from-right duration-300">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="absolute top-0 right-0 bottom-0 w-80 bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800 shadow-2xl z-[1001] flex flex-col animate-in slide-in-from-right duration-300 backdrop-blur-md bg-white/95 dark:bg-slate-900/95">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
                 style={{ color: STATUS_CFG[selected.status]?.color, background: `${STATUS_CFG[selected.status]?.color}15` }}>
                 {STATUS_CFG[selected.status]?.label}
               </span>
-              <button onClick={() => setSelected(null)} className="p-1.5 text-slate-400 hover:bg-slate-50 rounded-lg">
+              <button onClick={() => setSelected(null)} className="p-1.5 text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <div>
-                <h3 className="font-bold text-[#0A1628] leading-tight text-base mb-1">{selected.title}</h3>
-                <p className="text-[10px] font-mono text-slate-400">#{selected.ref_service || selected.id.slice(0,8)}</p>
+                <h3 className="font-bold text-[#0A1628] dark:text-slate-100 leading-tight text-base mb-1">{selected.title}</h3>
+                <p className="text-[10px] font-mono text-slate-400 dark:text-slate-600">#{selected.ref_service || selected.id.slice(0,8)}</p>
               </div>
-              <p className="text-sm text-slate-500 leading-relaxed">{selected.description}</p>
-              <div className="flex items-center gap-4 py-3 border-y border-slate-50">
+              <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{selected.description}</p>
+              <div className="flex items-center gap-4 py-3 border-y border-slate-50 dark:border-slate-800">
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Soumis le</span>
-                  <span className="text-xs font-semibold text-[#0A1628]">{new Date(selected.created_at).toLocaleDateString('fr-FR')}</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-600 font-bold uppercase tracking-tight">Soumis le</span>
+                  <span className="text-xs font-semibold text-[#0A1628] dark:text-slate-200">{new Date(selected.created_at).toLocaleDateString('fr-FR')}</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Priorité</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-600 font-bold uppercase tracking-tight">Priorité</span>
                   <span className="text-xs font-semibold text-rose-500">{selected.priority_score}%</span>
                 </div>
               </div>
               {selected.photo_url && (
-                <img src={selected.photo_url} className="w-full h-40 object-cover rounded-xl shadow-sm border border-slate-100" alt="" />
+                <img src={selected.photo_url} className="w-full h-40 object-cover rounded-xl shadow-sm border border-slate-100 dark:border-slate-800" alt="" />
               )}
             </div>
-            <div className="p-4 bg-slate-50">
+            <div className="p-4 bg-slate-50 dark:bg-slate-900/50">
               <button 
                 onClick={() => navigate(`/chef/declarations/${selected.id}`)}
                 className="w-full py-2.5 bg-[#1557FF] text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-200"

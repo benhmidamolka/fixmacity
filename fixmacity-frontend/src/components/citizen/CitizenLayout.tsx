@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Map, Vote, CheckSquare, Bell, LogOut,
   Menu, X, Plus, CheckCircle2, Clock, AlertTriangle,
-  Megaphone, Check, Trash2, List, FileText
+  Megaphone, Check, Trash2, List, FileText, Sun, Moon
 } from 'lucide-react'
 import Logo from '../Logo'
 import ChatbotWidget from './ChatbotWidget'
@@ -216,7 +216,18 @@ const CitizenLayout: React.FC<CitizenLayoutProps> = ({ children }) => {
   const location = useLocation()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fmc_theme') === 'dark')
   const user = JSON.parse(localStorage.getItem('fmc_user') || '{}')
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('fmc_theme', 'dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('fmc_theme', 'light')
+    }
+  }, [darkMode])
 
   const handleLogout = () => {
     localStorage.removeItem('fmc_token')
@@ -225,12 +236,14 @@ const CitizenLayout: React.FC<CitizenLayoutProps> = ({ children }) => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f9fb] flex flex-col">
+    <div className={`min-h-screen transition-colors duration-500 flex flex-col ${darkMode ? 'dark bg-slate-950' : 'bg-[#f7f9fb]'}`}>
 
       {/* ── Top bar ── */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-100 h-16 flex items-center px-4 sm:px-6 gap-4 shadow-sm">
+      <header className={`fixed top-0 left-0 right-0 z-50 border-b h-16 flex items-center px-4 sm:px-6 gap-4 shadow-sm transition-all duration-300 ${
+        darkMode ? 'bg-slate-900/60 border-slate-800/50 backdrop-blur-xl' : 'bg-white border-slate-100'
+      }`}>
 
-        <Logo to="/dashboard" variant="dark" size="sm" />
+        <Logo to="/dashboard" variant={darkMode ? "light" : "dark"} size="sm" />
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1 ml-4">
@@ -239,7 +252,9 @@ const CitizenLayout: React.FC<CitizenLayoutProps> = ({ children }) => {
             return (
               <Link key={item.to} to={item.to}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                  active ? 'bg-[#1557FF] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+                  active 
+                    ? 'bg-[#1557FF] text-white shadow-lg shadow-blue-500/20' 
+                    : darkMode ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100'
                 }`}>
                 <item.icon className="w-4 h-4" />
                 {item.label}
@@ -252,33 +267,44 @@ const CitizenLayout: React.FC<CitizenLayoutProps> = ({ children }) => {
         <div className="ml-auto flex items-center gap-2">
           {/* New report CTA */}
           <Link to="/nouveau-signalement"
-            className="hidden md:flex items-center gap-2 bg-[#1557FF] hover:bg-[#1040CC] text-white font-bold px-4 py-2 rounded-xl text-sm transition-all shadow-sm">
+            className="hidden md:flex items-center gap-2 bg-[#1557FF] hover:bg-[#1040CC] text-white font-bold px-4 py-2 rounded-xl text-sm transition-all shadow-lg shadow-blue-500/20 active:scale-95">
             <Plus className="w-4 h-4" /> Signaler
           </Link>
+
+          {/* Theme Toggle */}
+          <button 
+            onClick={() => setDarkMode(!darkMode)}
+            className={`p-2 rounded-xl border flex items-center justify-center transition-all shadow-sm ${
+              darkMode ? 'bg-slate-800 border-slate-700 text-yellow-400 hover:bg-slate-700' : 'bg-white border-slate-100 text-slate-400 hover:text-blue-500 hover:border-blue-100'
+            }`}>
+            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
 
           {/* Notifications */}
           <NotificationBell />
 
           {/* Avatar → profile page */}
-          <Link to="/profile" className="flex items-center gap-2 pl-2 border-l border-slate-100 group">
-            <div className="w-8 h-8 rounded-full bg-[#1557FF] flex items-center justify-center text-white text-xs font-bold group-hover:ring-2 group-hover:ring-[#1557FF]/40 transition-all">
+          <Link to="/profile" className={`flex items-center gap-2 pl-2 border-l group ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+            <div className="w-8 h-8 rounded-full bg-[#1557FF] flex items-center justify-center text-white text-xs font-bold group-hover:ring-2 group-hover:ring-[#1557FF]/40 transition-all shadow-md">
               {user.first_name?.[0]}{user.last_name?.[0]}
             </div>
             <div className="hidden sm:block">
-              <p className="text-sm font-semibold text-[#0A1628] leading-none">{user.first_name} {user.last_name}</p>
+              <p className={`text-sm font-semibold leading-none ${darkMode ? 'text-white' : 'text-[#0A1628]'}`}>{user.first_name} {user.last_name}</p>
               <p className="text-xs text-[#1557FF] mt-0.5 font-medium">Mon profil</p>
             </div>
           </Link>
 
           {/* Logout */}
           <button onClick={handleLogout}
-            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+            className={`p-2 rounded-xl transition-all ${
+              darkMode ? 'text-slate-400 hover:text-red-400 hover:bg-red-900/20' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
+            }`}
             title="Se déconnecter">
             <LogOut className="w-4 h-4" />
           </button>
 
           {/* Mobile hamburger */}
-          <button className="md:hidden p-2 text-slate-500" onClick={() => setOpen(!open)}>
+          <button className={`md:hidden p-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`} onClick={() => setOpen(!open)}>
             {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
@@ -287,7 +313,9 @@ const CitizenLayout: React.FC<CitizenLayoutProps> = ({ children }) => {
       {/* Mobile drawer */}
       {open && (
         <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setOpen(false)}>
-          <div className="absolute top-16 left-0 bottom-0 w-64 bg-white shadow-xl p-4"
+          <div className={`absolute top-16 left-0 bottom-0 w-64 shadow-xl p-4 transition-all duration-300 ${
+            darkMode ? 'bg-slate-900 border-r border-slate-800' : 'bg-white'
+          }`}
             onClick={e => e.stopPropagation()}>
             {NAV.map(item => {
               const active = location.pathname === item.to
@@ -295,7 +323,9 @@ const CitizenLayout: React.FC<CitizenLayoutProps> = ({ children }) => {
                 <Link key={item.to} to={item.to}
                   onClick={() => setOpen(false)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold mb-1 transition-all ${
-                    active ? 'bg-[#1557FF] text-white' : 'text-slate-600 hover:bg-slate-100'
+                    active 
+                      ? 'bg-[#1557FF] text-white' 
+                      : darkMode ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100'
                   }`}>
                   <item.icon className="w-4 h-4" />
                   {item.label}
@@ -303,7 +333,7 @@ const CitizenLayout: React.FC<CitizenLayoutProps> = ({ children }) => {
               )
             })}
             <Link to="/nouveau-signalement" onClick={() => setOpen(false)}
-              className="flex items-center gap-2 mt-3 bg-[#1557FF] text-white font-bold px-4 py-3 rounded-xl text-sm">
+              className="flex items-center gap-2 mt-3 bg-[#1557FF] text-white font-bold px-4 py-3 rounded-xl text-sm shadow-lg shadow-blue-500/20">
               <Plus className="w-4 h-4" /> Nouveau signalement
             </Link>
           </div>

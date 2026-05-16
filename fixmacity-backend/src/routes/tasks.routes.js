@@ -15,9 +15,9 @@ router.use(authenticate);
 
 router.get('/', tasksController.list);
 
-// Only Chef, President, or Admin can create/update/delete tasks
-router.post('/', rbac('chef', 'president', 'admin'), taskRules, tasksController.create);
-router.patch('/:id', rbac('chef', 'president', 'admin', 'agent'), tasksController.update); // Agent can update status
-router.delete('/:id', rbac('chef', 'president', 'admin'), tasksController.remove);
+// Only Chef or President can create/update/delete tasks
+router.post('/', rbac('chef', 'president'), taskRules, tasksController.create);
+router.patch('/:id', rbac('chef', 'president', 'agent'), tasksController.update); // Agent can update status
+router.delete('/:id', rbac('chef', 'president'), tasksController.remove);
 
 module.exports = router;

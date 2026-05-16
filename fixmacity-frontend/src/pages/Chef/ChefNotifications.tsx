@@ -19,6 +19,8 @@ interface Notif {
   }
 }
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
+
 const timeAgo = (iso: string) => {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60000)
@@ -35,7 +37,7 @@ const ChefNotifications: React.FC = () => {
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/notifications`, {
+      const res = await fetch(`${API}/notifications`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
       })
       if (res.ok) {
@@ -53,7 +55,7 @@ const ChefNotifications: React.FC = () => {
 
   const markAllRead = async () => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/notifications/read-all`, {
+      await fetch(`${API}/notifications/read-all`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
       })
@@ -65,7 +67,7 @@ const ChefNotifications: React.FC = () => {
 
   const markAsRead = async (id: string) => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/notifications/${id}/read`, {
+      await fetch(`${API}/notifications/${id}/read`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
       })
@@ -89,25 +91,25 @@ const ChefNotifications: React.FC = () => {
   return (
     <ChefLayout title="Notifications">
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900/40 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl shadow-slate-200/50 dark:shadow-none overflow-hidden backdrop-blur-md">
           
           {/* Header */}
           <div className="p-8 flex items-center justify-between pb-4">
-            <h2 className="text-xl font-bold text-slate-800">Centre de Notifications</h2>
-            <button className="px-4 py-2 rounded-xl border border-slate-100 text-xs font-bold text-slate-400 hover:text-slate-600 transition-all">
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Centre de Notifications</h2>
+            <button className="px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-all">
               Voir Tout
             </button>
           </div>
 
           {/* Tabs */}
           <div className="px-8 mb-6">
-            <div className="bg-slate-50 p-1.5 rounded-[1.5rem] flex gap-1">
+            <div className="bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-[1.5rem] flex gap-1">
               {['today', 'this_week', 'earlier'].map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={`flex-1 py-2.5 rounded-2xl text-xs font-bold transition-all ${
-                    activeTab === tab ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400 hover:text-slate-600'
+                    activeTab === tab ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
                   }`}
                 >
                   {tab === 'today' ? 'Aujourd\'hui' : tab === 'this_week' ? 'Cette semaine' : 'Plus ancien'}
@@ -125,23 +127,23 @@ const ChefNotifications: React.FC = () => {
               const displayMessage = n.body || n.message
 
               const content = (
-                <div className={`p-8 hover:bg-slate-50/50 transition-all flex items-start gap-6 relative group ${!n.is_read ? 'bg-indigo-50/5' : ''}`}>
-                  <div className="w-12 h-12 rounded-full border border-slate-100 flex items-center justify-center bg-white shrink-0 shadow-sm group-hover:border-indigo-200 transition-colors">
-                    <Icon className="w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                <div className={`p-8 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all flex items-start gap-6 relative group ${!n.is_read ? 'bg-indigo-50/5' : ''}`}>
+                  <div className="w-12 h-12 rounded-full border border-slate-100 dark:border-slate-800 flex items-center justify-center bg-white dark:bg-slate-900 shrink-0 shadow-sm group-hover:border-indigo-200 dark:group-hover:border-indigo-500/50 transition-colors">
+                    <Icon className="w-5 h-5 text-slate-400 dark:text-slate-600 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
                   </div>
                   
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-slate-800 leading-snug group-hover:text-[#1557FF] transition-colors">{n.title}</p>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed line-clamp-2">{displayMessage}</p>
+                    <p className="text-sm font-black text-slate-800 dark:text-slate-100 leading-snug group-hover:text-[#1557FF] dark:group-hover:text-blue-400 transition-colors">{n.title}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed line-clamp-2">{displayMessage}</p>
                     
                     <div className="mt-3 flex items-center justify-between">
                       <div className="flex gap-2">
                         {priority && (
-                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${priority === 'haute' ? 'bg-red-50 text-red-500' : 'bg-indigo-50 text-indigo-500'}`}>
+                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${priority === 'haute' ? 'bg-red-50 dark:bg-red-500/10 text-red-500 dark:text-red-400' : 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 dark:text-indigo-400'}`}>
                             {priority === 'haute' ? 'Crucial' : priority}
                           </span>
                         )}
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-widest">
                           {timeAgo(n.created_at)}
                         </span>
                       </div>
@@ -171,10 +173,10 @@ const ChefNotifications: React.FC = () => {
               )
             }) : (
               <div className="p-20 text-center">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-dashed border-slate-200">
-                  <Bell className="w-6 h-6 text-slate-300" />
+                <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-4 border border-dashed border-slate-200 dark:border-slate-700">
+                  <Bell className="w-6 h-6 text-slate-300 dark:text-slate-700" />
                 </div>
-                <p className="text-sm font-bold text-slate-400">Aucune notification pour le moment</p>
+                <p className="text-sm font-bold text-slate-400 dark:text-slate-600">Aucune notification pour le moment</p>
               </div>
             )}
           </div>

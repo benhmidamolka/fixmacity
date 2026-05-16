@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { io } from 'socket.io-client';
 
-const SERVER = (import.meta.env.VITE_API_URL || 'http://localhost:5005/api')
-  .replace('/api', '');
+const SERVER = import.meta.env.VITE_API_URL || 'http://localhost:5005/api';
+ 
 
 export function useSocket(onNotification: (data: unknown) => void) {
   useEffect(() => {

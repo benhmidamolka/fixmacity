@@ -11,8 +11,10 @@ import PresidentLayout from '../../layouts/PresidentLayout'
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const token = () => localStorage.getItem('fmc_token')
 
+
 const DEPT_UI: Record<string, { color: string; icon: string }> = {
   'Voirie': { color: '#6366F1', icon: '🛣️' },
+
   'Éclairage public': { color: '#F59E0B', icon: '💡' },
   'Propreté': { color: '#10B981', icon: '🗑️' },
   'Espaces Verts': { color: '#22C55E', icon: '🌿' },

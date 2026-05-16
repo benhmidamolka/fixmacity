@@ -24,6 +24,8 @@ const NAV = [
 
 interface Props { children: React.ReactNode; title?: string }
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
+
 const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => {
   const location = useLocation()
   const navigate  = useNavigate()
@@ -49,7 +51,7 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
   useEffect(() => {
     const fetchUnread = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/notifications/unread-count`, {
+        const res = await fetch(`${API_URL}/notifications/unread-count`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
         })
         if (res.ok) {
@@ -66,7 +68,7 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
 
   const handleLogout = async () => {
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/auth/logout`, {
+      await fetch(`${API_URL}/auth/logout`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
       })

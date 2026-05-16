@@ -164,13 +164,13 @@ const ChefDeclarationDetail: React.FC = () => {
         
         {/* Header Details */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
-           <div className="flex items-center gap-4">
-              <button onClick={() => navigate(-1)} className="p-2 rounded-xl bg-white border border-slate-100 text-slate-400 hover:text-[#1557FF] transition-colors shadow-sm">
+            <div className="flex items-center gap-4">
+              <button onClick={() => navigate(-1)} className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:text-[#1557FF] dark:hover:text-blue-400 transition-colors shadow-sm">
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-none mb-1">{decl.title}</h1>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight leading-none mb-1">{decl.title}</h1>
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
                   <Clock className="w-3 h-3" /> Reçu le {new Date(decl.created_at).toLocaleDateString()} à {new Date(decl.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
@@ -179,22 +179,22 @@ const ChefDeclarationDetail: React.FC = () => {
            <div className="flex items-center gap-4 w-full md:w-auto">
               <div
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold shadow-sm"
-                style={{ color: sc.color, background: sc.bg, border: `1px solid ${sc.color}20` }}
+                style={{ color: sc.color, background: document.documentElement.classList.contains('dark') ? `${sc.color}15` : sc.bg, border: `1px solid ${sc.color}30` }}
               >
                 <div className="w-2.5 h-2.5 rounded-full" style={{ background: sc.dot }} />
                 {sc.label.toUpperCase()}
               </div>
               
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl">
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
                  <button
                     onClick={() => setActiveTab('info')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'info' ? 'bg-white shadow-sm text-[#1557FF]' : 'text-slate-400 hover:text-slate-600'}`}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'info' ? 'bg-white dark:bg-slate-700 shadow-sm text-[#1557FF] dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
                   >
                     Détails
                   </button>
                   <button
                     onClick={() => setActiveTab('comments')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'comments' ? 'bg-white shadow-sm text-[#1557FF]' : 'text-slate-400 hover:text-slate-600'}`}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === 'comments' ? 'bg-white dark:bg-slate-700 shadow-sm text-[#1557FF] dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
                   >
                     Communication
                   </button>
@@ -207,63 +207,63 @@ const ChefDeclarationDetail: React.FC = () => {
             <div className="lg:col-span-2 space-y-6">
               
               {/* Card 1: Core details */}
-              <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
+              <div className="bg-white dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm backdrop-blur-md">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-8 mb-8">
                   <div>
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Référence</p>
-                    <p className="font-bold text-slate-800 font-mono tracking-tighter">#{decl.ref_citoyen}</p>
+                    <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest mb-2">Référence</p>
+                    <p className="font-bold text-slate-800 dark:text-slate-100 font-mono tracking-tighter">#{decl.ref_citoyen}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Catégorie</p>
-                    <p className="font-bold text-slate-800">{decl.category}</p>
+                    <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest mb-2">Catégorie</p>
+                    <p className="font-bold text-slate-800 dark:text-slate-100">{decl.category}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Priorité</p>
+                    <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest mb-2">Priorité</p>
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                       decl.priority === 'haute' || decl.priority === 'urgente'
-                        ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-500'
+                        ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400' : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                     }`}>
                       {decl.priority || 'Normale'}
                     </span>
                   </div>
                 </div>
                 
-                <div className="pt-6 border-t border-slate-100">
-                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Description du problème</p>
-                  <p className="text-slate-600 leading-relaxed text-sm">{decl.description || "Aucune description fournie."}</p>
+                <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+                  <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest mb-3">Description du problème</p>
+                  <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-sm">{decl.description || "Aucune description fournie."}</p>
                 </div>
 
-                <div className="pt-6 mt-6 border-t border-slate-100 grid grid-cols-2 gap-4">
+                <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-4">
                    <div>
-                     <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Localisation</p>
-                     <p className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                       <MapPin className="w-3 h-3 text-[#1557FF]" /> {decl.latitude?.toFixed(4)}, {decl.longitude?.toFixed(4)}
+                     <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest mb-1">Localisation</p>
+                     <p className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                       <MapPin className="w-3 h-3 text-[#1557FF] dark:text-blue-400" /> {decl.latitude?.toFixed(4)}, {decl.longitude?.toFixed(4)}
                      </p>
                    </div>
                    <div>
-                     <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Service Municipal</p>
-                     <p className="text-xs font-bold text-slate-700 italic">{decl.ref_service || 'Non assigné interne'}</p>
+                     <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest mb-1">Service Municipal</p>
+                     <p className="text-xs font-bold text-slate-700 dark:text-slate-300 italic">{decl.ref_service || 'Non assigné interne'}</p>
                    </div>
                 </div>
               </div>
 
               {/* Card 2: Photo if exists */}
-              <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest p-6 pb-2">Localisation & Photos</p>
+              <div className="bg-white dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm backdrop-blur-md">
+                 <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest p-6 pb-2">Localisation & Photos</p>
                  <div className="p-6 pt-0 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="h-48 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                    <div className="h-48 rounded-2xl bg-slate-100 dark:bg-slate-800/50 flex items-center justify-center text-slate-400 dark:text-slate-600">
                       <MapPin className="w-6 h-6 mr-2" />
                       <span className="text-xs font-bold italic">Carte non disponible</span>
                     </div>
                     {(decl as any).declaration_photos && (decl as any).declaration_photos.length > 0 ? (
-                      <div className="h-48 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 overflow-hidden relative group">
+                      <div className="h-48 rounded-2xl bg-slate-100 dark:bg-slate-800/50 flex items-center justify-center text-slate-400 overflow-hidden relative group">
                          <img src={(decl as any).declaration_photos[0].photo_url} className="w-full h-full object-cover" alt="Photo preuve" />
                          {decl.status === 'resolue' && (
                            <div className="absolute top-2 right-2 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm uppercase tracking-wider">Preuve Résolution</div>
                          )}
                       </div>
                     ) : (
-                      <div className="h-48 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 overflow-hidden">
+                      <div className="h-48 rounded-2xl bg-slate-100 dark:bg-slate-800/50 flex items-center justify-center text-slate-400 dark:text-slate-600 overflow-hidden">
                          <span className="text-xs font-bold italic">Aucune photo</span>
                       </div>
                     )}
@@ -272,17 +272,17 @@ const ChefDeclarationDetail: React.FC = () => {
 
               {/* Card 3: Citizen Info */}
               {decl.citizen && (
-                <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm flex items-center justify-between">
+                <div className="bg-white dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm backdrop-blur-md flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-[#1557FF]">
+                    <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[#1557FF] dark:text-blue-400">
                       <User className="w-6 h-6" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Signalement par</p>
-                      <p className="font-bold text-slate-800 text-lg">{decl.citizen.first_name} {decl.citizen.last_name}</p>
+                      <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest mb-1">Signalement par</p>
+                      <p className="font-bold text-slate-800 dark:text-slate-100 text-lg">{decl.citizen.first_name} {decl.citizen.last_name}</p>
                     </div>
                   </div>
-                  <button className="px-4 py-2 rounded-xl border border-slate-100 text-xs font-bold text-slate-600 hover:bg-slate-50">
+                  <button className="px-4 py-2 rounded-xl border border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
                     Contacter
                   </button>
                 </div>
@@ -293,51 +293,51 @@ const ChefDeclarationDetail: React.FC = () => {
             <div className="space-y-6">
               
               {decl.status === 'assignee_chef' || decl.status === 'soumis' ? (
-                <div className="bg-white rounded-3xl border border-[#1557FF] p-8 shadow-xl shadow-blue-50 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-full -mr-12 -mt-12 opacity-50" />
+                <div className="bg-white dark:bg-slate-900/40 rounded-3xl border border-[#1557FF] dark:border-blue-500/50 p-8 shadow-xl shadow-blue-50 dark:shadow-none relative overflow-hidden backdrop-blur-md">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 dark:bg-blue-500/5 rounded-full -mr-12 -mt-12 opacity-50" />
                   
-                  <h2 className="text-sm font-black uppercase tracking-widest text-[#1557FF] mb-6">Plan d'action</h2>
+                  <h2 className="text-sm font-black uppercase tracking-widest text-[#1557FF] dark:text-blue-400 mb-6">Plan d'action</h2>
                   
                   <div className="space-y-4 mb-8">
                     <div>
-                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Choisir un agent</label>
+                      <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest block mb-2">Choisir un agent</label>
                       <select
                         value={selectedAgentId}
                         onChange={e => setSelectedAgentId(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl text-sm font-bold text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20"
                       >
                         <option value="">Sélectionner un agent...</option>
                         {Array.isArray(agents) && agents.map(a => (
-                          <option key={a.id} value={a.id} disabled={!a.is_active} className={!a.is_active ? 'text-slate-300' : ''}>
+                          <option key={a.id} value={a.id} disabled={!a.is_active} className={!a.is_active ? 'text-slate-300 dark:text-slate-700' : 'text-slate-800 dark:text-slate-100'}>
                             {a.first_name} {a.last_name} 
                             {a.is_active ? ` (${a.workload} active/s - ${a.is_overloaded ? 'Charge Élevée' : 'Charge Normale'})` : ' (Indisponible)'}
                           </option>
                         ))}
                       </select>
                       {selectedAgentId && agents.find(a => a.id === selectedAgentId)?.is_overloaded && (
-                        <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                          <p className="text-[10px] font-bold text-amber-700 flex items-center gap-1 uppercase tracking-wider mb-1">
+                        <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl">
+                          <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1 uppercase tracking-wider mb-1">
                             <AlertTriangle className="w-3 h-3" /> Avertissement
                           </p>
-                          <p className="text-xs text-amber-600 font-medium">L’agent possède une charge de travail élevée. Vous pouvez confirmer ou choisir un autre agent.</p>
+                          <p className="text-xs text-amber-600 dark:text-amber-500/80 font-medium">L’agent possède une charge de travail élevée. Vous pouvez confirmer ou choisir un autre agent.</p>
                         </div>
                       )}
                       {error && (
-                        <p className="mt-2 text-[10px] font-bold text-red-600 flex items-center gap-1">
+                        <p className="mt-2 text-[10px] font-bold text-red-600 dark:text-red-400 flex items-center gap-1">
                           <XCircle className="w-3 h-3" /> {error}
                         </p>
                       )}
                       {success && (
-                        <p className="mt-2 text-[10px] font-bold text-green-600 flex items-center gap-1">
+                        <p className="mt-2 text-[10px] font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" /> {success}
                         </p>
                       )}
                       {warning && (
-                        <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                          <p className="text-[10px] font-bold text-amber-700 flex items-center gap-1 uppercase tracking-wider mb-1">
+                        <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl">
+                          <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1 uppercase tracking-wider mb-1">
                             <AlertTriangle className="w-3 h-3" /> Attention
                           </p>
-                          <p className="text-xs text-amber-600 font-medium">{warning}</p>
+                          <p className="text-xs text-amber-600 dark:text-amber-500/80 font-medium">{warning}</p>
                         </div>
                       )}
                     </div>
@@ -346,7 +346,7 @@ const ChefDeclarationDetail: React.FC = () => {
                   <button
                     onClick={handleAccept}
                     disabled={acting}
-                    className="w-full py-4 bg-[#1557FF] text-white rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-blue-100 hover:translate-y-[-2px] active:translate-y-[0] transition-all disabled:opacity-50"
+                    className="w-full py-4 bg-[#1557FF] text-white rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-blue-100 dark:shadow-none hover:translate-y-[-2px] active:translate-y-[0] transition-all disabled:opacity-50"
                   >
                     {acting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Assigner maintenant"}
                   </button>
@@ -355,25 +355,25 @@ const ChefDeclarationDetail: React.FC = () => {
                     <div className="mt-4 text-center">
                       <button 
                         onClick={() => setShowRefuse(true)}
-                        className="text-xs font-bold text-slate-400 hover:text-red-500 transition-colors"
+                        className="text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"
                       >
                         Refuser ce signalement
                       </button>
                     </div>
                   ) : (
-                    <div className="mt-4 p-4 bg-red-50 rounded-2xl border border-red-100">
-                      <label className="text-[10px] font-black uppercase text-red-400 tracking-widest block mb-2">Motif du refus (Obligatoire)</label>
+                    <div className="mt-4 p-4 bg-red-50 dark:bg-red-500/5 rounded-2xl border border-red-100 dark:border-red-500/20">
+                      <label className="text-[10px] font-black uppercase text-red-400 dark:text-red-500/60 tracking-widest block mb-2">Motif du refus (Obligatoire)</label>
                       <textarea 
                         value={refuseReason}
                         onChange={e => setRefuseReason(e.target.value)}
-                        className="w-full px-4 py-3 bg-white border border-red-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-200 mb-3"
+                        className="w-full px-4 py-3 bg-white dark:bg-slate-900/50 border border-red-100 dark:border-red-500/20 rounded-xl text-sm text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-red-200 dark:focus:ring-red-500/10 mb-3"
                         rows={3}
                         placeholder="Expliquez pourquoi..."
                       />
                       <div className="flex gap-2">
                         <button 
                           onClick={() => setShowRefuse(false)}
-                          className="flex-1 py-2 text-xs font-bold text-slate-500 hover:bg-white rounded-lg transition-colors"
+                          className="flex-1 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors"
                         >
                           Annuler
                         </button>
@@ -389,34 +389,34 @@ const ChefDeclarationDetail: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
-                   <h2 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">Agent Responsable</h2>
+                <div className="bg-white dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm backdrop-blur-md">
+                   <h2 className="text-sm font-black uppercase tracking-widest text-slate-400 dark:text-slate-600 mb-6">Agent Responsable</h2>
                    
                    {decl.assigned_agent ? (
                      <div className="flex items-center gap-4 mb-6">
-                       <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                       <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
                          <UserCheck className="w-6 h-6" />
                        </div>
                        <div>
-                         <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Assigné à</p>
-                         <p className="font-bold text-slate-800 text-lg">{decl.assigned_agent.first_name} {decl.assigned_agent.last_name}</p>
+                         <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest mb-0.5">Assigné à</p>
+                         <p className="font-bold text-slate-800 dark:text-slate-100 text-lg">{decl.assigned_agent.first_name} {decl.assigned_agent.last_name}</p>
                        </div>
                      </div>
                    ) : (
                      <div className="flex items-center gap-4 mb-6 opacity-50">
-                        <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                        <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
                           <User className="w-6 h-6" />
                         </div>
                         <div>
-                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Assigné à</p>
-                          <p className="font-bold text-slate-400">Aucun agent (Auto-traitement)</p>
+                          <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest mb-0.5">Assigné à</p>
+                          <p className="font-bold text-slate-400 dark:text-slate-500">Aucun agent (Auto-traitement)</p>
                         </div>
                      </div>
                    )}
 
-                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <p className="text-[10px] font-bold text-slate-500 flex items-center gap-2 italic">
-                        <CheckCircle2 className="w-3 h-3 text-[#1557FF]" /> 
+                   <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-2 italic">
+                        <CheckCircle2 className="w-3 h-3 text-[#1557FF] dark:text-blue-400" /> 
                         Le signalement est actuellement sous la responsabilité de l'agent.
                       </p>
                    </div>
@@ -424,28 +424,27 @@ const ChefDeclarationDetail: React.FC = () => {
               )}
 
               {/* Status Log / Timeline stub */}
-              <div className="bg-white rounded-3xl border border-slate-100 p-8 shadow-sm">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">Historique</h3>
+              <div className="bg-white dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm backdrop-blur-md">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-600 mb-6">Historique</h3>
                 <div className="space-y-6">
                    <div className="flex gap-4">
-                      <div className="w-1 h-12 bg-slate-100 rounded-full relative">
-                         <div className="absolute top-0 -left-1.5 w-4 h-4 bg-white border-2 border-[#1557FF] rounded-full" />
+                      <div className="w-1 h-12 bg-slate-100 dark:bg-slate-800 rounded-full relative">
+                         <div className="absolute top-0 -left-1.5 w-4 h-4 bg-white dark:bg-slate-900 border-2 border-[#1557FF] dark:border-blue-400 rounded-full" />
                       </div>
                       <div>
-                         <p className="text-xs font-bold text-slate-800">Création</p>
-                         <p className="text-[10px] text-slate-400">{new Date(decl.created_at).toLocaleTimeString()}</p>
+                         <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Création</p>
+                         <p className="text-[10px] text-slate-400 dark:text-slate-600">{new Date(decl.created_at).toLocaleTimeString()}</p>
                       </div>
                    </div>
                 </div>
               </div>
-
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden min-h-[600px] flex flex-col">
+           <div className="bg-white dark:bg-slate-900/40 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden min-h-[600px] flex flex-col backdrop-blur-md">
             <div className="p-8 pb-4">
-              <h2 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Centre de communication</h2>
-              <p className="text-sm text-slate-500">Échanges privés entre les services municipaux et l'agent terrain.</p>
+              <h2 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-600 mb-2">Centre de communication</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Échanges privés entre les services municipaux et l'agent terrain.</p>
             </div>
             
             {hasComments ? (
@@ -462,8 +461,8 @@ const ChefDeclarationDetail: React.FC = () => {
               <div className="flex-1 flex items-center justify-center text-slate-400 p-12">
                 <div className="text-center max-w-xs">
                   <Clock className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                  <p className="font-bold text-slate-800">Communication inactive</p>
-                  <p className="text-xs mt-2 leading-relaxed">Les canaux d'échanges s'ouvrent automatiquement dès que le signalement est validé et assigné à un agent.</p>
+                  <p className="font-bold text-slate-800 dark:text-slate-100">Communication inactive</p>
+                  <p className="text-xs mt-2 leading-relaxed dark:text-slate-500">Les canaux d'échanges s'ouvrent automatiquement dès que le signalement est validé et assigné à un agent.</p>
                 </div>
               </div>
             )}
