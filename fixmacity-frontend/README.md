@@ -1,5 +1,62 @@
 # React + TypeScript + Vite
+# FixMaCity 🏛️
 
+Citizen request management platform for the Municipality of Sousse, Tunisia.
+
+## Stack
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
+- **Backend**: Node.js + Express
+- **Database**: Supabase (PostgreSQL + PostGIS)
+- **AI**: Google Gemini API (primary) + G4F (backup)
+- **Map**: Leaflet.js + OpenStreetMap
+
+## Quick Start
+
+### 1. Prerequisites
+- Node.js 20+
+- PostgreSQL 16 + PostGIS (for local dev)
+- Python 3.10+ (only if using G4F backup)
+
+### 2. Clone & Install
+```bash
+git clone https://github.com/benhmidamolka/fixmacity.git
+cd fixmacity
+npm run install:all
+```
+
+### 3. Set up environment variables
+```bash
+cp fixmacity-backend/.env.example fixmacity-backend/.env
+# Fill in your values
+```
+
+### 4. Set up local database
+- Open pgAdmin → create database `fixmacity`
+- Open Query Tool → run `docs/local_database_setup.sql`
+
+### 5. (Optional) Start G4F backup server
+```bash
+pip install -U g4f
+python -m g4f.api
+```
+
+### 6. Start development
+```bash
+npm run dev:backend   # Terminal 1 — runs on port 5005
+npm run dev:frontend  # Terminal 2 — runs on port 5173
+```
+
+## Roles
+| Role | Access |
+|------|--------|
+| `citizen` | Submit, track, vote, rate |
+| `agent` | Receive tasks, upload proof, resolve |
+| `chef` | Accept/refuse, assign agents, dashboard |
+| `president` | Route all requests, global KPIs, publish proposals |
+
+## Documentation
+- [Platform Overview](docs/PLATFORM_DOCUMENTATION.md)
+- [G4F Backup Setup](docs/g4f/G4F_SETUP.md)
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
