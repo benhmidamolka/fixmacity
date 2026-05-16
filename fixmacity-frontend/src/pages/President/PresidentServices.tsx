@@ -583,7 +583,7 @@ const ServiceCard: React.FC<{
 
   return (
     <div onClick={onClick}
-      className={`group relative bg-white dark:bg-slate-900 rounded-3xl border overflow-hidden cursor-pointer transition-all hover:shadow-xl hover:shadow-blue-500/8 dark:hover:shadow-none hover:-translate-y-0.5 flex flex-col ${dept.is_active ? 'border-slate-200 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/50' : 'border-slate-200 dark:border-slate-800 opacity-60 hover:opacity-80'}`}>
+      className={`group relative bg-white dark:bg-slate-900/50 backdrop-blur-sm rounded-3xl border overflow-hidden cursor-pointer transition-all hover:shadow-xl hover:shadow-blue-500/8 dark:hover:shadow-none hover:-translate-y-0.5 flex flex-col ${dept.is_active ? 'border-slate-200 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/50' : 'border-slate-200 dark:border-slate-800 opacity-60 hover:opacity-80'}`}>
 
       {/* Color band top */}
       <div className="h-1.5 w-full" style={{ background: color }}/>
@@ -666,7 +666,7 @@ const ServiceCard: React.FC<{
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/60">
+      <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 transition-colors">
         <div className="flex items-center gap-1.5">
           {/* Toggle active btn */}
           <button onClick={onToggle}

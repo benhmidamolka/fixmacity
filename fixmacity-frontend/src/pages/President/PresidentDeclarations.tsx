@@ -7,7 +7,8 @@ import {
   BrainCircuit, MessageSquare, ChevronRight, CheckCircle2, 
   Filter, Calendar, Users, ArrowUpRight, BarChart3, Clock, LayoutGrid, FileText, Smartphone, Flame,
   Zap, Shield, School, Hospital, ArrowUpDown, ThumbsUp, Activity,
-  Check, RotateCcw, ArrowLeft, Share2, Building2, Mail, Trash2
+  Check, RotateCcw, ArrowLeft, Share2, Building2, Mail, Trash2,
+  ZoomIn, ZoomOut, LocateFixed
 } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -223,6 +224,34 @@ const MapRecenter = ({ lat, lng }: { lat: number; lng: number }) => {
     map.setView([lat, lng], 15, { animate: true });
   }, [lat, lng, map]);
   return null;
+}
+
+const MapController = () => {
+  const map = useMap();
+  return (
+    <div className="absolute bottom-6 right-6 z-[1000] flex flex-col gap-2">
+      <button 
+        onClick={() => map.locate({ setView: true, maxZoom: 15 })}
+        className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl shadow-lg flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-[#1557FF] dark:hover:text-[#1557FF] transition-colors border border-slate-200 dark:border-slate-700"
+      >
+        <LocateFixed className="w-5 h-5" />
+      </button>
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
+        <button 
+          onClick={() => map.zoomIn()}
+          className="w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-[#1557FF] dark:hover:text-[#1557FF] hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
+        >
+          <ZoomIn className="w-5 h-5" />
+        </button>
+        <button 
+          onClick={() => map.zoomOut()}
+          className="w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-[#1557FF] dark:hover:text-[#1557FF] hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+        >
+          <ZoomOut className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  )
 }
 
 const PresidentDeclarations: React.FC = () => {
@@ -538,7 +567,7 @@ const PresidentDeclarations: React.FC = () => {
         <div className="min-h-[600px]">
 
           {viewMode === 'list' ? (
-            <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200/60 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-slate-950 rounded-[3rem] border border-slate-200/60 dark:border-slate-800 shadow-sm overflow-hidden">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
@@ -561,12 +590,11 @@ const PresidentDeclarations: React.FC = () => {
                     </th>
                     <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">ID</th>
                     <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Titre</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Email</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white text-center">Status</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Citoyen</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Status</th>
                     <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Priorité</th>
                     <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Assigné</th>
                     <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white text-center">Votes</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Date</th>
                     <th className="pr-10 pl-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white text-right">Action</th>
                   </tr>
                 </thead>
@@ -610,19 +638,15 @@ const PresidentDeclarations: React.FC = () => {
                             </div>
                           </td>
                           <td className="px-4 py-6">
-                            <span className="text-[11px] font-medium text-slate-500">{d.citizen_email}</span>
+                            <span className="text-[11px] font-black text-slate-600 dark:text-slate-300">{d.citizen_name}</span>
                           </td>
-                          <td className="px-4 py-6 text-center">
-                            <span 
-                              className="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border"
-                              style={{ 
-                                color: STATUS_CONFIG[d.status]?.color, 
-                                backgroundColor: STATUS_CONFIG[d.status]?.bg.includes('#') ? `${STATUS_CONFIG[d.status]?.bg}` : undefined,
-                                borderColor: `${STATUS_CONFIG[d.status]?.color}30`
-                              }}
-                            >
-                              {STATUS_CONFIG[d.status]?.label}
-                            </span>
+                          <td className="px-4 py-6">
+                            <div className="flex items-center gap-2">
+                               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: STATUS_CONFIG[d.status]?.color }} />
+                               <span className="text-xs font-bold" style={{ color: STATUS_CONFIG[d.status]?.color }}>
+                                 {STATUS_CONFIG[d.status]?.label}
+                               </span>
+                            </div>
                           </td>
                           <td className="px-4 py-6">
                              <div className="flex items-center gap-2">
@@ -644,9 +668,6 @@ const PresidentDeclarations: React.FC = () => {
                           </td>
                           <td className="px-4 py-6 text-center">
                             <span className="text-[11px] font-black text-[#1557FF]">+{d.votes || 0}</span>
-                          </td>
-                          <td className="px-4 py-6">
-                            <span className="text-[11px] font-medium text-slate-400">{d.date}</span>
                           </td>
                           <td className="pr-10 pl-4 py-6 text-right">
                             <div className="flex items-center justify-end gap-2">
@@ -682,7 +703,15 @@ const PresidentDeclarations: React.FC = () => {
               </table>
             </div>
           ) : (
-            <div className="bg-white dark:bg-slate-900 rounded-[3rem] border border-slate-200/60 dark:border-slate-800 shadow-sm overflow-hidden h-[700px] relative">
+            <div className="bg-white dark:bg-slate-950 rounded-[3rem] border border-slate-200/60 dark:border-slate-800 shadow-sm overflow-hidden h-[700px] relative">
+              <style>{`
+                .dark .leaflet-layer {
+                  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+                }
+                .dark .leaflet-container {
+                  background: #0f172a !important;
+                }
+              `}</style>
               <MapContainer center={[35.8256, 10.6369]} zoom={13} className="w-full h-full z-0" zoomControl={false}>
                 <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
                 {filtered.filter(d => d.lat && d.lng).map(d => (
@@ -694,6 +723,7 @@ const PresidentDeclarations: React.FC = () => {
                   />
                 ))}
                 {selectedDecl?.lat && selectedDecl?.lng && <MapRecenter lat={selectedDecl.lat} lng={selectedDecl.lng} />}
+                <MapController />
               </MapContainer>
             </div>
           )}
@@ -731,7 +761,10 @@ const PresidentDeclarations: React.FC = () => {
                    <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest transition-all">
                      <Calendar size={14}/> Imprimer
                    </button>
-                   <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-[10px] font-black uppercase tracking-widest transition-all">
+                   <button 
+                     onClick={() => handleDelete(selectedIds)}
+                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-[10px] font-black uppercase tracking-widest transition-all"
+                   >
                      <X size={14}/> Supprimer
                    </button>
                    <div className="w-px h-8 bg-white/10 mx-2" />

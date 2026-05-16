@@ -68,10 +68,10 @@ const CreateActionModal: React.FC<Props> = ({ isOpen, onClose }) => {
       />
 
       {/* Modal Content */}
-      <div className="relative bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 fade-in duration-300 border border-white">
+      <div className="relative bg-white dark:bg-slate-950 rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 fade-in duration-300 border border-white dark:border-slate-800">
         
         {/* Header */}
-        <div className="px-8 pt-8 pb-6 border-b border-slate-50 relative overflow-hidden">
+        <div className="px-8 pt-8 pb-6 border-b border-slate-50 dark:border-slate-800 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-5">
             <PlusCircle className="w-32 h-32 text-[#1557FF]" />
           </div>
@@ -84,7 +84,7 @@ const CreateActionModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </span>
                 <span className="text-[10px] font-black text-[#1557FF] uppercase tracking-[0.2em]">Actions Rapides</span>
               </div>
-              <h2 className="text-2xl font-black text-[#0A1628] leading-tight">Que souhaitez-vous créer ?</h2>
+              <h2 className="text-2xl font-black text-[#0A1628] dark:text-white leading-tight">Que souhaitez-vous créer ?</h2>
               <p className="text-sm text-slate-400 font-medium mt-1">Sélectionnez une action pour commencer.</p>
             </div>
             <button 
@@ -102,17 +102,17 @@ const CreateActionModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <button
               key={action.id}
               onClick={() => handleAction(action.to)}
-              className="group flex items-center gap-4 p-4 rounded-3xl transition-all hover:bg-slate-50 text-left relative overflow-hidden active:scale-[0.98]"
+              className="group flex items-center gap-4 p-4 rounded-3xl transition-all hover:bg-slate-50 dark:hover:bg-slate-900/50 text-left relative overflow-hidden active:scale-[0.98]"
             >
               <div 
-                className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 duration-500"
+                className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110 duration-500 shadow-sm"
                 style={{ backgroundColor: action.bg, color: action.color }}
               >
                 <action.icon className="w-6 h-6" />
               </div>
               
               <div className="flex-1 min-w-0">
-                <h3 className="font-black text-[#0A1628] text-base leading-tight group-hover:text-[#1557FF] transition-colors">
+                <h3 className="font-black text-[#0A1628] dark:text-slate-200 text-base leading-tight group-hover:text-[#1557FF] transition-colors">
                   {action.title}
                 </h3>
                 <p className="text-xs text-slate-400 font-semibold mt-1">
@@ -120,7 +120,7 @@ const CreateActionModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </p>
               </div>
 
-              <div className="w-8 h-8 rounded-full border border-slate-100 flex items-center justify-center text-slate-300 group-hover:border-blue-100 group-hover:text-[#1557FF] transition-all">
+              <div className="w-8 h-8 rounded-full border border-slate-100 dark:border-slate-800 flex items-center justify-center text-slate-300 group-hover:border-blue-100 group-hover:text-[#1557FF] transition-all">
                 <ChevronRight className="w-4 h-4" />
               </div>
             </button>
@@ -128,7 +128,7 @@ const CreateActionModal: React.FC<Props> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="p-6 bg-slate-50/50 flex items-center justify-between">
+        <div className="p-6 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-slate-300" />
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Session Sécurisée</span>

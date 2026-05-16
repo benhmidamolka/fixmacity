@@ -21,13 +21,13 @@ const tok = () => localStorage.getItem('fmc_token') || ''
 
 // ── Colour constants ──────────────────────────────────────────────────────────
 const C = {
-  green:  '#16a34a', greenL: '#22c55e', greenBg: '#f0fdf4',
-  blue:   '#3b82f6', blueBg: '#eff6ff',
-  red:    '#ef4444', redBg:  '#fef2f2',
+  green: '#16a34a', greenL: '#22c55e', greenBg: '#f0fdf4',
+  blue: '#3b82f6', blueBg: '#eff6ff',
+  red: '#ef4444', redBg: '#fef2f2',
   orange: '#f97316', orangeBg: '#fff7ed',
-  amber:  '#f59e0b', amberBg: '#fffbeb',
+  amber: '#f59e0b', amberBg: '#fffbeb',
   purple: '#8b5cf6', purpleBg: '#f5f3ff',
-  teal:   '#14b8a6', gray: '#64748b',
+  teal: '#14b8a6', gray: '#64748b',
 }
 
 const DEPT_COLORS: Record<string, string> = {
@@ -35,21 +35,21 @@ const DEPT_COLORS: Record<string, string> = {
   EA: C.blue, ST: C.orange, BP: C.purple, SG: C.gray,
 }
 const DEPT_ICONS: Record<string, string> = {
-  VR:'🛣️', EP:'💡', EV:'🌿', PD:'🗑️', BP:'🏢', EA:'💧', ST:'🚦', SG:'💬',
+  VR: '🛣️', EP: '💡', EV: '🌿', PD: '🗑️', BP: '🏢', EA: '💧', ST: '🚦', SG: '💬',
 }
 
 function getSeverity(votes: number, priority: number) {
   if (priority >= 15 || votes > 50) return 'Très critique'
-  if (priority >= 8  || votes > 30) return 'Critique'
-  if (priority >= 4  || votes > 15) return 'Haute'
+  if (priority >= 8 || votes > 30) return 'Critique'
+  if (priority >= 4 || votes > 15) return 'Haute'
   return 'Critique'
 }
 
 const SEV_STYLE: Record<string, { color: string; bg: string }> = {
   'Très critique': { color: '#dc2626', bg: '#fef2f2' },
-  'Critique':      { color: C.red,    bg: '#fff0f0'  },
-  'Haute':         { color: C.orange, bg: C.orangeBg },
-  'Moyenne':       { color: C.amber,  bg: C.amberBg  },
+  'Critique': { color: C.red, bg: '#fff0f0' },
+  'Haute': { color: C.orange, bg: C.orangeBg },
+  'Moyenne': { color: C.amber, bg: C.amberBg },
 }
 
 // ── Zone heat palette (cool → hot) ────────────────────────────────────────────
@@ -73,8 +73,8 @@ const SevBadge = ({ label }: { label: string }) => {
 const DatePill = () => (
   <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-300 select-none">
     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="1.5"/>
-      <path d="M16 2v4M8 2v4M3 10h18" strokeWidth="1.5"/>
+      <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="1.5" />
+      <path d="M16 2v4M8 2v4M3 10h18" strokeWidth="1.5" />
     </svg>
     <span>{new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
     <ChevronDown className="w-4 h-4 text-gray-400" />
@@ -164,7 +164,7 @@ const TopCritiques = ({ data, loading }: { data: any[]; loading: boolean }) => {
   const total = data.reduce((s, d) => s + (d.votes_count || 0), 0)
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-5 shadow-sm flex flex-col h-full">
+    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-gray-100 dark:border-slate-800 p-5 shadow-sm flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <span className="text-[13px] font-bold text-gray-800 dark:text-white">1. Top 5 signalements critiques</span>
         <Link to="/president/declarations"
@@ -228,7 +228,7 @@ const ZonesCritiques = ({ zones, loading }: { zones: any[]; loading: boolean }) 
   const maxCount = zones[0]?.count || 1
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-5 shadow-sm flex flex-col h-full">
+    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-gray-100 dark:border-slate-800 p-5 shadow-sm flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <span className="text-[13px] font-bold text-gray-800 dark:text-white">2. Lieux critiques à proximité</span>
         <Link to="/president/declarations"
@@ -241,44 +241,44 @@ const ZonesCritiques = ({ zones, loading }: { zones: any[]; loading: boolean }) 
       <div className="space-y-3 flex-1">
         {loading
           ? [...Array(4)].map((_, i) => (
-              <div key={i} className="space-y-1.5">
-                <div className="flex items-center gap-2"><Sk w="w-5" h="h-5" r="rounded-lg" /><Sk w="w-28" h="h-2.5" /><div className="flex-1" /><Sk w="w-8" h="h-2.5" /></div>
-                <Sk h="h-2" r="rounded-full" />
-              </div>
-            ))
+            <div key={i} className="space-y-1.5">
+              <div className="flex items-center gap-2"><Sk w="w-5" h="h-5" r="rounded-lg" /><Sk w="w-28" h="h-2.5" /><div className="flex-1" /><Sk w="w-8" h="h-2.5" /></div>
+              <Sk h="h-2" r="rounded-full" />
+            </div>
+          ))
           : zones.slice(0, 4).map((z: any, i: number) => {
-              const pct  = Math.round((z.count / maxCount) * 100)
-              const heat = ZONE_HEAT[Math.min(i, ZONE_HEAT.length - 1)]
-              const prev = zones[i - 1]?.count
-              const trend = i === 0 ? null : prev && z.count > prev ? 'up' : 'down'
-              return (
-                <motion.div key={z.name || z.id || i}
-                  initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.07 }}>
-                  {/* Row header */}
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <div className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[9px] font-black flex-shrink-0"
-                      style={{ background: heat }}>
-                      {i + 1}
-                    </div>
-                    <span className="text-[12px] font-bold text-gray-800 dark:text-slate-200 flex-1">{z.name}</span>
-                    {trend === 'up'   && <TrendingUp   className="w-3 h-3 text-red-400 flex-shrink-0" />}
-                    {trend === 'down' && <TrendingDown className="w-3 h-3 text-green-500 flex-shrink-0" />}
-                    <span className="text-[12px] font-black text-gray-700 dark:text-white flex-shrink-0">{z.count}</span>
+            const pct = Math.round((z.count / maxCount) * 100)
+            const heat = ZONE_HEAT[Math.min(i, ZONE_HEAT.length - 1)]
+            const prev = zones[i - 1]?.count
+            const trend = i === 0 ? null : prev && z.count > prev ? 'up' : 'down'
+            return (
+              <motion.div key={z.name || z.id || i}
+                initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.07 }}>
+                {/* Row header */}
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[9px] font-black flex-shrink-0"
+                    style={{ background: heat }}>
+                    {i + 1}
                   </div>
-                  {/* Progress bar */}
-                  <div className="w-full h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full"
-                      style={{ background: heat }}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${pct}%` }}
-                      transition={{ duration: 0.8, delay: i * 0.1, ease: 'easeOut' }}
-                    />
-                  </div>
-                </motion.div>
-              )
-            })
+                  <span className="text-[12px] font-bold text-gray-800 dark:text-slate-200 flex-1">{z.name}</span>
+                  {trend === 'up' && <TrendingUp className="w-3 h-3 text-red-400 flex-shrink-0" />}
+                  {trend === 'down' && <TrendingDown className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                  <span className="text-[12px] font-black text-gray-700 dark:text-white flex-shrink-0">{z.count}</span>
+                </div>
+                {/* Progress bar */}
+                <div className="w-full h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ background: heat }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ duration: 0.8, delay: i * 0.1, ease: 'easeOut' }}
+                  />
+                </div>
+              </motion.div>
+            )
+          })
         }
       </div>
 
@@ -308,7 +308,7 @@ const ZonesCritiques = ({ zones, loading }: { zones: any[]; loading: boolean }) 
 // ─────────────────────────────────────────────────────────────────────────────
 const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; loading: boolean }) => {
   const [selDept, setSelDept] = useState('all')
-  const [open,    setOpen]    = useState(false)
+  const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -319,12 +319,12 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
 
   const totalC = trend.reduce((s, d) => s + (d.reports || 0), 0)
   const totalR = trend.reduce((s, d) => s + (d.resolved || 0), 0)
-  const rate   = totalC > 0 ? ((totalR / totalC) * 100).toFixed(1) : '0.0'
+  const rate = totalC > 0 ? ((totalR / totalC) * 100).toFixed(1) : '0.0'
   const selName = selDept === 'all' ? 'Tous les départements'
     : (depts.find(d => d.id === selDept)?.name_fr || depts.find(d => d.id === selDept)?.name || 'Tous')
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-5 shadow-sm flex flex-col h-full">
+    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-gray-100 dark:border-slate-800 p-5 shadow-sm flex flex-col h-full">
       <span className="text-[13px] font-bold text-gray-800 dark:text-white mb-3">3. Nb de tâches vs résolues par mois</span>
 
       {/* Dropdown */}
@@ -360,10 +360,10 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
       <div className="flex-1" style={{ minHeight: 170 }}>
         {loading ? (
           <div className="flex items-end gap-2 h-full pb-6">
-            {[0.55,0.8,0.65,0.9,1,0.7].map((h, i) => (
+            {[0.55, 0.8, 0.65, 0.9, 1, 0.7].map((h, i) => (
               <div key={i} className="flex-1 flex gap-1 items-end">
                 <div className="flex-1 rounded-t animate-pulse bg-green-100 dark:bg-green-500/10" style={{ height: `${h * 120}px` }} />
-                <div className="flex-1 rounded-t animate-pulse bg-blue-100 dark:bg-blue-500/10"  style={{ height: `${h * 85}px`  }} />
+                <div className="flex-1 rounded-t animate-pulse bg-blue-100 dark:bg-blue-500/10" style={{ height: `${h * 85}px` }} />
               </div>
             ))}
           </div>
@@ -374,8 +374,8 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
               <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
               <Tooltip content={<BarTip />} cursor={{ fill: '#f8fafc' }} />
-              <Bar dataKey="reports"  name="reports"  fill={C.green} radius={[3, 3, 0, 0]} maxBarSize={18} />
-              <Bar dataKey="resolved" name="resolved" fill={C.blue}  radius={[3, 3, 0, 0]} maxBarSize={18} />
+              <Bar dataKey="reports" name="reports" fill={C.green} radius={[3, 3, 0, 0]} maxBarSize={18} />
+              <Bar dataKey="resolved" name="resolved" fill={C.blue} radius={[3, 3, 0, 0]} maxBarSize={18} />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -418,7 +418,7 @@ const DeptPerf = ({ depts, loading }: { depts: any[]; loading: boolean }) => {
   const totalRate = totals.t > 0 ? ((totals.r / totals.t) * 100).toFixed(1) : '0.0'
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-5 shadow-sm">
+    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-gray-100 dark:border-slate-800 p-5 shadow-sm">
       <span className="text-[13px] font-bold text-gray-800 dark:text-white block mb-4">4. Performance par département</span>
       <table className="w-full">
         <thead>
@@ -438,10 +438,10 @@ const DeptPerf = ({ depts, loading }: { depts: any[]; loading: boolean }) => {
               <td className="py-2.5 pl-4"><Sk h="h-2.5" r="rounded-full" /></td>
             </tr>
           )) : depts.slice(0, 6).map((d, i) => {
-            const icon  = DEPT_ICONS[d.code] || '📁'
+            const icon = DEPT_ICONS[d.code] || '📁'
             const color = DEPT_COLORS[d.code] || C.green
-            const rate  = d.perf ?? (d.total > 0 ? Math.round((d.resolved / d.total) * 100) : 0)
-            const rCol  = rate >= 70 ? C.green : rate >= 55 ? C.amber : C.red
+            const rate = d.perf ?? (d.total > 0 ? Math.round((d.resolved / d.total) * 100) : 0)
+            const rCol = rate >= 70 ? C.green : rate >= 55 ? C.amber : C.red
             return (
               <motion.tr key={d.id || i}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -492,10 +492,10 @@ const DeptPerf = ({ depts, loading }: { depts: any[]; loading: boolean }) => {
 // SECTION 5 — Status des signalements (donut)
 // ─────────────────────────────────────────────────────────────────────────────
 const PIE_DATA_TEMPLATE = [
-  { name: 'Soumis',   key: 'soumise',     color: C.blue   },
-  { name: 'En cours', key: 'en_cours',    color: C.amber  },
-  { name: 'Assigné',  key: '__assigned',  color: C.purple },
-  { name: 'Résolu',   key: '__resolved',  color: C.green  },
+  { name: 'Soumis', key: 'soumise', color: C.blue },
+  { name: 'En cours', key: 'en_cours', color: C.amber },
+  { name: 'Assigné', key: '__assigned', color: C.purple },
+  { name: 'Résolu', key: '__resolved', color: C.green },
 ]
 
 const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; loading: boolean }) => {
@@ -512,7 +512,7 @@ const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; lo
   const total = pieData.reduce((s, d) => s + d.value, 0)
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-5 shadow-sm">
+    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-gray-100 dark:border-slate-800 p-5 shadow-sm">
       <span className="text-[13px] font-bold text-gray-800 dark:text-white block mb-4">5. Les statuts des signalements</span>
       <div className="flex items-center gap-6">
         <div className="relative flex-shrink-0" style={{ width: 200, height: 200 }}>
@@ -579,15 +579,15 @@ const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; lo
 // ROOT COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 const PresidentDashboard: React.FC = () => {
-  const [loading,  setLoading]  = useState(true)
-  const [error,    setError]    = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [crucials, setCrucials] = useState<any[]>([])
-  const [zones,    setZones]    = useState<any[]>([])
-  const [trend,    setTrend]    = useState<any[]>([])
-  const [depts,    setDepts]    = useState<any[]>([])
+  const [zones, setZones] = useState<any[]>([])
+  const [trend, setTrend] = useState<any[]>([])
+  const [depts, setDepts] = useState<any[]>([])
   const [deptsRaw, setDeptsRaw] = useState<any[]>([])
   const [byStatus, setByStatus] = useState<Record<string, number>>({})
-  const [stats,    setStats]    = useState({ criticalCount: 0, resolvedCount: 0, highSatisfactionCount: 0 })
+  const [stats, setStats] = useState({ criticalCount: 0, resolvedCount: 0, highSatisfactionCount: 0 })
 
   const load = useCallback(async () => {
     setLoading(true); setError(false)
@@ -637,15 +637,16 @@ const PresidentDashboard: React.FC = () => {
       })
       if (!res.ok) return
       const blob = await res.blob()
-      const url  = URL.createObjectURL(blob)
-      const a    = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
       a.href = url; a.download = `fixmacity-${new Date().toISOString().slice(0, 10)}.csv`
       a.click(); URL.revokeObjectURL(url)
-    } catch {}
+    } catch { }
   }
 
   return (
     <PresidentLayout title="">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950/50 -m-6 p-6 transition-colors duration-500 backdrop-blur-sm">
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
@@ -681,11 +682,11 @@ const PresidentDashboard: React.FC = () => {
       {/* ── KPI Row ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         {[
-          { label: 'Signalements urgents',   value: stats.criticalCount,       sub: 'Cas critiques à traiter',    icon: <AlertTriangle className="w-6 h-6"/>, bg: 'bg-red-500'   },
-          { label: 'Tâches résolues',        value: stats.resolvedCount,       sub: 'Interventions terminées',    icon: <CheckCircle2   className="w-6 h-6"/>, bg: 'bg-green-600' },
-          { label: 'Satisfaction élevée',    value: stats.highSatisfactionCount, sub: 'Notes 4–5 étoiles',        icon: <ThumbsUp       className="w-6 h-6"/>, bg: 'bg-blue-500'  },
+          { label: 'Signalements urgents', value: stats.criticalCount, sub: 'Cas critiques à traiter', icon: <AlertTriangle className="w-6 h-6" />, bg: 'bg-red-500' },
+          { label: 'Tâches résolues', value: stats.resolvedCount, sub: 'Interventions terminées', icon: <CheckCircle2 className="w-6 h-6" />, bg: 'bg-green-600' },
+          { label: 'Satisfaction élevée', value: stats.highSatisfactionCount, sub: 'Notes 4–5 étoiles', icon: <ThumbsUp className="w-6 h-6" />, bg: 'bg-blue-500' },
         ].map(s => (
-          <div key={s.label} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow group">
+          <div key={s.label} className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] p-6 border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow group">
             <div className="flex items-center gap-4">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${s.bg} group-hover:scale-110 transition-transform`}>
                 {s.icon}

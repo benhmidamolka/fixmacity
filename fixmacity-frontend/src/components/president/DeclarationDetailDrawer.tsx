@@ -143,14 +143,14 @@ const TimelineStep = ({ step, idx, currentIdx, entry }: {
       <div className="flex flex-col items-center">
         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
           done    ? 'bg-emerald-500 border-emerald-500' :
-          current ? 'bg-white border-blue-500 ring-4 ring-blue-50' :
-                    'bg-white border-slate-200'
+          current ? 'bg-white border-blue-500 ring-4 ring-blue-50 dark:bg-slate-900 dark:ring-blue-500/10' :
+                    'bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800'
         }`}>
           {done && <CheckCircle2 size={11} className="text-white" />}
           {current && <div className="w-2 h-2 rounded-full bg-blue-500" />}
         </div>
         {idx < STEPS.length - 1 && (
-          <div className={`w-0.5 flex-1 min-h-[24px] mt-1 ${done ? 'bg-emerald-300' : 'bg-slate-100'}`} />
+          <div className={`w-0.5 flex-1 min-h-[24px] mt-1 ${done ? 'bg-emerald-300' : 'bg-slate-100 dark:bg-slate-800'}`} />
         )}
       </div>
       <div className="pb-5 flex-1 min-w-0">
@@ -280,11 +280,11 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
             key="drawer"
             initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-2xl bg-white shadow-2xl flex flex-col"
+            className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-2xl bg-white dark:bg-slate-950 shadow-2xl flex flex-col border-l dark:border-slate-800"
           >
 
             {/* ── Header ──────────────────────────────────────────── */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
               <button onClick={onClose}
                 className="flex items-center gap-1.5 text-slate-400 hover:text-slate-700 transition-colors text-sm font-semibold">
                 <ArrowLeft size={16} />
@@ -308,9 +308,9 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
             {/* ── Photos bar ──────────────────────────────────────── */}
             {loading ? (
-              <div className="h-48 bg-slate-100 animate-pulse flex-shrink-0" />
+              <div className="h-48 bg-slate-100 dark:bg-slate-900 animate-pulse flex-shrink-0" />
             ) : allPhotos.length > 0 ? (
-              <div className="relative h-48 flex-shrink-0 overflow-hidden bg-slate-100">
+              <div className="relative h-48 flex-shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-900">
                 {/* Before / After two-panel */}
                 <div className="flex h-full">
                   {beforePhoto && (
@@ -367,7 +367,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
             )}
 
             {/* ── Title block ─────────────────────────────────────── */}
-            <div className="px-6 py-4 border-b border-slate-100 flex-shrink-0">
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
               {loading ? (
                 <div className="space-y-2">
                   <Skel h="h-6" w="w-3/4" />
@@ -403,7 +403,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
             </div>
 
             {/* ── Tabs ────────────────────────────────────────────── */}
-            <div className="flex border-b border-slate-100 flex-shrink-0 px-6">
+            <div className="flex border-b border-slate-100 dark:border-slate-800 flex-shrink-0 px-6">
               {[
                 { key: 'info',     label: 'Informations', icon: FileText    },
                 { key: 'history',  label: 'Progression',  icon: History     },
@@ -437,7 +437,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                 <div className="p-6 space-y-5">
 
                   {/* Description card */}
-                  <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+                  <div className="bg-blue-50 dark:bg-blue-500/10 rounded-2xl p-4 border border-blue-100 dark:border-blue-500/20">
                     <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                       <MessageSquare size={11} /> Description du citoyen
                     </p>
@@ -451,7 +451,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                   </div>
 
                   {/* Info rows */}
-                  <div className="bg-white rounded-2xl border border-slate-100 px-4 py-1">
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 px-4 py-1">
                     {loading ? (
                       <div className="space-y-4 py-3">
                         {[...Array(5)].map((_, i) => (
@@ -493,7 +493,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
                   {/* Assigned-to card — only shows when assigned */}
                   {!loading && isAssigned && detail && (
-                    <div className="bg-white rounded-2xl border border-slate-100 p-4">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                         <Building2 size={11} /> Assigné à
                       </p>
@@ -559,14 +559,14 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
                   {/* Assign panel — only for soumise */}
                   {!loading && detail?.status === 'soumise' && (
-                    <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 space-y-3">
+                    <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
                       <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
                         <Users size={11} /> Affecter au département
                       </p>
                       <select
                         value={selectedDept}
                         onChange={e => setSelectedDept(e.target.value)}
-                        className="w-full text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-200"
+                        className="w-full text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-200"
                       >
                         <option value="">Choisir un département…</option>
                         {departments.map(d => (
@@ -599,7 +599,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                       ))}
                     </div>
                   ) : (
-                    <div>
+                    <div className="dark:text-slate-200">
                       {STEPS.map((step, idx) => {
                         const entry = history.find(h =>
                           h.new_status === step.key || h.old_status === step.key
@@ -639,7 +639,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
               {tab === 'comments' && (
                 <div className="flex flex-col h-full">
                   {/* Channel selector */}
-                  <div className="px-6 pt-4 pb-2 flex gap-2 border-b border-slate-50">
+                  <div className="px-6 pt-4 pb-2 flex gap-2 border-b border-slate-50 dark:border-slate-800">
                     {(Object.keys(CHANNEL_CFG) as Array<keyof typeof CHANNEL_CFG>).map(ch => {
                       const cfg = CHANNEL_CFG[ch]
                       return (
@@ -649,7 +649,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                           className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${
                             commentChannel === ch
                               ? 'border-transparent'
-                              : 'border-slate-200 text-slate-400 bg-white hover:border-slate-300'
+                              : 'border-slate-200 dark:border-slate-700 text-slate-400 bg-white dark:bg-slate-800 hover:border-slate-300'
                           }`}
                           style={commentChannel === ch ? { color: cfg.color, background: cfg.bg, borderColor: 'transparent' } : {}}
                         >
@@ -683,8 +683,8 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                               <div className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'} flex flex-col`}>
                                 <div className={`px-3.5 py-2.5 rounded-2xl text-sm font-medium leading-relaxed ${
                                   isMe
-                                    ? 'bg-blue-600 text-white rounded-tr-sm'
-                                    : 'bg-slate-100 text-slate-800 rounded-tl-sm'
+                                    ? 'bg-blue-600 text-white rounded-tr-sm shadow-lg shadow-blue-500/20'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-sm'
                                 }`}>
                                   {c.content}
                                 </div>
@@ -704,14 +704,14 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                   </div>
 
                   {/* Comment input */}
-                  <div className="px-6 py-4 border-t border-slate-100 flex-shrink-0">
+                  <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex-shrink-0 bg-white dark:bg-slate-950">
                     <div className="flex gap-2">
                       <input
                         value={commentText}
                         onChange={e => setCommentText(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleComment()}
                         placeholder={`Message — ${CHANNEL_CFG[commentChannel]?.label}…`}
-                        className="flex-1 text-sm px-4 py-2.5 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-100 font-medium text-slate-700"
+                        className="flex-1 text-sm px-4 py-2.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20 font-medium text-slate-700 dark:text-slate-200"
                       />
                       <button
                         onClick={handleComment}
@@ -730,7 +730,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
             {/* ── Footer ──────────────────────────────────────────── */}
             {!loading && detail && detail.status !== 'soumise' && (
-              <div className="px-6 py-3 border-t border-slate-100 flex-shrink-0 bg-white">
+              <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800 flex-shrink-0 bg-white dark:bg-slate-950">
                 <div className="flex items-center justify-between text-[10px] text-slate-400">
                   <span className="font-medium">
                     Réf. service : <span className="font-black text-slate-600">{detail.ref_service || '—'}</span>

@@ -11,7 +11,7 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const tok = () => localStorage.getItem('fmc_token')
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-const PALETTE = ['#1557FF','#10B981','#F59E0B','#8B5CF6','#EF4444','#0891B2','#EC4899','#14B8A6']
+const PALETTE = ['#1557FF', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#0891B2', '#EC4899', '#14B8A6']
 const avatarColor = (name: string) => PALETTE[(name?.charCodeAt(0) ?? 0) % PALETTE.length]
 const initials = (fn: string, ln: string) => {
   const a = (fn?.trim()?.[0] ?? '').toUpperCase()
@@ -69,10 +69,10 @@ const Ring: React.FC<{ value: number; color: string; size?: number }> = ({ value
   const dash = (Math.min(value, 100) / 100) * circ
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="flex-shrink-0">
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="currentColor" strokeWidth="6" className="text-slate-100 dark:text-slate-800"/>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="6"
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" strokeWidth="6" className="text-slate-100 dark:text-slate-800" />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth="6"
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-        transform={`rotate(-90 ${size/2} ${size/2})`} style={{ transition: 'stroke-dasharray .6s ease' }}/>
+        transform={`rotate(-90 ${size / 2} ${size / 2})`} style={{ transition: 'stroke-dasharray .6s ease' }} />
       <text x="50%" y="52%" dominantBaseline="middle" textAnchor="middle"
         fontSize="11" fontStyle="italic" fontWeight="900" fill="currentColor" className="text-[#0A1628] dark:text-white">{value}%</text>
     </svg>
@@ -92,7 +92,7 @@ const Toast: React.FC<{ msg: string; type: 'ok' | 'err'; onDone: () => void }> =
   useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t) }, [onDone])
   return (
     <div className={`fixed bottom-6 right-6 z-[200] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl text-white text-sm font-bold animate-slide-up ${type === 'ok' ? 'bg-emerald-500' : 'bg-red-500'}`}>
-      {type === 'ok' ? <Check className="w-4 h-4"/> : <AlertTriangle className="w-4 h-4"/>}
+      {type === 'ok' ? <Check className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
       {msg}
     </div>
   )
@@ -101,7 +101,7 @@ const Toast: React.FC<{ msg: string; type: 'ok' | 'err'; onDone: () => void }> =
 // ─── Confirm dialog ───────────────────────────────────────────────────────────
 const Confirm: React.FC<{ msg: string; onYes: () => void; onNo: () => void }> = ({ msg, onYes, onNo }) => (
   <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onNo}/>
+    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onNo} />
     <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-slate-100 dark:border-slate-800">
       <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-6 text-center">{msg}</p>
       <div className="flex gap-3">
@@ -133,17 +133,17 @@ const UserModal: React.FC<{
 }> = ({ user, departments, onClose, onSaved }) => {
   const isEdit = !!user
   const [form, setForm] = useState<FormState>({
-    first_name:    user?.first_name    ?? '',
-    last_name:     user?.last_name     ?? '',
-    email:         user?.email         ?? '',
-    password:      '',
-    role:          (user?.role as any) ?? 'agent',
+    first_name: user?.first_name ?? '',
+    last_name: user?.last_name ?? '',
+    email: user?.email ?? '',
+    password: '',
+    role: (user?.role as any) ?? 'agent',
     department_id: user?.department_id ?? '',
     delegation_id: user?.delegation_id ?? '',
-    phone:         user?.phone         ?? '',
+    phone: user?.phone ?? '',
   })
-  const [saving, setSaving]   = useState(false)
-  const [err, setErr]         = useState('')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
   const [showPwd, setShowPwd] = useState(false)
 
   const set = (k: keyof FormState, v: string) => setForm(f => ({ ...f, [k]: v }))
@@ -193,7 +193,7 @@ const UserModal: React.FC<{
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}/>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-slate-100 dark:border-slate-800">
         {/* Header */}
         <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-6 pt-6 pb-4 flex items-center justify-between z-10">
@@ -206,21 +206,21 @@ const UserModal: React.FC<{
             </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-            <X className="w-4 h-4 text-slate-500 dark:text-slate-400"/>
+            <X className="w-4 h-4 text-slate-500 dark:text-slate-400" />
           </button>
         </div>
 
         <div className="px-6 py-5 space-y-4">
           {err && (
             <div className="bg-red-50 border border-red-200 text-red-600 text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0"/>{err}
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />{err}
             </div>
           )}
 
           {/* Role selector */}
           <Field label="Rôle">
             <div className="flex gap-2">
-              {(['agent','chef'] as const).map(r => (
+              {(['agent', 'chef'] as const).map(r => (
                 <button key={r} onClick={() => set('role', r)}
                   className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border-2 transition-all ${form.role === r ? 'border-[#1557FF] bg-blue-50 dark:bg-blue-900/20 text-[#1557FF]' : 'border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-600 hover:border-slate-300 dark:hover:border-slate-700'}`}>
                   {r === 'agent' ? '👷 Agent' : '👔 Chef'}
@@ -232,17 +232,17 @@ const UserModal: React.FC<{
           {!isEdit && (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Prénom">
-                <input className={inputCls} value={form.first_name} onChange={e => set('first_name', e.target.value)} placeholder="Karim"/>
+                <input className={inputCls} value={form.first_name} onChange={e => set('first_name', e.target.value)} placeholder="Karim" />
               </Field>
               <Field label="Nom">
-                <input className={inputCls} value={form.last_name} onChange={e => set('last_name', e.target.value)} placeholder="Mansour"/>
+                <input className={inputCls} value={form.last_name} onChange={e => set('last_name', e.target.value)} placeholder="Mansour" />
               </Field>
             </div>
           )}
 
           {!isEdit && (
             <Field label="Email">
-              <input className={inputCls} type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="karim@sousse.tn"/>
+              <input className={inputCls} type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="karim@sousse.tn" />
             </Field>
           )}
 
@@ -250,10 +250,10 @@ const UserModal: React.FC<{
             <Field label="Mot de passe">
               <div className="relative">
                 <input className={`${inputCls} pr-12`} type={showPwd ? 'text' : 'password'}
-                  value={form.password} onChange={e => set('password', e.target.value)} placeholder="Min. 8 caractères"/>
+                  value={form.password} onChange={e => set('password', e.target.value)} placeholder="Min. 8 caractères" />
                 <button type="button" onClick={() => setShowPwd(s => !s)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                  {showPwd ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </Field>
@@ -284,7 +284,7 @@ const UserModal: React.FC<{
           </button>
           <button onClick={save} disabled={saving}
             className="flex-1 py-3 rounded-xl bg-[#1557FF] text-sm font-black text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/20">
-            {saving && <Loader2 className="w-4 h-4 animate-spin"/>}
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             {isEdit ? 'Enregistrer' : 'Créer le compte'}
           </button>
         </div>
@@ -304,28 +304,28 @@ const ProfileDrawer: React.FC<{
 }> = ({ user, departments, onClose, onEdit, onToggle, onDelete }) => {
   const color = avatarColor(user.first_name)
   const fullName = `${user.first_name} ${user.last_name}`.trim() || '—'
-  const done    = user.resolved_tasks   ?? 0
-  const total   = user.total_tasks      ?? 0
-  const accepted = user.accepted_tasks  ?? 0
+  const done = user.resolved_tasks ?? 0
+  const total = user.total_tasks ?? 0
+  const accepted = user.accepted_tasks ?? 0
   const progress = pct(done, total)
   const dept = departments.find(d => d.id === user.department_id)
 
   return (
     <div className="fixed inset-0 z-[90] flex">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose}/>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       {/* Drawer slides in from right */}
       <div className="relative ml-auto h-full w-full max-w-sm bg-white dark:bg-[#0B1121] shadow-2xl flex flex-col overflow-y-auto animate-slide-in-right border-l border-slate-100 dark:border-slate-800">
         {/* Top bar */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800">
           <span className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Fiche Personnel</span>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-            <X className="w-4 h-4 text-slate-500 dark:text-slate-400"/>
+            <X className="w-4 h-4 text-slate-500 dark:text-slate-400" />
           </button>
         </div>
 
         {/* Profile card */}
         <div className="px-6 py-6 flex items-start gap-4 border-b border-slate-100 dark:border-slate-800">
-          <Avatar fn={user.first_name} ln={user.last_name} size={56}/>
+          <Avatar fn={user.first_name} ln={user.last_name} size={56} />
           <div className="flex-1 min-w-0">
             <h2 className="font-black text-[#0A1628] dark:text-white text-lg leading-tight">{fullName}</h2>
             <div className="flex flex-wrap items-center gap-2 mt-1.5">
@@ -334,7 +334,7 @@ const ProfileDrawer: React.FC<{
                 {user.role === 'chef' ? 'Chef de Service' : 'Agent Terrain'}
               </span>
               <span className={`flex items-center gap-1 text-[10px] font-bold ${user.is_active ? 'text-emerald-600 dark:text-emerald-500' : 'text-slate-400 dark:text-slate-600'}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${user.is_active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}/>
+                <span className={`w-1.5 h-1.5 rounded-full ${user.is_active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`} />
                 {user.is_active ? 'Actif' : 'Inactif'}
               </span>
             </div>
@@ -351,7 +351,7 @@ const ProfileDrawer: React.FC<{
           ].map(({ icon: Icon, label, val }) => (
             <div key={label} className="flex items-start gap-3">
               <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Icon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500"/>
+                <Icon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
               </div>
               <div>
                 <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{label}</p>
@@ -374,11 +374,11 @@ const ProfileDrawer: React.FC<{
                     <p className="text-xs font-black text-slate-700 dark:text-slate-300">Tâches</p>
                     <p className="text-2xl font-black text-[#0A1628] dark:text-white leading-none mt-0.5">{total}</p>
                   </div>
-                  <Ring value={progress} color={color}/>
+                  <Ring value={progress} color={color} />
                 </div>
                 <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
                   <div className="h-2 rounded-full transition-all duration-700"
-                    style={{ width: `${progress}%`, background: color }}/>
+                    style={{ width: `${progress}%`, background: color }} />
                 </div>
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-1.5">{done} résolues sur {total} total</p>
               </div>
@@ -402,11 +402,11 @@ const ProfileDrawer: React.FC<{
                     <p className="text-xs font-black text-slate-700 dark:text-slate-300">Tâches du service</p>
                     <p className="text-2xl font-black text-[#0A1628] dark:text-white leading-none mt-0.5">{total}</p>
                   </div>
-                  <Ring value={progress} color={color}/>
+                  <Ring value={progress} color={color} />
                 </div>
                 <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
                   <div className="h-2 rounded-full transition-all duration-700"
-                    style={{ width: `${progress}%`, background: color }}/>
+                    style={{ width: `${progress}%`, background: color }} />
                 </div>
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-1.5">{done} résolues sur {total} total</p>
               </div>
@@ -429,15 +429,15 @@ const ProfileDrawer: React.FC<{
         <div className="px-6 py-5 space-y-2.5 mt-auto">
           <button onClick={onEdit}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#1557FF] text-white text-sm font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">
-            <Pencil className="w-4 h-4"/> Modifier le compte
+            <Pencil className="w-4 h-4" /> Modifier le compte
           </button>
           <button onClick={onToggle}
             className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black border-2 transition-all ${user.is_active ? 'border-amber-300 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/10' : 'border-emerald-300 text-emerald-600 dark:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/10'}`}>
-            {user.is_active ? <><EyeOff className="w-4 h-4"/> Désactiver</> : <><Eye className="w-4 h-4"/> Réactiver</>}
+            {user.is_active ? <><EyeOff className="w-4 h-4" /> Désactiver</> : <><Eye className="w-4 h-4" /> Réactiver</>}
           </button>
           <button onClick={onDelete}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-red-200 dark:border-red-900/40 text-red-500 text-sm font-black hover:bg-red-50 dark:hover:bg-red-900/10 transition-all">
-            <Trash2 className="w-4 h-4"/> Supprimer le compte
+            <Trash2 className="w-4 h-4" /> Supprimer le compte
           </button>
         </div>
       </div>
@@ -453,8 +453,8 @@ const PersonCard: React.FC<{
   onDelete: (u: Personnel) => void
 }> = ({ user, onClick, onToggle, onDelete }) => {
   const color = avatarColor(user.first_name)
-  const done  = user.resolved_tasks ?? 0
-  const total = user.total_tasks    ?? 0
+  const done = user.resolved_tasks ?? 0
+  const total = user.total_tasks ?? 0
   const accepted = user.accepted_tasks ?? 0
   const progress = pct(done, total)
 
@@ -463,13 +463,13 @@ const PersonCard: React.FC<{
       className="group bg-white dark:bg-slate-900/50 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-xl hover:shadow-blue-500/8 transition-all cursor-pointer flex flex-col gap-4 relative overflow-hidden backdrop-blur-sm">
       {/* subtle bg deco */}
       <div className="absolute top-0 right-0 w-20 h-20 rounded-bl-[3rem] opacity-50"
-        style={{ background: `${color}0D` }}/>
+        style={{ background: `${color}0D` }} />
 
       {/* Top row */}
       <div className="flex items-start gap-3 relative">
         <div className="relative">
-          <Avatar fn={user.first_name} ln={user.last_name} size={48}/>
-          <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${user.is_active ? 'bg-emerald-500' : 'bg-slate-300'}`}/>
+          <Avatar fn={user.first_name} ln={user.last_name} size={48} />
+          <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${user.is_active ? 'bg-emerald-500' : 'bg-slate-300'}`} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-black text-[#0A1628] dark:text-white text-sm leading-tight truncate">
@@ -490,12 +490,12 @@ const PersonCard: React.FC<{
           <button onClick={onToggle}
             className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center border-2 transition-all ${user.is_active ? 'border-emerald-200 dark:border-emerald-900/40 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/10' : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
             title={user.is_active ? 'Désactiver' : 'Réactiver'}>
-            {user.is_active ? <CheckCircle className="w-4 h-4"/> : <XCircle className="w-4 h-4"/>}
+            {user.is_active ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
           </button>
           <button onClick={(e) => { e.stopPropagation(); onDelete(user); }}
             className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center border-2 border-red-100 dark:border-red-900/40 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all"
             title="Supprimer">
-            <Trash2 className="w-4 h-4"/>
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -523,7 +523,7 @@ const PersonCard: React.FC<{
           <p className="text-[10px] font-black dark:text-white" style={{ color }}>{progress}%</p>
         </div>
         <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-          <div className="h-1.5 rounded-full transition-all duration-700" style={{ width: `${progress}%`, background: color }}/>
+          <div className="h-1.5 rounded-full transition-all duration-700" style={{ width: `${progress}%`, background: color }} />
         </div>
       </div>
 
@@ -531,7 +531,7 @@ const PersonCard: React.FC<{
       <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
         <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{user.location || 'Sousse'}</p>
         <div className="flex items-center gap-1 text-[10px] font-black text-slate-400 dark:text-slate-500 group-hover:text-[#1557FF] transition-colors">
-          Voir profil <ChevronRight className="w-3.5 h-3.5"/>
+          Voir profil <ChevronRight className="w-3.5 h-3.5" />
         </div>
       </div>
     </div>
@@ -567,7 +567,7 @@ const DeptModal: React.FC<{ onClose: () => void; onSaved: (msg: string) => void 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}/>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md border border-slate-100 dark:border-slate-800 overflow-hidden">
         <div className="border-b border-slate-100 dark:border-slate-800 px-6 pt-6 pb-4 flex items-center justify-between">
           <div>
@@ -575,33 +575,33 @@ const DeptModal: React.FC<{ onClose: () => void; onSaved: (msg: string) => void 
             <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold mt-0.5">Créer un service municipal</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-            <X className="w-4 h-4 text-slate-500 dark:text-slate-400"/>
+            <X className="w-4 h-4 text-slate-500 dark:text-slate-400" />
           </button>
         </div>
         <div className="px-6 py-5 space-y-4">
-          {err && <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/20 text-red-600 dark:text-red-400 text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-2"><AlertTriangle className="w-4 h-4"/>{err}</div>}
+          {err && <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/20 text-red-600 dark:text-red-400 text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-2"><AlertTriangle className="w-4 h-4" />{err}</div>}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Nom français *">
-              <input className={inputCls} value={form.name_fr} onChange={e => set('name_fr', e.target.value)} placeholder="Voirie & Routes"/>
+              <input className={inputCls} value={form.name_fr} onChange={e => set('name_fr', e.target.value)} placeholder="Voirie & Routes" />
             </Field>
             <Field label="Code *">
-              <input className={`${inputCls} uppercase`} value={form.code} onChange={e => set('code', e.target.value.toUpperCase().slice(0,3))} placeholder="VR" maxLength={3}/>
+              <input className={`${inputCls} uppercase`} value={form.code} onChange={e => set('code', e.target.value.toUpperCase().slice(0, 3))} placeholder="VR" maxLength={3} />
             </Field>
           </div>
           <Field label="Nom arabe">
-            <input className={inputCls} value={form.name_ar} onChange={e => set('name_ar', e.target.value)} placeholder="الطرق والأرصفة" dir="rtl"/>
+            <input className={inputCls} value={form.name_ar} onChange={e => set('name_ar', e.target.value)} placeholder="الطرق والأرصفة" dir="rtl" />
           </Field>
           <Field label="Nom anglais">
-            <input className={inputCls} value={form.name_en} onChange={e => set('name_en', e.target.value)} placeholder="Roads & Pavements"/>
+            <input className={inputCls} value={form.name_en} onChange={e => set('name_en', e.target.value)} placeholder="Roads & Pavements" />
           </Field>
           <Field label="Description">
-            <textarea className={`${inputCls} resize-none h-20`} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Description du service..."/>
+            <textarea className={`${inputCls} resize-none h-20`} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Description du service..." />
           </Field>
         </div>
         <div className="border-t border-slate-100 dark:border-slate-800 px-6 py-4 flex gap-3">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Annuler</button>
           <button onClick={save} disabled={saving} className="flex-1 py-3 rounded-xl bg-[#1557FF] text-sm font-black text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20">
-            {saving && <Loader2 className="w-4 h-4 animate-spin"/>} Créer
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />} Créer
           </button>
         </div>
       </div>
@@ -611,19 +611,19 @@ const DeptModal: React.FC<{ onClose: () => void; onSaved: (msg: string) => void 
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const PresidentPersonnel: React.FC = () => {
-  const [tab,           setTab]          = useState<'agent' | 'chef'>('agent')
-  const [search,        setSearch]       = useState('')
-  const [deptFilter,    setDeptFilter]   = useState('all')
-  const [statusFilter,  setStatusFilter] = useState('all')
-  const [users,         setUsers]        = useState<Personnel[]>([])
-  const [departments,   setDepts]        = useState<Department[]>([])
-  const [loading,       setLoading]      = useState(true)
-  const [drawer,        setDrawer]       = useState<Personnel | null>(null)
-  const [editTarget,    setEditTarget]   = useState<Personnel | null>(null)
-  const [showUserModal, setUserModal]    = useState(false)
-  const [showDeptModal, setDeptModal]    = useState(false)
-  const [confirm,       setConfirm]      = useState<{ msg: string; onYes: () => void } | null>(null)
-  const [toast,         setToast]        = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
+  const [tab, setTab] = useState<'agent' | 'chef'>('agent')
+  const [search, setSearch] = useState('')
+  const [deptFilter, setDeptFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [users, setUsers] = useState<Personnel[]>([])
+  const [departments, setDepts] = useState<Department[]>([])
+  const [loading, setLoading] = useState(true)
+  const [drawer, setDrawer] = useState<Personnel | null>(null)
+  const [editTarget, setEditTarget] = useState<Personnel | null>(null)
+  const [showUserModal, setUserModal] = useState(false)
+  const [showDeptModal, setDeptModal] = useState(false)
+  const [confirm, setConfirm] = useState<{ msg: string; onYes: () => void } | null>(null)
+  const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
 
   const showToast = (msg: string, type: 'ok' | 'err' = 'ok') => setToast({ msg, type })
 
@@ -641,12 +641,12 @@ const PresidentPersonnel: React.FC = () => {
           ...u,
           department_name: u.department_name || 'N/A',
           department_code: u.department_code || '—',
-          location:        u.location || 'Sousse',
-          phone:           u.phone || '—',
-          total_tasks:     typeof u.total_tasks === 'object' ? (u.total_tasks?.total    ?? 0) : (u.total_tasks    ?? 0),
-          resolved_tasks:  typeof u.total_tasks === 'object' ? (u.total_tasks?.resolved ?? 0) : (u.resolved_tasks  ?? 0),
-          accepted_tasks:  typeof u.total_tasks === 'object' ? (u.total_tasks?.accepted ?? 0) : (u.accepted_tasks  ?? 0),
-          is_active:       u.is_active ?? true,
+          location: u.location || 'Sousse',
+          phone: u.phone || '—',
+          total_tasks: typeof u.total_tasks === 'object' ? (u.total_tasks?.total ?? 0) : (u.total_tasks ?? 0),
+          resolved_tasks: typeof u.total_tasks === 'object' ? (u.total_tasks?.resolved ?? 0) : (u.resolved_tasks ?? 0),
+          accepted_tasks: typeof u.total_tasks === 'object' ? (u.total_tasks?.accepted ?? 0) : (u.accepted_tasks ?? 0),
+          is_active: u.is_active ?? true,
         })))
       }
       if (dRes.departments) setDepts(dRes.departments)
@@ -717,10 +717,10 @@ const PresidentPersonnel: React.FC = () => {
   })
 
   // ── KPIs ──
-  const agents     = users.filter(u => u.role === 'agent')
-  const chefs      = users.filter(u => u.role === 'chef')
-  const activeA    = agents.filter(u => u.is_active).length
-  const activeC    = chefs.filter(u => u.is_active).length
+  const agents = users.filter(u => u.role === 'agent')
+  const chefs = users.filter(u => u.role === 'chef')
+  const activeA = agents.filter(u => u.is_active).length
+  const activeC = chefs.filter(u => u.is_active).length
   const totalTasks = users.reduce((s, u) => s + (u.total_tasks ?? 0), 0)
 
   const KPIS = [
@@ -739,13 +739,13 @@ const PresidentPersonnel: React.FC = () => {
         .animate-slide-in-right { animation: slide-in-right .25s cubic-bezier(.22,1,.36,1) forwards }
       `}</style>
 
-      <div className="flex-1 bg-[#f8fafc] dark:bg-[#0B1121] p-6 min-h-screen transition-colors duration-300">
+      <div className="flex-1 bg-slate-50 dark:bg-slate-950 p-6 min-h-screen transition-colors duration-300">
 
         {/* ── KPI row ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {KPIS.map(k => (
             <div key={k.label} className="group bg-white dark:bg-slate-900/50 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-lg hover:shadow-blue-500/5 transition-all relative overflow-hidden backdrop-blur-sm">
-              <div className="absolute top-0 right-0 w-20 h-20 rounded-bl-[3rem]" style={{ background: `${k.color}0A` }}/>
+              <div className="absolute top-0 right-0 w-20 h-20 rounded-bl-[3rem]" style={{ background: `${k.color}0A` }} />
               <div className="relative">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-2xl">{k.icon}</span>
@@ -763,7 +763,7 @@ const PresidentPersonnel: React.FC = () => {
         <div className="flex flex-wrap items-center gap-3 mb-6">
           {/* Tab switcher */}
           <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-1 shadow-sm">
-            {(['agent','chef'] as const).map(t => (
+            {(['agent', 'chef'] as const).map(t => (
               <button key={t} onClick={() => setTab(t)}
                 className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === t ? 'text-white shadow-md' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
                 style={tab === t ? { background: '#1557FF' } : {}}>
@@ -774,11 +774,11 @@ const PresidentPersonnel: React.FC = () => {
 
           {/* Search */}
           <div className="flex-1 min-w-[240px] flex items-center gap-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-2.5 shadow-sm focus-within:border-blue-400 dark:focus-within:border-blue-600 transition-all">
-            <Search className="w-4 h-4 text-slate-400 dark:text-slate-600 flex-shrink-0"/>
+            <Search className="w-4 h-4 text-slate-400 dark:text-slate-600 flex-shrink-0" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher par nom ou email…"
-              className="flex-1 text-xs font-bold text-slate-600 dark:text-slate-300 placeholder-slate-300 dark:placeholder-slate-700 outline-none bg-transparent"/>
-            {search && <button onClick={() => setSearch('')}><X className="w-3.5 h-3.5 text-slate-400 dark:text-slate-600"/></button>}
+              className="flex-1 text-xs font-bold text-slate-600 dark:text-slate-300 placeholder-slate-300 dark:placeholder-slate-700 outline-none bg-transparent" />
+            {search && <button onClick={() => setSearch('')}><X className="w-3.5 h-3.5 text-slate-400 dark:text-slate-600" /></button>}
           </div>
 
           {/* Dept filter */}
@@ -800,12 +800,12 @@ const PresidentPersonnel: React.FC = () => {
           <div className="flex gap-2 ml-auto">
             <button onClick={() => setDeptModal(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 border-[#1557FF] text-[#1557FF] hover:bg-blue-50 transition-all">
-              <Building2 className="w-4 h-4"/> Département
+              <Building2 className="w-4 h-4" /> Département
             </button>
             <button onClick={() => { setEditTarget(null); setUserModal(true) }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 active:scale-95 transition-all"
               style={{ background: '#1557FF' }}>
-              <Plus className="w-4 h-4"/> Nouveau compte
+              <Plus className="w-4 h-4" /> Nouveau compte
             </button>
           </div>
         </div>
@@ -820,11 +820,11 @@ const PresidentPersonnel: React.FC = () => {
         {/* ── Cards grid ── */}
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <Loader2 className="w-10 h-10 text-[#1557FF] animate-spin"/>
+            <Loader2 className="w-10 h-10 text-[#1557FF] animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-slate-400">
-            <User className="w-10 h-10 mb-3 opacity-30"/>
+            <User className="w-10 h-10 mb-3 opacity-30" />
             <p className="text-sm font-bold">Aucun résultat</p>
             <p className="text-xs mt-1">Modifiez vos filtres ou créez un nouveau compte</p>
           </div>
@@ -834,7 +834,7 @@ const PresidentPersonnel: React.FC = () => {
               <PersonCard key={u.id} user={u}
                 onClick={() => setDrawer(u)}
                 onToggle={e => toggleUser(u, e)}
-                onDelete={deleteUser}/>
+                onDelete={deleteUser} />
             ))}
           </div>
         )}
@@ -871,10 +871,10 @@ const PresidentPersonnel: React.FC = () => {
       )}
 
       {/* ── Confirm dialog ── */}
-      {confirm && <Confirm msg={confirm.msg} onYes={confirm.onYes} onNo={() => setConfirm(null)}/>}
+      {confirm && <Confirm msg={confirm.msg} onYes={confirm.onYes} onNo={() => setConfirm(null)} />}
 
       {/* ── Toast ── */}
-      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)}/>}
+      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
     </PresidentLayout>
   )
 }

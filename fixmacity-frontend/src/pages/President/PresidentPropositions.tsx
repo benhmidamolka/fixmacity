@@ -347,7 +347,7 @@ const PresCard = ({ prop, onEdit, onDelete }: { prop: Prop; onEdit: (p: Prop) =>
   const pourPct = prop.total > 0 ? Math.round((prop.votes_pour / prop.total) * 100) : 0
 
   return (
-    <div className="group bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 hover:shadow-lg hover:shadow-slate-100 dark:hover:shadow-none hover:-translate-y-0.5 transition-all duration-300 flex flex-col relative overflow-hidden">
+    <div className="group bg-white dark:bg-slate-900/40 backdrop-blur-sm rounded-3xl border border-slate-100 dark:border-slate-800/60 p-6 hover:shadow-lg hover:shadow-slate-100 dark:hover:shadow-none hover:-translate-y-0.5 transition-all duration-300 flex flex-col relative overflow-hidden">
       {/* Urgency stripe */}
       {isExpiring && <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-400 rounded-t-3xl" />}
 
@@ -422,7 +422,7 @@ const CitiCard = ({ prop, onOpen }: { prop: Prop; onOpen: (p: Prop) => void }) =
   const isPending = displayStatus === 'en_attente'
 
   return (
-    <div className="group bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 hover:shadow-lg hover:shadow-slate-100 dark:hover:shadow-none hover:-translate-y-0.5 transition-all duration-300 flex flex-col relative overflow-hidden cursor-pointer"
+    <div className="group bg-white dark:bg-slate-900/40 backdrop-blur-sm rounded-3xl border border-slate-100 dark:border-slate-800/60 p-6 hover:shadow-lg hover:shadow-slate-100 dark:hover:shadow-none hover:-translate-y-0.5 transition-all duration-300 flex flex-col relative overflow-hidden cursor-pointer"
       onClick={() => onOpen(prop)}>
 
       {isPending && (
@@ -609,7 +609,8 @@ export default function PresidentPropositions() {
 
   return (
     <PresidentLayout title="Propositions">
-      <div className="space-y-8">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 -m-6 p-6 transition-colors duration-500">
+        <div className="max-w-[1600px] mx-auto space-y-8">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -760,7 +761,8 @@ export default function PresidentPropositions() {
           prop={decisionProp}
           onDecide={decideProp}
           onClose={() => setDecisionProp(null)} />
-      )}
+        </div>
+      </div>
     </PresidentLayout>
   )
 }
