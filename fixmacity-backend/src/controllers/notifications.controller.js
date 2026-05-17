@@ -98,3 +98,12 @@ exports.getUnreadCount = async (req, res) => {
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
+exports.deleteNotification = async (req,res) => {
+await supabase.from("notifications").delete().eq("id",req.params.id).eq("user_id",req.user.id);
+res.json({success:true});
+};
+exports.bulkDeleteNotifications = async (req,res) => {
+const {ids} = req.body;
+await supabase.from("notifications").delete().in("id",ids).eq("user_id",req.user.id);
+res.json({success:true});
+};

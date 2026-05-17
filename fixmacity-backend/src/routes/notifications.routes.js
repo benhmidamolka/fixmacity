@@ -12,5 +12,6 @@ router.get('/unread-count', nc.getUnreadCount);
 router.get('/', nc.listNotifications);
 router.put('/read-all', nc.markAllAsRead);
 router.put('/:id/read', nc.markAsRead);
-
+router.delete("/:id", nc.deleteNotification);
+router.post("/bulk", nc.bulkDeleteNotifications);
 module.exports = router;

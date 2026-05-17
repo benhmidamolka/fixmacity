@@ -4,6 +4,10 @@ const crypto = require('crypto');
 const { validationResult } = require('express-validator');
 const supabase = require('../config/db');
 const { sendPasswordResetEmail } = require('../services/email.service');
+const rawToken = crypto.randomUUID();
+const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+// Insert tokenHash, send rawToken in email link
+// On verify: hash the incoming token and compare to DB
 
 const SALT_ROUNDS = 12;
 
