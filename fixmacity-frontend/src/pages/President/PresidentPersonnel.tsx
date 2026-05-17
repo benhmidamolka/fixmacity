@@ -185,7 +185,7 @@ const UserModal: React.FC<{
             <h2 className="text-lg font-black text-[#0A1628] dark:text-white">
               {isEdit ? 'Modifier le compte' : 'Nouveau compte'}
             </h2>
-            <p className="text-xs text-slate-400 dark:text-slate-550 font-semibold mt-0.5">
+            <p className="text-xs text-slate-400 dark:text-slate-400 font-semibold mt-0.5">
               {isEdit
                 ? `${user!.first_name} ${user!.last_name} · ${user!.role === 'chef' ? 'Chef de Service' : 'Agent Terrain'}`
                 : 'Agent ou Chef de Service'}
@@ -259,7 +259,7 @@ const UserModal: React.FC<{
           {/* Divider */}
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800"/>
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-650">Affectation</span>
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-500">Affectation</span>
             <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800"/>
           </div>
 
@@ -384,7 +384,7 @@ const UserCard: React.FC<{
         ].map(s => (
           <div key={s.label} className={`${s.bg} rounded-xl p-2 text-center border ${s.border}`}>
             <p className={`text-base font-black ${s.tx}`}>{s.val}</p>
-            <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-550">{s.label}</p>
+            <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">{s.label}</p>
           </div>
         ))}
       </div>
@@ -520,7 +520,7 @@ const PresidentPersonnel: React.FC = () => {
     <PresidentLayout title="Gestion du Personnel">
       <style>{`@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
 
-      <div className="flex-1 bg-[#f8fafc] dark:bg-slate-950 p-6 min-h-screen">
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
 
         {/* KPI row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -551,7 +551,7 @@ const PresidentPersonnel: React.FC = () => {
           <div className="flex bg-white/80 dark:bg-slate-900/50 backdrop-blur-md border border-slate-100 dark:border-slate-800/80 rounded-2xl p-1 shadow-sm">
             {(['agent','chef'] as const).map(t => (
               <button key={t} onClick={() => setTab(t)}
-                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab===t?'text-white shadow-md':'text-slate-400 dark:text-slate-550 hover:text-slate-600 dark:hover:text-slate-350'}`}
+                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab===t?'text-white shadow-md':'text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                 style={tab===t?{background:'#1557FF'}:{}}>
                 {t==='agent' ? '👷 Agents' : '👔 Chefs'}
               </button>

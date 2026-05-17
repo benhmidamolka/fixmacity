@@ -658,26 +658,39 @@ exports.updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = {};
-    const { role, department_id, is_active, delegation_id } = req.body;
 
-    if (role !== undefined) updates.role = role;
+    // ── Fields the president is allowed to edit ──
+    const {
+      role, department_id, is_active, delegation_id,
+      first_name, last_name, email, phone, password
+    } = req.body;
+
+    if (role          !== undefined) updates.role          = role;
     if (department_id !== undefined) updates.department_id = department_id;
     if (delegation_id !== undefined) updates.delegation_id = delegation_id;
-    if (is_active !== undefined) updates.is_active = is_active;
+    if (is_active     !== undefined) updates.is_active     = is_active;
+    if (first_name    !== undefined) updates.first_name    = first_name.trim();
+    if (last_name     !== undefined) updates.last_name     = last_name.trim();
+    if (phone         !== undefined) updates.phone         = phone.trim() || null;
 
-    if (is_active === false) {
-      // Check for missions in progress
-      const { count: activeMissions } = await supabase
-        .from('declarations')
-        .select('id', { count: 'exact', head: true })
-        .eq('agent_id', id)
-        .in('status', ['assignee_agent', 'en_cours'])
-        .is('deleted_at', null)
-        ;
-
-      if ((activeMissions || 0) > 0) {
-        return res.status(400).json({ error: 'Impossible de désactiver un agent ayant des missions en cours' });
+    // Email: check uniqueness before updating
+    if (email !== undefined) {
+      const normalized = email.toLowerCase().trim();
+      const { data: existing } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', normalized)
+        .neq('id', id)        // exclude current user
+        .maybeSingle();
+      if (existing) {
+        return res.status(409).json({ error: 'Cet email est déjà utilisé par un autre compte.' });
       }
+      updates.email = normalized;
+    }
+
+    // Password: hash before saving
+    if (password && password.trim().length >= 8) {
+      updates.password_hash = await bcrypt.hash(password.trim(), SALT_ROUNDS);
     }
 
     if (Object.keys(updates).length === 0) {
@@ -690,7 +703,7 @@ exports.updateUser = async (req, res) => {
       .from('users')
       .update(updates)
       .eq('id', id)
-      .select('id, email, first_name, last_name, role, department_id, delegation_id, is_active')
+      .select('id, email, first_name, last_name, role, department_id, delegation_id, is_active, phone')
       .single();
 
     if (error) {
@@ -698,13 +711,12 @@ exports.updateUser = async (req, res) => {
       return res.status(500).json({ error: 'Erreur lors de la mise à jour.' });
     }
 
-    return res.status(200).json({ user });
+    return res.status(200).json({ user, success: true });
   } catch (err) {
     console.error('[President] UpdateUser error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
-
 /* ──────────── DELETE /api/president/users/:id ──────────── */
 exports.deleteUser = async (req, res) => {
   try {
@@ -797,7 +809,86 @@ exports.listDepartments = async (req, res) => {
         });
       }
     }
- 
+ /* ── POST /api/president/departments ── */
+exports.createDepartment = async (req, res) => {
+  try {
+    const { name_fr, name_ar, name_en, code, description } = req.body;
+
+    if (!name_fr?.trim()) return res.status(400).json({ error: 'Nom français obligatoire.' });
+    if (!code?.trim())    return res.status(400).json({ error: 'Code obligatoire.' });
+    if (code.length > 3)  return res.status(400).json({ error: 'Code max 3 caractères.' });
+
+    const upperCode = code.toUpperCase().trim();
+
+    // Check code uniqueness
+    const { data: byCode } = await supabase.from('services').select('id').eq('code', upperCode).maybeSingle();
+    if (byCode) return res.status(409).json({ error: `Le code ${upperCode} est déjà utilisé.` });
+
+    // Check name uniqueness
+    const { data: byName } = await supabase.from('services').select('id').eq('name_fr', name_fr.trim()).maybeSingle();
+    if (byName) return res.status(409).json({ error: 'Un service avec ce nom existe déjà.' });
+
+    const { data: dept, error } = await supabase
+      .from('services')
+      .insert({
+        name_fr:     name_fr.trim(),
+        name_ar:     name_ar?.trim() || null,
+        name_en:     name_en?.trim() || null,
+        code:        upperCode,
+        description: description?.trim() || null,
+        is_active:   true,
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('[President] CreateDept error:', error.message);
+      return res.status(500).json({ error: 'Erreur lors de la création.' });
+    }
+
+    return res.status(201).json({ department: dept, success: true });
+  } catch (err) {
+    console.error('[President] CreateDept error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ── DELETE /api/president/departments/:id ── */
+exports.deleteDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Block if active declarations exist
+    const { data: active } = await supabase
+      .from('declarations')
+      .select('id')
+      .eq('department_id', id)
+      .is('deleted_at', null)
+      .not('status', 'in', '(resolue,cloturee)')
+      .limit(1)
+      .maybeSingle();
+
+    if (active) {
+      return res.status(409).json({
+        error: 'Impossible de supprimer: des déclarations actives sont encore assignées à ce service.'
+      });
+    }
+
+    // Detach users first
+    await supabase.from('users').update({ department_id: null }).eq('department_id', id);
+
+    const { error } = await supabase.from('services').delete().eq('id', id);
+    if (error) {
+      console.error('[President] DeleteDept error:', error.message);
+      return res.status(500).json({ error: 'Erreur lors de la suppression.' });
+    }
+
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error('[President] DeleteDept error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
     /* 4 ── Declaration counts per department — all status buckets in one query */
     const declRes = await supabase.pool.query(`
       SELECT
@@ -1460,25 +1551,27 @@ exports.updateDepartment = async (req, res) => {
     const { id } = req.params;
     const { name_fr, name_ar, name_en, description } = req.body;
 
-    /* Build update payload — only include provided fields */
     const updates = {};
-    if (name_fr     !== undefined) updates.name_fr     = name_fr.trim();
-    if (name_ar     !== undefined) updates.name_ar     = name_ar?.trim() || null;
-    if (name_en     !== undefined) updates.name_en     = name_en?.trim() || null;
-    if (description !== undefined) updates.description = description?.trim() || null;
+    if (name_fr      !== undefined) updates.name_fr      = name_fr.trim();
+    if (name_ar      !== undefined) updates.name_ar      = name_ar?.trim() || null;
+    if (name_en      !== undefined) updates.name_en      = name_en?.trim() || null;
+    if (description  !== undefined) updates.description  = description?.trim() || null;
 
-    if (Object.keys(updates).length === 0)
+    if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'Aucune donnée à mettre à jour.' });
+    }
 
-    /* If name_fr changed, check uniqueness */
+    // Check name uniqueness if name_fr is changing
     if (updates.name_fr) {
-      const { data: sameName } = await supabase
+      const { data: existing } = await supabase
         .from('services')
         .select('id')
         .eq('name_fr', updates.name_fr)
+        .neq('id', id)
         .maybeSingle();
-      if (sameName && sameName.id !== id)
+      if (existing) {
         return res.status(409).json({ error: 'Un service avec ce nom existe déjà.' });
+      }
     }
 
     const { data: dept, error } = await supabase
@@ -1757,4 +1850,5 @@ exports.bulkDeleteDeclarations = async (req, res) => {
     console.error('[President] bulkDelete error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
+  
 };

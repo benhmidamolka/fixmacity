@@ -4,8 +4,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+import {XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Sector
 } from 'recharts'
 import { motion, AnimatePresence } from 'framer-motion'

@@ -94,10 +94,10 @@ const Skel = ({ w = 'w-full', h = 'h-4' }: { w?: string; h?: string }) => (
 const InfoRow = ({ icon: Icon, label, children }: { icon: any; label: string; children: React.ReactNode }) => (
   <div className="flex items-start gap-3 py-3 border-b border-slate-100 dark:border-slate-800/60 last:border-0">
     <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 mt-0.5">
-      <Icon size={14} className="text-slate-550 dark:text-slate-400" />
+      <Icon size={14} className="text-slate-500 dark:text-slate-400" />
     </div>
     <div className="flex-1 min-w-0">
-      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-550 mb-0.5">{label}</p>
+      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 mb-0.5">{label}</p>
       {children}
     </div>
   </div>
@@ -157,7 +157,7 @@ const Timeline = ({ status, history }: { status: string; history: HistEntry[] })
                              'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'}`}>
                 {done    ? <CheckCircle2 size={13} className="text-white" /> :
                  current ? <Icon size={13} className="text-blue-500" /> :
-                           <Icon size={13} className="text-slate-300 dark:text-slate-655" />}
+                           <Icon size={13} className="text-slate-300 dark:text-slate-500" />}
               </div>
               {/* Content */}
               <div className="flex-1 pt-1 min-w-0">
@@ -167,7 +167,7 @@ const Timeline = ({ status, history }: { status: string; history: HistEntry[] })
                 </p>
                 {entry && (
                   <div className="mt-1 space-y-0.5">
-                    <p className="text-[10px] text-slate-550 font-medium">{fmtShort(entry.created_at)}</p>
+                    <p className="text-[10px] text-slate-500 font-medium">{fmtShort(entry.created_at)}</p>
                     {entry.user && (
                       <p className="text-[10px] text-slate-400 dark:text-slate-500">
                         par <span className="font-bold">{entry.user.first_name} {entry.user.last_name}</span>
@@ -182,7 +182,7 @@ const Timeline = ({ status, history }: { status: string; history: HistEntry[] })
                   </div>
                 )}
                 {!entry && current && (
-                  <p className="text-[10px] text-blue-450 mt-0.5 font-semibold">En cours…</p>
+                  <p className="text-[10px] text-blue-500 mt-0.5 font-semibold">En cours…</p>
                 )}
                 {!entry && !done && !current && (
                   <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-0.5">En attente</p>
@@ -216,7 +216,7 @@ const CommentsTab = ({
   }, [sorted.length])
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-900">
+    <div className="flex flex-col h-full bg-transparent">
       {/* List */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 min-h-0">
         {loading ? (
@@ -249,7 +249,7 @@ const CommentsTab = ({
                     style={{ background: roleColor }}>
                     {ROLE_LABELS[c.user?.role ?? ''] ?? c.user?.role ?? ''}
                   </span>
-                  <span className="text-[9px] text-slate-400 dark:text-slate-550">
+                  <span className="text-[9px] text-slate-400 dark:text-slate-400">
                     {new Date(c.created_at).toLocaleString('fr-FR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}
                   </span>
                 </div>
@@ -272,14 +272,14 @@ const CommentsTab = ({
             value={text} onChange={e => setText(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend() } }}
             placeholder="Ajouter un commentaire interne…"
-            className="flex-1 text-xs px-3 py-2.5 bg-slate-50 dark:bg-slate-850/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-400 focus:bg-white dark:focus:bg-slate-800 font-medium text-slate-700 dark:text-slate-205 placeholder-slate-400 dark:placeholder-slate-550 transition-all"
+            className="flex-1 text-xs px-3 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-400 focus:bg-white dark:focus:bg-slate-800 font-medium text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 transition-all"
           />
           <button onClick={onSend} disabled={sending || !text.trim()}
             className="w-9 h-9 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white flex items-center justify-center flex-shrink-0 transition-all shadow-sm">
             {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
           </button>
         </div>
-        <p className="text-[9px] text-slate-350 dark:text-slate-500 mt-1.5">Entrée pour envoyer · visible par le chef de service</p>
+        <p className="text-[9px] text-slate-400 dark:text-slate-550 mt-1.5">Entrée pour envoyer · visible par le chef de service</p>
       </div>
     </div>
   )
@@ -417,7 +417,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
       )}
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-[600px] bg-white dark:bg-slate-900 shadow-2xl flex flex-col border-l border-slate-100 dark:border-slate-800 overflow-hidden"
+      <div className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-[600px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-2xl flex flex-col border-l border-slate-100 dark:border-slate-800 overflow-hidden"
         style={{ animation: 'slideInRight .25s cubic-bezier(.22,1,.36,1)' }}>
 
         <style>{`
@@ -427,7 +427,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
         `}</style>
 
         {/* ── TOP BAR ───────────────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-850/60 bg-white dark:bg-slate-900">
+        <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800/60 bg-transparent">
           <button onClick={onClose}
             className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
             <ArrowLeft size={14} /> Fermer
@@ -454,7 +454,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
         </div>
 
         {/* ── PHOTO STRIP ───────────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 h-36 bg-slate-100 dark:bg-slate-850 overflow-hidden">
+        <div className="flex-shrink-0 h-36 bg-slate-100 dark:bg-slate-800/50 overflow-hidden">
           {loading ? (
             <div className="w-full h-full bg-slate-200 dark:bg-slate-800 animate-pulse" />
           ) : photos.length > 0 ? (
@@ -480,8 +480,8 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                   </>
                 ) : (
                   <div className="w-full h-full bg-slate-200 dark:bg-slate-800 flex flex-col items-center justify-center gap-2">
-                    <Camera size={20} className="text-slate-400 dark:text-slate-500" />
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-550 text-center px-2 leading-tight">Photo après résolution</p>
+                    <Camera size={20} className="text-slate-400 dark:text-slate-400" />
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 text-center px-2 leading-tight">Photo après résolution</p>
                   </div>
                 )}
               </div>
@@ -497,16 +497,16 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
         </div>
 
         {/* ── TITLE BLOCK ───────────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 px-6 py-4 border-b border-slate-100 dark:border-slate-850/60">
+        <div className="flex-shrink-0 px-6 py-4 border-b border-slate-100 dark:border-slate-800/60">
           {loading ? (
             <div className="space-y-2"><Skel h="h-5" w="w-3/4" /><Skel h="h-3" w="w-1/2" /></div>
           ) : detail && (
             <div className="flex items-start gap-3">
               <div className="flex-1 min-w-0">
-                <h2 className="text-lg font-black text-slate-900 dark:text-slate-105 leading-tight">{detail.title}</h2>
+                <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 leading-tight">{detail.title}</h2>
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                   {detail.category && (
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-slate-550 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                       <Tag size={9} /> {detail.category}
                     </span>
                   )}
@@ -539,7 +539,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
         </div>
 
         {/* ── TABS ──────────────────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 flex border-b border-slate-100 dark:border-slate-850/60">
+        <div className="flex-shrink-0 flex border-b border-slate-100 dark:border-slate-800/60">
           {TABS.map(t => (
             <button key={t.key} onClick={() => setTab(t.key as any)}
               className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${
@@ -563,12 +563,12 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
           {/* INFO TAB */}
           {tab === 'info' && (
-            <div className="absolute inset-0 overflow-y-auto bg-white dark:bg-slate-900">
+            <div className="absolute inset-0 overflow-y-auto bg-transparent">
               <div className="px-6 py-5 space-y-5">
 
                 {/* Description */}
-                <div className="bg-blue-50/55 dark:bg-blue-955/20 rounded-2xl p-4 border border-blue-100/60 dark:border-blue-900/30">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-405 dark:text-blue-300 mb-2">Description du citoyen</p>
+                <div className="bg-blue-50/55 dark:bg-blue-900/20 rounded-2xl p-4 border border-blue-100/60 dark:border-blue-900/30">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-500 dark:text-blue-300 mb-2">Description du citoyen</p>
                   {loading ? (
                     <div className="space-y-1.5"><Skel /><Skel w="w-3/4" /></div>
                   ) : (
@@ -580,7 +580,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
                 {/* Key info rows */}
                 {loading ? (
-                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 space-y-3">
+                  <div className="bg-white/85 dark:bg-slate-900/40 backdrop-blur-sm rounded-2xl border border-slate-100 dark:border-slate-800 p-4 space-y-3">
                     {[...Array(5)].map((_, i) => (
                       <div key={i} className="flex gap-3">
                         <Skel w="w-8" h="h-8" />
@@ -604,17 +604,17 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                         <div className="flex items-center gap-2.5 mt-0.5">
                           <Avatar name={`${detail.citizen.first_name} ${detail.citizen.last_name}`} role="citizen" />
                           <div>
-                            <p className="text-sm font-bold text-slate-800 dark:text-slate-105">{detail.citizen.first_name} {detail.citizen.last_name}</p>
-                            <p className="text-[10px] text-slate-400 dark:text-slate-550">{detail.citizen.email}</p>
-                            {detail.citizen.phone && <p className="text-[10px] text-slate-400 dark:text-slate-550">{detail.citizen.phone}</p>}
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{detail.citizen.first_name} {detail.citizen.last_name}</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-400">{detail.citizen.email}</p>
+                            {detail.citizen.phone && <p className="text-[10px] text-slate-400 dark:text-slate-400">{detail.citizen.phone}</p>}
                           </div>
                         </div>
-                      ) : <p className="text-sm text-slate-400 dark:text-slate-550 italic">Non renseigné</p>}
+                      ) : <p className="text-sm text-slate-400 dark:text-slate-400 italic">Non renseigné</p>}
                     </InfoRow>
                     <InfoRow icon={MapPin} label="Localisation">
                       <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{detail.address || detail.delegations?.name || '—'}</p>
                       {detail.latitude && detail.longitude && (
-                        <p className="text-[10px] font-mono text-slate-400 dark:text-slate-550 mt-0.5">
+                        <p className="text-[10px] font-mono text-slate-400 dark:text-slate-400 mt-0.5">
                           {detail.latitude.toFixed(5)}, {detail.longitude.toFixed(5)}
                         </p>
                       )}
@@ -625,7 +625,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                 {/* Assigned team card */}
                 {!loading && detail && ['assignee_chef','assignee_agent','en_cours','resolue','cloturee'].includes(detail.status) && (
                   <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-550 mb-3">Équipe assignée</p>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 mb-3">Équipe assignée</p>
                     <div className="space-y-3">
                       {detail.department && (
                         <div className="flex items-center gap-3">
@@ -633,7 +633,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                             {detail.department.code}
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-slate-800 dark:text-slate-205">{detail.department.name_fr || detail.department.name}</p>
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{detail.department.name_fr || detail.department.name}</p>
                             <p className="text-[10px] text-slate-400 dark:text-slate-500">Département</p>
                           </div>
                           <Building2 size={14} className="text-slate-200 dark:text-slate-700 ml-auto" />
@@ -643,7 +643,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                         <div className="flex items-center gap-3">
                           <Avatar name={`${detail.chef.first_name} ${detail.chef.last_name}`} role="chef" />
                           <div>
-                            <p className="text-xs font-bold text-slate-800 dark:text-slate-205">{detail.chef.first_name} {detail.chef.last_name}</p>
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{detail.chef.first_name} {detail.chef.last_name}</p>
                             <p className="text-[10px] text-slate-400 dark:text-slate-500">{detail.chef.email}</p>
                             <p className="text-[9px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wide">Chef de service</p>
                           </div>
@@ -653,7 +653,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                         <div className="flex items-center gap-3">
                           <Avatar name={`${detail.agent.first_name} ${detail.agent.last_name}`} role="agent" />
                           <div>
-                            <p className="text-xs font-bold text-slate-800 dark:text-slate-205">{detail.agent.first_name} {detail.agent.last_name}</p>
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{detail.agent.first_name} {detail.agent.last_name}</p>
                             <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Agent terrain</p>
                           </div>
                         </div>
@@ -664,7 +664,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
                 {/* Resolved banner */}
                 {!loading && isRes && detail?.resolved_at && (
-                  <div className="bg-emerald-50/50 dark:bg-emerald-955/20 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 p-4 flex items-center gap-3">
+                  <div className="bg-emerald-50/50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 p-4 flex items-center gap-3">
                     <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" />
                     <div>
                       <p className="text-xs font-black text-emerald-800 dark:text-emerald-300">Intervention résolue</p>
@@ -675,8 +675,8 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
                 {/* Citizen rating */}
                 {!loading && detail?.status === 'cloturee' && detail.rating && (
-                  <div className="bg-amber-50/50 dark:bg-amber-955/20 rounded-2xl border border-amber-100 dark:border-amber-900/30 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-amber-505 dark:text-amber-400 mb-2">Évaluation du citoyen</p>
+                  <div className="bg-amber-50/50 dark:bg-amber-900/20 rounded-2xl border border-amber-100 dark:border-amber-900/30 p-4">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-2">Évaluation du citoyen</p>
                     <Stars score={detail.rating.score} />
                     {detail.rating.comment && (
                       <p className="text-xs text-amber-800 dark:text-amber-300 italic mt-2 leading-relaxed">«{detail.rating.comment}»</p>
@@ -688,7 +688,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                 {!loading && detail && ['refusee_chef','refusee_agent'].includes(detail.status) && (() => {
                   const lastRefuse = history.find(h => ['refusee_chef','refusee_agent'].includes(h.new_status))
                   return lastRefuse?.raison ? (
-                    <div className="bg-red-50/50 dark:bg-red-955/20 rounded-2xl border border-red-100 dark:border-red-900/30 p-4">
+                    <div className="bg-red-50/50 dark:bg-red-900/20 rounded-2xl border border-red-100 dark:border-red-900/30 p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <AlertTriangle size={14} className="text-red-500" />
                         <p className="text-[9px] font-black uppercase tracking-widest text-red-600 dark:text-red-400">Motif du refus</p>
@@ -705,12 +705,12 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
                 {/* Assign / Reassign dropdown */}
                 {!loading && (canAss || canReas) && (
-                  <div className={`rounded-2xl border p-4 ${canAss ? 'bg-slate-50 dark:bg-slate-850/50 border-slate-200 dark:border-slate-800' : 'bg-amber-50/50 dark:bg-amber-955/20 border-amber-100 dark:border-amber-900/30'}`}>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-550 mb-3">
+                  <div className={`rounded-2xl border p-4 ${canAss ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800' : 'bg-amber-50/50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'}`}>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 mb-3">
                       {canAss ? 'Affecter au département' : 'Réassigner vers un autre département'}
                     </p>
                     <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)}
-                      className="w-full text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all">
+                      className="w-full text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all">
                       <option value="">Choisir un département…</option>
                       {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
@@ -722,7 +722,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
           {/* HISTORY TAB */}
           {tab === 'history' && (
-            <div className="absolute inset-0 overflow-y-auto bg-white dark:bg-slate-900">
+            <div className="absolute inset-0 overflow-y-auto bg-transparent">
               <div className="px-6 py-5">
                 {loading ? (
                   <div className="space-y-4">{[...Array(5)].map((_, i) => (
@@ -740,7 +740,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
           {/* COMMENTS TAB */}
           {tab === 'comments' && (
-            <div className="absolute inset-0 flex flex-col bg-white dark:bg-slate-900">
+            <div className="absolute inset-0 flex flex-col bg-transparent">
               <CommentsTab
                 comments={comments} loading={loading} sending={sending}
                 text={commentText} setText={setCommentText}
@@ -752,9 +752,9 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
         {/* ── FOOTER ACTIONS ─────────────────────────────────────────────────── */}
         {!loading && detail && (
-          <div className="flex-shrink-0 px-6 py-4 border-t border-slate-100 dark:border-slate-850/60 bg-slate-50 dark:bg-slate-950/40 flex items-center justify-between gap-4">
+          <div className="flex-shrink-0 px-6 py-4 border-t border-slate-100 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-955/40 flex items-center justify-between gap-4">
             <div>
-              <p className="font-mono text-[10px] font-bold text-slate-400 dark:text-slate-550 leading-none">
+              <p className="font-mono text-[10px] font-bold text-slate-400 dark:text-slate-400 leading-none">
                 {detail.ref_service ?? detail.ref_citoyen}
               </p>
               <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">

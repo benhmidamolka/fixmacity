@@ -510,6 +510,7 @@ export default function PresidentPropositions() {
   const [editProp, setEditProp] = useState<Prop | null>(null)
   const [deleteProp, setDeleteProp] = useState<Prop | null>(null)
   const [decisionProp, setDecisionProp] = useState<Prop | null>(null)
+  const [error, setError] = useState('')
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -555,6 +556,16 @@ export default function PresidentPropositions() {
 
   // ── CRUD president ─────────────────────────────────────────────────────────
   const saveProp = async (form: any) => {
+    // Validate dates
+    if (form.end_date && form.start_date && form.end_date <= form.start_date) {
+      setError('La date de fin doit être après la date de début.')
+      return
+    }
+    if (form.end_date && new Date(form.end_date) < new Date()) {
+      setError('La date de fin ne peut pas être dans le passé.')
+      return
+    }
+    
     if (editProp) {
       await apiFetch(`/president/propositions/${editProp.id}`, { method: 'PUT', body: JSON.stringify(form) })
       toast.success('Proposition mise à jour ✓')

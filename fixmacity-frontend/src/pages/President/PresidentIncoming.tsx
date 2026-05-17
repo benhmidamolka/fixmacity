@@ -220,32 +220,33 @@ const PresidentIncoming: React.FC = () => {
     const load = async () => {
       setLoading(true)
       try {
-        const res = await fetch(`${API}/president/declarations?status=soumise&limit=50`, {
-          headers: { Authorization: `Bearer ${token()}` }
-        })
-        if (res.ok) {
-          const data = await res.json()
-          if (data.declarations?.length) {
-            setDecls(data.declarations.map((d: any) => ({
-              id: d.id, ref_citoyen: d.ref_citoyen || '—',
-              title: d.title, category: d.category || 'Voirie',
-              priority: d.priority || 'moyenne',
-              delegation: d.delegation_name || 'Sousse Ville',
-              votes: d.votes_count || 0,
-              address: d.address || '—',
-              citizen: d.citizen_name || 'Citoyen',
-              submitted_at: d.created_at,
-              lat: d.latitude ? parseFloat(d.latitude) : null,
-              lng: d.longitude ? parseFloat(d.longitude) : null,
-              image: d.image_url || null
-            })))
-          }
+       const res = await fetch(`${API}/president/declarations?status=soumise&limit=50`, {
+        headers: { Authorization: `Bearer ${token()}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.declarations?.length > 0) {
+          setDecls(data.declarations.map((d: any) => ({
+            id:           d.id,
+            ref_citoyen:  d.ref_citoyen,
+            title:        d.title,
+            category:     d.category ?? 'Général',
+            priority:     d.priority ?? 'moyenne',
+            delegation:   d.delegation_name ?? 'Sousse',
+            votes:        d.votes_count ?? 0,
+            address:      d.address ?? '—',
+            citizen:      d.citizen ? `${d.citizen.first_name} ${d.citizen.last_name}` : 'Citoyen',
+            submitted_at: d.created_at,
+            lat:          d.latitude ?? 35.8270,
+            lng:          d.longitude ?? 10.6369,
+            image:        d.image_url ?? null,
+          })))
         }
-      } catch (_) { }
-      setLoading(false)
-    }
-    load()
-  }, [])
+      }
+    } catch (_) {}
+  }
+  load()
+}, [])
 
   const onAssigned = (id: string) => setAssigned(prev => new Set([...prev, id]))
 

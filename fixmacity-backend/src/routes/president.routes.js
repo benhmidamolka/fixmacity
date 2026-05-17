@@ -49,16 +49,9 @@ router.delete('/users/:id', ctrl.deleteUser);
 
 // ── Departments ──
 router.get('/departments', ctrl.listDepartments);
+router.post('/departments', ctrl.createDepartment);
+router.delete('/departments/:id', ctrl.deleteDepartment);
 router.patch('/departments/:id/status', ctrl.updateDepartmentStatus);
-// POST /api/president/departments  — create new department
-router.post('/departments', [
-  body('name_fr').notEmpty().trim().withMessage('Nom français obligatoire.'),
-  body('code').notEmpty().trim().isLength({ max: 3 }).withMessage('Code obligatoire (max 3 caractères).'),
-  body('name_ar').optional().trim(),
-  body('name_en').optional().trim(),
-  body('description').optional().trim(),
-], ctrl.createDepartment);
- 
 // PATCH /api/president/departments/:id  — edit names/description
 router.patch('/departments/:id', [
   body('name_fr').optional().trim(),
@@ -66,9 +59,6 @@ router.patch('/departments/:id', [
   body('name_en').optional().trim(),
   body('description').optional().trim(),
 ], ctrl.updateDepartment);
- 
-// DELETE /api/president/departments/:id  — remove department
-router.delete('/departments/:id', ctrl.deleteDepartment);
 
 // ── Propositions ──
 router.get('/propositions', ctrl.listPropositions);

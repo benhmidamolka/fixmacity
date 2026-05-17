@@ -157,12 +157,7 @@ const PresidentSettings: React.FC = () => {
                 <div className="relative">
                   <div className="w-28 h-28 rounded-[2.5rem] flex items-center justify-center text-white text-4xl font-black shadow-2xl transition-all group-hover/avatar:scale-105 group-hover/avatar:rotate-3"
                     style={{ background: 'linear-gradient(135deg, #0A1628 0%, #1557FF 100%)' }}>
-                    {(() => {
-                      const a = (profile.first_name || '').trim()
-                      const b = (profile.last_name || '').trim()
-                      const s = [a[0], b[0]].filter(Boolean).join('')
-                      return s || '—'
-                    })()}
+                    {profile.first_name?.[0] ?? '?'}{profile.last_name?.[0] ?? ''}
                   </div>
                   <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center text-[#1557FF] shadow-xl">
                     <Shield className="w-5 h-5" />
