@@ -1,7 +1,7 @@
 // src/pages/president/PresidentDeclarations.tsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import PresidentLayout from '../../layouts/PresidentLayout'
-import DeclarationDetailDrawer from '../../components/president/DeclarationDetailDrawer'
+import DeclarationDetailDrawer from './Declarationdetaildrawer'
 import { 
   Search, MapPin, X, AlertTriangle, ChevronDown, List, Map, 
   BrainCircuit, MessageSquare, ChevronRight, CheckCircle2, 
@@ -24,25 +24,55 @@ function cn(...inputs: ClassValue[]) {
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const token = () => localStorage.getItem('fmc_token')
 
-const STATUS_CONFIG: Record<string, { label:string; color:string; bg:string; dot:string }> = {
-  soumise:        { label:'Soumise',               color:'#F59E0B', bg:'#FFFBEB', dot:'#F59E0B' },
-  assignee_chef:  { label:'Assignée chef',        color:'#FF6B6B', bg:'#FFF5F5', dot:'#FF6B6B' },
-  assignee_agent: { label:'Assignée agent',       color:'#4ECDC4', bg:'#F0FFFE', dot:'#4ECDC4' },
-  en_cours:       { label:'En cours',              color:'#1557FF', bg:'#EEF2FF', dot:'#1557FF' },
-  resolue:        { label:'Resolue',               color:'#10B981', bg:'#F0FDF4', dot:'#10B981' },
-  cloturee:       { label:'Clôturee',              color:'#845EC2', bg:'#F3EEFF', dot:'#845EC2' },
-  refusee_chef:   { label:'Refusee chef',          color:'#EF4444', bg:'#FEF2F2', dot:'#EF4444' },
-  refusee_agent:  { label:'Refusee agent',         color:'#D65DB1', bg:'#FFF0F9', dot:'#D65DB1' },
+import { STATUS_CONFIG, PRIORITY_CONFIG } from '../../constants/declarations'
+
+// ── Computed Priority ─────────────────────────────────────────────────────────
+// Derives a 3-level priority (critical / normal / low) from:
+//   • sensitive_type  — hospital (+3) or school (+2)
+//   • category        — dangerous categories (+2)
+//   • votes           — community signal (+1 per threshold)
+//   • legacy priority — haute/urgent (+2), basse/low (−1)
+
+const DANGEROUS_CATEGORIES = new Set([
+  'Voirie', 'Réseaux', 'Éclairage public', 'Signalisation'
+])
+
+export function computePriority(d: {
+  sensitive_type?: string
+  category?: string
+  votes?: number
+  priority?: string
+}): 'critical' | 'normal' | 'low' {
+  let score = 0
+  // Zone sensitivity
+  if (d.sensitive_type === 'hospital') score += 3
+  else if (d.sensitive_type === 'school') score += 2
+  // Category dangerousness
+  if (DANGEROUS_CATEGORIES.has(d.category || '')) score += 2
+  // Votes — community amplification
+  const v = d.votes || 0
+  if (v >= 20) score += 3
+  else if (v >= 10) score += 2
+  else if (v >= 3)  score += 1
+  // Legacy priority field
+  if (['haute', 'high', 'urgent', 'urgente'].includes(d.priority || '')) score += 2
+  else if (['basse', 'low'].includes(d.priority || '')) score -= 1
+
+  if (score >= 5) return 'critical'
+  if (score >= 2) return 'normal'
+  return 'low'
 }
 
-const PRIORITY_CONFIG: Record<string, { label:string; color:string; bg:string }> = {
-  haute:   { label:'Urgente',  color:'#EF4444', bg:'#FEF2F2' },
-  moyenne: { label:'Moyenne',  color:'#F59E0B', bg:'#FFFBEB' },
-  basse:   { label:'Normale',  color:'#10B981', bg:'#F0FDF4' },
+const COMPUTED_PRIORITY_CONFIG: Record<'critical' | 'normal' | 'low', {
+  label: string; color: string; bg: string; border: string; icon: string
+}> = {
+  critical: { label: 'Critique',   color: '#dc2626', bg: '#fee2e2', border: '#fca5a5', icon: '🔴' },
+  normal:   { label: 'Normal',     color: '#d97706', bg: '#fef3c7', border: '#fcd34d', icon: '🟡' },
+  low:      { label: 'Faible',     color: '#16a34a', bg: '#dcfce7', border: '#86efac', icon: '🟢' },
 }
 
-const CATEGORIES = ['Voirie', 'Éclairage public', 'Propreté', 'Espaces Verts', 'Réseaux', 'Signalisation', 'Administratif', 'Suggestions']
 const ARRONDISSEMENTS = ['Sousse Riadh', 'Sousse Nord', 'Sousse Sud', 'Sousse Médina']
+const CATEGORIES = ['Voirie', 'Éclairage public', 'Propreté', 'Espaces Verts', 'Réseaux', 'Signalisation', 'Administratif', 'Suggestions']
 
 // Faceted Filter Component
 interface FacetedFilterProps {
@@ -170,13 +200,14 @@ const FacetedFilter: React.FC<FacetedFilterProps> = ({ title, options, selected,
 interface Decl {
   id:string; ref_citoyen:string; ref_service:string|null
   title:string; category:string; status:string; priority:string
+  computed_priority: 'critical' | 'normal' | 'low'
   arrondissement:string; address?:string; agent:string|null; votes:number; date:string
   lat: number | null; lng: number | null; image?: string;
   resolution_image?: string;
   description: string;
   rejection_reason?: string; citizen_rating?: number; citizen_comment?: string;
   created_at: string;
-  is_sensitive?: boolean; 
+  is_sensitive?: boolean;
   sensitive_type?: 'school' | 'hospital' | 'none';
   citizen_name?: string;
   citizen_email?: string;
@@ -268,7 +299,7 @@ const PresidentDeclarations: React.FC = () => {
   const [viewMode, setViewMode] = useState<'map' | 'list'>('list')
   const [selectedDecl, setSelectedDecl] = useState<Decl|null>(null)
   const [showComments, setShowComments] = useState(false)
-  const [mode, setMode] = useState<'all' | 'soumise' | 'en_cours' | 'urgent' | 'resolue'>('all')
+  const [mode, setMode] = useState<'all' | 'soumise' | 'refusee' | 'urgent'>('all')
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
@@ -337,7 +368,13 @@ const PresidentDeclarations: React.FC = () => {
             sensitive_type: d.sensitive_type || 'none',
             citizen_name: citizenName || `Réf. ${d.ref_citoyen || String(d.id).slice(0, 8)}`,
             citizen_email: cit?.email || '—',
-            citizen_avatar: undefined
+            citizen_avatar: undefined,
+            computed_priority: computePriority({
+              sensitive_type: d.sensitive_type || 'none',
+              category: d.category || 'Voirie',
+              votes: d.votes_count || 0,
+              priority: d.priority || 'moyenne',
+            }),
           }
         }))
       }
@@ -367,31 +404,36 @@ const PresidentDeclarations: React.FC = () => {
     let result = decls.filter(d => {
       if (search && !d.title.toLowerCase().includes(search.toLowerCase()) && !d.ref_citoyen.toLowerCase().includes(search.toLowerCase())) return false
       if (categoryF.length > 0 && !categoryF.includes(d.category)) return false
-      if (priorityF.length > 0 && !priorityF.includes(d.priority)) return false
+      if (priorityF.length > 0 && !priorityF.includes(d.computed_priority)) return false
       if (arrondissementF.length > 0 && !arrondissementF.includes(d.arrondissement)) return false
       if (statusF.length > 0 && !statusF.includes(d.status)) return false
 
       if (mode === 'soumise') {
         if (d.status !== 'soumise') return false
-      } else if (mode === 'en_cours') {
-        if (!['assignee_chef', 'assignee_agent', 'en_cours'].includes(d.status)) return false
+      } else if (mode === 'refusee') {
+        if (!['refusee', 'refusee_chef', 'refusee_agent'].includes(d.status)) return false
       } else if (mode === 'urgent') {
-        if (d.priority !== 'haute') return false
-      } else if (mode === 'resolue') {
-        if (!['resolue', 'cloturee'].includes(d.status)) return false
+        if (d.computed_priority !== 'critical') return false
       }
       return true
     })
 
-    // Sorting
+    // Sorting — critical first, then by votes
     result.sort((a, b) => {
+      const PRANK: Record<string, number> = { critical: 3, normal: 2, low: 1 }
+      if (sortBy === 'priority') {
+        const diff = (PRANK[b.computed_priority] || 0) - (PRANK[a.computed_priority] || 0)
+        if (diff !== 0) return diff
+      }
+      if (sortBy === 'votes') {
+        if (b.votes !== a.votes) return b.votes - a.votes
+      }
       if (sortBy === 'sensitive') {
         const score = { 'hospital': 2, 'school': 1, 'none': 0 };
         const sA = score[a.sensitive_type || 'none'];
         const sB = score[b.sensitive_type || 'none'];
         if (sA !== sB) return sB - sA;
       }
-      
       const dateA = new Date(a.created_at).getTime()
       const dateB = new Date(b.created_at).getTime()
       return dateOrder === 'newest' ? dateB - dateA : dateA - dateB;
@@ -431,9 +473,9 @@ const PresidentDeclarations: React.FC = () => {
             <div className="flex bg-slate-50/50 dark:bg-slate-800/50 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 rounded-2xl p-1 shadow-sm">
               {[
                 { id: 'all', label: 'Toutes', icon: LayoutGrid },
-                { id: 'urgent', label: 'Critiques', icon: Flame },
-                { id: 'en_cours', label: 'Assignées', icon: Users },
-                { id: 'resolue', label: 'Résolues', icon: CheckCircle2 }
+                { id: 'soumise', label: 'Nouveau', icon: Clock },
+                { id: 'refusee', label: 'Refusé', icon: AlertTriangle },
+                { id: 'urgent', label: 'Critique', icon: Flame }
               ].map((tab) => (
                 <button 
                   key={tab.id}
@@ -469,7 +511,9 @@ const PresidentDeclarations: React.FC = () => {
           <FacetedFilter 
             title={statusF.length === 0 ? "Tous les statuts" : "Statut"}
             icon={Activity}
-            options={Object.entries(STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label, icon: Clock }))}
+            options={Object.entries(STATUS_CONFIG)
+              .filter(([k]) => ['soumise', 'assignee_chef', 'refusee_chef', 'resolue'].includes(k))
+              .map(([k, v]) => ({ value: k, label: v.label, icon: Clock }))}
             selected={statusF}
             onChange={setStatusF}
           />
@@ -482,10 +526,14 @@ const PresidentDeclarations: React.FC = () => {
             onChange={setCategoryF}
           />
 
-          <FacetedFilter 
-            title="Priorité"
+          <FacetedFilter
+            title={priorityF.length === 0 ? 'Priorité' : 'Priorité'}
             icon={Zap}
-            options={Object.entries(PRIORITY_CONFIG).map(([k, v]) => ({ value: k, label: v.label, icon: AlertTriangle }))}
+            options={[
+              { value: 'critical', label: '🔴 Critique',  icon: AlertTriangle },
+              { value: 'normal',   label: '🟡 Normal',    icon: Activity },
+              { value: 'low',      label: '🟢 Faible',    icon: CheckCircle2 },
+            ]}
             selected={priorityF}
             onChange={setPriorityF}
           />
@@ -649,10 +697,32 @@ const PresidentDeclarations: React.FC = () => {
                             </div>
                           </td>
                           <td className="px-4 py-6">
-                             <div className="flex items-center gap-2">
-                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: PRIORITY_CONFIG[d.priority]?.color }} />
-                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{PRIORITY_CONFIG[d.priority]?.label}</span>
-                             </div>
+                            {(() => {
+                              const cp = COMPUTED_PRIORITY_CONFIG[d.computed_priority]
+                              const zoneLabel = d.sensitive_type === 'hospital' ? '🏥 Hôpital'
+                                : d.sensitive_type === 'school' ? '🏫 École' : null
+                              return (
+                                <div className="flex flex-col gap-1">
+                                  <span
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black border"
+                                    style={{ color: cp.color, background: cp.bg, borderColor: cp.border }}
+                                  >
+                                    <span className="text-[8px]">{cp.icon}</span>
+                                    {cp.label}
+                                  </span>
+                                  {zoneLabel && (
+                                    <span className="text-[8px] font-bold text-indigo-500 dark:text-indigo-400 flex items-center gap-0.5">
+                                      {zoneLabel}
+                                    </span>
+                                  )}
+                                  {d.votes >= 3 && (
+                                    <span className="text-[8px] text-slate-400 font-bold flex items-center gap-0.5">
+                                      +{d.votes} votes
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            })()}
                           </td>
                           <td className="px-4 py-6">
                              {d.agent ? (

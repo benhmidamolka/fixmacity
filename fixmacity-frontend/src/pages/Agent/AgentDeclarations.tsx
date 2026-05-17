@@ -23,24 +23,7 @@ interface Mission {
   ref_citoyen?: string
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  assignee_agent: { label: 'À accepter',      color: '#6366F1', bg: '#EEF2FF', dot: '#6366F1' },
-  en_cours:       { label: 'En intervention', color: '#F59E0B', bg: '#FFFBEB', dot: '#F59E0B' },
-  resolue:        { label: 'Résolue',         color: '#10B981', bg: '#ECFDF5', dot: '#10B981' },
-  refusee_agent:  { label: 'Refusée',         color: '#EF4444', bg: '#FEF2F2', dot: '#EF4444' },
-  cloturee:       { label: 'Clôturée',        color: '#64748B', bg: '#F8FAFC', dot: '#64748B' },
-}
-
-const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
-  basse:   { label: 'Basse',   color: '#64748B' },
-  moyenne: { label: 'Normale', color: '#3B82F6' },
-  haute:   { label: 'Haute',   color: '#F97316' },
-  urgent:  { label: 'URGENT',  color: '#EF4444' },
-  // API may return English keys
-  low:     { label: 'Basse',   color: '#64748B' },
-  medium:  { label: 'Normale', color: '#3B82F6' },
-  high:    { label: 'Haute',   color: '#F97316' },
-}
+import { STATUS_CONFIG, PRIORITY_CONFIG } from '../../constants/declarations'
 
 const relTime = (d: string) => {
   const mins = Math.floor((Date.now() - new Date(d).getTime()) / 60000)

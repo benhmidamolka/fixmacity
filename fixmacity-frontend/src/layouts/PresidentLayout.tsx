@@ -34,6 +34,21 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
   const [isActionModalOpen, setIsActionModalOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState<number | null>(null)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fmc_theme') === 'dark')
+  const [isNotifOpen, setIsNotifOpen] = useState(false)
+  const [notifTab, setNotifTab] = useState<'Nouvelles' | 'Commentaires' | 'Refusées'>('Nouvelles')
+  const [recentNotifs, setRecentNotifs] = useState<any[]>([])
+  const [loadingNotifs, setLoadingNotifs] = useState(false)
+
+  const timeAgo = (iso: string) => {
+    const diff = Date.now() - new Date(iso).getTime()
+    const m = Math.floor(diff / 60000)
+    const h = Math.floor(diff / 3600000)
+    const d = Math.floor(diff / 86400000)
+    if (m < 1)  return "Just now"
+    if (m < 60) return `${m}m ago`
+    if (h < 24) return `${h}h ago`
+    return `${d}d ago`
+  }
 
   useEffect(() => {
     if (darkMode) {
@@ -62,6 +77,24 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
     }
     fetchUnread()
   }, [])
+
+  useEffect(() => {
+    if (!isNotifOpen) return
+    const fetchRecent = async () => {
+      setLoadingNotifs(true)
+      try {
+        const res = await fetch(`${API_URL}/notifications?limit=10`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setRecentNotifs(data.notifications || [])
+        }
+      } catch (_) {}
+      finally { setLoadingNotifs(false) }
+    }
+    fetchRecent()
+  }, [isNotifOpen])
 
   const user = JSON.parse(localStorage.getItem('fmc_user') || '{}')
   const initials = `${user.first_name?.[0] ?? 'M'}${user.last_name?.[0] ?? 'A'}`
@@ -101,7 +134,7 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
         {!isCollapsed && (
           <div className="min-w-0">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight leading-none mb-0.5">Good Day ✨</p>
-            <p className={`text-sm font-black ${darkMode ? 'text-white' : '#0A1628'} truncate`}>{user.first_name} {user.last_name[0]}.</p>
+            <p className={`text-sm font-black ${darkMode ? 'text-white' : 'text-[#0A1628]'} truncate`}>{user.first_name} {user.last_name[0]}.</p>
           </div>
         )}
         {!isCollapsed && (
@@ -185,7 +218,7 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
   const mainMargin  = isCollapsed ? 'md:ml-20' : 'md:ml-[260px]'
 
   return (
-    <div className={`min-h-screen flex transition-colors duration-500 ${darkMode ? 'dark bg-slate-950' : 'bg-[#F9FAFB]'}`}>
+    <div className={`min-h-screen flex transition-colors duration-500 ${darkMode ? 'bg-slate-950 text-slate-200' : 'bg-[#F9FAFB] text-[#0A1628]'}`}>
 
       {/* Sidebar desktop */}
       <aside className={`hidden md:flex flex-col ${sidebarWidth} flex-shrink-0 fixed top-0 left-0 bottom-0 ${darkMode ? 'bg-slate-900/60 border-slate-800/50 shadow-2xl shadow-black/20' : 'bg-white border-slate-100 shadow-sm'} border-r transition-all duration-300 z-40 backdrop-blur-2xl`}>
@@ -232,17 +265,110 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setDarkMode(!darkMode)}
-                className={`w-11 h-11 rounded-full border flex items-center justify-center transition-all shadow-sm ${
-                  darkMode ? 'bg-slate-800 border-slate-700 text-yellow-400 hover:bg-slate-700' : 'bg-white border-slate-100 text-slate-400 hover:text-blue-500 hover:border-blue-100'
+                className={`w-11 h-11 rounded-full border flex items-center justify-center transition-all duration-500 shadow-sm ${
+                  darkMode 
+                    ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-yellow-400 hover:bg-slate-700' 
+                    : 'bg-white border-slate-100 text-slate-400 hover:text-blue-500 hover:border-blue-100'
                 }`}>
-                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                <div className={`transition-transform duration-500 ${darkMode ? 'rotate-[360deg]' : 'rotate-0'}`}>
+                  {darkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                </div>
               </button>
-              <button className={`relative w-11 h-11 rounded-full border flex items-center justify-center transition-all shadow-sm ${
-                darkMode ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white' : 'bg-white border-slate-100 text-slate-400 hover:text-[#1557FF] hover:border-blue-100'
-              }`}>
-                <Bell className="w-5 h-5" />
-                {(unreadCount ?? 0) > 0 && <span className="absolute top-3.5 right-3.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />}
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setIsNotifOpen(!isNotifOpen)}
+                  className={`relative w-11 h-11 rounded-full border flex items-center justify-center transition-all shadow-sm ${
+                    darkMode ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white' : 'bg-white border-slate-100 text-slate-400 hover:text-[#1557FF] hover:border-blue-100'
+                  } ${isNotifOpen ? 'ring-2 ring-blue-500/20' : ''}`}>
+                  <Bell className="w-5 h-5" />
+                  {(unreadCount ?? 0) > 0 && <span className="absolute top-3.5 right-3.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />}
+                </button>
+
+                {/* ── Notification Popover ────────────────────────────── */}
+                {isNotifOpen && (
+                  <>
+                    <div className="fixed inset-0 z-[60]" onClick={() => setIsNotifOpen(false)} />
+                    <div className={`absolute top-full right-0 mt-3 w-80 sm:w-96 rounded-[2rem] border shadow-2xl z-[70] flex flex-col overflow-hidden animate-in fade-in zoom-in slide-in-from-top-4 duration-200 ${
+                      darkMode ? 'bg-slate-900/90 border-slate-800 backdrop-blur-2xl' : 'bg-white/95 border-slate-100 backdrop-blur-xl'
+                    }`}>
+                      <div className="p-6">
+                        <h3 className={`text-sm font-black ${darkMode ? 'text-white' : 'text-[#0A1628]'}`}>Notifications</h3>
+                      </div>
+
+                      {/* Tabs */}
+                      <div className="px-6 mb-4">
+                        <div className={`flex items-center gap-1 p-1 rounded-2xl ${darkMode ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+                          {(['Nouvelles', 'Commentaires', 'Refusées'] as const).map(t => (
+                            <button key={t} onClick={() => setNotifTab(t)}
+                              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
+                                notifTab === t
+                                  ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
+                                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                              }`}>
+                              {t}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                              {/* Notif List */}
+                      <div className="max-h-[400px] overflow-y-auto px-6 pb-6 space-y-4 no-scrollbar">
+                        {loadingNotifs ? (
+                          <div className="py-20 flex flex-col items-center justify-center gap-3">
+                            <div className="w-8 h-8 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin" />
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Analyse en cours...</p>
+                          </div>
+                        ) : (() => {
+                            const filtered = recentNotifs.filter(n => {
+                              if (notifTab === 'Nouvelles')    return n.type === 'NEW_DECLARATION';
+                              if (notifTab === 'Commentaires') return n.type === 'INTERNAL_COMMENT';
+                              if (notifTab === 'Refusées')     return n.type === 'DECLARATION_REJECTED';
+                              return true;
+                            });
+
+                            if (filtered.length === 0) return (
+                              <div className="py-20 text-center">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest opacity-30">Aucune notification</p>
+                              </div>
+                            );
+
+                            return (
+                              <div className="space-y-3">
+                                {filtered.map(n => {
+                                  const iconCfg = n.type === 'NEW_DECLARATION'      ? { icon: <Plus className="w-4 h-4" />, color: 'text-green-500', bg: 'bg-green-500/10' } :
+                                                  n.type === 'INTERNAL_COMMENT'     ? { icon: <Mail className="w-4 h-4" />, color: 'text-blue-500',  bg: 'bg-blue-500/10'  } :
+                                                  n.type === 'DECLARATION_REJECTED' ? { icon: <GitMerge className="w-4 h-4" />, color: 'text-red-500',   bg: 'bg-red-500/10'   } :
+                                                  { icon: <Settings className="w-4 h-4" />, color: 'text-slate-400', bg: 'bg-slate-100' };
+                                  
+                                  return (
+                                    <div key={n.id} onClick={() => { setIsNotifOpen(false); navigate('/president/notifications') }}
+                                      className="group flex items-start gap-3 p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-slate-100 dark:hover:border-slate-800">
+                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${iconCfg.bg} ${iconCfg.color} shadow-sm group-hover:scale-110 transition-transform`}>
+                                        {iconCfg.icon}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between mb-0.5">
+                                          <div className="flex items-center gap-2">
+                                            {!n.is_read && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_#3B82F6]" />}
+                                            <p className={`text-[11px] font-bold truncate ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{n.title}</p>
+                                          </div>
+                                          <p className="text-[9px] font-black text-slate-400 uppercase whitespace-nowrap ml-2 opacity-60">{timeAgo(n.created_at)}</p>
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 line-clamp-1 leading-relaxed font-medium">{n.body}</p>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                        })()}
+                      </div>
+                      
+                      <div className="h-4" />
+                    </div>
+                  </>
+                )}
+              </div>
               <button className={`w-11 h-11 rounded-full border flex items-center justify-center transition-all shadow-sm ${
                 darkMode ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white' : 'bg-white border-slate-100 text-slate-400 hover:text-[#1557FF] hover:border-blue-100'
               }`}>

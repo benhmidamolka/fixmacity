@@ -9,14 +9,14 @@ const dayMs = 24 * 3600 * 1000;
 
 const MOCK_PROPS = [
   {
-    id: '1', category: 'Environnement', title: 'Végétalisation de la Place des Martyrs',
+    id: '1', category: 'Espaces Verts', title: 'Végétalisation de la Place des Martyrs',
     description: 'Ce projet vise à transformer la Place des Martyrs en un véritable poumon vert au cœur de Sousse. Il comprend la plantation d\'arbres endémiques, l\'installation de bancs ombragés, et la création d\'un système d\'irrigation écologique. L\'objectif est de réduire les îlots de chaleur et d\'offrir un espace de détente convivial pour les citoyens.',
     pour_pct: 73, total_votes: 1245, duration: '3 mois',
     img: 'https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=600&q=80',
     end_date: new Date(nowMs + 18 * dayMs).toISOString()
   },
   {
-    id: '2', category: 'Mobilité', title: 'Extension des Pistes Cyclables',
+    id: '2', category: 'Voirie', title: 'Extension des Pistes Cyclables',
     description: 'Création de 12 km de nouvelles pistes cyclables sécurisées reliant les principaux quartiers de Sousse au centre-ville, avec des stations de vélos en libre-service.',
     pour_pct: 81, total_votes: 987, duration: '6 mois',
     img: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
@@ -30,7 +30,7 @@ const MOCK_PROPS = [
     end_date: new Date(nowMs + 30 * dayMs).toISOString()
   },
   {
-    id: '4', category: 'Éclairage', title: 'Modernisation de l\'Éclairage Public',
+    id: '4', category: 'Éclairage public', title: 'Modernisation de l\'Éclairage Public',
     description: 'Remplacement de 3000 lampadaires par des modèles LED à détection de mouvement, réduisant la consommation énergétique de 60% et améliorant la sécurité nocturne.',
     pour_pct: 89, total_votes: 2100, duration: '4 mois',
     img: 'https://images.unsplash.com/photo-1508193638397-1c4234db14d8?w=600&q=80',
@@ -39,10 +39,13 @@ const MOCK_PROPS = [
 ]
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  'Environnement': { bg: '#f0fdf4', text: '#16a34a', dot: '#16a34a' },
-  'Mobilité':      { bg: '#eff6ff', text: '#2563eb', dot: '#2563eb' },
-  'Propreté':      { bg: '#faf5ff', text: '#7c3aed', dot: '#7c3aed' },
-  'Éclairage':     { bg: '#fffbeb', text: '#d97706', dot: '#d97706' },
+  'Espaces Verts': { bg: '#f0fdf4', text: '#16a34a', dot: '#16a34a' },
+  'Voirie':         { bg: '#eff6ff', text: '#2563eb', dot: '#2563eb' },
+  'Propreté':       { bg: '#faf5ff', text: '#7c3aed', dot: '#7c3aed' },
+  'Éclairage public': { bg: '#fffbeb', text: '#d97706', dot: '#d97706' },
+  'Réseaux':        { bg: '#fff1f2', text: '#f43f5e', dot: '#f43f5e' },
+  'Signalisation':  { bg: '#f0fdfa', text: '#0d9488', dot: '#0d9488' },
+  'Général':        { bg: '#f8fafc', text: '#64748b', dot: '#64748b' },
 }
 
 const TABS = ['Tous les projets', 'En cours de vote', 'Mes votes']
@@ -54,7 +57,7 @@ function PropositionModal({ prop, onClose, onVote, onShare }: {
   onVote: (id: string, vote: 'pour' | 'contre') => void;
   onShare: (type: 'link' | 'social') => void;
 }) {
-  const c = CATEGORY_COLORS[prop.category] || CATEGORY_COLORS['Environnement']
+  const c = CATEGORY_COLORS[prop.category] || CATEGORY_COLORS['Général']
   const [voted, setVoted] = useState<'pour' | 'contre' | null>(null)
 
   const handleVote = (v: 'pour' | 'contre') => {
@@ -163,7 +166,7 @@ function PropositionModal({ prop, onClose, onVote, onShare }: {
 
 // ─── Proposition Card ─────────────────────────────────────────────────────────
 function PropCard({ prop, onClick, onShare }: { prop: any; onClick: () => void; onShare: (e: React.MouseEvent, prop: any) => void }) {
-  const c = CATEGORY_COLORS[prop.category] || CATEGORY_COLORS['Environnement']
+  const c = CATEGORY_COLORS[prop.category] || CATEGORY_COLORS['Général']
   const urgent = prop.days_left <= 5
 
   return (
@@ -255,7 +258,7 @@ const enrichPropositions = (arr: any[]) => {
       total_votes: total > 0 ? total : p.total_votes,
       days_left,
       closes_at,
-      category: p.category || 'Environnement',
+      category: p.category || 'Général',
       img: p.img || MOCK_PROPS[Math.floor(Math.random() * MOCK_PROPS.length)].img
     };
   });
@@ -265,6 +268,7 @@ const enrichPropositions = (arr: any[]) => {
 const Propositions: React.FC = () => {
   const [props, setProps]       = useState<any[]>(enrichPropositions(MOCK_PROPS))
   const [activeTab, setActiveTab] = useState(0)
+  const [selectedCategory, setSelectedCategory] = useState('all')
   const [selected, setSelected]   = useState<any>(null)
   const [toast, setToast]         = useState<{ message: string; type: 'error' | 'success' } | null>(null)
   const token = localStorage.getItem('fmc_token')
@@ -342,6 +346,23 @@ const Propositions: React.FC = () => {
     }
   }
 
+  const filteredProps = props.filter(p => {
+    // 1. Tab filter
+    if (activeTab === 1) {
+      if (p.days_left <= 0 || p.status === 'closed') return false;
+    } else if (activeTab === 2) {
+      const votedIds = JSON.parse(localStorage.getItem('fmc_voted_props') || '[]');
+      if (!votedIds.includes(String(p.id))) return false;
+    }
+
+    // 2. Category filter
+    if (selectedCategory !== 'all') {
+      if (p.category !== selectedCategory) return false;
+    }
+
+    return true;
+  });
+
   return (
     <CitizenLayout>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -357,34 +378,58 @@ const Propositions: React.FC = () => {
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-8">
-          {TABS.map((tab, i) => (
-            <button key={tab} onClick={() => setActiveTab(i)}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-                activeTab === i
-                  ? 'bg-[#1557FF] text-white shadow-sm'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}>
-              {tab}
-            </button>
-          ))}
+        {/* Controls: Tabs & Category Filter */}
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center mb-8">
+          <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
+            {TABS.map((tab, i) => (
+              <button key={tab} onClick={() => setActiveTab(i)}
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${
+                  activeTab === i
+                    ? 'bg-[#1557FF] text-white shadow-sm'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}>
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">📁</span>
+            <select 
+              value={selectedCategory} 
+              onChange={e => setSelectedCategory(e.target.value)}
+              className="w-full md:w-56 pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-full text-sm text-[#0A1628] font-bold appearance-none focus:outline-none focus:ring-2 focus:ring-[#1557FF]/20 focus:border-[#1557FF] transition-all cursor-pointer">
+              <option value="all">Toutes les catégories</option>
+              {Object.keys(CATEGORY_COLORS).map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[10px] transform rotate-90">▶</div>
+          </div>
         </div>
 
         {/* Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {props.map(p => (
-            <PropCard 
-              key={p.id} 
-              prop={p} 
-              onClick={() => setSelected(p)} 
-              onShare={(e, prop) => {
-                e.stopPropagation();
-                handleShare('social', prop);
-              }}
-            />
-          ))}
-        </div>
+        {filteredProps.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-white border border-slate-100 rounded-3xl text-center px-4 shadow-sm">
+            <span className="text-4xl mb-4">📭</span>
+            <h3 className="text-lg font-bold text-[#0A1628] mb-1">Aucune proposition trouvée</h3>
+            <p className="text-slate-400 text-sm max-w-md">Il n'y a pas de propositions correspondant à vos critères de sélection actuels.</p>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProps.map(p => (
+              <PropCard 
+                key={p.id} 
+                prop={p} 
+                onClick={() => setSelected(p)} 
+                onShare={(e, prop) => {
+                  e.stopPropagation();
+                  handleShare('social', prop);
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Modal */}

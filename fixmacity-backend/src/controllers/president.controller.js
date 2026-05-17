@@ -4,6 +4,7 @@ const { validationResult } = require('express-validator');
 const { generateRefService } = require('../services/refGenerator.service');
 const { logStatusChange } = require('../services/statusHistory.service');
 const { notifyStatusChange, notifyChefAssigned } = require('../services/notification.service');
+const { getNextGenAI } = require('../services/gemini.rotation');
 
 const SALT_ROUNDS = 12;
 
@@ -151,6 +152,160 @@ exports.getDeclarationDetail = async (req, res) => {
     });
   } catch (e) {
     console.error('[President] getDeclarationDetail error:', e);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── POST /api/president/declarations/:id/analyze-image ──────────── */
+exports.analyzeDeclarationImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Fetch the declaration to get image URL and context
+    const { data: decl, error } = await supabase
+      .from('declarations')
+      .select('id, title, category, description, image_url, is_sensitive, sensitive_type, votes_count')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .single();
+
+    if (error || !decl) {
+      return res.status(404).json({ error: 'Déclaration introuvable.' });
+    }
+
+    if (!decl.image_url) {
+      return res.status(400).json({ error: 'Aucune image disponible pour cette déclaration.' });
+    }
+
+    // 2. Fetch image as base64
+    const imageRes = await fetch(decl.image_url);
+    if (!imageRes.ok) {
+      return res.status(502).json({ error: 'Impossible de récupérer l\'image.' });
+    }
+    const imageBuffer = await imageRes.arrayBuffer();
+    const base64Image = Buffer.from(imageBuffer).toString('base64');
+    const mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
+
+    // 3. Build context-aware prompt
+    const contextInfo = [
+      `Titre: ${decl.title}`,
+      `Catégorie: ${decl.category || 'Non spécifiée'}`,
+      `Description du citoyen: ${decl.description || 'Aucune'}`,
+      decl.sensitive_type && decl.sensitive_type !== 'none'
+        ? `Zone sensible: ${decl.sensitive_type === 'hospital' ? 'Proximité hôpital' : 'Proximité école'}`
+        : '',
+      decl.votes_count > 0 ? `Votes communautaires: ${decl.votes_count}` : '',
+    ].filter(Boolean).join('\n');
+
+    const prompt = `Tu es un expert en maintenance urbaine municipale pour la ville de Sousse (Tunisie).
+
+Analyse cette photo d'un signalement citoyen et évalue sa priorité d'intervention.
+
+Contexte du signalement:
+${contextInfo}
+
+Évalue la priorité selon ces critères:
+- CRITIQUE: Danger immédiat pour la sécurité (nid-de-poule profond, câble électrique exposé, fuite d'eau importante, éclairage public cassé sur route principale, etc.)
+- NORMAL: Problème visible nécessitant une intervention rapide mais sans danger immédiat
+- FAIBLE: Problème esthétique ou mineur (graffiti, fissure superficielle, herbe non taillée, etc.)
+
+Réponds UNIQUEMENT avec ce JSON (sans markdown):
+{
+  "priority": "critique" | "normal" | "faible",
+  "confidence": 0-100,
+  "severity_label": "courte étiquette (max 4 mots)",
+  "reasoning": "explication courte en 1-2 phrases max en français",
+  "visible_issues": ["liste", "des", "problèmes", "visibles"]
+}`;
+
+    // 4. Call Gemini Vision
+    const genAI = getNextGenAI();
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          mimeType,
+          data: base64Image,
+        },
+      },
+    ]);
+
+    const text = result.response.text().trim();
+
+    // 5. Parse JSON response
+    let analysis;
+    try {
+      // Strip possible ```json ``` wrapping
+      const jsonStr = text.replace(/^```json?\n?/, '').replace(/\n?```$/, '').trim();
+      analysis = JSON.parse(jsonStr);
+    } catch {
+      console.error('[President] Gemini response parse error:', text);
+      return res.status(500).json({ error: 'Réponse IA invalide.', raw: text });
+    }
+
+    // 6. Normalize priority to our 3 levels
+    const priorityMap = {
+      critique: 'critical',
+      critical: 'critical',
+      normal: 'normal',
+      normale: 'normal',
+      faible: 'low',
+      low: 'low',
+      basse: 'low',
+    };
+    const normalizedPriority = priorityMap[analysis.priority?.toLowerCase()] || 'normal';
+
+    return res.status(200).json({
+      ai_priority: normalizedPriority,
+      ai_priority_label: analysis.priority,
+      confidence: analysis.confidence || 75,
+      severity_label: analysis.severity_label || '',
+      reasoning: analysis.reasoning || '',
+      visible_issues: analysis.visible_issues || [],
+    });
+  } catch (e) {
+    console.error('[President] analyzeDeclarationImage error:', e);
+    return res.status(500).json({ error: 'Erreur lors de l\'analyse IA.' });
+  }
+};
+
+/* ──────────── PATCH /api/president/declarations/:id/priority ──────────── */
+exports.overridePriority = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { priority, ai_confirmed } = req.body;
+
+    if (!['critical', 'normal', 'low'].includes(priority)) {
+      return res.status(400).json({ error: 'Priorité invalide. Valeurs acceptées: critical, normal, low.' });
+    }
+
+    // Map computed priority back to DB values
+    const dbPriorityMap = { critical: 'haute', normal: 'moyenne', low: 'basse' };
+    const scoreMap = { critical: 8, normal: 4, low: 1 };
+
+    const { data: updated, error } = await supabase
+      .from('declarations')
+      .update({
+        priority: dbPriorityMap[priority],
+        priority_score: scoreMap[priority],
+        ai_priority_confirmed: ai_confirmed ?? true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .is('deleted_at', null)
+      .select('id, priority, priority_score')
+      .single();
+
+    if (error) {
+      console.error('[President] overridePriority error:', error.message);
+      return res.status(500).json({ error: 'Erreur lors de la mise à jour.' });
+    }
+
+    return res.status(200).json({ success: true, declaration: updated });
+  } catch (e) {
+    console.error('[President] overridePriority error:', e);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };

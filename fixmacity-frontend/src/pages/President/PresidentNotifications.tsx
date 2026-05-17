@@ -1,331 +1,310 @@
-import React, { useState, useEffect } from 'react'
+// src/pages/President/PresidentNotifications.tsx
+// Clean layout matching the reference screenshot:
+// Left panel: list with search, category filter, date range, read/unread tabs, sort
+// Right panel: Résumé counts + Categories breakdown + Quick date filters
+// Backend required: see notifications.controller.js and notification.service.js patches
+
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import PresidentLayout from '../../layouts/PresidentLayout'
 import {
-  Bell, Check, CheckCheck, Trash2, AlertTriangle,
-  UserPlus, FileText, ThumbsUp, Settings, X,
-  Zap, Activity, Shield, Info, Search, Clock,
-  ArrowRight, MapPin, Calendar, User, Building2,
-  ChevronRight, Loader2, Image as ImageIcon, MessageSquare
+  Bell, CheckCheck, Trash2, Search, Filter,
+  FileText, UserPlus, MessageSquare, CheckCircle2,
+  AlertCircle, Calendar, ChevronDown, Clock,
+  Eye, Inbox, Settings, Loader2, X, ChevronRight,
+  Building2, MapPin, User, Image as ImageIcon, Check, Tag as TagIcon
 } from 'lucide-react'
 
 const API   = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
-const token = () => localStorage.getItem('fmc_token')
+const tok   = () => localStorage.getItem('fmc_token') || ''
+const hdr   = () => ({ Authorization: `Bearer ${tok()}` })
 
-// ─── Notification type config ─────────────────────────────────────────────────
-const NOTIF_TYPES: Record<string, { icon: React.ReactNode; color: string; bg: string; label: string }> = {
-  URGENT_DECLARATION:   { icon: <AlertTriangle className="w-5 h-5"/>, color: '#EF4444', bg: 'bg-red-500/15',    label: 'CRITIQUE'     },
-  NEW_DECLARATION:      { icon: <FileText      className="w-5 h-5"/>, color: '#1557FF', bg: 'bg-blue-500/15',   label: 'SIGNALEMENT'  },
-  STATUS_CHANGE:        { icon: <Zap           className="w-5 h-5"/>, color: '#F59E0B', bg: 'bg-amber-500/15',  label: 'WORKFLOW'     },
-  ASSIGNED_CHEF:        { icon: <UserPlus      className="w-5 h-5"/>, color: '#10B981', bg: 'bg-emerald-500/15', label: 'MISSION'      },
-  DECLARATION_REJECTED: { icon: <AlertTriangle className="w-5 h-5"/>, color: '#EF4444', bg: 'bg-red-500/15',    label: 'ALERTE'       },
-  INTERNAL_COMMENT:     { icon: <MessageSquare className="w-5 h-5"/>, color: '#8B5CF6', bg: 'bg-violet-500/15', label: 'COMMENTAIRE'  },
-  PROPOSITION_VOTE:     { icon: <ThumbsUp      className="w-5 h-5"/>, color: '#06B6D4', bg: 'bg-cyan-500/15',   label: 'CONSULTATION' },
-  SYSTEM:               { icon: <Settings      className="w-5 h-5"/>, color: '#94A3B8', bg: 'bg-slate-500/15',  label: 'SYSTÈME'      },
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface Notif {
+  id: string
+  type: string
+  title: string
+  body: string
+  is_read: boolean
+  created_at: string
+  reference_id: string | null
 }
-const getCfg = (type: string) => NOTIF_TYPES[type] ?? NOTIF_TYPES['SYSTEM']
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Type config ──────────────────────────────────────────────────────────────
+const TYPE_CFG: Record<string, { label: string; icon: React.ReactNode; color: string; bg: string; dotColor: string }> = {
+  NEW_DECLARATION:      { label: 'Nouvelle déclaration reçue', icon: <FileText    className="w-5 h-5"/>, color: '#16a34a', bg: '#f0fdf4', dotColor: '#16a34a' },
+  STATUS_CHANGE:        { label: 'Changement de statut',       icon: <CheckCircle2 className="w-5 h-5"/>, color: '#16a34a', bg: '#f0fdf4', dotColor: '#16a34a' },
+  DECLARATION_REJECTED: { label: 'Déclaration rejetée',        icon: <AlertCircle  className="w-5 h-5"/>, color: '#ef4444', bg: '#fef2f2', dotColor: '#ef4444' },
+  ASSIGNED_CHEF:        { label: 'Nouvelle assignation',       icon: <UserPlus     className="w-5 h-5"/>, color: '#f97316', bg: '#fff7ed', dotColor: '#f97316' },
+  ASSIGNED_AGENT:       { label: 'Assignation mise à jour',    icon: <UserPlus     className="w-5 h-5"/>, color: '#f97316', bg: '#fff7ed', dotColor: '#f97316' },
+  INTERNAL_COMMENT:     { label: 'Nouveau commentaire',        icon: <MessageSquare className="w-5 h-5"/>, color: '#3b82f6', bg: '#eff6ff', dotColor: '#3b82f6' },
+  DECLARATION_ACCEPTED: { label: 'Déclaration acceptée',       icon: <CheckCircle2 className="w-5 h-5"/>, color: '#16a34a', bg: '#f0fdf4', dotColor: '#16a34a' },
+  DECLARATION_RESOLVED: { label: 'Déclaration résolue',        icon: <CheckCircle2 className="w-5 h-5"/>, color: '#16a34a', bg: '#f0fdf4', dotColor: '#16a34a' },
+  SYSTEM:               { label: 'Système',                    icon: <Settings     className="w-5 h-5"/>, color: '#64748b', bg: '#f8fafc', dotColor: '#94a3b8' },
+}
+const getTypeCfg = (type: string) => TYPE_CFG[type] ?? TYPE_CFG['SYSTEM']
+
+// ─── Category groups for sidebar ─────────────────────────────────────────────
+const CATEGORIES: { key: string; label: string; icon: React.ReactNode; types: string[] }[] = [
+  { key: 'declarations', label: 'Déclarations', icon: <FileText className="w-4 h-4"/>,     types: ['NEW_DECLARATION', 'STATUS_CHANGE', 'DECLARATION_ACCEPTED', 'DECLARATION_RESOLVED'] },
+  { key: 'assignments',  label: 'Assignations', icon: <UserPlus className="w-4 h-4"/>,     types: ['ASSIGNED_CHEF', 'ASSIGNED_AGENT'] },
+  { key: 'comments',     label: 'Commentaires', icon: <MessageSquare className="w-4 h-4"/>, types: ['INTERNAL_COMMENT'] },
+  { key: 'rejections',   label: 'Missions',     icon: <AlertCircle className="w-4 h-4"/>,  types: ['DECLARATION_REJECTED'] },
+  { key: 'system',       label: 'Système',      icon: <Settings className="w-4 h-4"/>,     types: ['SYSTEM'] },
+]
+
+// ─── Date range presets ───────────────────────────────────────────────────────
+const isToday    = (d: string) => new Date(d).toDateString() === new Date().toDateString()
+const isThisWeek = (d: string) => { const n = new Date(); const s = new Date(n.getFullYear(), n.getMonth(), n.getDate() - n.getDay()); return new Date(d) >= s }
+const isThisMonth= (d: string) => { const n = new Date(); return new Date(d).getMonth() === n.getMonth() && new Date(d).getFullYear() === n.getFullYear() }
+const isLast30   = (d: string) => Date.now() - new Date(d).getTime() < 30 * 86400000
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 const timeAgo = (iso: string) => {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60000)
   const h = Math.floor(diff / 3600000)
   const d = Math.floor(diff / 86400000)
   if (m < 1)  return "À l'instant"
-  if (m < 60) return `il y a ${m}min`
-  if (h < 24) return `il y a ${h}h`
-  return `il y a ${d}j`
-}
-const fmt = (iso: string) =>
-  new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
-
-const isUrgent = (n: any) =>
-  n.type === 'URGENT_DECLARATION' ||
-  n.type === 'DECLARATION_REJECTED' ||
-  (n.title ?? '').toLowerCase().includes('urgent') ||
-  (n.title ?? '').toLowerCase().includes('crucial') ||
-  (n.title ?? '').toLowerCase().includes('refusée')
-
-const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  soumise:        { label: 'Soumise',        color: '#64748B', bg: '#F8FAFC' },
-  assignee_chef:  { label: 'Assignée chef',  color: '#F59E0B', bg: '#FFFBEB' },
-  assignee_agent: { label: 'Assignée agent', color: '#3B82F6', bg: '#EFF6FF' },
-  en_cours:       { label: 'En cours',       color: '#8B5CF6', bg: '#F5F3FF' },
-  resolue:        { label: 'Résolue',        color: '#10B981', bg: '#ECFDF5' },
-  cloturee:       { label: 'Clôturée',       color: '#059669', bg: '#D1FAE5' },
-  refusee_chef:   { label: 'Refusée chef',   color: '#EF4444', bg: '#FEF2F2' },
-  refusee_agent:  { label: 'Refusée agent',  color: '#EF4444', bg: '#FEF2F2' },
+  if (m < 60) return `Il y a ${m} min`
+  if (h < 24) return `Il y a ${h}h`
+  if (d === 1) return `Hier à ${new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+  return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
-const KpiCard: React.FC<{ label: string; value: number | string; color: string; icon: React.ReactNode; sub: string }> = ({ label, value, color, icon, sub }) => (
-  <div className="group bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] p-8 border border-slate-200/60 dark:border-slate-800 hover:border-blue-400/50 dark:hover:border-blue-500/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500 relative overflow-hidden">
-    <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50/50 dark:bg-slate-800/10 rounded-bl-[5rem] -mr-10 -mt-10 group-hover:bg-blue-50/50 dark:group-hover:bg-blue-500/5 transition-colors duration-500" />
-    <div className="relative">
-      <div className="flex items-center justify-between mb-6">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-500"
-             style={{ backgroundColor: `${color}15`, color }}>
-          {icon}
-        </div>
-        <div className="text-right">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-1">{label}</p>
-          <p className="text-[9px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-widest">{sub}</p>
-        </div>
-      </div>
-      <div className="text-4xl font-black text-[#0A1628] dark:text-white tracking-tight">{value}</div>
-    </div>
-  </div>
+const Sk = ({ w = 'w-full', h = 'h-4' }: { w?: string; h?: string }) => (
+  <div className={`${w} ${h} rounded-lg bg-slate-100 animate-pulse`} />
 )
 
-// ─── Detail Drawer ────────────────────────────────────────────────────────────
-const DetailDrawer: React.FC<{ notif: any; onClose: () => void }> = ({ notif, onClose }) => {
-  const [detail,  setDetail]  = useState<any>(null)
-  const [photos,  setPhotos]  = useState<any[]>([])
-  const [history, setHistory] = useState<any[]>([])
-  const [comments,setComments]= useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [tab,     setTab]     = useState<'info'|'history'|'comments'|'photos'>('info')
-
-  const cfg = getCfg(notif.type)
+// ─── Detail drawer (right slide-in) ──────────────────────────────────────────
+const DetailDrawer = ({ notif, onClose, onDelete }: { notif: Notif; onClose: () => void; onDelete: (id: string) => void }) => {
+  const [detail,   setDetail]   = useState<any>(null)
+  const [photos,   setPhotos]   = useState<any[]>([])
+  const [history,  setHistory]  = useState<any[]>([])
+  const [comments, setComments] = useState<any[]>([])
+  const [loading,  setLoading]  = useState(false)
+  const [tab,      setTab]      = useState<'info' | 'history' | 'comments' | 'photos'>('info')
+  const cfg = getTypeCfg(notif.type)
 
   useEffect(() => {
-    const refId = notif.reference_id
-    if (!refId) return
+    if (!notif.reference_id) return
     setLoading(true)
-    fetch(`${API}/president/declarations/${refId}`, {
-      headers: { Authorization: `Bearer ${token()}` }
-    })
+    fetch(`${API}/president/declarations/${notif.reference_id}`, { headers: hdr() })
       .then(r => r.json())
-      .then(d => {
-        setDetail(d.declaration ?? null)
-        setPhotos(d.photos ?? [])
-        setHistory(d.history ?? [])
-        setComments(d.comments ?? [])
-      })
+      .then(d => { setDetail(d.declaration); setPhotos(d.photos ?? []); setHistory(d.history ?? []); setComments(d.comments ?? []) })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [notif.reference_id])
 
-  const statusMeta = detail ? (STATUS_META[detail.status] ?? { label: detail.status, color: '#64748B', bg: '#F8FAFC' }) : null
+  const fmt = (iso: string) => new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+  const STATUS_COLORS: Record<string, { label: string; color: string; bg: string }> = {
+    soumise:        { label: 'Soumise',         color: '#f59e0b', bg: '#fffbeb' },
+    assignee_chef:  { label: 'Assignée chef',   color: '#6366f1', bg: '#eef2ff' },
+    assignee_agent: { label: 'Assignée agent',  color: '#3b82f6', bg: '#eff6ff' },
+    en_cours:       { label: 'En cours',        color: '#f97316', bg: '#fff7ed' },
+    resolue:        { label: 'Résolue',         color: '#16a34a', bg: '#f0fdf4' },
+    cloturee:       { label: 'Clôturée',        color: '#64748b', bg: '#f8fafc' },
+    refusee_chef:   { label: 'Refusée chef',    color: '#ef4444', bg: '#fef2f2' },
+    refusee_agent:  { label: 'Refusée agent',   color: '#ef4444', bg: '#fef2f2' },
+  }
+
+  // ── Extract context-specific info ──
+  const rejectionEntry = history.find(h => h.new_status === 'refusee_chef' || h.new_status === 'refusee_agent')
+  const rejectionReason = rejectionEntry?.raison || notif.body?.split('Motif :')[1]?.trim() || null
+  const latestComment   = comments.filter(c => c.channel === 'president_chef').slice(-1)[0] || comments[0]
+  const mainPhoto       = photos[0]
+
+  // Panel accent colour based on notification type
+  const panelAccent =
+    notif.type === 'DECLARATION_REJECTED' ? { border: '#fca5a5', bg: '#fef2f2', dot: '#ef4444', label: 'Mission Refusée' } :
+    notif.type === 'INTERNAL_COMMENT'     ? { border: '#c4b5fd', bg: '#f5f3ff', dot: '#8b5cf6', label: 'Nouveau Commentaire' } :
+    notif.type === 'NEW_DECLARATION'      ? { border: '#86efac', bg: '#f0fdf4', dot: '#16a34a', label: 'Signalement Reçu' } :
+    notif.type === 'ASSIGNED_CHEF'        ? { border: '#6ee7b7', bg: '#f0fdf4', dot: '#10b981', label: 'Mission Assignée' } :
+    { border: '#e2e8f0', bg: '#f8fafc', dot: '#94a3b8', label: 'Notification' }
 
   return (
-    <div className="fixed inset-0 z-[150] flex">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative ml-auto h-full w-full max-w-[500px] bg-slate-950/95 backdrop-blur-3xl shadow-2xl flex flex-col overflow-hidden border-l border-slate-800/50"
-        style={{ animation: 'slideInRight .4s cubic-bezier(.22,1,.36,1) forwards' }}>
+    <div className="fixed inset-0 z-50 flex">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative ml-auto h-full w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl flex flex-col"
+        style={{ animation: 'slideRight .3s ease-out' }}>
+        <style>{`@keyframes slideRight{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
 
-        {/* ── Drawer header ── */}
-        <div className="flex-shrink-0 border-b border-slate-100 dark:border-slate-800 px-6 pt-6 pb-5">
-          <div className="flex items-start gap-3">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${cfg.bg}`}
-              style={{ color: cfg.color }}>
-              {cfg.icon}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="font-black text-[#0A1628] dark:text-white text-base leading-tight">{notif.title}</h2>
-                {isUrgent(notif) && (
-                  <span className="text-[8px] font-black px-2 py-0.5 rounded-lg bg-red-500 text-white flex items-center gap-1">
-                    <AlertTriangle className="w-2.5 h-2.5"/> URGENT
-                  </span>
-                )}
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: cfg.bg, color: cfg.color }}>{cfg.icon}</div>
+            <div>
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">{notif.title}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">{timeAgo(notif.created_at)}</p>
+                <span className="text-slate-300 dark:text-slate-700 text-[10px]">•</span>
+                <div className="flex items-center gap-1.5">
+                  <p className={`text-[10px] font-bold ${notif.is_read ? 'text-slate-400' : 'text-blue-600'}`}>
+                    {notif.is_read ? 'Lue' : 'Non lue'}
+                  </p>
+                  {!notif.is_read && <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />}
+                </div>
               </div>
-              <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold mt-1">{fmt(notif.created_at)}</p>
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 flex-shrink-0 transition-all">
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => onDelete(notif.id)}
+              className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors group" title="Supprimer">
+              <Trash2 className="w-4 h-4 text-red-400 group-hover:text-red-600" />
+            </button>
+            <button onClick={onClose}
+              className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
               <X className="w-4 h-4 text-slate-500 dark:text-slate-400" />
             </button>
           </div>
-
-          {/* Notification body */}
-          <div className="mt-4 px-5 py-4 bg-slate-900/40 rounded-3xl border border-slate-800/50 backdrop-blur-sm">
-            <p className="text-sm text-slate-300 font-bold leading-relaxed">{notif.body || '—'}</p>
-          </div>
-
-          {/* Status read badge */}
-          <div className="flex items-center gap-2 mt-4">
-            <span className={`text-[9px] font-black px-3 py-1.5 rounded-xl border ${notif.is_read ? 'bg-slate-800/40 border-slate-700 text-slate-500' : 'bg-blue-500/10 border-blue-500/30 text-blue-400'}`}>
-              {notif.is_read ? '✓ LU' : '● NON LU'}
-            </span>
-            <span className="text-[9px] font-black px-3 py-1.5 rounded-xl border" style={{ background: `${cfg.color}15`, color: cfg.color, borderColor: `${cfg.color}30` }}>
-              {cfg.label}
-            </span>
-          </div>
         </div>
 
-        {/* ── Declaration detail section ── */}
-        {notif.reference_id ? (
-          loading ? (
-            <div className="flex-1 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 text-[#1557FF] animate-spin" />
-            </div>
-          ) : detail ? (
-            <>
-              {/* Tabs */}
-              <div className="flex-shrink-0 flex border-b border-slate-100 dark:border-slate-800">
-                {([
-                  ['info',     'Déclaration'],
-                  ['history',  `Historique (${history.length})`],
-                  ['comments', `Commentaires (${comments.length})`],
-                  ['photos',   `Photos (${photos.length})`],
-                ] as const).map(([v, l]) => (
-                  <button key={v} onClick={() => setTab(v as any)}
-                    className={`flex-1 py-3 text-[9px] font-black uppercase tracking-widest border-b-2 transition-all ${tab === v ? 'border-[#1557FF] text-[#1557FF]' : 'border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
-                    {l}
-                  </button>
-                ))}
+        {/* ── Intro Card ────────────────────────────────────────── */}
+        <div className="px-5 py-5 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+          <div className="rounded-2xl border p-4 shadow-sm transition-all"
+            style={{ 
+              borderColor: panelAccent.border, 
+              background: document.documentElement.classList.contains('dark') ? `${panelAccent.dot}10` : panelAccent.bg 
+            }}>
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: `${panelAccent.dot}18`, color: panelAccent.dot }}>
+                {cfg.icon}
               </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1" style={{ color: panelAccent.dot }}>{panelAccent.label}</p>
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-snug">{notif.body}</p>
 
-              <div className="flex-1 overflow-y-auto px-6 py-6 min-h-0 bg-transparent">
-
-                {/* ── Info tab ── */}
-                {tab === 'info' && (
-                  <div className="space-y-4">
-                    {/* Status badge */}
-                    {statusMeta && (
-                      <div className="flex items-center gap-4 p-5 rounded-3xl border backdrop-blur-md"
-                        style={{ background: `${statusMeta.color}10`, borderColor: `${statusMeta.color}30` }}>
-                        <div className="w-3 h-3 rounded-full flex-shrink-0 shadow-[0_0_12px_rgba(0,0,0,0.1)]" style={{ background: statusMeta.color, boxShadow: `0 0 15px ${statusMeta.color}40` }} />
-                        <div>
-                          <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60" style={{ color: statusMeta.color }}>Statut actuel</p>
-                          <p className="text-sm font-black text-white">{statusMeta.label}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Key info rows */}
-                    {[
-                      { icon: FileText,  label: 'Titre',          val: detail.title },
-                      { icon: FileText,  label: 'Réf. citoyen',   val: detail.ref_citoyen ?? '—' },
-                      { icon: FileText,  label: 'Réf. service',   val: detail.ref_service  ?? '—' },
-                      { icon: Building2, label: 'Département',     val: detail.department?.name ?? detail.department?.name_fr ?? '—' },
-                      { icon: User,      label: 'Citoyen',         val: detail.citizen ? `${detail.citizen.first_name} ${detail.citizen.last_name}` : '—' },
-                      { icon: User,      label: 'Agent assigné',   val: detail.agent   ? `${detail.agent.first_name} ${detail.agent.last_name}`   : 'Non assigné' },
-                      { icon: MapPin,    label: 'Adresse',         val: detail.address ?? '—' },
-                      { icon: Calendar,  label: 'Soumise le',      val: fmt(detail.created_at) },
-                    ].map(({ icon: Icon, label, val }) => (
-                      <div key={label} className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-2xl bg-slate-900/60 flex items-center justify-center flex-shrink-0 mt-0.5 border border-slate-800/40">
-                          <Icon className="w-4 h-4 text-slate-500" />
-                        </div>
-                        <div className="flex-1 min-w-0 pt-1">
-                          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600">{label}</p>
-                          <p className="text-xs font-bold text-slate-300 mt-0.5 break-words">{val}</p>
-                        </div>
-                      </div>
-                    ))}
-
-                    {detail.description && (
-                      <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">Description</p>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold leading-relaxed">{detail.description}</p>
-                      </div>
-                    )}
-
-                    {/* Votes / score */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-blue-500/10 rounded-3xl p-4 text-center border border-blue-500/20 backdrop-blur-sm">
-                        <p className="text-2xl font-black text-blue-400">{detail.votes_count ?? 0}</p>
-                        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-blue-500/60 mt-1">Votes</p>
-                      </div>
-                      <div className="bg-amber-500/10 rounded-3xl p-4 text-center border border-amber-500/20 backdrop-blur-sm">
-                        <p className="text-2xl font-black text-amber-400">{detail.priority_score ?? 0}</p>
-                        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-amber-500/60 mt-1">Score urgence</p>
-                      </div>
-                    </div>
+                {/* Specific motif for rejection */}
+                {notif.type === 'DECLARATION_REJECTED' && rejectionReason && (
+                  <div className="mt-3 px-3 py-2 bg-white/60 dark:bg-black/20 rounded-xl border border-red-100/50 dark:border-red-900/30">
+                    <p className="text-[9px] font-black text-red-400 uppercase tracking-widest mb-1">Motif du refus</p>
+                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 italic leading-relaxed">« {rejectionReason} »</p>
                   </div>
                 )}
 
-                {/* ── History tab ── */}
-                {tab === 'history' && (
-                  history.length === 0 ? (
-                    <div className="text-center py-10 text-slate-400 dark:text-slate-600">
-                      <Clock className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      <p className="text-xs font-bold">Aucun historique</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {history.map((h: any, i: number) => (
-                        <div key={i} className="flex items-start gap-4 p-4 rounded-2xl bg-slate-900/40 border border-slate-800/40 backdrop-blur-sm">
-                          <div className="w-2 h-2 rounded-full bg-[#1557FF] flex-shrink-0 mt-1.5" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase">{h.old_status}</span>
-                              <ChevronRight className="w-3 h-3 text-slate-300 dark:text-slate-700" />
-                              <span className="text-[9px] font-black text-[#1557FF] dark:text-blue-400 uppercase">{h.new_status}</span>
-                            </div>
-                            {h.raison && <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5 italic">"{h.raison}"</p>}
-                            <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">
-                              {h.user ? `${h.user.first_name} ${h.user.last_name}` : 'Système'} · {fmt(h.created_at)}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                )}
-
-                {/* ── Comments tab ── */}
-                {tab === 'comments' && (
-                  comments.length === 0 ? (
-                    <div className="text-center py-10 text-slate-400 dark:text-slate-600">
-                      <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      <p className="text-xs font-bold">Aucun commentaire interne</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {comments.map((c: any) => (
-                        <div key={c.id} className="p-4 rounded-2xl bg-slate-900/40 border border-slate-800/40 backdrop-blur-sm">
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <div className="w-6 h-6 rounded-lg bg-[#1557FF] flex items-center justify-center text-white text-[8px] font-black flex-shrink-0">
-                              {c.user?.first_name?.[0]}{c.user?.last_name?.[0]}
-                            </div>
-                            <p className="text-[9px] font-black text-slate-500 dark:text-slate-400">
-                              {c.user ? `${c.user.first_name} ${c.user.last_name}` : '—'}
-                              <span className="ml-1 text-slate-300 dark:text-slate-700 font-semibold">·</span>
-                              <span className="ml-1 font-semibold text-slate-400 dark:text-slate-600">{fmt(c.created_at)}</span>
-                            </p>
-                          </div>
-                          <p className="text-xs text-slate-700 dark:text-slate-300 font-semibold leading-relaxed">{c.content}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                )}
-
-                {/* ── Photos tab ── */}
-                {tab === 'photos' && (
-                  photos.length === 0 ? (
-                    <div className="text-center py-10 text-slate-400 dark:text-slate-600">
-                      <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      <p className="text-xs font-bold">Aucune photo</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-4">
-                      {photos.map((p: any) => (
-                        <div key={p.id} className="rounded-2xl overflow-hidden border border-slate-800/50 aspect-square bg-slate-900/40 backdrop-blur-sm group/photo">
-                          <img src={p.url} alt={p.photo_type ?? 'Photo'}
-                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                            onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )
+                {/* Snippet for comments */}
+                {notif.type === 'INTERNAL_COMMENT' && latestComment && (
+                  <div className="mt-3 px-3 py-2 bg-white/60 dark:bg-black/20 rounded-xl border border-violet-100/50 dark:border-violet-900/30">
+                    <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Dernier message</p>
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-400 line-clamp-2 italic">« {latestComment.content} »</p>
+                  </div>
                 )}
               </div>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-2">
-              <FileText className="w-8 h-8 opacity-30" />
-              <p className="text-xs font-bold">Déclaration introuvable</p>
             </div>
-          )
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-2 px-6">
-            <Info className="w-8 h-8 opacity-30" />
-            <p className="text-xs font-bold text-center">Cette notification n'est pas liée à une déclaration spécifique.</p>
           </div>
-        )}
+        </div>
+
+        {/* ── Declaration detail ─────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center h-full gap-3">
+              <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
+              <p className="text-xs font-bold text-slate-400">Chargement des détails...</p>
+            </div>
+          ) : !notif.reference_id ? (
+            <div className="flex flex-col items-center justify-center h-full text-slate-300 gap-3">
+              <Bell className="w-12 h-12" />
+              <p className="text-sm font-bold text-slate-400">Notification générale</p>
+            </div>
+          ) : detail ? (
+            <div className="space-y-8">
+              {/* Main Content Area: Fields + Photo */}
+              <section>
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 mb-4">Détails de la déclaration</h3>
+                <div className="flex gap-4">
+                  {/* Left: Fields */}
+                  <div className="flex-1 space-y-5">
+                    {[
+                      { icon: Building2, label: 'ID Déclaration', val: `#D-${new Date(detail.created_at).getFullYear()}-${detail.ref_citoyen || detail.id?.slice(0,4)}` },
+                      { icon: TagIcon,   label: 'Catégorie',      val: detail.category?.name || detail.category_id || 'Éclairage public' },
+                      { icon: MapPin,     label: 'Localisation',   val: detail.address || 'Non spécifiée' },
+                    ].map(({ icon: Icon, label, val }) => (
+                      <div key={label} className="flex items-start gap-3">
+                        <div className="w-6 h-6 flex items-center justify-center text-slate-400 mt-0.5">
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</p>
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">{val}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Right: Primary Photo */}
+                  {mainPhoto && (
+                    <div className="w-32 h-32 rounded-2xl overflow-hidden border-4 border-white dark:border-slate-800 shadow-md rotate-2 hover:rotate-0 transition-transform flex-shrink-0 bg-slate-100 dark:bg-slate-800">
+                      <img src={mainPhoto.url} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Additional fields (Full width) */}
+                <div className="mt-5 space-y-5">
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 flex items-center justify-center text-slate-400 mt-0.5">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Description</p>
+                      <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">{detail.description || '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 flex items-center justify-center text-slate-400 mt-0.5">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Citoyen auteur</p>
+                      <p className="text-xs font-bold text-slate-800 mt-0.5">{detail.citizen ? `${detail.citizen.first_name} ${detail.citizen.last_name}` : '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 flex items-center justify-center text-slate-400 mt-0.5">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Date de soumission</p>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">{fmt(detail.created_at)}</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Map Placeholder */}
+              <div className="rounded-2xl h-32 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 overflow-hidden relative group">
+                <div className="absolute inset-0 bg-[url('https://api.mapbox.com/styles/v1/mapbox/light-v10/static/pin-s+ff0000(0,0)/0,0,1/400x200?access_token=pk.placeholder')] bg-cover bg-center grayscale group-hover:grayscale-0 transition-all opacity-60 dark:opacity-40" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+                <div className="absolute bottom-2 right-2 px-2 py-1 bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tighter">Sousse, Tunisie</div>
+              </div>
+
+              {/* Actions Rapides */}
+              <section className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 mb-4">Actions rapides</h3>
+                <button className="w-full flex items-center justify-center gap-2 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-red-900/10 transition-all active:scale-[0.98]">
+                  <AlertCircle className="w-4 h-4" /> Cas prioritaire
+                </button>
+                <button className="w-full flex items-center justify-center gap-2 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-sm font-bold transition-all">
+                  <Eye className="w-4 h-4 text-slate-400 dark:text-slate-500" /> Voir la déclaration complète <span className="ml-2 text-slate-300 dark:text-slate-700">→ →</span>
+                </button>
+                <button onClick={onClose}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-sm font-bold transition-all">
+                  <CheckCheck className="w-4 h-4 text-slate-400 dark:text-slate-500" /> Marquer comme lue
+                </button>
+              </section>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-300">
+              <AlertCircle className="w-10 h-10" />
+              <p className="text-xs font-bold text-slate-400">Données indisponibles</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -333,311 +312,444 @@ const DetailDrawer: React.FC<{ notif: any; onClose: () => void }> = ({ notif, on
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const PresidentNotifications: React.FC = () => {
-  const [notifs,   setNotifs]   = useState<any[]>([])
-  const [filter,   setFilter]   = useState('all')
-  const [typeF,    setTypeF]    = useState('')
-  const [selected, setSelected] = useState<string[]>([])
-  const [search,   setSearch]   = useState('')
+  const [notifs,   setNotifs]   = useState<Notif[]>([])
   const [loading,  setLoading]  = useState(true)
-  const [drawer,   setDrawer]   = useState<any | null>(null)
+  const [filter,   setFilter]   = useState<'all' | 'unread' | 'read'>('all')
+  const [search,   setSearch]   = useState('')
+  const [catFilter,setCatFilter]= useState<string>('')         // category key
+  const [datePreset,setDatePreset]=useState<string>('')        // today/week/month/30d
+  const [sortMode, setSortMode] = useState<'recent' | 'oldest'>('recent')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [drawer,   setDrawer]   = useState<Notif | null>(null)
+  const [page,     setPage]     = useState(1)
+  const [total,    setTotal]    = useState(0)
+  const LIMIT = 20
 
-  // ── Load ──
+  // ── Load ──────────────────────────────────────────────────────────────────
+  const load = useCallback(async (p = 1) => {
+    if (p === 1) setLoading(true)
+    try {
+      const params = new URLSearchParams({ limit: String(LIMIT), page: String(p) })
+      if (filter === 'unread') params.set('unreadOnly', 'true')
+      const res  = await fetch(`${API}/notifications?${params}`, { headers: hdr() })
+      const data = await res.json()
+      const fresh: Notif[] = data.notifications || []
+      setTotal(data.total || 0)
+      setNotifs(prev => p === 1 ? fresh : [...prev, ...fresh])
+    } catch {}
+    finally { setLoading(false) }
+  }, [filter])
+
+  useEffect(() => { setPage(1); load(1) }, [load])
+
+  // Real-time: listen to socket event injected by layout
   useEffect(() => {
-    const load = async () => {
-      setLoading(true)
-      try {
-        const res = await fetch(`${API}/notifications?limit=100`, {
-          headers: { Authorization: `Bearer ${token()}` }
-        })
-        if (res.ok) {
-          const data = await res.json()
-          if (data.notifications) setNotifs(data.notifications)
-        }
-      } catch {}
-      setLoading(false)
+    const handler = (e: CustomEvent) => {
+      const n = e.detail as Notif
+      setNotifs(prev => [{ ...n, is_read: false }, ...prev])
+      setTotal(t => t + 1)
     }
-    load()
-    // Poll every 60s as fallback
-    const poll = setInterval(() => {
-      fetch(`${API}/notifications?limit=100`, { headers: { Authorization: `Bearer ${token()}` } })
-        .then(r => r.json()).then(d => { if (d.notifications) setNotifs(d.notifications) }).catch(() => {})
-    }, 60000)
-    return () => clearInterval(poll)
+    window.addEventListener('fmc:notification', handler as EventListener)
+    return () => window.removeEventListener('fmc:notification', handler as EventListener)
   }, [])
 
-  // ── Mark one read ── (calls API + updates state)
-  const markRead = async (id: string, e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    // Optimistic update
+  // ── Actions ───────────────────────────────────────────────────────────────
+  const markRead = useCallback(async (id: string) => {
     setNotifs(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
-    // Also update drawer if open
-    setDrawer((d: any) => d?.id === id ? { ...d, is_read: true } : d)
-    try {
-      await fetch(`${API}/notifications/${id}/read`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token()}` }
-      })
-    } catch {}
-  }
+    await fetch(`${API}/notifications/${id}/read`, { method: 'PUT', headers: hdr() }).catch(() => {})
+  }, [])
 
-  // ── Mark all read ──
-  const markAllRead = async () => {
+  const markAllRead = useCallback(async () => {
     setNotifs(prev => prev.map(n => ({ ...n, is_read: true })))
-    try {
-      await fetch(`${API}/notifications/read-all`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token()}` }
-      })
-    } catch {}
-  }
+    await fetch(`${API}/notifications/read-all`, { method: 'PUT', headers: hdr() }).catch(() => {})
+  }, [])
 
-  // ── Delete ──
-  const deleteNotif = (id: string, e?: React.MouseEvent) => {
+  const deleteOne = useCallback(async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation()
     setNotifs(prev => prev.filter(n => n.id !== id))
-    setSelected(prev => prev.filter(s => s !== id))
+    setSelected(prev => { const s = new Set(prev); s.delete(id); return s })
     if (drawer?.id === id) setDrawer(null)
-  }
+    await fetch(`${API}/notifications/${id}`, { method: 'DELETE', headers: hdr() }).catch(() => {})
+  }, [drawer])
 
-  const toggleSelect = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setSelected(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id])
-  }
+  const deleteSelected = useCallback(async () => {
+    const ids = Array.from(selected)
+    setNotifs(prev => prev.filter(n => !selected.has(n.id)))
+    setSelected(new Set())
+    await fetch(`${API}/notifications/bulk`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', ...hdr() },
+      body: JSON.stringify({ ids }),
+    }).catch(() => {})
+  }, [selected])
 
-  const deleteSelected = () => {
-    setNotifs(prev => prev.filter(n => !selected.includes(n.id)))
-    setSelected([])
-  }
-
-  // ── Open detail drawer + auto-mark read ──
-  const openDrawer = (n: any) => {
+  const openDrawer = useCallback((n: Notif) => {
     setDrawer(n)
     if (!n.is_read) markRead(n.id)
-  }
+  }, [markRead])
 
-  // ── Filter & sort ──
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const unreadCount = notifs.filter(n => !n.is_read).length
+  const todayCount  = notifs.filter(n => isToday(n.created_at)).length
+
+  // Category counts
+  const catCounts: Record<string, number> = {}
+  CATEGORIES.forEach(c => {
+    catCounts[c.key] = notifs.filter(n => c.types.includes(n.type)).length
+  })
+
+  // Filter pipeline
   const filtered = notifs.filter(n => {
-    if (filter === 'unread' && n.is_read)   return false
-    if (filter === 'read'   && !n.is_read)  return false
-    if (typeF && n.type !== typeF)           return false
+    if (filter === 'unread' && n.is_read)  return false
+    if (filter === 'read'   && !n.is_read) return false
+    if (catFilter) {
+      const cat = CATEGORIES.find(c => c.key === catFilter)
+      if (cat && !cat.types.includes(n.type)) return false
+    }
+    if (datePreset === 'today' && !isToday(n.created_at))        return false
+    if (datePreset === 'week'  && !isThisWeek(n.created_at))     return false
+    if (datePreset === 'month' && !isThisMonth(n.created_at))    return false
+    if (datePreset === '30d'   && !isLast30(n.created_at))       return false
     if (search) {
       const q = search.toLowerCase()
-      if (!(n.title ?? '').toLowerCase().includes(q) && !(n.body ?? '').toLowerCase().includes(q)) return false
+      if (!n.title?.toLowerCase().includes(q) && !n.body?.toLowerCase().includes(q)) return false
     }
     return true
   }).sort((a, b) => {
-    const ua = isUrgent(a), ub = isUrgent(b)
-    if (ua && !ub) return -1
-    if (!ua && ub)  return 1
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    const ta = new Date(a.created_at).getTime()
+    const tb = new Date(b.created_at).getTime()
+    return sortMode === 'recent' ? tb - ta : ta - tb
   })
 
-  const unreadCount = notifs.filter(n => !n.is_read).length
-  const todayCount  = notifs.filter(n => new Date(n.created_at).toDateString() === new Date().toDateString()).length
-  const urgentCount = notifs.filter(isUrgent).length
-
-  // ── Loading state ──
-  if (loading) return (
-    <PresidentLayout title="Centre de Notifications">
-      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-        <div className="w-12 h-12 border-[3px] border-slate-100 dark:border-slate-800 border-t-[#1557FF] rounded-full animate-spin" />
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Chargement…</p>
-      </div>
-    </PresidentLayout>
-  )
+  // Group by date
+  const grouped = filtered.reduce<Record<string, Notif[]>>((acc, n) => {
+    const d = new Date(n.created_at)
+    let key: string
+    if (isToday(n.created_at)) key = "Aujourd'hui"
+    else if (d.toDateString() === new Date(Date.now() - 86400000).toDateString()) key = 'Hier'
+    else key = d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+    ;(acc[key] = acc[key] || []).push(n)
+    return acc
+  }, {})
 
   return (
-    <PresidentLayout title="Centre de Notifications">
-      <style>{`
-        @keyframes slideInRight { from{transform:translateX(100%)} to{transform:translateX(0)} }
-      `}</style>
+    <PresidentLayout title="Notifications">
+      <div className="flex gap-5 max-w-7xl mx-auto min-h-[calc(100vh-5rem)]">
 
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 bg-slate-50/50 dark:bg-slate-950/50 -m-6 p-6 transition-colors duration-500 backdrop-blur-sm min-h-screen">
+        {/* ── LEFT: Main panel ─────────────────────────────────────── */}
+        <div className="flex-1 min-w-0 flex flex-col gap-4">
 
-        {/* ── Header ── */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12">
-          <div>
-            <h1 className="text-4xl font-black text-[#0A1628] dark:text-white tracking-tight mb-3">Centre d'Alerte</h1>
-            <p className="text-sm font-medium text-slate-400 dark:text-slate-500 italic">Pilotage temps réel des événements et urgences municipales.</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <button onClick={markAllRead}
-              className="h-14 px-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[#0A1628] dark:text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-3 active:scale-[0.98]">
-              <CheckCheck className="w-5 h-5 text-[#1557FF]" /> Tout marquer lu
-            </button>
-            {selected.length > 0 && (
+          {/* Toolbar row 1: search + category filter + date range */}
+          <div className="flex flex-wrap gap-2">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+              <input
+                value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Rechercher une notification..."
+                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 placeholder-slate-300 dark:placeholder-slate-600 outline-none focus:border-green-300 focus:ring-2 focus:ring-green-50 dark:focus:ring-green-900/20 transition-all"
+              />
+              {search && (
+                <button onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center text-slate-400 hover:text-slate-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Category dropdown */}
+            <div className="relative">
+              <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <select value={catFilter} onChange={e => setCatFilter(e.target.value)}
+                className="appearance-none pl-10 pr-8 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 outline-none focus:border-green-300 cursor-pointer">
+                <option value="">Toutes les catégories</option>
+                {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+            </div>
+
+            {/* Date range (simple presets) */}
+            <div className="relative">
+              <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <select value={datePreset} onChange={e => setDatePreset(e.target.value)}
+                className="appearance-none pl-10 pr-8 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 outline-none focus:border-green-300 cursor-pointer">
+                <option value="">Toute période</option>
+                <option value="today">Aujourd'hui</option>
+                <option value="week">Cette semaine</option>
+                <option value="month">Ce mois</option>
+                <option value="30d">30 derniers jours</option>
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+            </div>
+
+            {/* Filters button (bulk delete when selection) */}
+            {selected.size > 0 ? (
               <button onClick={deleteSelected}
-                className="h-14 px-8 rounded-2xl bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 transition-all flex items-center gap-3 active:scale-[0.98] shadow-xl shadow-rose-500/20">
-                <Trash2 className="w-5 h-5" /> Supprimer ({selected.length})
+                className="flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-sm font-bold text-red-600 hover:bg-red-100 transition-colors">
+                <Trash2 className="w-4 h-4" /> Supprimer ({selected.size})
+              </button>
+            ) : (
+             <button className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+                <Filter className="w-4 h-4" /> Filtres
               </button>
             )}
           </div>
-        </div>
 
-        {/* ── KPI row ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-12">
-          <KpiCard label="Non lues"    value={unreadCount}  sub="FLUX ACTIF"      color="#EF4444" icon={<Bell      className="w-6 h-6"/>} />
-          <KpiCard label="Aujourd'hui" value={todayCount}   sub="SEGMENT 24H"     color="#1557FF" icon={<Activity  className="w-6 h-6"/>} />
-          <KpiCard label="Urgentes"    value={urgentCount}  sub="ACTION REQUISE"  color="#F97316" icon={<AlertTriangle className="w-6 h-6"/>} />
-          <KpiCard label="Total"       value={notifs.length}sub="ARCHIVE GLOBALE" color="#10B981" icon={<Shield    className="w-6 h-6"/>} />
-        </div>
-
-        {/* ── Main card ── */}
-        <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-2xl rounded-[3.5rem] border border-slate-200/60 dark:border-slate-800 shadow-2xl overflow-hidden transition-all duration-500">
-
-          {/* Toolbar */}
-          <div className="px-10 py-8 border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/20 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-            {/* Tab switcher */}
-            <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1.5 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-sm self-start">
+          {/* Toolbar row 2: tabs + sort */}
+          <div className="flex items-center justify-between">
+            {/* Read filter tabs */}
+            <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-sm">
               {([
-                ['all',    `Toutes (${notifs.length})`],
-                ['unread', `Non lues (${unreadCount})`],
+                ['all',    'Toutes'],
+                ['unread', 'Non lues'],
                 ['read',   'Lues'],
               ] as const).map(([k, l]) => (
                 <button key={k} onClick={() => setFilter(k)}
-                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === k ? 'bg-slate-900 dark:bg-[#1557FF] text-white shadow-xl' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                    filter === k ? 'bg-green-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}>
+                  {k === 'unread' && filter !== 'unread' && unreadCount > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                  )}
                   {l}
+                  {k === 'unread' && unreadCount > 0 && (
+                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${filter === 'unread' ? 'bg-white/20' : 'bg-blue-100 text-blue-600'}`}>
+                      {unreadCount}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
 
-            <div className="flex items-center gap-4 flex-wrap">
-              {/* Search */}
-              <div className="relative group">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 dark:text-slate-600 group-focus-within:text-[#1557FF] transition-colors" />
-                <input type="text" placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)}
-                  className="pl-12 pr-5 h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold text-[#0A1628] dark:text-white placeholder-slate-300 dark:placeholder-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-500/10 focus:border-[#1557FF]/30 transition-all w-60" />
+            {/* Sort + mark all */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 font-medium">Trier par :</span>
+              <div className="relative">
+                <select value={sortMode} onChange={e => setSortMode(e.target.value as any)}
+                  className="appearance-none pl-3 pr-8 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 outline-none cursor-pointer focus:border-green-300">
+                  <option value="recent">Plus récentes</option>
+                  <option value="oldest">Plus anciennes</option>
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
               </div>
-
-              {/* Type filter */}
-              <select value={typeF} onChange={e => setTypeF(e.target.value)}
-                className="h-12 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 outline-none cursor-pointer hover:border-[#1557FF]/30 transition-all appearance-none pr-12"
-                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.25rem center', backgroundSize: '1rem' }}
-              >
-                <option value="">Tous les types</option>
-                <option value="NEW_DECLARATION">Signalements</option>
-                <option value="URGENT_DECLARATION">Urgences</option>
-                <option value="DECLARATION_REJECTED">Refus</option>
-                <option value="STATUS_CHANGE">Workflows</option>
-                <option value="INTERNAL_COMMENT">Commentaires</option>
-                <option value="PROPOSITION_VOTE">Consultations</option>
-                <option value="SYSTEM">Système</option>
-              </select>
+              {unreadCount > 0 && (
+                <button onClick={markAllRead}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-green-600 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl hover:border-green-200 dark:hover:border-green-800 transition-colors">
+                  <CheckCheck className="w-3.5 h-3.5" /> Tout marquer lu
+                </button>
+              )}
             </div>
           </div>
 
-          {/* ── List ── */}
-          <div className="divide-y divide-slate-50 dark:divide-slate-800">
-            {filtered.length === 0 ? (
-              <div className="py-32 text-center">
-                <div className="w-24 h-24 rounded-[2.5rem] bg-slate-50 dark:bg-slate-800 flex items-center justify-center mx-auto mb-8 text-slate-200 dark:text-slate-700 shadow-inner">
-                  <Bell className="w-10 h-10" />
+          {/* ── List ─────────────────────────────────────────────────── */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm flex-1">
+            {loading && notifs.length === 0 ? (
+              <div className="divide-y divide-slate-50">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="flex items-start gap-4 px-5 py-4">
+                    <Sk w="w-10" h="h-10" />
+                    <div className="flex-1 space-y-2 pt-1">
+                      <Sk w="w-2/3" h="h-3" />
+                      <Sk w="w-1/2" h="h-2.5" />
+                    </div>
+                    <Sk w="w-20" h="h-2.5" />
+                  </div>
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center gap-4 py-20">
+                <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center">
+                  <Inbox className="w-7 h-7 text-slate-200" />
                 </div>
-                <h3 className="text-2xl font-black text-[#0A1628] dark:text-white tracking-tight">Signal Néant</h3>
-                <p className="text-slate-400 dark:text-slate-500 font-medium mt-2 italic">Aucune alerte correspondante.</p>
+                <p className="font-black text-slate-700">Aucune notification</p>
+                <p className="text-sm text-slate-400">Modifiez les filtres ou revenez plus tard.</p>
               </div>
             ) : (
-              filtered.map(n => {
-                const cfg        = getCfg(n.type)
-                const isSelected = selected.includes(n.id)
-                const urgent     = isUrgent(n)
-
-                return (
-                  <div key={n.id}
-                    onClick={() => openDrawer(n)}
-                    className={`flex items-start gap-8 px-10 py-8 transition-all cursor-pointer group relative border-l-[4px] ${!n.is_read ? 'bg-blue-500/5 border-blue-500/60' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40 border-transparent'} ${isSelected ? 'bg-blue-500/10' : ''}`}>
-
-                    {/* Checkbox */}
-                    <div
-                      onClick={e => toggleSelect(n.id, e)}
-                      className={`w-6 h-6 rounded-xl border-2 mt-2 flex-shrink-0 flex items-center justify-center cursor-pointer transition-all ${isSelected ? 'border-blue-500 bg-blue-500 shadow-lg shadow-blue-500/30' : 'border-slate-200 dark:border-slate-700 group-hover:border-blue-500/40 bg-white dark:bg-slate-800'}`}>
-                      {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
-                    </div>
-
-                    {/* Type icon */}
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-100 dark:border-slate-800/50 group-hover:scale-110 transition-transform duration-500 ${cfg.bg}`}
-                      style={{ color: cfg.color }}>
-                      {cfg.icon}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0 pt-1">
-                      <div className="flex items-start justify-between gap-4 mb-2">
-                        <div className="flex items-center flex-wrap gap-3">
-                          <h3 className={`text-base tracking-tight leading-snug ${!n.is_read ? 'font-black text-[#0A1628] dark:text-white' : 'font-bold text-slate-500 dark:text-slate-600'}`}>
-                            {n.title}
-                          </h3>
-                          {/* Type label */}
-                          <span className={`px-3 py-1 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] ${cfg.bg} border border-white/10`} style={{ color: cfg.color }}>
-                            {cfg.label}
-                          </span>
-                          {/* Urgent badge */}
-                          {urgent && (
-                            <span className="px-3 py-1 text-[8px] font-black uppercase tracking-[0.2em] rounded-xl bg-red-500 text-white shadow-xl shadow-red-500/30 flex items-center gap-1.5 animate-pulse">
-                              <AlertTriangle className="w-3 h-3" /> CRITIQUE
-                            </span>
-                          )}
-                          {/* Unread dot */}
-                          {!n.is_read && (
-                            <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_12px_rgba(21,87,255,0.6)] animate-pulse" />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-slate-300 dark:text-slate-700 flex-shrink-0">
-                          <Clock className="w-4 h-4" />
-                          <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">{timeAgo(n.created_at)}</span>
-                        </div>
-                      </div>
-
-                      <p className={`text-sm leading-relaxed max-w-3xl ${!n.is_read ? 'text-slate-600 dark:text-slate-300 font-bold' : 'text-slate-400 dark:text-slate-500 italic font-medium'}`}>
-                        {n.body}
-                      </p>
-
-                      {/* "Voir détails" hint */}
-                      {n.reference_id && (
-                        <div className="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
-                          <p className="text-[10px] font-black text-[#1557FF] dark:text-blue-400 uppercase tracking-widest">Voir détails</p>
-                          <ArrowRight className="w-3.5 h-3.5 text-[#1557FF] dark:text-blue-400" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Row actions */}
-                    <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 translate-x-4 group-hover:translate-x-0 pt-1">
-                      {!n.is_read && (
-                        <button
-                          onClick={e => markRead(n.id, e)}
-                          className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 hover:shadow-lg transition-all active:scale-90"
-                          title="Marquer lu">
-                          <Check className="w-5 h-5" />
-                        </button>
-                      )}
-                      <button
-                        onClick={e => deleteNotif(n.id, e)}
-                        className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/40 hover:shadow-lg transition-all active:scale-90"
-                        title="Supprimer">
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
+              Object.entries(grouped).map(([dateLabel, items]) => (
+                <div key={dateLabel}>
+                  {/* Date group header */}
+                  <div className="px-5 py-2 bg-slate-50 dark:bg-slate-800/50 border-y border-slate-100 dark:border-slate-800 first:border-t-0">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{dateLabel}</span>
                   </div>
-                )
-              })
+                  <div className="divide-y divide-slate-50 dark:divide-slate-800">
+                    {items.map(n => {
+                      const cfg = getTypeCfg(n.type)
+                      const isSelected = selected.has(n.id)
+
+                      return (
+                        <div key={n.id}
+                          onClick={() => openDrawer(n)}
+                          className={`group flex items-start gap-4 px-5 py-4 cursor-pointer transition-all relative ${
+                            isSelected ? 'bg-green-50 dark:bg-green-900/10' : !n.is_read ? 'bg-blue-50/40 dark:bg-blue-900/10 hover:bg-blue-50/70 dark:hover:bg-blue-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                          }`}>
+
+                          {/* Unread indicator */}
+                          {!n.is_read && (
+                            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500" />
+                          )}
+
+                          {/* Checkbox */}
+                          <div onClick={e => { e.stopPropagation(); setSelected(prev => { const s = new Set(prev); s.has(n.id) ? s.delete(n.id) : s.add(n.id); return s }) }}
+                            className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 mt-1 cursor-pointer transition-colors ${
+                              isSelected ? 'bg-green-600 border-green-600' : 'border-slate-200 dark:border-slate-700 group-hover:border-slate-400 dark:group-hover:border-slate-500'
+                            }`}>
+                            {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                          </div>
+
+                          {/* Type icon */}
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                            style={{ background: cfg.bg, color: cfg.color }}>
+                            {cfg.icon}
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm leading-snug ${!n.is_read ? 'font-bold text-slate-900 dark:text-slate-100' : 'font-medium text-slate-600 dark:text-slate-400'}`}>
+                              {n.title}
+                            </p>
+                            {n.body && (
+                              <p className="text-xs text-slate-400 mt-0.5 leading-relaxed line-clamp-2 font-medium">
+                                {n.body}
+                              </p>
+                            )}
+                            {/* Action button for linked declarations */}
+                            {n.reference_id && (
+                              <button className="mt-2 flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:border-green-200 dark:hover:border-green-800 transition-colors opacity-0 group-hover:opacity-100">
+                                <Eye className="w-3 h-3" /> Voir la mission
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Timestamp + actions */}
+                          <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                            <div className="flex items-center gap-1.5 text-slate-400">
+                              <span className="text-[10px] font-medium whitespace-nowrap">{timeAgo(n.created_at)}</span>
+                              {!n.is_read && (
+                                <div className="w-2 h-2 rounded-full" style={{ background: cfg.dotColor }} />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {!n.is_read && (
+                                <button onClick={e => { e.stopPropagation(); markRead(n.id) }} title="Marquer lu"
+                                  className="w-6 h-6 flex items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors">
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <button onClick={e => deleteOne(n.id, e)} title="Supprimer"
+                                className="w-6 h-6 flex items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
+
+            {/* Load more */}
+            {!loading && notifs.length < total && (
+              <div className="px-5 py-4 border-t border-slate-100 flex justify-center">
+                <button onClick={() => { const next = page + 1; setPage(next); load(next) }}
+                  className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors border border-slate-200 dark:border-slate-700">
+                  Charger plus de notifications <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
             )}
           </div>
+        </div>
 
-          {/* Footer */}
-          <div className="px-10 py-8 bg-slate-50/50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-3">
-            <Info className="w-4 h-4 text-slate-300 dark:text-slate-700" />
-            <p className="text-[10px] font-black text-slate-300 dark:text-slate-700 uppercase tracking-[0.2em]">
-              Notifications synchronisées avec les pôles opérationnels
-            </p>
+        {/* ── RIGHT: Sidebar ───────────────────────────────────────── */}
+        <div className="w-64 flex-shrink-0 space-y-4">
+
+          {/* Résumé */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-6 h-6 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <Bell className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+              </div>
+              <span className="text-sm font-black text-slate-800 dark:text-slate-100">Résumé</span>
+            </div>
+            {[
+              { label: 'Total notifications', value: total,        color: 'text-green-600' },
+              { label: 'Non lues',            value: unreadCount,  color: 'text-red-500'   },
+              { label: 'Lues',                value: total - unreadCount, color: 'text-slate-500' },
+            ].map(r => (
+              <div key={r.label} className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800/50 last:border-0">
+                <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">{r.label}</span>
+                <span className={`text-sm font-black ${r.color}`}>{r.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Categories */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-6 h-6 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <Filter className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+              </div>
+              <span className="text-sm font-black text-slate-800 dark:text-slate-100">Catégories</span>
+            </div>
+            {CATEGORIES.map(c => (
+              <button key={c.key}
+                onClick={() => setCatFilter(prev => prev === c.key ? '' : c.key)}
+                className={`w-full flex items-center justify-between py-2.5 px-2 -mx-2 rounded-xl transition-colors border border-transparent ${
+                  catFilter === c.key ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                }`}>
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${catFilter === c.key ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}>
+                    {c.icon}
+                  </div>
+                  <span className={`text-sm font-medium ${catFilter === c.key ? 'text-green-700 font-bold' : 'text-slate-700'}`}>
+                    {c.label}
+                  </span>
+                </div>
+                <span className={`text-xs font-black ${catFilter === c.key ? 'text-green-600' : 'text-slate-500'}`}>
+                  {catCounts[c.key] || 0}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Quick date filters */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-6 h-6 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <Calendar className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+              </div>
+              <span className="text-sm font-black text-slate-800 dark:text-slate-100">Filtres rapides</span>
+            </div>
+            {[
+              { key: 'today', label: "Aujourd'hui" },
+              { key: 'week',  label: 'Cette semaine' },
+              { key: 'month', label: 'Ce mois' },
+              { key: '30d',   label: '30 derniers jours' },
+            ].map(d => (
+              <button key={d.key}
+                onClick={() => setDatePreset(prev => prev === d.key ? '' : d.key)}
+                className={`w-full flex items-center gap-2.5 py-2.5 px-2 -mx-2 rounded-xl text-sm font-medium transition-colors border ${
+                  datePreset === d.key
+                    ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 font-bold border-green-100 dark:border-green-800'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-transparent'
+                }`}>
+                <Calendar className={`w-4 h-4 ${datePreset === d.key ? 'text-green-600' : 'text-slate-400'}`} />
+                {d.label}
+              </button>
+            ))}
+            {datePreset && (
+              <button onClick={() => setDatePreset('')}
+                className="w-full mt-2 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
+                Effacer le filtre
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── Detail Drawer ── */}
-      {drawer && (
-        <DetailDrawer notif={drawer} onClose={() => setDrawer(null)} />
-      )}
+      {/* Detail drawer */}
+      {drawer && <DetailDrawer notif={drawer} onClose={() => setDrawer(null)} onDelete={deleteOne} />}
     </PresidentLayout>
   )
 }

@@ -15,6 +15,7 @@ import {
   Flame, TrendingDown, TrendingUp
 } from 'lucide-react'
 import PresidentLayout from '../../layouts/PresidentLayout'
+import DeclarationDetailDrawer from './Declarationdetaildrawer'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const tok = () => localStorage.getItem('fmc_token') || ''
@@ -97,70 +98,12 @@ const BarTip = ({ active, payload, label }: any) => {
   )
 }
 
-const ActivePie = (props: any) => {
-  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props
-  return (
-    <g>
-      <Sector cx={cx} cy={cy} innerRadius={innerRadius - 3} outerRadius={outerRadius + 7}
-        startAngle={startAngle} endAngle={endAngle} fill={fill} />
-    </g>
-  )
-}
 
-const DeclModal = ({ item, onClose }: { item: any; onClose: () => void }) => (
-  <AnimatePresence>
-    <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <motion.div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-6"
-        initial={{ scale: 0.93, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.93, y: 16 }}>
-        <button onClick={onClose}
-          className="absolute top-4 right-4 w-7 h-7 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors">
-          <X className="w-3.5 h-3.5 text-gray-500 dark:text-slate-400" />
-        </button>
-        <div className="flex items-start gap-3 mb-4">
-          <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center flex-shrink-0">
-            <AlertTriangle className="w-4 h-4 text-red-500" />
-          </div>
-          <div>
-            <p className="font-bold text-gray-900 dark:text-white text-sm leading-snug">
-              {item.title || item.description || 'Signalement critique'}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">{item.ref_citoyen}</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-xs mb-4">
-          {[
-            ['Statut', item.status || '—'],
-            ['Priorité', item.priority_score || '—'],
-            ['Votes', item.votes_count || 0],
-            ['Date', new Date(item.created_at).toLocaleDateString('fr-FR')],
-          ].map(([k, v]) => (
-            <div key={String(k)} className="bg-gray-50 dark:bg-slate-800 rounded-xl p-2.5">
-              <p className="text-gray-400 text-[10px] mb-0.5">{String(k)}</p>
-              <p className="font-bold text-gray-700 dark:text-slate-200">{String(v)}</p>
-            </div>
-          ))}
-        </div>
-        {item.description && (
-          <p className="text-xs text-gray-600 dark:text-slate-400 bg-gray-50 dark:bg-slate-800 rounded-xl p-3 mb-4 leading-relaxed">
-            {item.description}
-          </p>
-        )}
-        <Link to="/president/declarations"
-          className="flex items-center justify-center gap-2 w-full py-2.5 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 transition-colors">
-          Voir la déclaration <ExternalLink className="w-3.5 h-3.5" />
-        </Link>
-      </motion.div>
-    </motion.div>
-  </AnimatePresence>
-)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION 1 — Top 5 Signalements Critiques
 // ─────────────────────────────────────────────────────────────────────────────
-const TopCritiques = ({ data, loading }: { data: any[]; loading: boolean }) => {
-  const [sel, setSel] = useState<any>(null)
+const TopCritiques = ({ data, loading, onSelectDecl }: { data: any[]; loading: boolean; onSelectDecl: (id: string) => void }) => {
   const total = data.reduce((s, d) => s + (d.votes_count || 0), 0)
 
   return (
@@ -186,8 +129,8 @@ const TopCritiques = ({ data, loading }: { data: any[]; loading: boolean }) => {
             <motion.div key={item.id || i}
               initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.06 }}
-              onClick={() => setSel(item)}
-              className="flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group">
+              onClick={() => onSelectDecl(item.id)}
+              className="flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
               <span className="text-[11px] font-black text-gray-400 w-4 text-right flex-shrink-0">{i + 1}</span>
               <div className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-500/10 flex items-center justify-center flex-shrink-0">
                 <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
@@ -201,7 +144,7 @@ const TopCritiques = ({ data, loading }: { data: any[]; loading: boolean }) => {
                 </p>
               </div>
               <SevBadge label={sev} />
-              <span className="text-[13px] font-black text-gray-700 w-8 text-right flex-shrink-0">
+              <span className="text-[13px] font-black text-gray-700 dark:text-slate-200 w-8 text-right flex-shrink-0">
                 {item.votes_count || 0}
               </span>
             </motion.div>
@@ -215,8 +158,6 @@ const TopCritiques = ({ data, loading }: { data: any[]; loading: boolean }) => {
           <span className="text-[13px] font-black text-red-500">{total.toLocaleString('fr-FR')}</span>
         </div>
       )}
-
-      {sel && <DeclModal item={sel} onClose={() => setSel(null)} />}
     </div>
   )
 }
@@ -525,8 +466,6 @@ const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; lo
                   <Pie data={pieData} cx="50%" cy="50%"
                     innerRadius={62} outerRadius={88}
                     dataKey="value" paddingAngle={2}
-                    activeIndex={activeIdx}
-                    activeShape={<ActivePie />}
                     onMouseEnter={(_, idx) => setActiveIdx(idx)}
                     onMouseLeave={() => setActiveIdx(undefined)}>
                     {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
@@ -588,6 +527,15 @@ const PresidentDashboard: React.FC = () => {
   const [deptsRaw, setDeptsRaw] = useState<any[]>([])
   const [byStatus, setByStatus] = useState<Record<string, number>>({})
   const [stats, setStats] = useState({ criticalCount: 0, resolvedCount: 0, highSatisfactionCount: 0 })
+  const [selectedDeclId, setSelectedDeclId] = useState<string | null>(null)
+
+  const currentUserId = (() => {
+    try {
+      const t = localStorage.getItem('fmc_token')
+      if (!t) return undefined
+      return JSON.parse(atob(t.split('.')[1])).sub
+    } catch { return undefined }
+  })()
 
   const load = useCallback(async () => {
     setLoading(true); setError(false)
@@ -706,7 +654,7 @@ const PresidentDashboard: React.FC = () => {
 
       {/* ── Row 1: 3 equal columns ───────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-        <TopCritiques data={crucials} loading={loading} />
+        <TopCritiques data={crucials} loading={loading} onSelectDecl={setSelectedDeclId} />
         <ZonesCritiques zones={zones} loading={loading} />
         <TachesChart trend={trend} depts={deptsRaw} loading={loading} />
       </div>
@@ -717,6 +665,14 @@ const PresidentDashboard: React.FC = () => {
         <StatusPie byStatus={byStatus} loading={loading} />
       </div>
       </div>
+
+      <DeclarationDetailDrawer
+        declarationId={selectedDeclId}
+        onClose={() => setSelectedDeclId(null)}
+        onAssigned={() => { load(); setSelectedDeclId(null) }}
+        departments={deptsRaw.map((d: any) => ({ id: d.id, name: d.name_fr || d.name }))}
+        currentUserId={currentUserId}
+      />
     </PresidentLayout>
   )
 }

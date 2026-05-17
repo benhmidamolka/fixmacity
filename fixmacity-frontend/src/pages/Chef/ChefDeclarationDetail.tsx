@@ -10,15 +10,7 @@ import DeclarationCommentsPanel from '../../components/president/DeclarationComm
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const token = () => localStorage.getItem('fmc_token')
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  soumis:         { label: 'Soumise',        color: '#F59E0B', bg: '#FFFBEB', dot: '#F59E0B' },
-  assignee_chef:  { label: 'Assignée Chef',  color: '#F97316', bg: '#FFF7ED', dot: '#F97316' },
-  assignee_agent: { label: 'Assignée Agent', color: '#3B82F6', bg: '#EFF6FF', dot: '#3B82F6' },
-  en_cours:       { label: 'En cours',       color: '#1557FF', bg: '#EEF2FF', dot: '#1557FF' },
-  resolue:        { label: 'Résolue',        color: '#10B981', bg: '#F0FDF4', dot: '#10B981' },
-  refusee_chef:   { label: 'Refusée Chef',   color: '#EF4444', bg: '#FEF2F2', dot: '#EF4444' },
-  refusee_agent:  { label: 'Refusée Agent',  color: '#DC2626', bg: '#FEF2F2', dot: '#DC2626' },
-}
+import { STATUS_CONFIG } from '../../constants/declarations'
 
 interface Agent { 
   id: string; 

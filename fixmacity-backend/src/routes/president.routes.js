@@ -13,6 +13,10 @@ router.get('/declarations/:id', ctrl.getDeclarationDetail);
 router.delete('/declarations/:id', ctrl.deleteDeclaration);
 router.post('/declarations/bulk-delete', ctrl.bulkDeleteDeclarations);
 
+// AI image analysis + priority override
+router.post('/declarations/:id/analyze-image', ctrl.analyzeDeclarationImage);
+router.patch('/declarations/:id/priority', ctrl.overridePriority);
+
 router.post('/declarations/:id/assign', [
   body('department_id').isUUID().withMessage('Département invalide (UUID attendu).'),
 ], ctrl.assignDeclaration);

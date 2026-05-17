@@ -168,7 +168,7 @@ function AssignAgentModal({
                   <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 ${st.dot}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-black truncate ${darkMode ? 'text-white' : 'text-[#0A1628]'}`}>{agent.name}</p>
+                  <p className="text-sm font-black truncate text-[#0A1628] dark:text-white">{agent.name}</p>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: st.color }}>{st.label}</span>
                     <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">• {agent.active_tasks} tâches</span>
@@ -293,7 +293,6 @@ const ChefDashboard: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
 
   const user = JSON.parse(localStorage.getItem('fmc_user') || '{}')
-  const darkMode = document.documentElement.classList.contains('dark')
 
   const fetchData = async () => {
     setLoading(true)
@@ -535,7 +534,7 @@ const ChefDashboard: React.FC = () => {
                       <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 ${st.dot}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-black truncate ${darkMode ? 'text-white' : 'text-[#0A1628]'}`}>{agent.name}</p>
+                      <p className="text-sm font-black truncate text-[#0A1628] dark:text-white">{agent.name}</p>
                       <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: st.color }}>{st.label}</p>
                     </div>
                   </div>

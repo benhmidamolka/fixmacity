@@ -503,6 +503,7 @@ export default function PresidentPropositions() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [filterCategory, setFilterCategory] = useState('all')
 
   // Modals
   const [showForm, setShowForm] = useState(false)
@@ -604,9 +605,17 @@ export default function PresidentPropositions() {
     const q = search.toLowerCase()
     const matchQ = !q || p.title.toLowerCase().includes(q) || (p.citizen || '').toLowerCase().includes(q)
     if (!matchQ) return false
-    if (filterStatus === 'all') return true
-    const displayStatus = isCitizen ? (CITIZEN_STATUS_MAP[p.status] || p.status) : p.status
-    return displayStatus === filterStatus
+
+    if (filterStatus !== 'all') {
+      const displayStatus = isCitizen ? (CITIZEN_STATUS_MAP[p.status] || p.status) : p.status
+      if (displayStatus !== filterStatus) return false
+    }
+
+    if (filterCategory !== 'all') {
+      if (p.category !== filterCategory) return false
+    }
+
+    return true
   })
 
   const filtered = tab === 'president' ? filter(presProps) : filter(citiProps, true)
@@ -702,6 +711,21 @@ export default function PresidentPropositions() {
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher..."
               className="w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-[#0A1628] dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#1557FF]/20 focus:border-[#1557FF] transition-all" />
+          </div>
+
+          {/* Category Dropdown Filter */}
+          <div className="relative min-w-[180px]">
+            <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
+              className="w-full pl-11 pr-10 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-black text-[#0A1628] dark:text-white appearance-none focus:outline-none focus:ring-2 focus:ring-[#1557FF]/20 focus:border-[#1557FF] transition-all cursor-pointer">
+              <option value="all" className="font-bold text-slate-700 dark:text-slate-300 dark:bg-slate-900">Toutes catégories</option>
+              {CATEGORIES.map(c => (
+                <option key={c} value={c} className="font-bold text-slate-700 dark:text-slate-300 dark:bg-slate-900">
+                  {CAT_ICON[c] || '📋'} {c}
+                </option>
+              ))}
+            </select>
+            <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none transform rotate-90" />
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
