@@ -72,6 +72,10 @@ const PRIORITY: Record<string, { label: string; color: string; bg: string }> = {
   low:     { label: '🟢 Faible',  color: '#16A34A', bg: '#DCFCE7' },
 }
 
+const ROLE_COLORS: Record<string, string> = {
+  president: '#7C3AED', chef: '#1D4ED8', agent: '#15803D', citizen: '#0369A1',
+}
+
 const WORKFLOW_STEPS = [
   { key: 'soumise',        label: 'Soumis',    Icon: FileText     },
   { key: 'assignee_chef',  label: 'Chef',      Icon: Shield       },
@@ -81,23 +85,19 @@ const WORKFLOW_STEPS = [
   { key: 'cloturee',       label: 'Clôturé',   Icon: CheckCircle2 },
 ]
 
-const ROLE_COLORS: Record<string, string> = {
-  president: '#7C3AED', chef: '#1D4ED8', agent: '#15803D', citizen: '#0369A1',
-}
-
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 const Skel = ({ w = 'w-full', h = 'h-4' }: { w?: string; h?: string }) => (
-  <div className={`${w} ${h} rounded-xl bg-slate-100 animate-pulse`} />
+  <div className={`${w} ${h} rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse`} />
 )
 
 // ─── Info Row ─────────────────────────────────────────────────────────────────
 const InfoRow = ({ icon: Icon, label, children }: { icon: any; label: string; children: React.ReactNode }) => (
-  <div className="flex items-start gap-3 py-3 border-b border-slate-100 last:border-0">
-    <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-      <Icon size={14} className="text-slate-500" />
+  <div className="flex items-start gap-3 py-3 border-b border-slate-100 dark:border-slate-800/60 last:border-0">
+    <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 mt-0.5">
+      <Icon size={14} className="text-slate-550 dark:text-slate-400" />
     </div>
     <div className="flex-1 min-w-0">
-      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">{label}</p>
+      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-550 mb-0.5">{label}</p>
       {children}
     </div>
   </div>
@@ -131,7 +131,7 @@ const Avatar = ({ name, role }: { name: string; role?: string }) => {
 const Stars = ({ score }: { score: number }) => (
   <div className="flex gap-0.5">
     {[1,2,3,4,5].map(i => (
-      <Star key={i} size={13} className={i <= score ? 'fill-amber-400 text-amber-400' : 'text-slate-200'} />
+      <Star key={i} size={13} className={i <= score ? 'fill-amber-400 text-amber-400' : 'text-slate-200 dark:text-slate-700'} />
     ))}
   </div>
 )
@@ -142,7 +142,7 @@ const Timeline = ({ status, history }: { status: string; history: HistEntry[] })
   const active = currentIdx >= 0 ? currentIdx : 0
   return (
     <div className="relative">
-      <div className="absolute left-[15px] top-6 bottom-6 w-0.5 bg-slate-100" />
+      <div className="absolute left-[15px] top-6 bottom-6 w-0.5 bg-slate-100 dark:bg-slate-800" />
       <div className="space-y-0">
         {WORKFLOW_STEPS.map(({ key, label, Icon }, idx) => {
           const done    = idx < active
@@ -153,39 +153,39 @@ const Timeline = ({ status, history }: { status: string; history: HistEntry[] })
               {/* Node */}
               <div className={`w-[30px] h-[30px] rounded-full flex items-center justify-center flex-shrink-0 z-10 border-2 transition-all
                 ${done    ? 'bg-emerald-500 border-emerald-500' :
-                  current ? 'bg-white border-blue-500 ring-4 ring-blue-50' :
-                             'bg-white border-slate-200'}`}>
+                  current ? 'bg-white dark:bg-slate-900 border-blue-500 ring-4 ring-blue-50 dark:ring-blue-950/30' :
+                             'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'}`}>
                 {done    ? <CheckCircle2 size={13} className="text-white" /> :
                  current ? <Icon size={13} className="text-blue-500" /> :
-                           <Icon size={13} className="text-slate-300" />}
+                           <Icon size={13} className="text-slate-300 dark:text-slate-655" />}
               </div>
               {/* Content */}
               <div className="flex-1 pt-1 min-w-0">
                 <p className={`text-xs font-bold
-                  ${done ? 'text-emerald-700' : current ? 'text-blue-700' : 'text-slate-300'}`}>
+                  ${done ? 'text-emerald-700 dark:text-emerald-400' : current ? 'text-blue-700 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`}>
                   {label}
                 </p>
                 {entry && (
                   <div className="mt-1 space-y-0.5">
-                    <p className="text-[10px] text-slate-500 font-medium">{fmtShort(entry.created_at)}</p>
+                    <p className="text-[10px] text-slate-550 font-medium">{fmtShort(entry.created_at)}</p>
                     {entry.user && (
-                      <p className="text-[10px] text-slate-400">
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500">
                         par <span className="font-bold">{entry.user.first_name} {entry.user.last_name}</span>
                         <span className="opacity-60"> ({entry.user.role})</span>
                       </p>
                     )}
                     {entry.raison && (
-                      <div className="mt-1 px-2.5 py-1.5 bg-red-50 border border-red-100 rounded-xl">
-                        <p className="text-[10px] text-red-600 italic">«{entry.raison}»</p>
+                      <div className="mt-1 px-2.5 py-1.5 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 rounded-xl">
+                        <p className="text-[10px] text-red-600 dark:text-red-400 italic">«{entry.raison}»</p>
                       </div>
                     )}
                   </div>
                 )}
                 {!entry && current && (
-                  <p className="text-[10px] text-blue-400 mt-0.5 font-semibold">En cours…</p>
+                  <p className="text-[10px] text-blue-450 mt-0.5 font-semibold">En cours…</p>
                 )}
                 {!entry && !done && !current && (
-                  <p className="text-[10px] text-slate-300 mt-0.5">En attente</p>
+                  <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-0.5">En attente</p>
                 )}
               </div>
             </div>
@@ -216,18 +216,18 @@ const CommentsTab = ({
   }, [sorted.length])
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900">
       {/* List */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 min-h-0">
         {loading ? (
           <div className="space-y-2">{[...Array(3)].map((_, i) => <Skel key={i} h="h-12" />)}</div>
         ) : sorted.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center">
-              <MessageSquare size={18} className="text-slate-300" />
+          <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500 gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+              <MessageSquare size={18} className="text-slate-300 dark:text-slate-600" />
             </div>
-            <p className="text-xs font-bold">Aucun commentaire interne</p>
-            <p className="text-[10px] text-slate-300 text-center">Les échanges internes apparaissent ici une fois le dossier assigné</p>
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Aucun commentaire interne</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center">Les échanges internes apparaissent ici une fois le dossier assigné</p>
           </div>
         ) : sorted.map(c => {
           const isMe = c.user_id === currentUserId || c.user?.role === 'president'
@@ -244,17 +244,17 @@ const CommentsTab = ({
               </div>
               <div className={`flex flex-col max-w-[75%] gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
                 <div className={`flex items-center gap-1.5 ${isMe ? 'flex-row-reverse' : ''}`}>
-                  <span className="text-[10px] font-bold text-slate-700">{isMe ? 'Vous' : name}</span>
+                  <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200">{isMe ? 'Vous' : name}</span>
                   <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full text-white"
                     style={{ background: roleColor }}>
                     {ROLE_LABELS[c.user?.role ?? ''] ?? c.user?.role ?? ''}
                   </span>
-                  <span className="text-[9px] text-slate-400">
+                  <span className="text-[9px] text-slate-400 dark:text-slate-550">
                     {new Date(c.created_at).toLocaleString('fr-FR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}
                   </span>
                 </div>
                 <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed font-medium shadow-sm
-                  ${isMe ? 'text-white rounded-tr-sm' : 'bg-slate-100 text-slate-800 rounded-tl-sm'}`}
+                  ${isMe ? 'text-white rounded-tr-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-sm'}`}
                   style={isMe ? { background: roleColor } : {}}>
                   {c.content}
                 </div>
@@ -266,20 +266,20 @@ const CommentsTab = ({
       </div>
 
       {/* Input */}
-      <div className="flex-shrink-0 px-5 py-3 border-t border-slate-100">
+      <div className="flex-shrink-0 px-5 py-3 border-t border-slate-100 dark:border-slate-800/80">
         <div className="flex gap-2">
           <input
             value={text} onChange={e => setText(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend() } }}
             placeholder="Ajouter un commentaire interne…"
-            className="flex-1 text-xs px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-400 focus:bg-white font-medium text-slate-700 placeholder-slate-400 transition-all"
+            className="flex-1 text-xs px-3 py-2.5 bg-slate-50 dark:bg-slate-850/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-400 focus:bg-white dark:focus:bg-slate-800 font-medium text-slate-700 dark:text-slate-205 placeholder-slate-400 dark:placeholder-slate-550 transition-all"
           />
           <button onClick={onSend} disabled={sending || !text.trim()}
             className="w-9 h-9 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white flex items-center justify-center flex-shrink-0 transition-all shadow-sm">
             {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
           </button>
         </div>
-        <p className="text-[9px] text-slate-300 mt-1.5">Entrée pour envoyer · visible par le chef de service</p>
+        <p className="text-[9px] text-slate-350 dark:text-slate-500 mt-1.5">Entrée pour envoyer · visible par le chef de service</p>
       </div>
     </div>
   )
@@ -410,14 +410,14 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
         <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur flex items-center justify-center"
           onClick={() => setImgExpanded(null)}>
           <img src={imgExpanded} alt="Photo" className="max-w-[90vw] max-h-[90vh] rounded-2xl object-contain shadow-2xl" />
-          <button className="absolute top-5 right-5 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-all">
+          <button className="absolute top-5 right-5 w-10 h-10 bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 rounded-full flex items-center justify-center text-white transition-all">
             <X size={18} />
           </button>
         </div>
       )}
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-[600px] bg-white shadow-2xl flex flex-col border-l border-slate-100 overflow-hidden"
+      <div className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-[600px] bg-white dark:bg-slate-900 shadow-2xl flex flex-col border-l border-slate-100 dark:border-slate-800 overflow-hidden"
         style={{ animation: 'slideInRight .25s cubic-bezier(.22,1,.36,1)' }}>
 
         <style>{`
@@ -427,15 +427,15 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
         `}</style>
 
         {/* ── TOP BAR ───────────────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white">
+        <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-850/60 bg-white dark:bg-slate-900">
           <button onClick={onClose}
-            className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-slate-700 transition-colors">
+            className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
             <ArrowLeft size={14} /> Fermer
           </button>
           <div className="flex items-center gap-2">
             {detail && !loading && (
               <>
-                <span className="font-mono text-[10px] font-bold text-slate-400">{detail.ref_citoyen}</span>
+                <span className="font-mono text-[10px] font-bold text-slate-400 dark:text-slate-500">{detail.ref_citoyen}</span>
                 <StatusBadge status={detail.status} />
               </>
             )}
@@ -443,20 +443,20 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
           </div>
           <div className="flex items-center gap-1.5">
             <button onClick={load}
-              className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all">
+              className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-350 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             </button>
             <button onClick={onClose}
-              className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
+              className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-350 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
               <X size={13} />
             </button>
           </div>
         </div>
 
         {/* ── PHOTO STRIP ───────────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 h-36 bg-slate-100 overflow-hidden">
+        <div className="flex-shrink-0 h-36 bg-slate-100 dark:bg-slate-850 overflow-hidden">
           {loading ? (
-            <div className="w-full h-full bg-slate-200 animate-pulse" />
+            <div className="w-full h-full bg-slate-200 dark:bg-slate-800 animate-pulse" />
           ) : photos.length > 0 ? (
             <div className="flex h-full gap-px">
               {/* Before */}
@@ -479,17 +479,17 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                     </span>
                   </>
                 ) : (
-                  <div className="w-full h-full bg-slate-200 flex flex-col items-center justify-center gap-2">
-                    <Camera size={20} className="text-slate-400" />
-                    <p className="text-[10px] font-bold text-slate-400 text-center px-2 leading-tight">Photo après résolution</p>
+                  <div className="w-full h-full bg-slate-200 dark:bg-slate-800 flex flex-col items-center justify-center gap-2">
+                    <Camera size={20} className="text-slate-400 dark:text-slate-500" />
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-550 text-center px-2 leading-tight">Photo après résolution</p>
                   </div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-400">
-              <div className="w-10 h-10 rounded-2xl bg-slate-200 flex items-center justify-center">
-                <ImageIcon size={16} className="text-slate-400" />
+            <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-400 dark:text-slate-500">
+              <div className="w-10 h-10 rounded-2xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center">
+                <ImageIcon size={16} className="text-slate-400 dark:text-slate-500" />
               </div>
               <p className="text-[10px] font-bold uppercase tracking-wider">Aucune photo jointe</p>
             </div>
@@ -497,25 +497,25 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
         </div>
 
         {/* ── TITLE BLOCK ───────────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 px-6 py-4 border-b border-slate-100">
+        <div className="flex-shrink-0 px-6 py-4 border-b border-slate-100 dark:border-slate-850/60">
           {loading ? (
             <div className="space-y-2"><Skel h="h-5" w="w-3/4" /><Skel h="h-3" w="w-1/2" /></div>
           ) : detail && (
             <div className="flex items-start gap-3">
               <div className="flex-1 min-w-0">
-                <h2 className="text-lg font-black text-slate-900 leading-tight">{detail.title}</h2>
+                <h2 className="text-lg font-black text-slate-900 dark:text-slate-105 leading-tight">{detail.title}</h2>
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                   {detail.category && (
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-slate-550 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                       <Tag size={9} /> {detail.category}
                     </span>
                   )}
                   {detail.delegations?.name && (
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 dark:text-slate-500">
                       <MapPin size={9} /> {detail.delegations.name}
                     </span>
                   )}
-                  <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                  <span className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500">
                     <Calendar size={9} /> {fmtShort(detail.created_at)}
                   </span>
                   {detail.votes_count > 0 && (
@@ -524,7 +524,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                     </span>
                   )}
                   {detail.priority_score > 0 && (
-                    <span className="text-[10px] font-black text-slate-400">
+                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500">
                       Score: <span className="text-red-500">{detail.priority_score}</span>
                     </span>
                   )}
@@ -539,19 +539,19 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
         </div>
 
         {/* ── TABS ──────────────────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 flex border-b border-slate-100">
+        <div className="flex-shrink-0 flex border-b border-slate-100 dark:border-slate-850/60">
           {TABS.map(t => (
             <button key={t.key} onClick={() => setTab(t.key as any)}
               className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${
                 tab === t.key
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
               }`}>
               <t.Icon size={12} />
               {t.label}
               {t.count > 0 && (
                 <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full ${
-                  tab === t.key ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'
+                  tab === t.key ? 'bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                 }`}>{t.count}</span>
               )}
             </button>
@@ -563,24 +563,24 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
           {/* INFO TAB */}
           {tab === 'info' && (
-            <div className="absolute inset-0 overflow-y-auto">
+            <div className="absolute inset-0 overflow-y-auto bg-white dark:bg-slate-900">
               <div className="px-6 py-5 space-y-5">
 
                 {/* Description */}
-                <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-400 mb-2">Description du citoyen</p>
+                <div className="bg-blue-50/55 dark:bg-blue-955/20 rounded-2xl p-4 border border-blue-100/60 dark:border-blue-900/30">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-405 dark:text-blue-300 mb-2">Description du citoyen</p>
                   {loading ? (
                     <div className="space-y-1.5"><Skel /><Skel w="w-3/4" /></div>
                   ) : (
-                    <p className="text-sm text-slate-700 leading-relaxed font-medium">
-                      {detail?.description || <span className="italic text-slate-400">Aucune description.</span>}
+                    <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
+                      {detail?.description || <span className="italic text-slate-400 dark:text-slate-500">Aucune description.</span>}
                     </p>
                   )}
                 </div>
 
                 {/* Key info rows */}
                 {loading ? (
-                  <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-3">
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 space-y-3">
                     {[...Array(5)].map((_, i) => (
                       <div key={i} className="flex gap-3">
                         <Skel w="w-8" h="h-8" />
@@ -589,32 +589,32 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                     ))}
                   </div>
                 ) : detail && (
-                  <div className="bg-white rounded-2xl border border-slate-100 px-4 py-1">
+                  <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800 px-4 py-1">
                     <InfoRow icon={Hash} label="Références">
                       <div className="flex items-center gap-3 flex-wrap">
                         <span className="font-mono text-xs font-bold text-blue-600">{detail.ref_citoyen}</span>
-                        {detail.ref_service && <span className="font-mono text-xs text-slate-500">{detail.ref_service}</span>}
+                        {detail.ref_service && <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{detail.ref_service}</span>}
                       </div>
                     </InfoRow>
                     <InfoRow icon={Calendar} label="Soumise le">
-                      <p className="text-sm font-semibold text-slate-700">{fmt(detail.created_at)}</p>
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{fmt(detail.created_at)}</p>
                     </InfoRow>
                     <InfoRow icon={User} label="Citoyen déclarant">
                       {detail.citizen ? (
                         <div className="flex items-center gap-2.5 mt-0.5">
                           <Avatar name={`${detail.citizen.first_name} ${detail.citizen.last_name}`} role="citizen" />
                           <div>
-                            <p className="text-sm font-bold text-slate-800">{detail.citizen.first_name} {detail.citizen.last_name}</p>
-                            <p className="text-[10px] text-slate-400">{detail.citizen.email}</p>
-                            {detail.citizen.phone && <p className="text-[10px] text-slate-400">{detail.citizen.phone}</p>}
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-105">{detail.citizen.first_name} {detail.citizen.last_name}</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-550">{detail.citizen.email}</p>
+                            {detail.citizen.phone && <p className="text-[10px] text-slate-400 dark:text-slate-550">{detail.citizen.phone}</p>}
                           </div>
                         </div>
-                      ) : <p className="text-sm text-slate-400 italic">Non renseigné</p>}
+                      ) : <p className="text-sm text-slate-400 dark:text-slate-550 italic">Non renseigné</p>}
                     </InfoRow>
                     <InfoRow icon={MapPin} label="Localisation">
-                      <p className="text-sm font-semibold text-slate-700">{detail.address || detail.delegations?.name || '—'}</p>
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{detail.address || detail.delegations?.name || '—'}</p>
                       {detail.latitude && detail.longitude && (
-                        <p className="text-[10px] font-mono text-slate-400 mt-0.5">
+                        <p className="text-[10px] font-mono text-slate-400 dark:text-slate-550 mt-0.5">
                           {detail.latitude.toFixed(5)}, {detail.longitude.toFixed(5)}
                         </p>
                       )}
@@ -624,28 +624,28 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
                 {/* Assigned team card */}
                 {!loading && detail && ['assignee_chef','assignee_agent','en_cours','resolue','cloturee'].includes(detail.status) && (
-                  <div className="bg-white rounded-2xl border border-slate-100 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-3">Équipe assignée</p>
+                  <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800 p-4">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-550 mb-3">Équipe assignée</p>
                     <div className="space-y-3">
                       {detail.department && (
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-700 font-black text-[10px] border border-blue-100 flex-shrink-0">
+                          <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-blue-700 dark:text-blue-400 font-black text-[10px] border border-blue-100 dark:border-blue-900/30 flex-shrink-0">
                             {detail.department.code}
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-slate-800">{detail.department.name_fr || detail.department.name}</p>
-                            <p className="text-[10px] text-slate-400">Département</p>
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-205">{detail.department.name_fr || detail.department.name}</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500">Département</p>
                           </div>
-                          <Building2 size={14} className="text-slate-200 ml-auto" />
+                          <Building2 size={14} className="text-slate-200 dark:text-slate-700 ml-auto" />
                         </div>
                       )}
                       {detail.chef && (
                         <div className="flex items-center gap-3">
                           <Avatar name={`${detail.chef.first_name} ${detail.chef.last_name}`} role="chef" />
                           <div>
-                            <p className="text-xs font-bold text-slate-800">{detail.chef.first_name} {detail.chef.last_name}</p>
-                            <p className="text-[10px] text-slate-400">{detail.chef.email}</p>
-                            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-wide">Chef de service</p>
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-205">{detail.chef.first_name} {detail.chef.last_name}</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500">{detail.chef.email}</p>
+                            <p className="text-[9px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-wide">Chef de service</p>
                           </div>
                         </div>
                       )}
@@ -653,8 +653,8 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                         <div className="flex items-center gap-3">
                           <Avatar name={`${detail.agent.first_name} ${detail.agent.last_name}`} role="agent" />
                           <div>
-                            <p className="text-xs font-bold text-slate-800">{detail.agent.first_name} {detail.agent.last_name}</p>
-                            <p className="text-[9px] font-black text-emerald-600 uppercase tracking-wide">Agent terrain</p>
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-205">{detail.agent.first_name} {detail.agent.last_name}</p>
+                            <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Agent terrain</p>
                           </div>
                         </div>
                       )}
@@ -664,22 +664,22 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
                 {/* Resolved banner */}
                 {!loading && isRes && detail?.resolved_at && (
-                  <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-4 flex items-center gap-3">
+                  <div className="bg-emerald-50/50 dark:bg-emerald-955/20 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 p-4 flex items-center gap-3">
                     <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" />
                     <div>
-                      <p className="text-xs font-black text-emerald-800">Intervention résolue</p>
-                      <p className="text-[10px] text-emerald-600">{fmt(detail.resolved_at)}</p>
+                      <p className="text-xs font-black text-emerald-800 dark:text-emerald-300">Intervention résolue</p>
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400">{fmt(detail.resolved_at)}</p>
                     </div>
                   </div>
                 )}
 
                 {/* Citizen rating */}
                 {!loading && detail?.status === 'cloturee' && detail.rating && (
-                  <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-amber-500 mb-2">Évaluation du citoyen</p>
+                  <div className="bg-amber-50/50 dark:bg-amber-955/20 rounded-2xl border border-amber-100 dark:border-amber-900/30 p-4">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-amber-505 dark:text-amber-400 mb-2">Évaluation du citoyen</p>
                     <Stars score={detail.rating.score} />
                     {detail.rating.comment && (
-                      <p className="text-xs text-amber-800 italic mt-2 leading-relaxed">«{detail.rating.comment}»</p>
+                      <p className="text-xs text-amber-800 dark:text-amber-300 italic mt-2 leading-relaxed">«{detail.rating.comment}»</p>
                     )}
                   </div>
                 )}
@@ -688,14 +688,14 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                 {!loading && detail && ['refusee_chef','refusee_agent'].includes(detail.status) && (() => {
                   const lastRefuse = history.find(h => ['refusee_chef','refusee_agent'].includes(h.new_status))
                   return lastRefuse?.raison ? (
-                    <div className="bg-red-50 rounded-2xl border border-red-100 p-4">
+                    <div className="bg-red-50/50 dark:bg-red-955/20 rounded-2xl border border-red-100 dark:border-red-900/30 p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <AlertTriangle size={14} className="text-red-500" />
-                        <p className="text-[9px] font-black uppercase tracking-widest text-red-600">Motif du refus</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-red-600 dark:text-red-400">Motif du refus</p>
                       </div>
-                      <p className="text-xs font-medium text-red-800 leading-relaxed">«{lastRefuse.raison}»</p>
+                      <p className="text-xs font-medium text-red-800 dark:text-red-300 leading-relaxed">«{lastRefuse.raison}»</p>
                       {lastRefuse.user && (
-                        <p className="text-[10px] text-red-400 mt-1">
+                        <p className="text-[10px] text-red-400 dark:text-red-500 mt-1">
                           par {lastRefuse.user.first_name} {lastRefuse.user.last_name} · {fmtShort(lastRefuse.created_at)}
                         </p>
                       )}
@@ -705,12 +705,12 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
                 {/* Assign / Reassign dropdown */}
                 {!loading && (canAss || canReas) && (
-                  <div className={`rounded-2xl border p-4 ${canAss ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-100'}`}>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-3">
+                  <div className={`rounded-2xl border p-4 ${canAss ? 'bg-slate-50 dark:bg-slate-850/50 border-slate-200 dark:border-slate-800' : 'bg-amber-50/50 dark:bg-amber-955/20 border-amber-100 dark:border-amber-900/30'}`}>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-550 mb-3">
                       {canAss ? 'Affecter au département' : 'Réassigner vers un autre département'}
                     </p>
                     <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)}
-                      className="w-full text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all">
+                      className="w-full text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all">
                       <option value="">Choisir un département…</option>
                       {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
@@ -722,7 +722,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
           {/* HISTORY TAB */}
           {tab === 'history' && (
-            <div className="absolute inset-0 overflow-y-auto">
+            <div className="absolute inset-0 overflow-y-auto bg-white dark:bg-slate-900">
               <div className="px-6 py-5">
                 {loading ? (
                   <div className="space-y-4">{[...Array(5)].map((_, i) => (
@@ -740,7 +740,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
           {/* COMMENTS TAB */}
           {tab === 'comments' && (
-            <div className="absolute inset-0 flex flex-col">
+            <div className="absolute inset-0 flex flex-col bg-white dark:bg-slate-900">
               <CommentsTab
                 comments={comments} loading={loading} sending={sending}
                 text={commentText} setText={setCommentText}
@@ -752,12 +752,12 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
         {/* ── FOOTER ACTIONS ─────────────────────────────────────────────────── */}
         {!loading && detail && (
-          <div className="flex-shrink-0 px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-4">
+          <div className="flex-shrink-0 px-6 py-4 border-t border-slate-100 dark:border-slate-850/60 bg-slate-50 dark:bg-slate-950/40 flex items-center justify-between gap-4">
             <div>
-              <p className="font-mono text-[10px] font-bold text-slate-400 leading-none">
+              <p className="font-mono text-[10px] font-bold text-slate-400 dark:text-slate-550 leading-none">
                 {detail.ref_service ?? detail.ref_citoyen}
               </p>
-              <p className="text-[9px] text-slate-400 mt-0.5">
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">
                 {detail.status === 'soumise' ? 'En attente d\'assignation' :
                  detail.status === 'refusee_chef' ? 'Nécessite réassignation' :
                  STATUS[detail.status]?.label ?? ''}
@@ -772,7 +772,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                 </button>
               ) : (
                 <button onClick={onClose}
-                  className="px-6 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold transition-all">
+                  className="px-6 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all">
                   Fermer
                 </button>
               )}

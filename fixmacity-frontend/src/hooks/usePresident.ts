@@ -6,6 +6,8 @@ import {
   type Declaration, type AppUser,
 } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
+import { usePropositions } from './useCitizen';
+import { computeMonthlyTrend, computeGrowthRate, validatePropositionForm, type PropositionForm } from '../utils/presidentHelpers';
 
 // ─── useDashboard ─────────────────────────────────────────────────────────────
 export function useDashboard() {
@@ -159,8 +161,6 @@ export function usePersonnel() {
 }
 
 // ─── usePresidentPropositions (fixes all CodeRabbit issues) ──────────────────
-import { usePropositions } from './useCitizen';
-import { computeMonthlyTrend, computeGrowthRate, validatePropositionForm, type PropositionForm } from '../utils/presidentHelpers';
 
 export function usePresidentPropositions() {
   const base = usePropositions();

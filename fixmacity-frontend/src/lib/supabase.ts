@@ -1,6 +1,5 @@
 // src/lib/supabase.ts
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from './database.types';
 
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL  as string;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -9,7 +8,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON) {
   throw new Error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in .env');
 }
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON, {
+export const supabase = createClient<any>(SUPABASE_URL, SUPABASE_ANON, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -198,7 +197,7 @@ export const authService = {
 
   /** Subscribe to auth state */
   onAuthStateChange(callback: (user: AppUser | null) => void) {
-    return supabase.auth.onAuthStateChange(async (_, session) => {
+    return supabase.auth.onAuthStateChange(async (_: any, session: any) => {
       if (!session) { callback(null); return; }
       const profile = await authService.getProfile();
       callback(profile);
@@ -233,8 +232,11 @@ export const declarationService = {
     if (filters?.status)     q = q.eq('status', filters.status);
     if (filters?.service_id) q = q.eq('service_id', filters.service_id);
     if (filters?.search)     q = q.ilike('title', `%${filters.search}%`);
-    if (filters?.limit)      q = q.limit(filters.limit);
-    if (filters?.offset)     q = q.range(filters.offset, (filters.offset ?? 0) + (filters.limit ?? 20) - 1);
+    if (filters?.offset !== undefined) {
+      q = q.range(filters.offset, filters.offset + (filters.limit ?? 20) - 1);
+    } else if (filters?.limit !== undefined) {
+      q = q.limit(filters.limit);
+    }
 
     const { data, error, count } = await q;
     if (error) throw error;
@@ -324,29 +326,23 @@ export const declarationService = {
 
   /** Assign to service */
   async assignService(id: string, serviceId: string, changedBy: string) {
+    const { data: decl, error: declErr } = await supabase.from('declarations').select('status').eq('id', id).single();
+    if (declErr) throw declErr;
+
     const { data, error } = await supabase
       .from('declarations')
       .update({ service_id: serviceId, status: 'assignee_chef', assigned_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq('id', id).select().single();
     if (error) throw error;
-    await supabase.from('status_history').insert({ declaration_id: id, old_status: 'soumise', new_status: 'assignee_chef', changed_by: changedBy });
+    await supabase.from('status_history').insert({ declaration_id: id, old_status: decl.status, new_status: 'assignee_chef', changed_by: changedBy });
     return data;
   },
 
   /** Vote on a declaration */
   async vote(declarationId: string, citizenId: string): Promise<'added' | 'removed'> {
-    const { data: existing } = await supabase
-      .from('votes').select('id').eq('declaration_id', declarationId).eq('citizen_id', citizenId).single();
-
-    if (existing) {
-      await supabase.from('votes').delete().eq('id', existing.id);
-      await supabase.rpc('decrement_votes', { decl_id: declarationId });
-      return 'removed';
-    } else {
-      await supabase.from('votes').insert({ declaration_id: declarationId, citizen_id: citizenId });
-      await supabase.rpc('increment_votes', { decl_id: declarationId });
-      return 'added';
-    }
+    const { data, error } = await supabase.rpc('toggle_vote', { decl_id: declarationId, citizen_id: citizenId });
+    if (error) throw error;
+    return data as 'added' | 'removed';
   },
 
   /** Check if citizen voted */
@@ -386,8 +382,8 @@ export const propositionService = {
       .select('proposition_id, vote_type')
       .eq('citizen_id', citizenId);
 
-    const voteMap = new Map((myVotes ?? []).map(v => [v.proposition_id, v.vote_type]));
-    return data.map(p => ({ ...p, my_vote: voteMap.get(p.id) ?? null })) as Proposition[];
+    const voteMap = new Map((myVotes ?? []).map((v: any) => [v.proposition_id, v.vote_type]));
+    return data.map((p: any) => ({ ...p, my_vote: voteMap.get(p.id) ?? null })) as Proposition[];
   },
 
   /** President: create proposition */
@@ -423,26 +419,8 @@ export const propositionService = {
 
   /** Citizen: vote pour/contre */
   async vote(propositionId: string, citizenId: string, voteType: 'pour' | 'contre'): Promise<void> {
-    const { data: existing } = await supabase
-      .from('proposition_votes')
-      .select('id, vote_type')
-      .eq('proposition_id', propositionId)
-      .eq('citizen_id', citizenId)
-      .single();
-
-    if (existing) {
-      if (existing.vote_type === voteType) {
-        // Remove vote (toggle off)
-        await supabase.from('proposition_votes').delete().eq('id', existing.id);
-      } else {
-        // Change vote
-        await supabase.from('proposition_votes')
-          .update({ vote_type: voteType }).eq('id', existing.id);
-      }
-    } else {
-      await supabase.from('proposition_votes')
-        .insert({ proposition_id: propositionId, citizen_id: citizenId, vote_type: voteType });
-    }
+    const { error } = await supabase.rpc('toggle_proposition_vote', { proposition_id: propositionId, citizen_id: citizenId, vote_type: voteType });
+    if (error) throw error;
   },
 };
 
@@ -481,7 +459,7 @@ export const notificationService = {
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'notifications',
         filter: `user_id=eq.${userId}`,
-      }, payload => onNew(payload.new as Notification))
+      }, (payload: any) => onNew(payload.new as Notification))
       .subscribe();
   },
 };

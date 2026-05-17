@@ -57,13 +57,13 @@ const Toast: React.FC<{ msg: string; type: 'ok'|'err'; onDone: () => void }> = (
 const Confirm: React.FC<{ msg: string; onYes: () => void; onNo: () => void }> = ({ msg, onYes, onNo }) => (
   <div className="fixed inset-0 z-[250] flex items-center justify-center p-4">
     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onNo}/>
-    <div className="relative bg-white rounded-2xl shadow-2xl p-7 w-full max-w-xs text-center">
-      <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+    <div className="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-100 dark:border-slate-800/80 rounded-2xl shadow-2xl p-7 w-full max-w-xs text-center">
+      <div className="w-12 h-12 bg-red-50 dark:bg-red-950/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
         <AlertTriangle className="w-6 h-6 text-red-500"/>
       </div>
-      <p className="text-sm font-black text-[#0A1628] mb-6">{msg}</p>
+      <p className="text-sm font-black text-[#0A1628] dark:text-white mb-6">{msg}</p>
       <div className="flex gap-3">
-        <button onClick={onNo} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">Annuler</button>
+        <button onClick={onNo} className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all bg-white dark:bg-transparent">Annuler</button>
         <button onClick={onYes} className="flex-1 py-2.5 rounded-xl bg-red-500 text-sm font-bold text-white hover:bg-red-600 transition-all">Confirmer</button>
       </div>
     </div>
@@ -163,11 +163,11 @@ const UserModal: React.FC<{
     }
   }
 
-  const inp = "w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 outline-none focus:border-[#1557FF] focus:ring-2 focus:ring-blue-100 transition-all bg-white placeholder-slate-300"
+  const inp = "w-full px-4 py-2.5 rounded-xl border border-slate-100 dark:border-slate-800/60 text-sm font-semibold text-slate-700 dark:text-slate-200 outline-none focus:border-[#1557FF] focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 transition-all bg-white dark:bg-slate-800/50 placeholder-slate-300 dark:placeholder-slate-600"
 
   const Field: React.FC<{ label: string; req?: boolean; children: React.ReactNode }> = ({ label, req, children }) => (
     <div>
-      <label className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
+      <label className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5">
         {label}{req && <span className="text-red-400">*</span>}
       </label>
       {children}
@@ -177,30 +177,30 @@ const UserModal: React.FC<{
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}/>
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden">
+      <div className="relative bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-100 dark:border-slate-800/80 rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden">
 
         {/* Header */}
-        <div className="flex-shrink-0 border-b border-slate-100 px-6 pt-6 pb-4 flex items-center justify-between">
+        <div className="flex-shrink-0 border-b border-slate-100 dark:border-slate-800/60 px-6 pt-6 pb-4 flex items-center justify-between bg-transparent">
           <div>
-            <h2 className="text-lg font-black text-[#0A1628]">
+            <h2 className="text-lg font-black text-[#0A1628] dark:text-white">
               {isEdit ? 'Modifier le compte' : 'Nouveau compte'}
             </h2>
-            <p className="text-xs text-slate-400 font-semibold mt-0.5">
+            <p className="text-xs text-slate-400 dark:text-slate-550 font-semibold mt-0.5">
               {isEdit
                 ? `${user!.first_name} ${user!.last_name} · ${user!.role === 'chef' ? 'Chef de Service' : 'Agent Terrain'}`
                 : 'Agent ou Chef de Service'}
             </p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-all">
-            <X className="w-4 h-4 text-slate-500"/>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+            <X className="w-4 h-4 text-slate-500 dark:text-slate-400"/>
           </button>
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-transparent">
 
           {err && (
-            <div className="bg-red-50 border border-red-200 text-red-600 text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-2">
+            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold px-4 py-3 rounded-xl flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 flex-shrink-0"/>{err}
             </div>
           )}
@@ -210,7 +210,7 @@ const UserModal: React.FC<{
             <div className="grid grid-cols-2 gap-2">
               {(['agent','chef'] as const).map(r => (
                 <button key={r} type="button" onClick={() => set('role', r)}
-                  className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border-2 transition-all ${form.role === r ? 'border-[#1557FF] bg-blue-50 text-[#1557FF]' : 'border-slate-200 text-slate-400 hover:border-slate-300'}`}>
+                  className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border-2 transition-all ${form.role === r ? 'border-[#1557FF] dark:border-blue-500 bg-blue-50 dark:bg-blue-950/25 text-[#1557FF] dark:text-blue-400' : 'border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:border-slate-300 dark:hover:border-slate-700'}`}>
                   {r === 'agent' ? '👷 Agent Terrain' : '👔 Chef de Service'}
                 </button>
               ))}
@@ -258,9 +258,9 @@ const UserModal: React.FC<{
 
           {/* Divider */}
           <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-slate-100"/>
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Affectation</span>
-            <div className="flex-1 h-px bg-slate-100"/>
+            <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800"/>
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-650">Affectation</span>
+            <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800"/>
           </div>
 
           {/* Department */}
@@ -285,9 +285,9 @@ const UserModal: React.FC<{
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 border-t border-slate-100 px-6 py-4 flex gap-3">
+        <div className="flex-shrink-0 border-t border-slate-100 dark:border-slate-800/60 px-6 py-4 flex gap-3 bg-transparent">
           <button onClick={onClose}
-            className="flex-1 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+            className="flex-1 py-3 rounded-xl border border-slate-100 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all bg-white dark:bg-transparent">
             Annuler
           </button>
           <button onClick={save} disabled={saving}
@@ -316,13 +316,13 @@ const Ring: React.FC<{ value: number; color: string; size?: number }> = ({ value
   const dash = (Math.min(value, 100) / 100) * circ
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="flex-shrink-0">
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#F1F5F9" strokeWidth="6"/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" strokeWidth="6" className="stroke-slate-100 dark:stroke-slate-800"/>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="6"
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
         transform={`rotate(-90 ${size/2} ${size/2})`}
         style={{ transition: 'stroke-dasharray .6s ease' }}/>
       <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle"
-        fontSize="11" fontWeight="800" fill="#0A1628">{value}%</text>
+        fontSize="11" fontWeight="800" className="fill-[#0A1628] dark:fill-white">{value}%</text>
     </svg>
   )
 }
@@ -343,7 +343,7 @@ const UserCard: React.FC<{
   const progress = pct(resolved, total)
 
   return (
-    <div className="group bg-white rounded-3xl border border-slate-200 p-5 hover:border-blue-300 hover:shadow-xl hover:shadow-blue-500/8 transition-all flex flex-col gap-4 relative overflow-hidden">
+    <div className="group bg-white/80 dark:bg-slate-900/50 backdrop-blur-md rounded-3xl border border-slate-100 dark:border-slate-800/80 p-5 hover:border-blue-300 dark:hover:border-blue-800 hover:shadow-xl hover:shadow-blue-500/8 dark:hover:shadow-blue-950/20 transition-all flex flex-col gap-4 relative overflow-hidden">
       {/* bg deco */}
       <div className="absolute top-0 right-0 w-20 h-20 rounded-bl-[3rem] opacity-40"
         style={{ background: `${color}12` }}/>
@@ -352,24 +352,24 @@ const UserCard: React.FC<{
       <div className="flex items-start gap-3 relative">
         <div className="relative">
           <Avatar fn={user.first_name} ln={user.last_name} size={46}/>
-          <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${user.is_active ? 'bg-emerald-500' : 'bg-slate-300'}`}/>
+          <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 ${user.is_active ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}/>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-black text-[#0A1628] text-sm leading-tight truncate">
+          <p className="font-black text-[#0A1628] dark:text-white text-sm leading-tight truncate">
             {user.first_name} {user.last_name}
           </p>
-          <p className="text-[10px] text-slate-400 font-bold truncate mt-0.5">{user.email}</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold truncate mt-0.5">{user.email}</p>
           <div className="flex items-center gap-1.5 mt-1.5">
             <span className="text-[8px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest text-white"
               style={{ background: color }}>
               {user.role === 'chef' ? 'Chef' : 'Agent'}
             </span>
-            <span className="text-[9px] font-bold text-slate-400 truncate">{user.department_name}</span>
+            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 truncate">{user.department_name}</span>
           </div>
         </div>
         {/* Toggle active */}
         <button onClick={onToggle}
-          className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center border-2 transition-all ${user.is_active ? 'border-emerald-200 text-emerald-500 hover:bg-emerald-50' : 'border-slate-200 text-slate-400 hover:bg-slate-50'}`}
+          className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center border-2 transition-all ${user.is_active ? 'border-emerald-200 dark:border-emerald-900/50 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}
           title={user.is_active ? 'Désactiver' : 'Réactiver'}>
           {user.is_active ? <CheckCircle className="w-4 h-4"/> : <XCircle className="w-4 h-4"/>}
         </button>
@@ -378,13 +378,13 @@ const UserCard: React.FC<{
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { label:'Tâches',   val:total,    bg:'bg-slate-50',   tx:'text-[#0A1628]',   border:'border-slate-100'   },
-          { label:'Résolues', val:resolved, bg:'bg-emerald-50', tx:'text-emerald-600', border:'border-emerald-100' },
-          { label:'Acceptées',val:accepted, bg:'bg-blue-50',    tx:'text-blue-600',    border:'border-blue-100'    },
+          { label:'Tâches',   val:total,    bg:'bg-slate-50 dark:bg-slate-800/40',   tx:'text-[#0A1628] dark:text-slate-100',   border:'border-slate-100 dark:border-slate-800/60'   },
+          { label:'Résolues', val:resolved, bg:'bg-emerald-50 dark:bg-emerald-950/20', tx:'text-emerald-600 dark:text-emerald-400', border:'border-emerald-100 dark:border-emerald-900/30' },
+          { label:'Acceptées',val:accepted, bg:'bg-blue-50 dark:bg-blue-950/20',    tx:'text-blue-600 dark:text-blue-400',    border:'border-blue-100 dark:border-blue-900/30'    },
         ].map(s => (
           <div key={s.label} className={`${s.bg} rounded-xl p-2 text-center border ${s.border}`}>
             <p className={`text-base font-black ${s.tx}`}>{s.val}</p>
-            <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">{s.label}</p>
+            <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-550">{s.label}</p>
           </div>
         ))}
       </div>
@@ -394,25 +394,25 @@ const UserCard: React.FC<{
         <Ring value={progress} color={color} size={48}/>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between mb-1">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Progression</span>
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Progression</span>
             <span className="text-[9px] font-black" style={{ color }}>{progress}%</span>
           </div>
-          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+          <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
             <div className="h-1.5 rounded-full transition-all duration-700"
               style={{ width: `${progress}%`, background: color }}/>
           </div>
-          <p className="text-[8px] font-semibold text-slate-400 mt-0.5">{user.location}</p>
+          <p className="text-[8px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">{user.location}</p>
         </div>
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2 mt-auto pt-2 border-t border-slate-100">
+      <div className="flex gap-2 mt-auto pt-2 border-t border-slate-100 dark:border-slate-800">
         <button onClick={onEdit}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#1557FF] text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-md shadow-blue-500/20">
           <Pencil className="w-3.5 h-3.5"/> Modifier
         </button>
         <button onClick={onDelete}
-          className="w-10 h-10 rounded-xl flex items-center justify-center border-2 border-red-200 text-red-400 hover:bg-red-50 hover:text-red-500 transition-all flex-shrink-0">
+          className="w-10 h-10 rounded-xl flex items-center justify-center border-2 border-red-200 dark:border-red-900/40 text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-500 transition-all flex-shrink-0">
           <Trash2 className="w-4 h-4"/>
         </button>
       </div>
@@ -520,7 +520,7 @@ const PresidentPersonnel: React.FC = () => {
     <PresidentLayout title="Gestion du Personnel">
       <style>{`@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
 
-      <div className="flex-1 bg-[#f8fafc] p-6 min-h-screen">
+      <div className="flex-1 bg-[#f8fafc] dark:bg-slate-950 p-6 min-h-screen">
 
         {/* KPI row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -530,7 +530,7 @@ const PresidentPersonnel: React.FC = () => {
             { label:'Total tâches',    val:totalT,        sub:'Signalements',       color:'#10B981', icon:'📋' },
             { label:'Départements',    val:departments.length, sub:`${departments.filter((d:any)=>d.is_active).length} actifs`, color:'#8B5CF6', icon:'🏛️' },
           ].map(k => (
-            <div key={k.label} className="group bg-white rounded-3xl p-5 border border-slate-200 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5 transition-all relative overflow-hidden">
+            <div key={k.label} className="group bg-white/80 dark:bg-slate-900/50 backdrop-blur-md rounded-3xl p-5 border border-slate-100 dark:border-slate-800/80 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-lg hover:shadow-blue-500/5 dark:hover:shadow-blue-950/20 transition-all relative overflow-hidden">
               <div className="absolute top-0 right-0 w-20 h-20 rounded-bl-[3rem]" style={{ background:`${k.color}0A` }}/>
               <div className="relative">
                 <div className="flex items-center justify-between mb-4">
@@ -538,8 +538,8 @@ const PresidentPersonnel: React.FC = () => {
                   <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg"
                     style={{ background:`${k.color}15`, color:k.color }}>{k.sub}</span>
                 </div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">{k.label}</p>
-                <p className="text-3xl font-black text-[#0A1628]">{k.val}</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">{k.label}</p>
+                <p className="text-3xl font-black text-[#0A1628] dark:text-white">{k.val}</p>
               </div>
             </div>
           ))}
@@ -548,10 +548,10 @@ const PresidentPersonnel: React.FC = () => {
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-3 mb-6">
           {/* Tab */}
-          <div className="flex bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
+          <div className="flex bg-white/80 dark:bg-slate-900/50 backdrop-blur-md border border-slate-100 dark:border-slate-800/80 rounded-2xl p-1 shadow-sm">
             {(['agent','chef'] as const).map(t => (
               <button key={t} onClick={() => setTab(t)}
-                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab===t?'text-white shadow-md':'text-slate-400 hover:text-slate-600'}`}
+                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab===t?'text-white shadow-md':'text-slate-400 dark:text-slate-550 hover:text-slate-600 dark:hover:text-slate-350'}`}
                 style={tab===t?{background:'#1557FF'}:{}}>
                 {t==='agent' ? '👷 Agents' : '👔 Chefs'}
               </button>
@@ -559,17 +559,17 @@ const PresidentPersonnel: React.FC = () => {
           </div>
 
           {/* Search */}
-          <div className="flex-1 min-w-[240px] flex items-center gap-2.5 bg-white border border-slate-200 rounded-2xl px-4 py-2.5 shadow-sm focus-within:border-blue-400 transition-all">
+          <div className="flex-1 min-w-[240px] flex items-center gap-2.5 bg-white/80 dark:bg-slate-900/50 backdrop-blur-md border border-slate-100 dark:border-slate-800/80 rounded-2xl px-4 py-2.5 shadow-sm focus-within:border-blue-400 dark:focus-within:border-blue-500 transition-all">
             <Search className="w-4 h-4 text-slate-400 flex-shrink-0"/>
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher par nom ou email…"
-              className="flex-1 text-xs font-bold text-slate-600 placeholder-slate-300 outline-none bg-transparent"/>
-            {search && <button onClick={() => setSearch('')}><X className="w-3.5 h-3.5 text-slate-400"/></button>}
+              className="flex-1 text-xs font-bold text-slate-600 dark:text-slate-300 placeholder-slate-300 dark:placeholder-slate-650 outline-none bg-transparent"/>
+            {search && <button onClick={() => setSearch('')}><X className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500"/></button>}
           </div>
 
           {/* Status filter */}
           <select value={statusFilt} onChange={e => setStatusFilt(e.target.value)}
-            className="bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-600 shadow-sm outline-none focus:border-blue-400 transition-all">
+            className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-md border border-slate-100 dark:border-slate-800/80 rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 shadow-sm outline-none focus:border-blue-400 dark:focus:border-blue-500 transition-all">
             <option value="all">Tous statuts</option>
             <option value="active">Actifs</option>
             <option value="inactive">Inactifs</option>

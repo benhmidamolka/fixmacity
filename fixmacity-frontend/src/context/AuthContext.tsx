@@ -1,5 +1,6 @@
 // src/context/AuthContext.tsx
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { authService, type AppUser } from '../lib/supabase';
 
 interface AuthContextType {
@@ -25,14 +26,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initial profile load
-    authService.getProfile().then(p => { setUser(p); setLoading(false); });
+    let listenerHasRun = false;
 
-    // Subscribe to auth changes
+    // Subscribe to auth changes synchronously
     const { data: { subscription } } = authService.onAuthStateChange(p => {
+      listenerHasRun = true;
       setUser(p);
       setLoading(false);
     });
+
+    // Initial profile load
+    authService.getProfile().then(p => { 
+      if (!listenerHasRun) {
+        setUser(p);
+        setLoading(false);
+      }
+    });
+
     return () => subscription.unsubscribe();
   }, []);
 
