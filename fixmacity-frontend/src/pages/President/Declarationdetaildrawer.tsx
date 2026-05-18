@@ -38,6 +38,9 @@ interface DeclDetail {
   chef?: { id: string; first_name: string; last_name: string; email: string } | null
   delegations?: { name: string; code: string }
   rating?: { score: number; comment?: string }
+  photo_avant?: string; photo_avant_url?: string; photo_url?: string
+  photo_apres?: string; photo_apres_url?: string
+  citizen_id?: string
 }
 interface Photo { id: string; url: string; uploaded_by: string; created_at: string; photo_type?: string }
 interface HistEntry { id: string; old_status: string; new_status: string; raison?: string; created_at: string; user?: { first_name: string; last_name: string; role: string } }
@@ -299,6 +302,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
   const [sending,     setSending]     = useState(false)
   const [assigning,   setAssigning]   = useState(false)
   const [selectedDept,setSelectedDept]= useState('')
+  const [additionalDepts, setAdditionalDepts] = useState<string[]>([])
   const [toast,       setToast]       = useState<{ msg: string; ok: boolean } | null>(null)
   const [imgExpanded, setImgExpanded] = useState<string | null>(null)
 
@@ -324,7 +328,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
   useEffect(() => {
     if (declarationId) {
       setDetail(null); setPhotos([]); setHistory([]); setComments([])
-      setTab('info'); setCommentText(''); setSelectedDept('')
+      setTab('info'); setCommentText(''); setSelectedDept(''); setAdditionalDepts([])
       load()
     }
   }, [declarationId, load])
@@ -343,7 +347,10 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
       const res = await fetch(`${API}/president/declarations/${detail.id}/${ep}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...hdr() },
-        body: JSON.stringify({ department_id: selectedDept }),
+        body: JSON.stringify({
+          department_id: selectedDept,
+          additional_department_ids: additionalDepts.filter(Boolean)
+        }),
       })
       if (res.ok) {
         showToast('Déclaration assignée ✓')
@@ -378,8 +385,32 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
   const canReas = detail && ['refusee_chef'].includes(detail.status)
   const showCom = detail && !['soumise'].includes(detail.status)
 
-  const beforePh = photos.find(ph => !ph.photo_type || ph.photo_type === 'photo_avant') ?? photos[0]
-  const afterPh  = photos.find(ph => ph.photo_type === 'photo_apres') ?? (isRes && photos.length > 1 ? photos[photos.length - 1] : undefined)
+  const photosList = [...photos]
+  const defaultBeforeUrl = detail?.photo_avant || detail?.photo_avant_url || detail?.photo_url || detail?.image_url
+  const defaultAfterUrl = detail?.photo_apres || detail?.photo_apres_url
+
+  if (defaultBeforeUrl && !photosList.some(ph => ph.url === defaultBeforeUrl)) {
+    photosList.unshift({
+      id: 'default_before',
+      url: defaultBeforeUrl,
+      photo_type: 'photo_avant',
+      uploaded_by: detail?.citizen_id || '',
+      created_at: detail?.created_at || ''
+    })
+  }
+
+  if (defaultAfterUrl && !photosList.some(ph => ph.url === defaultAfterUrl)) {
+    photosList.push({
+      id: 'default_after',
+      url: defaultAfterUrl,
+      photo_type: 'photo_apres',
+      uploaded_by: '',
+      created_at: detail?.resolved_at || ''
+    })
+  }
+
+  const beforePh = photosList.find(ph => !ph.photo_type || ph.photo_type === 'photo_avant') ?? photosList[0]
+  const afterPh  = photosList.find(ph => ph.photo_type === 'photo_apres') ?? (isRes && photosList.length > 1 ? photosList[photosList.length - 1] : undefined)
 
   const TABS = [
     { key: 'info',    label: 'Informations', Icon: FileText,    count: 0 },
@@ -457,7 +488,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
         <div className="flex-shrink-0 h-36 bg-slate-100 dark:bg-slate-800/50 overflow-hidden">
           {loading ? (
             <div className="w-full h-full bg-slate-200 dark:bg-slate-800 animate-pulse" />
-          ) : photos.length > 0 ? (
+          ) : photosList.length > 0 ? (
             <div className="flex h-full gap-px">
               {/* Before */}
               <div className="flex-1 relative cursor-pointer" onClick={() => beforePh && setImgExpanded(beforePh.url)}>
@@ -705,15 +736,64 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
                 {/* Assign / Reassign dropdown */}
                 {!loading && (canAss || canReas) && (
-                  <div className={`rounded-2xl border p-4 ${canAss ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800' : 'bg-amber-50/50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'}`}>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 mb-3">
-                      {canAss ? 'Affecter au département' : 'Réassigner vers un autre département'}
-                    </p>
-                    <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)}
-                      className="w-full text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all">
-                      <option value="">Choisir un département…</option>
-                      {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
+                  <div className={`rounded-2xl border p-4 space-y-4 ${canAss ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800' : 'bg-amber-50/50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30'}`}>
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">
+                        {canAss ? 'Affecter au département principal' : 'Réassigner vers le département principal'}
+                      </p>
+                      <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)}
+                        className="w-full text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all">
+                        <option value="">Choisir un département…</option>
+                        {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
+                    </div>
+
+                    {selectedDept && (
+                      <div className="space-y-3 pt-3 border-t border-slate-200/55 dark:border-slate-800/60">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">
+                            Départements additionnels (optionnel)
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setAdditionalDepts(prev => [...prev, ''])}
+                            className="text-[10px] font-black text-blue-500 hover:text-blue-600 transition-colors flex items-center gap-1"
+                          >
+                            + Ajouter un département
+                          </button>
+                        </div>
+                        {additionalDepts.map((dId, idx) => (
+                          <div key={idx} className="flex items-center gap-2 animate-fadeIn">
+                            <select
+                              value={dId}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setAdditionalDepts(prev => {
+                                  const next = [...prev];
+                                  next[idx] = val;
+                                  return next;
+                                });
+                              }}
+                              className="flex-1 text-xs font-semibold text-slate-700 dark:text-slate-350 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
+                            >
+                              <option value="">Choisir un département…</option>
+                              {departments
+                                .filter(d => d.id !== selectedDept && !additionalDepts.some((id, i) => i !== idx && id === d.id))
+                                .map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAdditionalDepts(prev => prev.filter((_, i) => i !== idx));
+                              }}
+                              className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/20 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 flex items-center justify-center flex-shrink-0 transition-all"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -319,7 +319,7 @@ exports.assignDeclaration = async (req, res) => {
     }
 
     const { id } = req.params;
-    const { department_id, priority, planned_start, planned_end } = req.body;
+    const { department_id, additional_department_ids, priority, planned_start, planned_end } = req.body;
 
     let priority_score = 4;
     if (priority === 'High') priority_score = 8;
@@ -328,10 +328,9 @@ exports.assignDeclaration = async (req, res) => {
     // Fetch declaration
     const { data: decl, error: fetchErr } = await supabase
       .from('declarations')
-      .select('id, status')
+      .select('*')
       .eq('id', id)
       .is('deleted_at', null)
-
       .single();
 
     if (fetchErr || !decl) {
@@ -393,6 +392,95 @@ exports.assignDeclaration = async (req, res) => {
       await notifyChefAssigned(req.app, updated, chef.id);
     }
 
+    // Process additional departments by duplicating the declaration and its photos
+    const extraDepts = Array.isArray(additional_department_ids)
+      ? additional_department_ids.filter(dId => dId && dId !== department_id)
+      : [];
+
+    if (extraDepts.length > 0) {
+      // Fetch photos of the original declaration
+      const { data: photos } = await supabase
+        .from('declaration_photos')
+        .select('*')
+        .eq('declaration_id', id);
+
+      for (const addDeptId of extraDepts) {
+        const { data: serviceAdd } = await supabase
+          .from('services')
+          .select('id, code')
+          .eq('id', addDeptId)
+          .single();
+
+        if (!serviceAdd || !serviceAdd.code) {
+          continue;
+        }
+
+        const refServiceSub = await generateRefService(serviceAdd.code);
+
+        const subDeclData = {
+          title:          decl.title,
+          description:    decl.description,
+          category:       decl.category || null,
+          delegation_id:  decl.delegation_id,
+          citizen_id:     decl.citizen_id,
+          user_id:        decl.user_id,
+          ref_citoyen:    decl.ref_citoyen,
+          status:         'assignee_chef',
+          department_id:  addDeptId,
+          service_id:     addDeptId,
+          ref_service:    refServiceSub,
+          priority_score: priority_score,
+          planned_start:  planned_start || null,
+          planned_end:    planned_end || null,
+          assigned_at:    new Date().toISOString(),
+          updated_at:     new Date().toISOString(),
+          latitude:       decl.latitude || null,
+          longitude:      decl.longitude || null,
+          address:        decl.address || null,
+          priority:       decl.priority || 'moyenne',
+          photo_avant:    decl.photo_avant || null,
+          is_deleted:     false,
+        };
+
+        const { data: subDecl, error: subDeclErr } = await supabase
+          .from('declarations')
+          .insert(subDeclData)
+          .select('*')
+          .single();
+
+        if (subDeclErr) {
+          console.error('[President] Sub-assign error:', subDeclErr.message);
+          continue;
+        }
+
+        if (photos && photos.length > 0) {
+          const subPhotos = photos.map(ph => ({
+            declaration_id: subDecl.id,
+            url: ph.url,
+            uploaded_by: ph.uploaded_by,
+            photo_type: ph.photo_type || 'photo_avant'
+          }));
+          await supabase.from('declaration_photos').insert(subPhotos);
+        }
+
+        await logStatusChange(subDecl.id, 'soumise', 'assignee_chef', req.user.id);
+        await notifyStatusChange(req.app, subDecl, subDecl.citizen_id, 'assignee_chef');
+
+        const { data: subChef } = await supabase
+          .from('users')
+          .select('id')
+          .eq('role', 'chef')
+          .eq('department_id', addDeptId)
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle();
+
+        if (subChef) {
+          await notifyChefAssigned(req.app, subDecl, subChef.id);
+        }
+      }
+    }
+
     return res.status(200).json({ declaration: updated });
   } catch (err) {
     console.error('[President] Assign error:', err);
@@ -409,7 +497,7 @@ exports.reassignDeclaration = async (req, res) => {
     }
 
     const { id } = req.params;
-    const { department_id, priority, planned_start, planned_end } = req.body;
+    const { department_id, additional_department_ids, priority, planned_start, planned_end } = req.body;
 
     let priority_score = 4;
     if (priority === 'High') priority_score = 8;
@@ -417,10 +505,9 @@ exports.reassignDeclaration = async (req, res) => {
 
     const { data: decl, error: fetchErr } = await supabase
       .from('declarations')
-      .select('id, status')
+      .select('*')
       .eq('id', id)
       .is('deleted_at', null)
-
       .single();
 
     if (fetchErr || !decl) {
@@ -481,6 +568,95 @@ exports.reassignDeclaration = async (req, res) => {
 
     if (chef) {
       await notifyChefAssigned(req.app, updated, chef.id);
+    }
+
+    // Process additional departments by duplicating the declaration and its photos
+    const extraDepts = Array.isArray(additional_department_ids)
+      ? additional_department_ids.filter(dId => dId && dId !== department_id)
+      : [];
+
+    if (extraDepts.length > 0) {
+      // Fetch photos of the original declaration
+      const { data: photos } = await supabase
+        .from('declaration_photos')
+        .select('*')
+        .eq('declaration_id', id);
+
+      for (const addDeptId of extraDepts) {
+        const { data: serviceAdd } = await supabase
+          .from('services')
+          .select('id, code')
+          .eq('id', addDeptId)
+          .single();
+
+        if (!serviceAdd || !serviceAdd.code) {
+          continue;
+        }
+
+        const refServiceSub = await generateRefService(serviceAdd.code);
+
+        const subDeclData = {
+          title:          decl.title,
+          description:    decl.description,
+          category:       decl.category || null,
+          delegation_id:  decl.delegation_id,
+          citizen_id:     decl.citizen_id,
+          user_id:        decl.user_id,
+          ref_citoyen:    decl.ref_citoyen,
+          status:         'assignee_chef',
+          department_id:  addDeptId,
+          service_id:     addDeptId,
+          ref_service:    refServiceSub,
+          priority_score: priority_score,
+          planned_start:  planned_start || null,
+          planned_end:    planned_end || null,
+          assigned_at:    new Date().toISOString(),
+          updated_at:     new Date().toISOString(),
+          latitude:       decl.latitude || null,
+          longitude:      decl.longitude || null,
+          address:        decl.address || null,
+          priority:       decl.priority || 'moyenne',
+          photo_avant:    decl.photo_avant || null,
+          is_deleted:     false,
+        };
+
+        const { data: subDecl, error: subDeclErr } = await supabase
+          .from('declarations')
+          .insert(subDeclData)
+          .select('*')
+          .single();
+
+        if (subDeclErr) {
+          console.error('[President] Sub-reassign error:', subDeclErr.message);
+          continue;
+        }
+
+        if (photos && photos.length > 0) {
+          const subPhotos = photos.map(ph => ({
+            declaration_id: subDecl.id,
+            url: ph.url,
+            uploaded_by: ph.uploaded_by,
+            photo_type: ph.photo_type || 'photo_avant'
+          }));
+          await supabase.from('declaration_photos').insert(subPhotos);
+        }
+
+        await logStatusChange(subDecl.id, oldStatus, 'assignee_chef', req.user.id, 'Réaffectation par le président (département additionnel)');
+        await notifyStatusChange(req.app, subDecl, subDecl.citizen_id, 'assignee_chef');
+
+        const { data: subChef } = await supabase
+          .from('users')
+          .select('id')
+          .eq('role', 'chef')
+          .eq('department_id', addDeptId)
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle();
+
+        if (subChef) {
+          await notifyChefAssigned(req.app, subDecl, subChef.id);
+        }
+      }
     }
 
     return res.status(200).json({ declaration: updated });

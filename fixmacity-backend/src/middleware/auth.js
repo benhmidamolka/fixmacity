@@ -1,64 +1,80 @@
-'use strict';
-
 const jwt = require('jsonwebtoken');
 const supabase = require('../config/db');
+const rbac = require('./rbac');
 
-/**
- * Verifies JWT from Authorization header, attaches req.user.
- *
- * FIX #2: Blacklist check now filters by expires_at > now() so expired rows are
- * ignored automatically and the query stays fast even as the table grows.
- */
-const authenticate = async (req, res, next) => {
+const JWT_SECRET = process.env.JWT_SECRET || '';
+
+// Verify JWT and attach user to request
+async function authenticate(req, res, next) {
   try {
-    const header = req.headers.authorization;
-    if (!header || !header.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Token manquant ou mal formé.' });
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : null;
+
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
     }
 
-    const token = header.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, email, role, first_name, last_name, delegation_id, department_id, lang_pref, is_active')
-      .eq('id', decoded.id)
-      .single();
-
-    if (error || !user) {
-      return res.status(401).json({ error: 'Utilisateur introuvable.' });
-    }
-
-    if (!user.is_active) {
-      return res.status(403).json({ error: 'Compte désactivé.' });
-    }
-
-    // FIX #2: Only match blacklisted tokens that have not yet expired.
-    // This prevents the table from being a full-scan bottleneck over time.
-    const now = new Date().toISOString();
     const { data: blacklisted } = await supabase
       .from('token_blacklist')
       .select('id')
       .eq('token', token)
-      .gt('expires_at', now)   // <-- only live blacklist entries count
-      .maybeSingle();
+      .single();
 
     if (blacklisted) {
-      return res.status(401).json({ error: 'Session expirée. Veuillez vous reconnecter.' });
+      return res.status(401).json({ error: 'Token has been revoked' });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', decoded.id || decoded.userId)
+      .eq('is_active', true)
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ error: 'User not found or inactive' });
     }
 
     req.user = user;
-    req.token = token;
-    next();
+    return next();
   } catch (err) {
-    if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'Token expiré.' });
+    if (err && err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expired' });
     }
-    if (err.name === 'JsonWebTokenError') {
-      return res.status(401).json({ error: 'Token invalide.' });
-    }
-    return res.status(500).json({ error: "Erreur d'authentification." });
+    return res.status(401).json({ error: 'Invalid token' });
   }
-};
+}
+
+// Optional auth (attaches user if token exists, continues without)
+async function optionalAuth(req, _res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : null;
+
+    if (!token) return next();
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { data: user } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', decoded.id || decoded.userId)
+      .single();
+
+    if (user) req.user = user;
+  } catch {
+    // ignore — optional auth
+  }
+
+  return next();
+}
 
 module.exports = authenticate;
+module.exports.authenticate = authenticate;
+module.exports.authorize = rbac;
+module.exports.optionalAuth = optionalAuth;
