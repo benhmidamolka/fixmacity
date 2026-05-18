@@ -134,7 +134,7 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
         {!isCollapsed && (
           <div className="min-w-0">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight leading-none mb-0.5">Good Day ✨</p>
-            <p className={`text-sm font-black ${darkMode ? 'text-white' : 'text-[#0A1628]'} truncate`}>{user.first_name} {user.last_name[0]}.</p>
+            <p className={`text-sm font-black ${darkMode ? 'text-white' : 'text-[#0A1628]'} truncate`}>{user.first_name} {user.last_name?.[0] ?? ''}.</p>
           </div>
         )}
         {!isCollapsed && (
@@ -379,7 +379,7 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
             <div className={`flex items-center gap-3 pl-4 border-l ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
               <div className="text-right hidden sm:block">
                 <p className={`text-sm font-black ${darkMode ? 'text-white' : 'text-[#0A1628]'} leading-none`}>
-                  {user.first_name} {user.last_name[0]}.
+                  {user.first_name} {user.last_name?.[0] ?? ''}.
                 </p>
                 <p className="text-[10px] font-bold text-[#1557FF] uppercase tracking-widest mt-1">Maire de la ville</p>
               </div>

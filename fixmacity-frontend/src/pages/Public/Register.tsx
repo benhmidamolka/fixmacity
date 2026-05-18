@@ -25,7 +25,7 @@ const Register: React.FC = () => {
   const navigate = useNavigate()
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '',
-    password: '', delegation_id: '', language: 'FR',
+    password: '', delegation_id: '', lang_pref: 'fr',
   })
   const [showPwd, setShowPwd] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -47,15 +47,26 @@ const Register: React.FC = () => {
         body: JSON.stringify(form),
       })
       const d1 = await r1.json()
-      if (!r1.ok) throw new Error(d1.message || "Erreur lors de l'inscription")
+      if (!r1.ok) throw new Error(d1.error || d1.message || "Erreur lors de l'inscription")
 
+      // Register already returns a token — use it directly
+      if (d1.token) {
+        localStorage.setItem('fmc_token', d1.token)
+        localStorage.setItem('fmc_refresh_token', d1.refreshToken || '')
+        localStorage.setItem('fmc_user', JSON.stringify(d1.user))
+        navigate('/dashboard')
+        return
+      }
+
+      // Fallback: do a login call
       const r2 = await fetch(`${API}/auth/login`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: form.email, password: form.password }),
       })
       const d2 = await r2.json()
+      if (!r2.ok) throw new Error(d2.error || 'Connexion automatique échouée. Veuillez vous connecter manuellement.')
       localStorage.setItem('fmc_token', d2.token)
-      localStorage.setItem('fmc_refresh_token', d2.refreshToken)
+      localStorage.setItem('fmc_refresh_token', d2.refreshToken || '')
       localStorage.setItem('fmc_user', JSON.stringify(d2.user))
       navigate('/dashboard')
     } catch (err: any) {
@@ -142,12 +153,12 @@ const Register: React.FC = () => {
               <p className="text-sm font-semibold text-[#0A1628] mb-2">Langue préférée</p>
               <div className="flex gap-2">
                 {[{ code: 'FR', flag: '🇫🇷' }, { code: 'AR', flag: '🇹🇳' }, { code: 'EN', flag: '🇬🇧' }].map(l => (
-                  <button key={l.code} type="button" onClick={() => set('language', l.code)}
+                  <button key={l.code} type="button" onClick={() => set('lang_pref', l.code.toLowerCase())}
                     className="flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all"
                     style={{
-                      background: form.language === l.code ? '#0A1628' : 'transparent',
-                      borderColor: form.language === l.code ? '#0A1628' : '#e2e8f0',
-                      color: form.language === l.code ? 'white' : '#64748b',
+                      background: form.lang_pref === l.code.toLowerCase() ? '#0A1628' : 'transparent',
+                      borderColor: form.lang_pref === l.code.toLowerCase() ? '#0A1628' : '#e2e8f0',
+                      color: form.lang_pref === l.code.toLowerCase() ? 'white' : '#64748b',
                     }}>
                     {l.flag} {l.code}
                   </button>

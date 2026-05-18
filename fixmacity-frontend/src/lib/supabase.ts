@@ -5,10 +5,10 @@ const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL  as string;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 if (!SUPABASE_URL || !SUPABASE_ANON) {
-  throw new Error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in .env');
+  console.warn('[FixMaCity] VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY missing from .env — Supabase features disabled.')
 }
 
-export const supabase = createClient<any>(SUPABASE_URL, SUPABASE_ANON, {
+export const supabase = createClient<any>(SUPABASE_URL || 'https://placeholder.supabase.co', SUPABASE_ANON || 'placeholder', {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
