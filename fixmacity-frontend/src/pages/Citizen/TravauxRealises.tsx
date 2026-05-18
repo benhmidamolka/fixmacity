@@ -271,8 +271,8 @@ function ProjectCard({ project, onClick }: { project: any; onClick: () => void }
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const TravauxRealises: React.FC = () => {
   const [tab,        setTab]        = useState<'fixes' | 'projects'>('fixes')
-  const [fixes,      setFixes]      = useState<any[]>(MOCK_FIXES)
-  const [projects,   setProjects]   = useState<any[]>(MOCK_PROJECTS)
+  const [fixes,      setFixes]      = useState<any[]>([])
+  const [projects,   setProjects]   = useState<any[]>([])
   const [selectedFix, setSelectedFix]   = useState<any>(null)
   const [selectedProj, setSelectedProj] = useState<any>(null)
   const [search,     setSearch]     = useState('')
@@ -299,7 +299,7 @@ const TravauxRealises: React.FC = () => {
         const closed = arr.filter((p: any) => p.status === 'closed' || p.is_closed)
         if (closed.length > 0) {
           const voted = closed.map((p: any) => ({ ...p, type: 'voted' }))
-          setProjects([...voted, ...MOCK_PROJECTS.filter(m => m.type === 'municipal')])
+          setProjects(voted)
         }
       }).catch(() => {})
   }, [])

@@ -31,7 +31,7 @@ router.get('/nearby', authenticate, ctrl.nearby);
 
 // 2. Wildcard AFTER named routes
 router.get('/:id', authenticate, ctrl.getById);
-router.get('/:id/export', authenticate, exportCtrl.exportDeclaration);
+router.get('/:id/export', authenticate, rbac('president'), exportCtrl.exportDeclaration);
 
 // POST /api/declarations — Submit new declaration with photo
 router.post('/',

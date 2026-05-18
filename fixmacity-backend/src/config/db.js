@@ -250,13 +250,14 @@ class QB {
   /** Strip PostgREST embed specs like  users!fk(col1, col2)  */
   _stripEmbeds(cols) {
     if (cols === '*') return '*';
-    const clean = cols.replace(/\([^)]*\)/g, '');
-    return clean.split(',').map(c => {
-      const t = c.trim();
-      if (t.includes('!')) return null;
-      if (!t) return null;
-      return t;
-    }).filter(Boolean).join(', ') || '*';
+    // Remove alias:table!fk(cols), table!fk(cols), alias:table(cols)
+    let clean = cols
+      .replace(/\w+:\w+![^,()\s]*\([^)]*\)/g, '')
+      .replace(/\w+![^,()\s]*\([^)]*\)/g, '')
+      .replace(/\w+:\w+\([^)]*\)/g, '');
+    const parts = clean.split(',').map(c => c.trim())
+      .filter(c => c && !c.includes('(') && !c.includes(':'));
+    return parts.length ? parts.join(', ') : '*';
   }
 
   // ── Execution ────────────────────────────────────────────

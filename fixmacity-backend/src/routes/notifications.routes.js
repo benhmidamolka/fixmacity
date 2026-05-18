@@ -12,6 +12,7 @@ router.get('/unread-count', nc.getUnreadCount);
 router.get('/', nc.listNotifications);
 router.put('/read-all', nc.markAllAsRead);
 router.put('/:id/read', nc.markAsRead);
-router.delete("/:id", nc.deleteNotification);
-router.post("/bulk", nc.bulkDeleteNotifications);
+// Bulk delete must be declared before the parameterized `/:id` route
+router.delete('/bulk', nc.bulkDeleteNotifications);
+router.delete('/:id', nc.deleteNotification);
 module.exports = router;

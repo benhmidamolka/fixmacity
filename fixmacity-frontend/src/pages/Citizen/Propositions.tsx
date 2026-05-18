@@ -266,7 +266,7 @@ const enrichPropositions = (arr: any[]) => {
 
 // ─── Propositions Page ────────────────────────────────────────────────────────
 const Propositions: React.FC = () => {
-  const [props, setProps]       = useState<any[]>(enrichPropositions(MOCK_PROPS))
+  const [props, setProps]       = useState<any[]>([])
   const [activeTab, setActiveTab] = useState(0)
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selected, setSelected]   = useState<any>(null)
@@ -284,11 +284,9 @@ const Propositions: React.FC = () => {
     fetch(`${API}/propositions`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(data => {
-        const arr = Array.isArray(data) ? data : data.propositions
-        if (arr?.length) {
-          setProps(enrichPropositions(arr))
-        }
-      })
+          const arr = Array.isArray(data) ? data : data.propositions
+          setProps(enrichPropositions(arr || []))
+        })
       .catch(() => {}) // keep mock on error
   }, [])
 
@@ -306,13 +304,11 @@ const Propositions: React.FC = () => {
         setToast({ message: 'Votre vote a été enregistré avec succès !', type: 'success' });
         // Re-fetch propositions to update percentages and prevent further votes
         fetch(`${API}/propositions`, { headers: { Authorization: `Bearer ${token}` } })
-          .then(r => r.json())
-          .then(newData => {
+           .then(r => r.json())
+           .then(newData => {
              const arr = Array.isArray(newData) ? newData : newData.propositions
-             if (arr?.length) {
-                setProps(enrichPropositions(arr));
-             }
-          });
+             setProps(enrichPropositions(arr || []));
+           });
       }
     } catch {
       setToast({ message: 'Une erreur est survenue lors de la communication avec le serveur.', type: 'error' });

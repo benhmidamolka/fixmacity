@@ -236,12 +236,11 @@ const Dashboard: React.FC = () => {
           ) : propositions.length > 0 ? (
             <PropositionPreview prop={propositions[0]} />
           ) : (
-            /* Fallback mock so the page always looks good */
-            <PropositionPreview prop={{
-              title: 'Végétalisation de la Place des Martyrs',
-              description: "Le conseil municipal propose de transformer la place centrale en un espace vert piétonnier, avec l'installation de 50 nouveaux arbres et des points d'eau écologiques.",
-              pour_count: 68, total_votes: 1245,
-            }} />
+            <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800/50 p-8 flex flex-col items-center gap-3 text-center">
+              <span className="text-4xl">🗳️</span>
+              <p className="font-bold text-slate-600 dark:text-slate-300">Aucune proposition active pour le moment.</p>
+              <p className="text-sm text-slate-400">Le Président publiera bientôt des propositions à voter.</p>
+            </div>
           )}
         </section>
 
@@ -261,24 +260,10 @@ const Dashboard: React.FC = () => {
               {resolved.map(d => <DeclarationCard key={d.id} decl={d} compact />)}
             </div>
           ) : (
-            /* Fallback mock cards */
-            <div className="grid sm:grid-cols-3 gap-4">
-              {[
-                { title: 'Réparation chaussée Rue Ibn Khaldoun', days: 2  },
-                { title: 'Éclairage public Place Farhat Hached',  days: 4  },
-                { title: 'Nettoyage Parc de la Ligue Arabe',      days: 7  },
-              ].map(m => (
-                <div key={m.title} className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800/50 p-5 hover:shadow-xl dark:hover:bg-slate-900/60 transition-all duration-300">
-                  <div className="h-32 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 mb-4 relative overflow-hidden flex items-center justify-center shadow-inner">
-                    <span className="absolute top-2 right-2 bg-green-500 text-white text-[10px] font-black px-2 py-1 rounded-full flex items-center gap-1 shadow-md">
-                      ✓ Résolu
-                    </span>
-                    <span className="text-5xl opacity-20">🔧</span>
-                  </div>
-                  <p className="font-bold text-[#0A1628] dark:text-white text-sm line-clamp-1">{m.title}</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5 font-medium">Il y a {m.days} jours</p>
-                </div>
-              ))}
+            <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800/50 p-8 flex flex-col items-center gap-3 text-center">
+              <span className="text-4xl">🔧</span>
+              <p className="font-bold text-slate-600 dark:text-slate-300">Aucun signalement résolu pour l'instant.</p>
+              <p className="text-sm text-slate-400">Vos signalements résolus apparaîtront ici.</p>
             </div>
           )}
         </section>

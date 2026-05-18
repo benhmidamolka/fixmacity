@@ -314,15 +314,23 @@ exports.refresh = async (req, res) => {
     if (!refreshToken) return res.status(400).json({ error: 'RefreshToken manquant' });
 
     const { data: rt, error } = await supabase
-      .from('refresh_tokens')
-      .select('*, user:users(*)')
+      .from('refresh_tokens').select('*')
       .eq('token', refreshToken)
       .is('revoked_at', null)
-      .gt('expires_at', new Date().toISOString())
-      .single();
+      .gt('expires_at', new Date().toISOString()).single();
 
     if (error || !rt) {
       return res.status(401).json({ error: 'RefreshToken invalide ou expiré' });
+    }
+
+    // Fetch the user separately to avoid QB shim join/embedding issues
+    const { data: user, error: userError } = await supabase
+      .from('users').select('*')
+      .eq('id', rt.user_id)
+      .single();
+
+    if (userError || !user) {
+      return res.status(401).json({ error: 'Utilisateur introuvable' });
     }
 
     // Optional: Rotate refresh token (revoke old, issue new)
@@ -330,10 +338,10 @@ exports.refresh = async (req, res) => {
       .update({ revoked_at: new Date().toISOString() })
       .eq('id', rt.id);
 
-    const token = signToken(rt.user);
-    const newRefreshToken = await issueRefreshToken(rt.user.id);
+    const token = signToken(user);
+    const newRefreshToken = await issueRefreshToken(user.id);
 
-    res.json({ token, refreshToken: newRefreshToken, user: safeUser(rt.user) });
+    res.json({ token, refreshToken: newRefreshToken, user: safeUser(user) });
   } catch (err) {
     console.error('[Auth] refresh:', err.message);
     res.status(500).json({ error: 'Erreur serveur' });

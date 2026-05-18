@@ -114,20 +114,21 @@ exports.create = async (req, res) => {
 exports.mine = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const limitNum = parseInt(limit, 10);
+    const offset = (parseInt(page, 10) - 1) * limitNum;
 
-    // v_declarations_citizen has both citizen_id and user_id columns
-    const { data, error, count } = await supabase
-      .from('v_declarations_citizen')
-      .select('*', { count: 'exact' })
-      .or(`user_id.eq.${req.user.id},citizen_id.eq.${req.user.id}`)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + parseInt(limit) - 1);
-
-    if (error) {
-      console.error('[Declarations] Mine error:', error.message);
-      return res.status(500).json({ error: 'Erreur serveur.' });
-    }
+    const { pool } = require('../config/db');
+    const [dataRes, countRes] = await Promise.all([
+      pool.query(`SELECT d.*, CASE WHEN d.status IN ('resolue','cloturee') THEN 'RESOLUE'
+        WHEN d.status IN ('assignee_chef','assignee_agent','en_cours','refusee_agent') THEN 'EN COURS'
+        ELSE 'SOUMISE' END AS citizen_status
+        FROM declarations d WHERE (d.citizen_id=$1 OR d.user_id=$1)
+        AND d.is_deleted=false ORDER BY d.created_at DESC LIMIT $2 OFFSET $3`,
+        [req.user.id, limitNum, offset]),
+      pool.query(`SELECT COUNT(*) FROM declarations WHERE (citizen_id=$1 OR user_id=$1) AND is_deleted=false`, [req.user.id]),
+    ]);
+    const data = dataRes.rows;
+    const count = parseInt(countRes.rows[0].count, 10);
 
     return res.status(200).json({ 
       declarations: data,
