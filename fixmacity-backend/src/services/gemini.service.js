@@ -1,7 +1,7 @@
 // gemini.service.js — Primary AI layer using key rotation
 const { getNextGenAI, getKeysCount } = require('./gemini.rotation');
 
-const MODELS_TO_TRY = ['gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+const MODELS_TO_TRY = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
 
 /**
  * Send a conversation to Gemini using key rotation + model fallback.

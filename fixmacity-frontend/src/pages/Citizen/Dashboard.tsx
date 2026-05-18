@@ -5,15 +5,15 @@ import CitizenLayout from '../../components/citizen/CitizenLayout'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
-// ─── Status helpers ───────────────────────────────────────────────────────────
-const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
-  'SOUMISE': { label: 'Soumise', color: '#F59E0B', bg: '#fffbeb' },
-  'EN COURS': { label: 'En cours', color: '#1557FF', bg: '#eff6ff' },
-  'ÉVALUÉ': { label: 'Évalué', color: '#16a34a', bg: '#f0fdf4' },
-  'CLÔTURÉ': { label: 'Clôturé', color: '#64748b', bg: '#f8fafc' },
+// ✨ Status helpers ✨
+const STATUS_MAP: Record<string, { label: string; textClass: string; bgClass: string; dotClass: string }> = {
+  'SOUMISE':  { label: 'Soumise',  textClass: 'text-amber-600 dark:text-amber-400',  bgClass: 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200/10',  dotClass: 'bg-amber-500' },
+  'EN COURS': { label: 'En cours', textClass: 'text-blue-600 dark:text-blue-400',   bgClass: 'bg-blue-50 dark:bg-blue-950/30 border border-blue-200/10',   dotClass: 'bg-[#1557FF]' },
+  'ÉVALUÉ':   { label: 'Évalué',   textClass: 'text-green-600 dark:text-green-400',  bgClass: 'bg-green-50 dark:bg-green-950/30 border border-green-200/10',  dotClass: 'bg-green-500' },
+  'CLÔTURÉ':  { label: 'Clôturé',  textClass: 'text-slate-600 dark:text-slate-400',  bgClass: 'bg-slate-50 dark:bg-slate-950/30 border border-slate-200/10',  dotClass: 'bg-slate-500' },
 }
 
-// ─── Status timeline steps ────────────────────────────────────────────────────
+// ✨ Status timeline steps ✨
 const TIMELINE_STEPS = ['Soumise', 'En cours', 'Évalué', 'Clôturé']
 
 function getStepIndex(status: string) {
@@ -79,9 +79,8 @@ function DeclarationCard({ decl, compact = false }: { decl: any; compact?: boole
       {!compact && (
         <div className="flex flex-col md:flex-row items-start justify-between gap-6">
           <div className="flex-1">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full mb-4 shadow-sm"
-              style={{ color: s.color, background: s.bg }}>
-              <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: s.color }} />
+            <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full mb-4 shadow-sm ${s.bgClass} ${s.textClass}`}>
+              <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${s.dotClass}`} />
               {s.label}
             </span>
             <h3 className="font-bold text-[#0A1628] dark:text-white text-xl leading-tight mb-2">{decl.title}</h3>
@@ -109,7 +108,7 @@ function DeclarationCard({ decl, compact = false }: { decl: any; compact?: boole
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400">
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400 border border-green-100/10">
                 ✓ Résolu
               </span>
             </div>
@@ -136,7 +135,7 @@ function PropositionPreview({ prop }: { prop: any }) {
         <span className="absolute top-4 left-4 bg-white/10 dark:bg-blue-500/20 backdrop-blur-md text-white dark:text-blue-200 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest border border-white/10 dark:border-blue-500/30">
           🏛️ Projet Municipal
         </span>
-        <h3 className="text-white font-bold text-xl leading-tight relative z-10">{prop.title}</h3>
+        <h3 className="text-white font-bold text-xl relative z-10">{prop.title}</h3>
       </div>
       <div className="p-6">
         <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed line-clamp-2 mb-6">{prop.description}</p>
@@ -144,7 +143,7 @@ function PropositionPreview({ prop }: { prop: any }) {
           <span className="text-green-600 dark:text-green-400">Pour ({pct}%)</span>
           <span className="text-rose-600 dark:text-rose-400">Contre ({100 - pct}%)</span>
         </div>
-        <div className="h-2.5 rounded-full bg-rose-100 dark:bg-rose-900/20 overflow-hidden mb-3 shadow-inner">
+        <div className="h-2.5 rounded-full bg-rose-100 dark:bg-rose-950/20 overflow-hidden mb-3 shadow-inner">
           <div className="h-full rounded-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-1000 shadow-[0_0_10px_rgba(34,197,94,0.4)]" style={{ width: `${pct}%` }} />
         </div>
         <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center font-medium">
@@ -207,12 +206,12 @@ const Dashboard: React.FC = () => {
             </Link>
           </div>
           {loading ? (
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 animate-pulse h-40" />
+            <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800/50 p-6 animate-pulse h-40" />
           ) : latest ? (
             <DeclarationCard decl={latest} />
           ) : (
-            <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center">
-              <p className="text-slate-400 text-sm mb-3">Vous n'avez pas encore de signalement.</p>
+            <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800/50 p-8 text-center">
+              <p className="text-slate-400 dark:text-slate-500 text-sm mb-3">Vous n'avez pas encore de signalement.</p>
               <Link to="/nouveau-signalement"
                 className="inline-flex items-center gap-2 bg-[#1557FF] text-white font-bold px-5 py-2.5 rounded-xl text-sm">
                 Faire mon premier signalement
@@ -233,14 +232,14 @@ const Dashboard: React.FC = () => {
             </Link>
           </div>
           {loading ? (
-            <div className="bg-white rounded-2xl border border-slate-100 p-6 animate-pulse h-64" />
+            <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800/50 p-6 animate-pulse h-64" />
           ) : propositions.length > 0 ? (
             <PropositionPreview prop={propositions[0]} />
           ) : (
             /* Fallback mock so the page always looks good */
             <PropositionPreview prop={{
               title: 'Végétalisation de la Place des Martyrs',
-              description: 'Le conseil municipal propose de transformer la place centrale en un espace vert piétonnier, avec l\'installation de 50 nouveaux arbres et des points d\'eau écologiques.',
+              description: "Le conseil municipal propose de transformer la place centrale en un espace vert piétonnier, avec l'installation de 50 nouveaux arbres et des points d'eau écologiques.",
               pour_count: 68, total_votes: 1245,
             }} />
           )}

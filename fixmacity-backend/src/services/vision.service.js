@@ -70,7 +70,7 @@ exports.analyzePhoto = async (imagePath) => {
         const genAI = getNextGenAI();
         
         // Try models in order of capability/quota
-        const modelsToTry = ['gemini-2.0-flash', 'gemini-flash-latest', 'gemini-1.5-flash'];
+        const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest', 'gemini-1.5-flash'];
         let modelSuccess = false;
 
         for (const modelName of modelsToTry) {

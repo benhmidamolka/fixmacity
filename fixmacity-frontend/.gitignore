@@ -22,5 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-VITE_API_URL=http://localhost:5005/api
-VITE_SOCKET_URL=http://localhost:5005

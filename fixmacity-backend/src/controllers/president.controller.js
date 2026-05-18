@@ -220,7 +220,7 @@ Réponds UNIQUEMENT avec ce JSON (sans markdown):
 
     // 4. Call Gemini Vision
     const genAI = getNextGenAI();
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const result = await model.generateContent([
       prompt,

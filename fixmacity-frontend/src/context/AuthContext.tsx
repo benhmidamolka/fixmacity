@@ -22,28 +22,41 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser]       = useState<AppUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser]       = useState<AppUser | null>(() => {
+    try {
+      const stored = localStorage.getItem('fmc_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    let listenerHasRun = false;
-
-    // Subscribe to auth changes synchronously
-    const { data: { subscription } } = authService.onAuthStateChange(p => {
-      listenerHasRun = true;
-      setUser(p);
-      setLoading(false);
-    });
-
-    // Initial profile load
-    authService.getProfile().then(p => { 
-      if (!listenerHasRun) {
-        setUser(p);
-        setLoading(false);
+    const handleStorageChange = () => {
+      try {
+        const stored = localStorage.getItem('fmc_user');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setUser(prev => JSON.stringify(prev) !== JSON.stringify(parsed) ? parsed : prev);
+        } else {
+          setUser(null);
+        }
+      } catch {
+        setUser(null);
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    // Initial sync
+    handleStorageChange();
+
+    window.addEventListener('storage', handleStorageChange);
+    const interval = setInterval(handleStorageChange, 500);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -51,6 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await authService.login(email, password);
       const profile = await authService.getProfile();
+      if (profile) {
+        localStorage.setItem('fmc_user', JSON.stringify(profile));
+      }
       setUser(profile);
     } finally {
       setLoading(false);
@@ -58,7 +74,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await authService.logout();
+    localStorage.removeItem('fmc_token');
+    localStorage.removeItem('fmc_refresh_token');
+    localStorage.removeItem('fmc_user');
+    try {
+      await authService.logout();
+    } catch (e) {
+      console.warn("Supabase logout issue ignored", e);
+    }
     setUser(null);
   };
 
@@ -67,6 +90,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await authService.register(data);
       const profile = await authService.getProfile();
+      if (profile) {
+        localStorage.setItem('fmc_user', JSON.stringify(profile));
+      }
       setUser(profile);
     } finally {
       setLoading(false);
@@ -76,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateProfile = async (updates: Partial<AppUser>) => {
     if (!user) return;
     const updated = await authService.updateProfile(user.id, updates);
+    localStorage.setItem('fmc_user', JSON.stringify(updated));
     setUser(updated);
   };
 
