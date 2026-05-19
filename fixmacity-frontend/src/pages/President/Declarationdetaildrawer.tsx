@@ -11,7 +11,7 @@ import {
   Vote, Zap, CheckCheck, RotateCcw, ChevronDown,
   Info, BarChart3, Navigation
 } from 'lucide-react'
-import AIPriorityPanel from './AIPriorityPanel'
+import AIPriorityPanel from './AIPriorityPanel';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const tok = () => localStorage.getItem('fmc_token') || ''
@@ -37,7 +37,13 @@ interface DeclDetail {
   image_url?: string; photo_avant?: string; photo_avant_url?: string
   photo_url?: string; photo_apres?: string; photo_apres_url?: string
   citizen_id?: string
-  is_sensitive?: boolean; sensitive_type?: 'hospital' | 'school' | 'none' | string
+  is_sensitive?: boolean; sensitive_type?: string | null
+  sensitive_distance_m?: number | null;
+  ai_priority?: string; ai_priority_score?: number; ai_confidence?: number;
+  ai_reasoning?: string | null; ai_visible_issues?: string[] | null;
+  computed_priority?: string; computed_score?: number; final_priority?: string;
+  president_override?: string | null; president_override_note?: string | null;
+  priority_approved?: boolean; priority_approved_at?: string | null;
   ai_priority_confirmed?: boolean
   citizen?: { id: string; first_name: string; last_name: string; email: string; phone?: string }
   department?: { id: string; name: string; name_fr: string; code: string }

@@ -741,7 +741,9 @@ const PresidentDeclarations: React.FC = () => {
                                     <span className="text-[8px]">{cp.icon}</span>
                                     {cp.label}
                                     {d.ai_priority_confirmed && (
-                                      <Shield className="w-2.5 h-2.5 ml-0.5" title="Confirmé par le Président" />
+                                      <span title="Confirmé par le Président">
+                                        <Shield className="w-2.5 h-2.5 ml-0.5" />
+                                      </span>
                                     )}
                                   </span>
                                   {zoneLabel && (

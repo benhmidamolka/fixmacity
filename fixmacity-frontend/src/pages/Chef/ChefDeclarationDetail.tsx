@@ -350,7 +350,7 @@ const ChefDeclarations: React.FC = () => {
   const [history,           setHistory]           = useState<any[]>([])
   const [comments,          setComments]          = useState<any[]>([])
   const [detailLoading,     setDetailLoading]     = useState(false)
-  const [activeTab,         setActiveTab]         = useState<'info'|'assign'|'history'|'comments'>('info')
+  const [activeTab,         setActiveTab]         = useState<'info'|'assign'|'history'|'comments'|'priority'>('info')
   const [commentText,       setCommentText]       = useState('')
   const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [selectedAgentIds,  setSelectedAgentIds]  = useState<string[]>([])
@@ -612,7 +612,8 @@ const ChefDeclarations: React.FC = () => {
                 const sc  = getStatusCfg(d.status)
                 const an  = agentName(d)
                 const sel = selected.includes(d.id)
-                const { score, level } = computeAIPriorityScore(d)
+                const score = d.priority_score || 0
+                const level = d.priority || 'normale'
                 const scoreColor = score>=75?'#dc2626':score>=45?'#d97706':score>=20?'#1d4ed8':'#475569'
                 const scoreBg    = score>=75?'#fee2e2':score>=45?'#fef3c7':score>=20?'#eff6ff':'#f8fafc'
 

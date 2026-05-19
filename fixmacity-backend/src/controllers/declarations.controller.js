@@ -969,4 +969,206 @@ exports.getById = async (req, res) => {
     console.error('[Declarations] getById error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
+  // ============================================================
+// PATCH for declarations.controller.js
+// Add/replace these exports in your existing controller
+// ============================================================
+
+const { supabase } = require('../config/supabase');
+
+// ── HELPER: detect sensitive location via DB function ────────────────
+async function detectSensitiveLocation(lat, lng) {
+  if (!lat || !lng) return { nearby: false };
+  const { data, error } = await supabase.rpc('is_near_sensitive_location', {
+    p_lat: parseFloat(lat),
+    p_lng: parseFloat(lng),
+  });
+  if (error || !data) return { nearby: false };
+  // RPC returns array of rows from OUT params
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    nearby:        row.nearby        ?? false,
+    location_type: row.location_type ?? null,
+    location_name: row.location_name ?? null,
+    distance_m:    row.distance_m    ?? null,
+    bonus:         row.bonus         ?? 0,
+  };
+}
+
+// ── CREATE DECLARATION (replace exports.create) ──────────────────────
+exports.create = async (req, res) => {
+  try {
+    const citizenId = req.user?.id;
+    if (!citizenId) return res.status(401).json({ error: 'Non authentifié' });
+
+    const {
+      title, description, type_probleme, address,
+      latitude, longitude, service_id, photo_avant_url,
+      delegation_id, category,
+      // AI fields from citizen frontend (optional)
+      ai_priority        = 'normal',
+      ai_priority_score  = 5.0,
+      ai_confidence      = 0.5,
+      ai_reasoning       = null,
+      ai_visible_issues  = null,
+      used_ai_vision     = false,
+    } = req.body;
+
+    if (!title?.trim()) {
+      return res.status(400).json({ error: 'Le titre est obligatoire' });
+    }
+
+    // Detect sensitive location server-side
+    const locInfo = await detectSensitiveLocation(latitude, longitude);
+
+    // Insert declaration — DB trigger will compute final priority
+    const { data, error } = await supabase
+      .from('declarations')
+      .insert({
+        citizen_id:        citizenId,
+        title:             title.trim(),
+        description:       description?.trim() ?? null,
+        type_probleme:     type_probleme ?? null,
+        address:           address ?? null,
+        latitude:          latitude ? parseFloat(latitude) : null,
+        longitude:         longitude ? parseFloat(longitude) : null,
+        service_id:        service_id ?? null,
+        photo_avant_url:   photo_avant_url ?? null,
+        delegation_id:     delegation_id ?? null,
+        category:          category ?? null,
+        status:            'soumise',
+        // AI fields
+        ai_priority:       ai_priority,
+        ai_priority_score: parseFloat(ai_priority_score) || 5.0,
+        ai_confidence:     parseFloat(ai_confidence)     || 0.5,
+        ai_reasoning:      ai_reasoning,
+        ai_visible_issues: ai_visible_issues,
+        // Location (trigger will also set these, but pass them explicitly)
+        is_sensitive:      locInfo.nearby,
+        sensitive_type:    locInfo.location_type,
+      })
+      .select(`
+        *,
+        services(name_fr, icon),
+        users!declarations_citizen_id_fkey(first_name, last_name)
+      `)
+      .single();
+
+    if (error) throw error;
+    return res.status(201).json({ success: true, data });
+
+  } catch (err) {
+    console.error('[declarations.create]', err);
+    return res.status(500).json({ error: err.message ?? 'Erreur serveur' });
+  }
+};
+
+// ── GET NEARBY SENSITIVE LOCATIONS ──────────────────────────────────
+// Route: GET /declarations/nearby/sensitive?lat=...&lng=...
+exports.getNearSensitiveLocations = async (req, res) => {
+  try {
+    const { lat, lng, radius = 1000 } = req.query;
+    if (!lat || !lng) {
+      return res.status(400).json({ error: 'lat et lng sont requis' });
+    }
+
+    const { data, error } = await supabase
+      .from('sensitive_locations')
+      .select('id, name, type, latitude, longitude, address, bonus_score, radius_m')
+      .eq('is_active', true);
+
+    if (error) throw error;
+
+    // Filter by distance client-side (or use PostGIS in prod)
+    const lat_ = parseFloat(lat), lng_ = parseFloat(lng), r = parseFloat(radius);
+    const nearby = (data ?? []).filter(loc => {
+      const dist = haversineMeters(lat_, lng_, loc.latitude, loc.longitude);
+      return dist <= r;
+    }).map(loc => ({
+      ...loc,
+      distance_m: Math.round(haversineMeters(lat_, lng_, loc.latitude, loc.longitude)),
+    })).sort((a, b) => a.distance_m - b.distance_m);
+
+    return res.json({ data: nearby, count: nearby.length });
+  } catch (err) {
+    console.error('[getNearSensitiveLocations]', err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ── PRESIDENT: APPROVE / OVERRIDE PRIORITY ──────────────────────────
+// Route: POST /declarations/:id/priority
+exports.approvePriority = async (req, res) => {
+  try {
+    const presidentId = req.user?.id;
+    const { id } = req.params;
+    const { override, note } = req.body;
+
+    if (!presidentId) return res.status(401).json({ error: 'Non authentifié' });
+
+    // Validate override value
+    const VALID = ['faible', 'normal', 'urgent', null, undefined, ''];
+    if (!VALID.includes(override)) {
+      return res.status(400).json({ error: 'Valeur de priorité invalide' });
+    }
+
+    const { data, error } = await supabase.rpc('approve_priority', {
+      p_declaration_id: id,
+      p_override:       override || null,
+      p_note:           note?.trim() || null,
+      p_president_id:   presidentId,
+    });
+
+    if (error) throw error;
+    return res.json({ success: true, data });
+
+  } catch (err) {
+    console.error('[approvePriority]', err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ── GET DECLARATION PRIORITY DETAIL ─────────────────────────────────
+// Route: GET /declarations/:id/priority
+exports.getPriorityDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from('v_declaration_priority')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Déclaration introuvable' });
+
+    return res.json({ data });
+  } catch (err) {
+    console.error('[getPriorityDetail]', err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// ── Haversine helper ─────────────────────────────────────────────────
+function haversineMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ── ADD TO declarations.routes.js ────────────────────────────────────
+/*
+  const ctrl = require('./declarations.controller');
+
+  router.post('/',                          auth, ctrl.create);
+  router.get('/nearby/sensitive',           ctrl.getNearSensitiveLocations);
+  router.get('/:id/priority',              auth, ctrl.getPriorityDetail);
+  router.post('/:id/priority',     presidentOnly, ctrl.approvePriority);
+*/
 };
