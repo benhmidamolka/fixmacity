@@ -192,7 +192,7 @@ exports.analyzeDeclarationImage = async (req, res) => {
     // 1. Fetch the declaration to get image URL and context
     const { data: decl, error } = await supabase
       .from('declarations')
-      .select('id, title, category, description, image_url, is_sensitive, sensitive_type, votes_count')
+      .select('id, title, category, description, image_url, photo_avant, is_sensitive, sensitive_type, votes_count')
       .eq('id', id)
       .is('deleted_at', null)
       .single();
@@ -201,12 +201,22 @@ exports.analyzeDeclarationImage = async (req, res) => {
       return res.status(404).json({ error: 'Déclaration introuvable.' });
     }
 
-    if (!decl.image_url) {
+    // Resolve the best available image (photo_avant takes priority over image_url)
+    const BASE_URL = process.env.BASE_URL || 'http://localhost:5005';
+    const resolveUrl = (raw) => {
+      if (!raw) return null;
+      if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+      return `${BASE_URL}${raw.startsWith('/') ? raw : `/${raw}`}`;
+    };
+    const rawImageUrl = decl.photo_avant || decl.image_url;
+    const resolvedImageUrl = resolveUrl(rawImageUrl);
+
+    if (!resolvedImageUrl) {
       return res.status(400).json({ error: 'Aucune image disponible pour cette déclaration.' });
     }
 
     // 2. Fetch image as base64
-    const imageRes = await fetch(decl.image_url);
+    const imageRes = await fetch(resolvedImageUrl);
     if (!imageRes.ok) {
       return res.status(502).json({ error: 'Impossible de récupérer l\'image.' });
     }
@@ -309,9 +319,9 @@ exports.overridePriority = async (req, res) => {
       return res.status(400).json({ error: 'Priorité invalide. Valeurs acceptées: critical, normal, low.' });
     }
 
-    // Map computed priority back to DB values
+    // Map computed priority back to DB values (score uses 0-100 scale)
     const dbPriorityMap = { critical: 'haute', normal: 'moyenne', low: 'basse' };
-    const scoreMap = { critical: 8, normal: 4, low: 1 };
+    const scoreMap = { critical: 90, normal: 50, low: 15 };
 
     const { data: updated, error } = await supabase
       .from('declarations')

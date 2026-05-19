@@ -23,6 +23,26 @@ interface Declaration {
   location_name?: string
 }
 
+function getStatusCfg(s: string) {
+  const normalized = s?.toLowerCase()
+  if (normalized === 'assignee_chef' || normalized === 'refusee_agent') {
+    return { label: 'En attente', color: '#7c3aed', bg: '#f5f3ff', dot: '#7c3aed' }
+  }
+  if (normalized === 'assignee_agent' || normalized === 'en_cours') {
+    return { label: 'En cours', color: '#1d4ed8', bg: '#eff6ff', dot: '#1d4ed8' }
+  }
+  if (normalized === 'resolue' || normalized === 'evaluee') {
+    return { label: 'Évaluée', color: '#15803d', bg: '#f0fdf4', dot: '#15803d' }
+  }
+  if (normalized === 'cloturee') {
+    return { label: 'Clôturée', color: '#475569', bg: '#f8fafc', dot: '#475569' }
+  }
+  if (normalized === 'refusee_chef') {
+    return { label: 'Refusée (Chef)', color: '#dc2626', bg: '#fef2f2', dot: '#dc2626' }
+  }
+  return { label: s, color: '#64748b', bg: '#f1f5f9', dot: '#94a3b8' }
+}
+
 const ChefDeclarations: React.FC = () => {
   const navigate = useNavigate()
   const [declarations, setDeclarations] = useState<Declaration[]>([])
@@ -30,6 +50,7 @@ const ChefDeclarations: React.FC = () => {
   const [layoutMode, setLayoutMode] = useState<'LIST' | 'BOARD'>('BOARD')
   const [search, setSearch] = useState('')
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
+  const [statusFilter, setStatusFilter] = useState<'en_attente' | 'en_cours' | 'evaluee' | 'cloturee'>('en_attente')
 
   useEffect(() => {
     const fetchDeclarations = async () => {
@@ -56,12 +77,28 @@ const ChefDeclarations: React.FC = () => {
     return { label: 'BASSE', color: '#64748B', bg: '#F8FAFC' }
   }
 
-  // Filter incoming only (assigned to chef from president but not yet accepted)
-  const incomingDecls = declarations.filter(d => 
-    ['assignee_chef', 'soumise', 'en_attente'].includes(d.status)
-  )
+  const counts = {
+    en_attente: declarations.filter(d => ['assignee_chef', 'soumise', 'en_attente', 'refusee_agent'].includes(d.status?.toLowerCase())).length,
+    en_cours: declarations.filter(d => ['assignee_agent', 'en_cours'].includes(d.status?.toLowerCase())).length,
+    evaluee: declarations.filter(d => ['resolue', 'evaluee'].includes(d.status?.toLowerCase())).length,
+    cloturee: declarations.filter(d => ['cloturee'].includes(d.status?.toLowerCase())).length,
+  }
 
-  const filtered = incomingDecls.filter(d => 
+  const tabDecls = declarations.filter(d => {
+    const normalized = d.status?.toLowerCase()
+    if (statusFilter === 'en_attente') {
+      return ['assignee_chef', 'soumise', 'en_attente', 'refusee_agent'].includes(normalized)
+    } else if (statusFilter === 'en_cours') {
+      return ['assignee_agent', 'en_cours'].includes(normalized)
+    } else if (statusFilter === 'evaluee') {
+      return ['resolue', 'evaluee'].includes(normalized)
+    } else if (statusFilter === 'cloturee') {
+      return ['cloturee'].includes(normalized)
+    }
+    return false
+  })
+
+  const filtered = tabDecls.filter(d => 
     d.title.toLowerCase().includes(search.toLowerCase()) ||
     (d.ref_service && d.ref_service.toLowerCase().includes(search.toLowerCase())) ||
     (d.ref_citoyen && d.ref_citoyen.toLowerCase().includes(search.toLowerCase()))
@@ -73,6 +110,7 @@ const ChefDeclarations: React.FC = () => {
 
   const renderCard = (d: Declaration) => {
     const prio = getPriorityInfo(d.priority_score || 0)
+    const sc = getStatusCfg(d.status)
     
     return (
       <div 
@@ -108,12 +146,11 @@ const ChefDeclarations: React.FC = () => {
           </div>
 
           <div className="pt-4 border-t border-slate-50 dark:border-slate-800/50 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-               <div className="w-2 h-2 rounded-full" style={{ background: '#F97316' }} />
-               <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 capitalize">
-                  À ASSIGNER
-               </span>
-            </div>
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1 rounded-full"
+              style={{ color: sc.color, background: sc.bg }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: sc.dot }} />
+              {sc.label}
+            </span>
           </div>
         </div>
       </div>
@@ -136,12 +173,52 @@ const ChefDeclarations: React.FC = () => {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-2">
           <div>
             <h1 className="text-3xl font-black text-[#0A1628] dark:text-white tracking-tight">
-              Nouvelles Déclarations
+              Déclarations du Département
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Les déclarations assignées à votre département par le Président
+              Gérez et suivez les signalements affectés à votre service
             </p>
           </div>
+        </div>
+
+        {/* Status Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+          {(['en_attente', 'en_cours', 'evaluee', 'cloturee'] as const).map(tab => {
+            const tabLabels = {
+              en_attente: 'En attente',
+              en_cours: 'En cours',
+              evaluee: 'Évaluées',
+              cloturee: 'Clôturées'
+            }
+            const tabColors = {
+              en_attente: 'border-[#7c3aed]/20 text-[#7c3aed] bg-[#f5f3ff] dark:bg-[#7c3aed]/10',
+              en_cours: 'border-blue-600/20 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-500/10',
+              evaluee: 'border-emerald-600/20 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-500/10',
+              cloturee: 'border-slate-500/20 text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-500/10'
+            }
+            const isActive = statusFilter === tab
+            
+            return (
+              <button
+                key={tab}
+                onClick={() => setStatusFilter(tab)}
+                className={`flex items-center gap-2.5 px-4 py-2 rounded-2xl border transition-all ${
+                  isActive 
+                    ? `${tabColors[tab]} font-black shadow-sm ring-1 ring-current/10` 
+                    : 'border-slate-100 dark:border-slate-800/80 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 bg-transparent'
+                }`}
+              >
+                <span className="text-xs font-bold">{tabLabels[tab]}</span>
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                  isActive 
+                    ? 'bg-white/90 dark:bg-black/30 text-current' 
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                }`}>
+                  {counts[tab]}
+                </span>
+              </button>
+            )
+          })}
         </div>
 
         {/* Advanced Toolbar */}

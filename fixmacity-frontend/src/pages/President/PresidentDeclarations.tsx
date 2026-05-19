@@ -67,7 +67,7 @@ const COMPUTED_PRIORITY_CONFIG: Record<'critical' | 'normal' | 'low', {
   label: string; color: string; bg: string; border: string; icon: string
 }> = {
   critical: { label: 'Critique',   color: '#dc2626', bg: '#fee2e2', border: '#fca5a5', icon: '🔴' },
-  normal:   { label: 'Normal',     color: '#d97706', bg: '#fef3c7', border: '#fcd34d', icon: '🟡' },
+  normal:   { label: 'Moyen',      color: '#d97706', bg: '#fef3c7', border: '#fcd34d', icon: '🟡' },
   low:      { label: 'Faible',     color: '#16a34a', bg: '#dcfce7', border: '#86efac', icon: '🟢' },
 }
 
@@ -199,8 +199,11 @@ const FacetedFilter: React.FC<FacetedFilterProps> = ({ title, options, selected,
 
 interface Decl {
   id:string; ref_citoyen:string; ref_service:string|null
+  department_id?: string | null
   title:string; category:string; status:string; priority:string
   computed_priority: 'critical' | 'normal' | 'low'
+  ai_priority_confirmed?: boolean
+  priority_score?: number
   arrondissement:string; address?:string; agent:string|null; votes:number; date:string
   lat: number | null; lng: number | null; image?: string;
   resolution_image?: string;
@@ -350,11 +353,24 @@ const PresidentDeclarations: React.FC = () => {
           const citizenName = cit
             ? [cit.first_name, cit.last_name].filter(Boolean).join(' ').trim()
             : ''
+          // If president has confirmed priority, map DB value back to level
+          const dbToLevel: Record<string, 'critical' | 'normal' | 'low'> = {
+            haute: 'critical', high: 'critical',
+            moyenne: 'normal', medium: 'normal',
+            basse: 'low', low: 'low',
+          }
+          const confirmedLevel = d.ai_priority_confirmed
+            ? (dbToLevel[d.priority?.toLowerCase()] ?? null)
+            : null
+
           return {
             id: d.id, ref_citoyen: d.ref_citoyen || '—',
             ref_service: d.ref_service || null,
+            department_id: d.department_id || null,
             title: d.title, category: d.category || 'Voirie',
             status: d.status, priority: d.priority || 'moyenne',
+            ai_priority_confirmed: d.ai_priority_confirmed || false,
+            priority_score: d.priority_score ?? null,
             arrondissement: d.delegation_name || 'Sousse Riadh',
             agent: d.agent_name || null, votes: d.votes_count || 0,
             date: new Date(d.created_at).toLocaleDateString('fr-FR'),
@@ -369,7 +385,7 @@ const PresidentDeclarations: React.FC = () => {
             citizen_name: citizenName || `Réf. ${d.ref_citoyen || String(d.id).slice(0, 8)}`,
             citizen_email: cit?.email || '—',
             citizen_avatar: undefined,
-            computed_priority: computePriority({
+            computed_priority: confirmedLevel ?? computePriority({
               sensitive_type: d.sensitive_type || 'none',
               category: d.category || 'Voirie',
               votes: d.votes_count || 0,
@@ -639,8 +655,10 @@ const PresidentDeclarations: React.FC = () => {
                     <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">ID</th>
                     <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Titre</th>
                     <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Citoyen</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Status</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Service</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Statut</th>
                     <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Priorité</th>
+                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Date</th>
                     <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Assigné</th>
                     <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white text-center">Votes</th>
                     <th className="pr-10 pl-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white text-right">Action</th>
@@ -689,11 +707,24 @@ const PresidentDeclarations: React.FC = () => {
                             <span className="text-[11px] font-black text-slate-600 dark:text-slate-300">{d.citizen_name}</span>
                           </td>
                           <td className="px-4 py-6">
+                            {(() => {
+                              const dept = departments.find(dep => dep.id === d.department_id)
+                              return dept ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-[#1557FF] border border-blue-100 dark:border-blue-900/30">
+                                  <Building2 className="w-3 h-3" />
+                                  {dept.name}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 italic">Non assigné</span>
+                              )
+                            })()}
+                          </td>
+                          <td className="px-4 py-6">
                             <div className="flex items-center gap-2">
                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: STATUS_CONFIG[d.status]?.color }} />
                                <span className="text-xs font-bold" style={{ color: STATUS_CONFIG[d.status]?.color }}>
                                  {STATUS_CONFIG[d.status]?.label}
-                               </span>
+                                </span>
                             </div>
                           </td>
                           <td className="px-4 py-6">
@@ -709,6 +740,9 @@ const PresidentDeclarations: React.FC = () => {
                                   >
                                     <span className="text-[8px]">{cp.icon}</span>
                                     {cp.label}
+                                    {d.ai_priority_confirmed && (
+                                      <Shield className="w-2.5 h-2.5 ml-0.5" title="Confirmé par le Président" />
+                                    )}
                                   </span>
                                   {zoneLabel && (
                                     <span className="text-[8px] font-bold text-indigo-500 dark:text-indigo-400 flex items-center gap-0.5">
@@ -723,6 +757,9 @@ const PresidentDeclarations: React.FC = () => {
                                 </div>
                               )
                             })()}
+                          </td>
+                          <td className="px-4 py-6">
+                            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-350">{d.date}</span>
                           </td>
                           <td className="px-4 py-6">
                              {d.agent ? (
@@ -744,14 +781,8 @@ const PresidentDeclarations: React.FC = () => {
                                <button 
                                  onClick={(e) => { e.stopPropagation(); setSelectedDecl(d); }}
                                  className="px-4 py-2 rounded-xl bg-[#1557FF]/5 text-[#1557FF] text-[10px] font-black uppercase tracking-widest hover:bg-[#1557FF] hover:text-white transition-all shadow-sm border border-[#1557FF]/10"
-                               >
+                                >
                                  Détails
-                               </button>
-                               <button 
-                                 onClick={(e) => { e.stopPropagation(); handleDelete([d.id]) }}
-                                 className="p-2 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-all border border-rose-100"
-                               >
-                                 <Trash2 className="w-4 h-4" />
                                </button>
                             </div>
                           </td>
@@ -760,7 +791,7 @@ const PresidentDeclarations: React.FC = () => {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={10} className="py-32 text-center">
+                      <td colSpan={12} className="py-32 text-center">
                         <div className="w-20 h-20 rounded-[2rem] bg-slate-50 dark:bg-slate-800 flex items-center justify-center mx-auto mb-6 text-slate-200 dark:text-slate-700">
                           <Smartphone className="w-10 h-10" />
                         </div>

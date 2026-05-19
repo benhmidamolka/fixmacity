@@ -38,25 +38,20 @@ exports.listDeclarations = async (req, res) => {
           usersData.forEach(u => userMap[u.id] = { first_name: u.first_name, last_name: u.last_name });
         }
         
-        // Fetch assigned agents
-        const declIds = data.map(d => d.id);
-        const { data: assignments } = await supabase
-          .from('declaration_agents')
-          .select('declaration_id, users(id, first_name, last_name)')
-          .in('declaration_id', declIds);
-          
-        const agentsByDecl = {};
-        if (assignments) {
-          assignments.forEach(a => {
-            if (!agentsByDecl[a.declaration_id]) agentsByDecl[a.declaration_id] = [];
-            if (a.users) agentsByDecl[a.declaration_id].push(a.users);
-          });
+        // Build assigned_agents from declarations.agent_id (no join table needed)
+        const agentIds2 = [...new Set(data.map(d => d.agent_id).filter(Boolean))];
+        const agentMap = {};
+        if (agentIds2.length > 0) {
+          const { data: agentsData2 } = await supabase.from('users')
+            .select('id, first_name, last_name')
+            .in('id', agentIds2);
+          if (agentsData2) agentsData2.forEach(a => agentMap[a.id] = a);
         }
-        
+
         data = data.map(d => ({
           ...d,
           users: userMap[d.user_id || d.citizen_id] || null,
-          assigned_agents: agentsByDecl[d.id] || []
+          assigned_agents: d.agent_id && agentMap[d.agent_id] ? [agentMap[d.agent_id]] : []
         }));
       }
     }
@@ -98,19 +93,13 @@ exports.getDeclarationDetail = async (req, res) => {
       if (usersData) usersData.forEach(u => userMap[u.id] = u);
     }
 
-    // Fetch all assigned agents from declaration_agents join table
-    const { data: declAgents } = await supabase
-      .from('declaration_agents')
-      .select('agent_id, assigned_at')
-      .eq('declaration_id', id);
-
+    // Fetch assigned agent directly from declarations.agent_id
     let assignedAgentsList = [];
-    if (declAgents && declAgents.length > 0) {
-      const agentIds = declAgents.map(da => da.agent_id);
+    if (decl.agent_id) {
       const { data: agentsData } = await supabase
         .from('users')
         .select('id, first_name, last_name, email, phone')
-        .in('id', agentIds);
+        .in('id', [decl.agent_id]);
       if (agentsData) {
         assignedAgentsList = agentsData.map(a => {
           const match = declAgents.find(da => da.agent_id === a.id);
@@ -215,8 +204,8 @@ exports.acceptDeclaration = async (req, res) => {
       return res.status(403).json({ error: 'Cette déclaration n\'appartient pas à votre département.' });
     }
 
-    if (decl.status !== 'assignee_chef') {
-      return res.status(400).json({ error: 'Cette déclaration n\'est pas au statut assignee_chef.' });
+    if (decl.status !== 'assignee_chef' && decl.status !== 'refusee_agent') {
+      return res.status(400).json({ error: 'Cette déclaration n\'est pas au statut assignee_chef ou refusee_agent.' });
     }
 
     let agentIdsToAssign = [];
@@ -265,12 +254,7 @@ exports.acceptDeclaration = async (req, res) => {
       }
     }
 
-    // Sync in declaration_agents join table
-    await supabase.from('declaration_agents').delete().eq('declaration_id', id);
-    if (agentIdsToAssign.length > 0) {
-      const insertRows = agentIdsToAssign.map(aId => ({ declaration_id: id, agent_id: aId }));
-      await supabase.from('declaration_agents').insert(insertRows);
-    }
+    // Primary agent is written to declarations.agent_id (no join table)
 
     const { data: updated, error: updateErr } = await supabase
       .from('declarations')
@@ -288,7 +272,7 @@ exports.acceptDeclaration = async (req, res) => {
       return res.status(500).json({ error: 'Erreur serveur.' });
     }
 
-    await logStatusChange(id, 'assignee_chef', 'assignee_agent', req.user.id);
+    await logStatusChange(id, decl.status, 'assignee_agent', req.user.id);
     await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_agent');
     
     // Notify the assigned agents
@@ -552,7 +536,7 @@ exports.dashboard = async (req, res) => {
       .is('deleted_at', null);
 
     // By Status
-    const statuses = ['soumis', 'assignee_chef', 'assignee_agent', 'en_cours', 'resolue', 'refusee_chef'];
+    const statuses = ['soumise', 'assignee_chef', 'assignee_agent', 'en_cours', 'resolue', 'refusee_chef'];
     const counts = { total: total || 0 };
     
     for (const s of statuses) {
@@ -753,7 +737,7 @@ exports.reassignDeclaration = async (req, res) => {
     }
 
     // A chef can reassign agent if status is assignee_agent or en_cours or assignee_chef
-    const allowedStatuses = ['assignee_agent', 'en_cours', 'assignee_chef'];
+    const allowedStatuses = ['assignee_agent', 'en_cours', 'assignee_chef', 'refusee_agent'];
     if (!allowedStatuses.includes(decl.status)) {
       return res.status(400).json({ error: `Impossible de réassigner une déclaration au statut ${decl.status}.` });
     }
@@ -806,14 +790,11 @@ exports.reassignDeclaration = async (req, res) => {
       }
     }
 
-    // Sync in declaration_agents join table
-    await supabase.from('declaration_agents').delete().eq('declaration_id', id);
-    const insertRows = agentIdsToAssign.map(aId => ({ declaration_id: id, agent_id: aId }));
-    await supabase.from('declaration_agents').insert(insertRows);
+    // Primary agent is written to declarations.agent_id (no join table)
 
-    // Determine the status - if it was assignee_chef, transition to assignee_agent
+    // Determine the status - if it was assignee_chef or refusee_agent, transition to assignee_agent
     let newStatus = decl.status;
-    if (decl.status === 'assignee_chef') {
+    if (decl.status === 'assignee_chef' || decl.status === 'refusee_agent') {
       newStatus = 'assignee_agent';
     }
 
