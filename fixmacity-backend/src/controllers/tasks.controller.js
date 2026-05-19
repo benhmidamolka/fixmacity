@@ -5,7 +5,7 @@ const { validationResult } = require('express-validator');
 exports.list = async (req, res) => {
   try {
     const { declaration_id } = req.query;
-    let query = supabase.from('tasks').select('*, assigned_user:users(id, first_name, last_name)');
+    let query = supabase.from('tasks').select('*, assigned_user:users(id, first_name, last_name), declaration:declarations(id, title, ref_citoyen, category)');
     
     if (declaration_id) query = query.eq('declaration_id', declaration_id);
     

@@ -22,7 +22,7 @@ async function getNextSequence(prefix) {
  * @param {string} delegationCode - The 2-letter delegation code (SV, SJ, SA)
  */
 async function generateRefCitoyen(delegationCode) {
-  if (!delegationCode) throw new Error('Code délégation manquant.');
+  if (!delegationCode) throw new Error('Code arrondissement manquant.');
 
   const now     = new Date();
   const dd      = String(now.getDate()).padStart(2, '0');

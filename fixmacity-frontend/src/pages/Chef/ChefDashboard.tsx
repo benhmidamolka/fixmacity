@@ -1,197 +1,305 @@
 // src/pages/Chef/ChefDashboard.tsx
-import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+// Full visual dashboard — KPIs, donut chart, bar chart,
+// urgent panel, team workload, recent declarations table
+// Matches FixMaCity design system: Plus Jakarta Sans, #0A1628, #1557FF
+
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
-  CheckCircle, XCircle, User, Clock, MapPin, ThumbsUp,
-  AlertTriangle, Send, ChevronRight, X, MessageSquare,
-  ArrowRight, Loader, Users, RefreshCw, BarChart3, ShieldCheck
+  CheckCircle, XCircle, Clock, MapPin, ThumbsUp, AlertTriangle,
+  Send, X, MessageSquare, Loader, Users, RefreshCw, BarChart3,
+  TrendingUp, TrendingDown, Activity, Zap, Eye, Search,
+  CheckCircle2, AlertCircle, PlayCircle, Award, Inbox,
+  ArrowUpRight, FileText, Layers, Flame, ArrowRight,
+  ChevronRight, Star, Timer, Shield
 } from 'lucide-react'
+import {
+  PieChart, Pie, Cell, Tooltip as ReTooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend
+} from 'recharts'
 import ChefLayout from '../../layouts/ChefLayout'
 import { Toaster, toast } from 'react-hot-toast'
-import DeclarationCommentsPanel from '../../components/president/DeclarationCommentsPanel'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
-const token = () => localStorage.getItem('fmc_token')
+const API   = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
+const tok   = () => localStorage.getItem('fmc_token') || ''
+const hdr   = () => ({ Authorization: `Bearer ${tok()}` })
+const jsonH = () => ({ 'Content-Type': 'application/json', ...hdr() })
 
-// ── Types ────────────────────────────────────────────────────────────────────
-interface Decl {
-  id: string
-  ref_citoyen: string
-  ref_service: string | null
-  title: string
-  category: string
-  priority: string
-  delegation: string
-  votes: number
-  submitted: string
-  image?: string | null
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface DashboardData {
+  kpis: {
+    total: number
+    pending: number
+    en_cours: number
+    resolved: number
+    refused: number
+    active_agents: number
+    resolution_rate: number
+    avg_resolution_hours: number
+  }
+  status_chart: { name: string; value: number; color: string }[]
+  priority_chart: { name: string; value: number; color: string }[]
+  recent_declarations: DeclRow[]
+  urgent_declarations: DeclRow[]
+  agent_workload: AgentLoad[]
 }
 
-interface Agent {
+interface DeclRow {
+  id: string
+  ref_citoyen: string
+  title: string
+  category: string
+  status: string
+  priority: string
+  delegation_name: string
+  votes_count: number
+  created_at: string
+  citizen_name?: string
+  agent_name?: string | null
+  image_url?: string | null
+}
+
+interface AgentLoad {
   id: string
   name: string
   initials: string
-  color: string
   active_tasks: number
-  max_tasks: number
-  status: 'available' | 'busy' | 'overloaded' | 'offline'
-  last_active: string
-  resolved_total: number
-  rating: number
-  is_active?: boolean
+  resolved_count: number
+  avg_rating: number
+  is_active: boolean
 }
 
-const PRI: Record<string, { label: string; color: string; bg: string }> = {
-  haute:   { label: 'Urgente', color: '#EF4444', bg: '#FEF2F2' },
-  moyenne: { label: 'Moyenne', color: '#F59E0B', bg: '#FFFBEB' },
-  basse:   { label: 'Normale', color: '#10B981', bg: '#F0FDF4' },
+// ─── Config ───────────────────────────────────────────────────────────────────
+
+const AGENT_COLORS = [
+  '#1557FF','#10B981','#F59E0B','#8B5CF6','#EC4899','#0891B2','#EF4444','#14B8A6'
+]
+
+const PRI_CFG: Record<string, { label: string; color: string; bg: string }> = {
+  haute:   { label: 'Urgent',  color: '#DC2626', bg: '#FEF2F2' },
+  urgente: { label: 'Urgent',  color: '#DC2626', bg: '#FEF2F2' },
+  moyenne: { label: 'Normal',  color: '#D97706', bg: '#FFFBEB' },
+  medium:  { label: 'Normal',  color: '#D97706', bg: '#FFFBEB' },
+  basse:   { label: 'Faible',  color: '#059669', bg: '#F0FDF4' },
+  low:     { label: 'Faible',  color: '#059669', bg: '#F0FDF4' },
 }
 
-const AGENT_STATUS = {
-  available:  { label: 'Disponible', color: '#10B981', dot: 'bg-green-500' },
-  busy:       { label: 'En mission', color: '#1557FF', dot: 'bg-blue-500' },
-  overloaded: { label: 'Surchargé',  color: '#EF4444', dot: 'bg-red-500 animate-pulse' },
-  offline:    { label: 'Hors ligne', color: '#94A3B8', dot: 'bg-slate-300' },
+const STATUS_CFG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
+  soumise:        { label: 'Soumise',       color: '#D97706', bg: '#FFFBEB', dot: '#F59E0B' },
+  assignee_chef:  { label: 'À assigner',    color: '#7C3AED', bg: '#EDE9FE', dot: '#8B5CF6' },
+  assignee_agent: { label: 'Assignée',      color: '#1D4ED8', bg: '#DBEAFE', dot: '#3B82F6' },
+  en_cours:       { label: 'En cours',      color: '#C2410C', bg: '#FFEDD5', dot: '#F97316' },
+  resolue:        { label: 'Résolue',       color: '#15803D', bg: '#DCFCE7', dot: '#22C55E' },
+  cloturee:       { label: 'Clôturée',      color: '#475569', bg: '#F1F5F9', dot: '#94A3B8' },
+  refusee_chef:   { label: 'Refusée',       color: '#DC2626', bg: '#FEE2E2', dot: '#EF4444' },
+  refusee_agent:  { label: 'Renvoyée',      color: '#B91C1C', bg: '#FEE2E2', dot: '#EF4444' },
 }
 
-function timeAgo(iso: string) {
+function timeAgo(iso?: string) {
+  if (!iso) return '—'
   const diff = Date.now() - new Date(iso).getTime()
-  const d = Math.floor(diff / 86400000)
-  const h = Math.floor(diff / 3600000)
   const m = Math.floor(diff / 60000)
-  if (m < 1) return 'à l\'instant'
-  if (m < 60) return `il y a ${m} min`
+  const h = Math.floor(diff / 3600000)
+  const d = Math.floor(diff / 86400000)
+  if (m < 1) return "À l'instant"
+  if (m < 60) return `il y a ${m}min`
   if (h < 24) return `il y a ${h}h`
   return `il y a ${d}j`
 }
 
-// ── Modals ──────────────────────────────────────────────────────────────────
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('fr-FR', {
+    day: '2-digit', month: 'short', year: 'numeric'
+  })
+}
 
-function AssignAgentModal({
-  decl, agents, onClose, onAssigned
-}: {
-  decl: Decl; agents: Agent[]; onClose: () => void; onAssigned: (declId: string, agentId: string) => void
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+// KPI Card
+function KpiCard({ label, value, sub, icon: Icon, color, bg, delta }: {
+  label: string; value: string | number; sub?: string
+  icon: any; color: string; bg: string; delta?: number
 }) {
-  const [selected, setSelected] = useState<string>('')
-  const [showWarning, setShowWarning] = useState(false)
-  const [loading, setLoading] = useState(false)
+  return (
+    <div className="bg-white dark:bg-slate-900/50 rounded-[1.75rem] p-5 border border-slate-100 dark:border-slate-800/60 shadow-sm flex items-start gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+      <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: bg }}>
+        <Icon className="w-5 h-5" style={{ color }} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">{label}</p>
+        <p className="text-2xl font-black text-[#0A1628] dark:text-white leading-none">{value}</p>
+        {sub && <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-1">{sub}</p>}
+        {delta !== undefined && (
+          <div className={`flex items-center gap-1 mt-1.5 text-[10px] font-black ${delta >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+            {delta >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+            {Math.abs(delta)}% vs mois dernier
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
-  const selectedAgent = agents.find(a => a.id === selected)
+// Priority / Status pill
+function Pill({ val, type }: { val: string; type: 'status' | 'priority' }) {
+  const cfg = type === 'status' ? STATUS_CFG[val] : PRI_CFG[val]
+  if (!cfg) return <span className="text-xs text-slate-400">{val}</span>
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black whitespace-nowrap"
+      style={{ color: cfg.color, background: cfg.bg }}>
+      {type === 'status' && 'dot' in cfg && (
+        <span className="w-1.5 h-1.5 rounded-full" style={{ background: (cfg as any).dot }} />
+      )}
+      {cfg.label}
+    </span>
+  )
+}
 
-  const handleChoose = (agentId: string) => {
-    setSelected(agentId)
-    const agent = agents.find(a => a.id === agentId)
-    if (agent && agent.active_tasks >= agent.max_tasks) {
-      setShowWarning(true)
-    } else {
-      setShowWarning(false)
-    }
-  }
+// Agent workload row
+function AgentRow({ agent, idx, maxTasks }: { agent: AgentLoad; idx: number; maxTasks: number }) {
+  const color = AGENT_COLORS[idx % AGENT_COLORS.length]
+  const pct = Math.min((agent.active_tasks / maxTasks) * 100, 100)
+  const isOverloaded = agent.active_tasks >= maxTasks;
+  const isBusy = agent.active_tasks >= Math.ceil(maxTasks / 2);
+  const barCol = isOverloaded ? '#EF4444' : isBusy ? '#3B82F6' : '#10B981'
+  const status = !agent.is_active ? 'Inactif' : isOverloaded ? 'Surchargé' : isBusy ? 'En mission' : 'Disponible'
+  const statusCol = !agent.is_active ? '#94A3B8' : isOverloaded ? '#EF4444' : isBusy ? '#3B82F6' : '#10B981'
+
+  return (
+    <div className="flex items-center gap-3 py-3 border-b border-slate-50 dark:border-slate-800/50 last:border-0">
+      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-black flex-shrink-0 shadow-sm" style={{ background: color }}>
+        {agent.initials}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-xs font-black text-[#0A1628] dark:text-white truncate">{agent.name}</p>
+          <span className="text-[9px] font-black ml-2 flex-shrink-0" style={{ color: statusCol }}>{status}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: barCol }} />
+          </div>
+          <span className="text-[9px] font-bold text-slate-400 flex-shrink-0">{agent.active_tasks}/{maxTasks}</span>
+        </div>
+      </div>
+      {agent.resolved_count > 0 && (
+        <div className="flex items-center gap-0.5 text-[9px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-full flex-shrink-0">
+          <CheckCircle2 className="w-2.5 h-2.5" /> {agent.resolved_count}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Custom donut tooltip
+const DonutTooltip = ({ active, payload }: any) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 shadow-lg text-xs font-black text-[#0A1628] dark:text-white">
+      {payload[0].name}: {payload[0].value}
+    </div>
+  )
+}
+
+// ─── Assign Agent Modal ───────────────────────────────────────────────────────
+
+function AssignModal({ decl, agents, maxTasks, onClose, onDone }: {
+  decl: DeclRow; agents: AgentLoad[]; maxTasks: number
+  onClose: () => void; onDone: () => void
+}) {
+  const [selected, setSelected] = useState('')
+  const [loading,  setLoading]  = useState(false)
+  const agent = agents.find(a => a.id === selected)
+  const overloaded = agent && agent.active_tasks >= maxTasks
 
   const doAssign = async () => {
-    if (!selected) return
+    if (!selected) return toast.error('Choisissez un agent')
     setLoading(true)
     try {
       const res = await fetch(`${API}/chef/declarations/${decl.id}/accept`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        method: 'POST', headers: jsonH(),
         body: JSON.stringify({ agent_id: selected })
       })
-      if (!res.ok) throw new Error('Erreur lors de l\'assignation')
-      toast.success('Mission assignée avec succès')
-      onAssigned(decl.id, selected)
-      onClose()
-    } catch (err: any) {
-      toast.error(err.message)
-    } finally {
-      setLoading(false)
-    }
+      if (!res.ok) throw new Error((await res.json()).error || 'Erreur')
+      toast.success('Mission assignée ✓')
+      onDone(); onClose()
+    } catch (e: any) { toast.error(e.message) }
+    finally { setLoading(false) }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden border border-white dark:border-slate-800 transition-colors duration-300">
-        <div className="px-8 pt-8 pb-4">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-md" onClick={onClose} />
+      <div className="relative bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-lg border border-slate-100 dark:border-slate-800 overflow-hidden">
+        {/* header */}
+        <div className="px-8 pt-8 pb-5 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h2 className="text-xl font-black text-[#0A1628] dark:text-white">Assigner une Mission</h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-widest font-black">Agent Technique</p>
+              <p className="text-[9px] font-black uppercase tracking-[.18em] text-emerald-500 mb-1">Accepter & Assigner</p>
+              <h2 className="text-xl font-black text-[#0A1628] dark:text-white">Choisir un Agent</h2>
             </div>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
-              <X className="w-5 h-5 text-slate-400" />
-            </button>
+            <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"><X className="w-5 h-5" /></button>
           </div>
-          
-          <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100/50 dark:border-purple-800/30 flex gap-4 shadow-sm">
-             <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center text-xl shadow-sm shrink-0 overflow-hidden">
-               {decl.image ? <img src={decl.image} className="w-full h-full object-cover" /> : '🏗️'}
-             </div>
-             <div className="min-w-0">
-               <p className="text-xs font-black text-[#0A1628] dark:text-white truncate">{decl.title}</p>
-               <p className="text-[10px] font-bold text-purple-500 dark:text-purple-400 uppercase tracking-widest mt-1">{decl.ref_citoyen}</p>
-             </div>
+          {/* decl summary */}
+          <div className="flex gap-3 p-3.5 bg-violet-50 dark:bg-violet-900/20 rounded-2xl border border-violet-100 dark:border-violet-800/30">
+            <div className="w-11 h-11 rounded-xl bg-white dark:bg-slate-800 overflow-hidden flex-shrink-0 shadow-sm">
+              {decl.image_url
+                ? <img src={decl.image_url} className="w-full h-full object-cover" alt="" />
+                : <div className="w-full h-full flex items-center justify-center text-xl">🏗️</div>}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-[#0A1628] dark:text-white truncate">{decl.title}</p>
+              <p className="text-[10px] font-bold text-violet-500 mt-0.5">{decl.ref_citoyen} · {decl.category}</p>
+            </div>
           </div>
         </div>
 
-        {showWarning && selectedAgent && (
-          <div className="mx-8 mt-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/30 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[10px] font-black text-red-700 dark:text-red-400 uppercase tracking-widest">Alerte Surcharge</p>
-              <p className="text-[11px] text-red-600 dark:text-red-400 font-bold mt-1 leading-relaxed">
-                {selectedAgent.name} a déjà {selectedAgent.active_tasks} tâches. 
-                Forcer l'assignation ?
-              </p>
-            </div>
+        {overloaded && (
+          <div className="mx-8 mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-2xl flex gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+              <span className="font-black">{agent?.name}</span> est surchargé ({agent?.active_tasks} missions). Continuer quand même ?
+            </p>
           </div>
         )}
 
-        <div className="px-8 py-6 space-y-3 max-h-80 overflow-y-auto custom-scrollbar">
-          {agents.filter(a => a.status !== 'offline').map(agent => {
-            const isSel = selected === agent.id
-            const st = AGENT_STATUS[agent.status]
+        {/* agent list */}
+        <div className="px-8 py-5 space-y-2 max-h-64 overflow-y-auto">
+          {agents.filter(a => a.is_active).map(a => {
+            const isSel = selected === a.id
+            const pct   = Math.min((a.active_tasks / maxTasks) * 100, 100)
+            const bCol  = a.active_tasks >= maxTasks ? '#EF4444' : a.active_tasks >= Math.ceil(maxTasks / 2) ? '#3B82F6' : '#10B981'
+            const statusLabel = a.active_tasks >= maxTasks ? 'Surchargé' : a.active_tasks >= Math.ceil(maxTasks / 2) ? 'En mission' : 'Disponible'
+            const statusColor = a.active_tasks >= maxTasks ? '#EF4444' : a.active_tasks >= Math.ceil(maxTasks / 2) ? '#3B82F6' : '#10B981'
+            const idx = agents.indexOf(a)
             return (
-              <button 
-                key={agent.id} 
-                onClick={() => handleChoose(agent.id)}
-                className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${
-                  isSel 
-                    ? 'border-[#1557FF] bg-blue-50/30 dark:bg-blue-500/10' 
-                    : 'border-slate-50 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-800/30 hover:border-slate-200 dark:hover:border-slate-700'
-                }`}
-              >
-                <div className="relative shrink-0">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-sm" style={{ background: agent.color }}>
-                    {agent.initials}
-                  </div>
-                  <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 ${st.dot}`} />
-                </div>
+              <button key={a.id} onClick={() => setSelected(a.id)}
+                className={`w-full flex items-center gap-3.5 p-3.5 rounded-2xl border-2 text-left transition-all ${isSel ? 'border-[#1557FF] bg-blue-50/40 dark:bg-blue-500/10' : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30'}`}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-black shadow flex-shrink-0" style={{ background: AGENT_COLORS[idx % AGENT_COLORS.length] }}>{a.initials}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black truncate text-[#0A1628] dark:text-white">{agent.name}</p>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: st.color }}>{st.label}</span>
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">• {agent.active_tasks} tâches</span>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-sm font-black text-[#0A1628] dark:text-white truncate">{a.name}</p>
+                    <span className="text-[9px] font-black ml-2 flex-shrink-0" style={{ color: statusColor }}>{statusLabel}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: bCol }} />
+                    </div>
+                    <span className="text-[9px] font-bold text-slate-400 flex-shrink-0">{a.active_tasks}/{maxTasks}</span>
                   </div>
                 </div>
-                {isSel && <CheckCircle className="w-5 h-5 text-[#1557FF]" />}
+                {isSel && <CheckCircle2 className="w-5 h-5 text-[#1557FF] flex-shrink-0" />}
               </button>
             )
           })}
         </div>
 
         <div className="px-8 pb-8 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3.5 rounded-2xl border border-slate-100 text-sm font-black text-slate-500 hover:bg-slate-50 transition-all">
-            Annuler
-          </button>
-          <button 
-            onClick={doAssign}
-            disabled={!selected || loading}
-            className={`flex-[2] py-3.5 rounded-2xl text-white text-sm font-black shadow-lg transition-all flex items-center justify-center gap-2 ${
-              showWarning ? 'bg-red-500 hover:bg-red-600 shadow-red-100' : 'bg-[#1557FF] hover:bg-blue-600 shadow-blue-100'
-            }`}
-          >
-            {loading ? <Loader className="w-4 h-4 animate-spin" /> : 'Confirmer l\'Assignation'}
+          <button onClick={onClose} className="flex-1 py-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 text-sm font-black text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">Annuler</button>
+          <button onClick={doAssign} disabled={!selected || loading}
+            className={`flex-[2] py-3.5 rounded-2xl text-white text-sm font-black shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 transition-all ${overloaded ? 'bg-amber-500 hover:bg-amber-600' : 'bg-[#1557FF] hover:bg-blue-600 shadow-blue-100'}`}>
+            {loading ? <Loader className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4" />Confirmer l'Assignation</>}
           </button>
         </div>
       </div>
@@ -199,79 +307,55 @@ function AssignAgentModal({
   )
 }
 
-function RefuseModal({ decl, onClose, onRefused }: { decl: Decl; onClose: () => void; onRefused: (id: string) => void }) {
+// ─── Refuse Modal ─────────────────────────────────────────────────────────────
+
+function RefuseModal({ decl, onClose, onDone }: { decl: DeclRow; onClose: () => void; onDone: () => void }) {
   const [reason, setReason] = useState('')
   const [loading, setLoading] = useState(false)
-  const REASONS = [
-    'Hors périmètre technique',
-    'Informations insuffisantes',
-    'Doublon détecté',
-    'Matériel non disponible',
-    'Autre'
-  ]
+  const REASONS = ['Hors périmètre technique', 'Informations insuffisantes', 'Doublon détecté', 'Matériel non disponible', 'Autre']
 
   const doRefuse = async () => {
-    if (!reason.trim()) return
+    if (!reason.trim()) return toast.error('Le motif est obligatoire')
     setLoading(true)
     try {
       const res = await fetch(`${API}/chef/declarations/${decl.id}/refuse`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        method: 'POST', headers: jsonH(),
         body: JSON.stringify({ reason })
       })
-      if (!res.ok) throw new Error('Erreur lors du refus')
+      if (!res.ok) throw new Error((await res.json()).error || 'Erreur')
       toast.success('Signalement retourné au Président')
-      onRefused(decl.id)
-      onClose()
-    } catch (err: any) {
-      toast.error(err.message)
-    } finally {
-      setLoading(false)
-    }
+      onDone(); onClose()
+    } catch (e: any) { toast.error(e.message) }
+    finally { setLoading(false) }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden border border-white dark:border-slate-800 transition-colors duration-300">
-        <div className="px-8 pt-8 pb-4 bg-red-50/50 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/20">
-           <h2 className="text-xl font-black text-red-600 dark:text-red-500">Refuser la Mission</h2>
-           <p className="text-xs text-red-500 dark:text-red-400/60 font-bold uppercase tracking-widest mt-1">Retour au cabinet présidentiel</p>
-        </div>
-        <div className="p-8 space-y-4">
-          <p className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest">Motif du refus</p>
-          <div className="grid grid-cols-1 gap-2">
-            {REASONS.map(r => (
-              <button 
-                key={r} 
-                onClick={() => setReason(r)}
-                className={`text-left px-4 py-3 rounded-xl text-sm font-bold border-2 transition-all ${
-                  reason === r 
-                    ? 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' 
-                    : 'border-slate-50 dark:border-slate-800/50 bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:border-slate-200 dark:hover:border-slate-700'
-                }`}
-              >
-                {r}
-              </button>
-            ))}
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-md" onClick={onClose} />
+      <div className="relative bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-md border border-red-100 dark:border-red-900/30 overflow-hidden">
+        <div className="px-8 pt-8 pb-5 bg-red-50/60 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/20 flex items-start justify-between">
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[.18em] text-red-400 mb-1">Action requise</p>
+            <h2 className="text-xl font-black text-red-600 dark:text-red-400">Refuser la Mission</h2>
           </div>
-          <textarea 
-            value={reason}
-            onChange={e => setReason(e.target.value)}
-            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-red-100 dark:focus:ring-red-900/30 min-h-[100px] resize-none transition-all dark:text-white"
-            placeholder="Détails complémentaires..."
-          />
+          <button onClick={onClose} className="p-2 rounded-xl text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-all"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-8 space-y-3">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Motif du refus *</p>
+          {REASONS.map(r => (
+            <button key={r} onClick={() => setReason(r)}
+              className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold border-2 transition-all ${reason === r ? 'border-red-400 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : 'border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:border-slate-200'}`}>
+              {r}
+            </button>
+          ))}
+          <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Détails complémentaires..." rows={3}
+            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-red-100 resize-none dark:text-slate-200 dark:placeholder-slate-500" />
         </div>
         <div className="px-8 pb-8 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 text-sm font-black text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
-            Annuler
-          </button>
-          <button 
-            onClick={doRefuse}
-            disabled={!reason.trim() || loading}
-            className="flex-1 py-3.5 rounded-2xl bg-red-600 text-white text-sm font-black shadow-lg shadow-red-100 hover:bg-red-700 transition-all disabled:opacity-50"
-          >
-            {loading ? <Loader className="w-4 h-4 animate-spin mx-auto" /> : 'Confirmer le Refus'}
+          <button onClick={onClose} className="flex-1 py-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 text-sm font-black text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">Annuler</button>
+          <button onClick={doRefuse} disabled={!reason.trim() || loading}
+            className="flex-1 py-3.5 rounded-2xl bg-red-500 hover:bg-red-600 text-white text-sm font-black shadow-lg shadow-red-100 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+            {loading ? <Loader className="w-4 h-4 animate-spin" /> : 'Confirmer le Refus'}
           </button>
         </div>
       </div>
@@ -279,361 +363,379 @@ function RefuseModal({ decl, onClose, onRefused }: { decl: Decl; onClose: () => 
   )
 }
 
-// ── Main Dashboard ───────────────────────────────────────────────────────────
+// ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 const ChefDashboard: React.FC = () => {
-  const [decls, setDecls] = useState<Decl[]>([])
-  const [agents, setAgents] = useState<Agent[]>([])
-  const [loading, setLoading] = useState(true)
-  const [assigning, setAssigning] = useState<Decl | null>(null)
-  const [refusing, setRefusing] = useState<Decl | null>(null)
-  const [chatDecl, setChatDecl] = useState<Decl | null>(null)
-  const [search, setSearch] = useState('')
-  const [filterPri, setFilterPri] = useState<string>('all')
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
-
+  const navigate = useNavigate()
   const user = JSON.parse(localStorage.getItem('fmc_user') || '{}')
 
-  const fetchData = async () => {
-    setLoading(true)
-    try {
-      const [dRes, aRes] = await Promise.all([
-        fetch(`${API}/chef/declarations?status=assignee_chef`, { headers: { Authorization: `Bearer ${token()}` } }),
-        fetch(`${API}/chef/agents`, { headers: { Authorization: `Bearer ${token()}` } })
-      ])
+  const [data,      setData]      = useState<DashboardData | null>(null)
+  const [loading,   setLoading]   = useState(true)
+  const [refreshing,setRefreshing]= useState(false)
+  const [assigning, setAssigning] = useState<DeclRow | null>(null)
+  const [refusing,  setRefusing]  = useState<DeclRow | null>(null)
+  const [agents,    setAgents]    = useState<AgentLoad[]>([])
 
-      if (dRes.ok) {
-        const dData = await dRes.json()
-        setDecls(dData.declarations || [])
-      }
-      if (aRes.ok) {
-        const aData = await aRes.json()
-        setAgents(aData.agents.map((a: any, i: number) => ({
-          id: a.id,
-          name: `${a.first_name} ${a.last_name}`,
-          initials: `${a.first_name[0]}${a.last_name[0]}`,
-          color: ['#1557FF', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#0891B2'][i % 6],
-          active_tasks: a.workload || 0,
-          max_tasks: 7,
-          status: !a.is_active ? 'offline' : (a.workload >= 7 ? 'overloaded' : (a.workload >= 4 ? 'busy' : 'available')),
-          last_active: 'À l\'instant',
-          resolved_total: a.resolved_count || 0,
-          rating: a.avg_rating || 4.5,
-          is_active: a.is_active
-        })))
-      }
-    } catch (err) {
-      toast.error('Erreur lors de la synchronisation')
-    } finally {
-      setLoading(false)
-    }
+  const [maxTasks, setMaxTasks] = useState(() => parseInt(localStorage.getItem('fmc_max_tasks') || '5'))
+  const updateMaxTasks = (val: number) => {
+    const v = Math.max(1, val)
+    setMaxTasks(v)
+    localStorage.setItem('fmc_max_tasks', v.toString())
   }
 
-  useEffect(() => { fetchData() }, [])
+  const fetchDashboard = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    else setRefreshing(true)
+    try {
+      const [dashRes, agentsRes] = await Promise.all([
+        fetch(`${API}/chef/dashboard`, { headers: hdr() }),
+        fetch(`${API}/chef/agents`,    { headers: hdr() }),
+      ])
+      if (dashRes.ok) {
+        const d = await dashRes.json()
+        setData(d)
+      }
+      if (agentsRes.ok) {
+        const a = await agentsRes.json()
+        const rawAgents: any[] = a.agents || a || []
+        setAgents(rawAgents.map((ag: any, i: number) => ({
+          id:            ag.id,
+          name:          `${ag.first_name} ${ag.last_name}`,
+          initials:      `${ag.first_name?.[0] || '?'}${ag.last_name?.[0] || '?'}`.toUpperCase(),
+          active_tasks:  ag.workload ?? ag.active_tasks ?? 0,
+          resolved_count:ag.resolved_count ?? 0,
+          avg_rating:    ag.avg_rating ?? 0,
+          is_active:     ag.is_active !== false,
+        })))
+      }
+    } catch { if (!silent) toast.error('Erreur de chargement') }
+    finally { setLoading(false); setRefreshing(false) }
+  }, [])
 
-  const filteredDecls = decls
-    .filter(d => {
-      const s = search.toLowerCase()
-      const matchSearch = 
-        d.title.toLowerCase().includes(s) || 
-        d.ref_citoyen.toLowerCase().includes(s) ||
-        d.category.toLowerCase().includes(s) ||
-        d.delegation.toLowerCase().includes(s)
-      const matchPri = filterPri === 'all' || d.priority === filterPri
-      return matchSearch && matchPri
-    })
-    .sort((a, b) => {
-      // Always put HIGH priority first regardless of date
-      if (a.priority === 'haute' && b.priority !== 'haute') return -1
-      if (a.priority !== 'haute' && b.priority === 'haute') return 1
-      
-      // Then sort by date
-      const dateA = new Date(a.submitted).getTime()
-      const dateB = new Date(b.submitted).getTime()
-      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB
-    })
+  useEffect(() => { fetchDashboard() }, [fetchDashboard])
+  useEffect(() => {
+    const iv = setInterval(() => fetchDashboard(true), 60_000)
+    return () => clearInterval(iv)
+  }, [fetchDashboard])
 
-  const onAssigned = (id: string) => setDecls(prev => prev.filter(d => d.id !== id))
-  const onRefused = (id: string) => setDecls(prev => prev.filter(d => d.id !== id))
+  const kpis = data?.kpis
+  const urgentDecls     = data?.urgent_declarations    || []
+  const recentDecls     = data?.recent_declarations    || []
+  const statusChart     = data?.status_chart           || []
+  const priorityChart   = data?.priority_chart         || []
+
+  const urgentCount    = urgentDecls.length
+  const availableCount = agents.filter(a => a.is_active && a.active_tasks < Math.ceil(maxTasks / 2)).length
+
+  // ── Skeleton ───────────────────────────────────────────────────────────────
+
+  if (loading) return (
+    <ChefLayout title="Tableau de Bord">
+      <div className="space-y-6">
+        <div className="h-28 bg-white dark:bg-slate-900/40 rounded-[2rem] border border-slate-100 dark:border-slate-800/50 animate-pulse" />
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          {[...Array(4)].map((_,i) => <div key={i} className="h-24 bg-white dark:bg-slate-900/40 rounded-[1.75rem] border border-slate-100 dark:border-slate-800/50 animate-pulse" />)}
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-2 h-72 bg-white dark:bg-slate-900/40 rounded-[1.75rem] border border-slate-100 dark:border-slate-800/50 animate-pulse" />
+          <div className="h-72 bg-white dark:bg-slate-900/40 rounded-[1.75rem] border border-slate-100 dark:border-slate-800/50 animate-pulse" />
+        </div>
+      </div>
+    </ChefLayout>
+  )
 
   return (
-    <ChefLayout title="Mes Affectations">
-      <Toaster position="top-right" />
-      
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-        
-        {/* ── Main Operations (Left 3/4) ── */}
-        <div className="xl:col-span-3 space-y-8">
-          
-          {/* Header Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white dark:bg-slate-900/40 rounded-[2rem] p-6 border border-slate-200 dark:border-slate-800/50 shadow-sm flex items-center gap-5 transition-all duration-300">
-              <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-[#1557FF] flex items-center justify-center text-2xl shadow-inner">
-                <Users className="w-7 h-7" />
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Agents Actifs</p>
-                <p className="text-3xl font-black text-[#0A1628] dark:text-white leading-none">{agents.filter(a => a.is_active).length}</p>
-              </div>
+    <ChefLayout title="Tableau de Bord">
+      <Toaster position="top-right" toastOptions={{ style: { borderRadius: '1rem', fontWeight: 700, fontSize: 13 } }} />
+
+      <div className="space-y-6">
+
+        {/* ── Welcome Banner ── */}
+        <div className="relative bg-gradient-to-br from-[#0A1628] to-[#1D4ED8] dark:from-slate-900 dark:to-blue-900/80 rounded-[2rem] p-7 overflow-hidden shadow-xl shadow-blue-900/10">
+          <div className="absolute inset-0 opacity-[0.07]">
+            <div className="absolute top-3 right-12 w-36 h-36 rounded-full border-[18px] border-white" />
+            <div className="absolute -bottom-10 right-36 w-56 h-56 rounded-full border-[28px] border-white" />
+            <div className="absolute top-8 left-1/2 w-20 h-20 rounded-full border-[12px] border-white" />
+          </div>
+          <div className="relative flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <p className="text-blue-200/80 text-[10px] font-black uppercase tracking-[.2em] mb-1">
+                Chef de Service · {user.department_name || 'Mon Département'}
+              </p>
+              <h1 className="text-2xl font-black text-white leading-tight">
+                Bonjour, {user.first_name || 'Chef'} 👋
+              </h1>
+              <p className="text-blue-200 text-sm font-medium mt-1.5">
+                {urgentCount > 0
+                  ? `⚡ ${urgentCount} signalement${urgentCount > 1 ? 's' : ''} urgent${urgentCount > 1 ? 's' : ''} en attente`
+                  : kpis && kpis.pending > 0
+                    ? `${kpis.pending} signalement${kpis.pending > 1 ? 's' : ''} à traiter`
+                    : 'File d\'attente vide — excellent travail !'}
+              </p>
             </div>
-            <div className="bg-white dark:bg-slate-900/40 rounded-[2rem] p-6 border border-slate-200 dark:border-slate-800/50 shadow-sm flex items-center gap-5 transition-all duration-300">
-              <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 flex items-center justify-center text-2xl shadow-inner">
-                <Clock className="w-7 h-7" />
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">En Attente</p>
-                <p className="text-3xl font-black text-[#0A1628] dark:text-white leading-none">{decls.length}</p>
-              </div>
-            </div>
-            <div className="bg-white dark:bg-slate-900/40 rounded-[2rem] p-6 border border-slate-200 dark:border-slate-800/50 shadow-sm flex items-center gap-5 transition-all duration-300">
-              <div className="w-14 h-14 rounded-2xl bg-green-50 dark:bg-green-900/20 text-green-600 flex items-center justify-center text-2xl shadow-inner">
-                <ShieldCheck className="w-7 h-7" />
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Missions du jour</p>
-                <p className="text-3xl font-black text-[#0A1628] dark:text-white leading-none">12</p>
-              </div>
+            <div className="flex items-center gap-2.5">
+              <button onClick={() => fetchDashboard(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-2xl text-xs font-black transition-all backdrop-blur-sm">
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} /> Actualiser
+              </button>
+              <Link to="/chef/declarations"
+                className="flex items-center gap-2 px-4 py-2.5 bg-white text-[#1557FF] rounded-2xl text-xs font-black shadow-lg hover:shadow-xl transition-all">
+                Toutes les déclarations <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
           </div>
+        </div>
 
-          {/* Search & Filters */}
-          <div className="bg-white dark:bg-slate-900/40 rounded-[2rem] p-4 border border-slate-200 dark:border-slate-800/50 shadow-sm flex flex-wrap items-center gap-4 transition-all duration-300">
-            <div className="flex-1 min-w-[200px] relative">
-              <input 
-                type="text" 
-                placeholder="Rechercher un signalement..." 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 shadow-sm transition-all dark:text-white dark:placeholder-slate-500"
-              />
-              <RefreshCw className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 dark:text-slate-600 ${loading ? 'animate-spin' : ''}`} />
-            </div>
-            
-            <select 
-              value={filterPri}
-              onChange={e => setFilterPri(e.target.value)}
-              className="px-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold outline-none cursor-pointer shadow-sm transition-all dark:text-white"
-            >
-              <option value="all">Toutes Priorités</option>
-              <option value="haute">Crucial / Haute</option>
-              <option value="moyenne">Moyenne</option>
-              <option value="basse">Normale</option>
-            </select>
+        {/* ── KPI Row ── */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          <KpiCard label="En Attente"     value={kpis?.pending ?? 0}         sub={urgentCount > 0 ? `${urgentCount} urgent(s)` : 'Aucune urgence'}    icon={Inbox}         color="#7C3AED" bg="#EDE9FE" />
+          <KpiCard label="En Cours"       value={kpis?.en_cours ?? 0}        sub="Missions actives"                                                      icon={Activity}      color="#1D4ED8" bg="#DBEAFE" />
+          <KpiCard label="Agents Actifs"  value={kpis?.active_agents ?? 0}   sub={`${availableCount} disponible(s)`}                                     icon={Users}         color="#059669" bg="#DCFCE7" />
+          <KpiCard label="Taux Résolution" value={`${kpis?.resolution_rate ?? 0}%`} sub={kpis?.avg_resolution_hours ? `~${kpis.avg_resolution_hours}h moy.` : 'Département'} icon={Award} color="#D97706" bg="#FEF3C7" />
+        </div>
 
-            <select 
-              value={sortOrder}
-              onChange={e => setSortOrder(e.target.value as any)}
-              className="px-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold outline-none cursor-pointer shadow-sm transition-all dark:text-white"
-            >
-              <option value="newest">Plus récent</option>
-              <option value="oldest">Plus ancien</option>
-            </select>
+        {/* ── Charts row ── */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
 
-            <button onClick={fetchData} className="p-3 rounded-2xl bg-[#1557FF] text-white hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/20 active:scale-95">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-
-          {/* Declarations List */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-black text-[#0A1628] dark:text-white flex items-center gap-2 uppercase tracking-tight">
-                Affectations Présidentielles
-                <span className="text-[10px] font-black px-3 py-1 bg-[#1557FF] text-white rounded-full shadow-sm">{filteredDecls.length}</span>
-              </h2>
-            </div>
-
-            {filteredDecls.length === 0 ? (
-              <div className="bg-white dark:bg-slate-900/20 rounded-[2.5rem] border-2 border-dashed border-slate-100 dark:border-slate-800 p-20 text-center transition-colors">
-                <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
-                  <CheckCircle className="w-10 h-10 text-green-400" />
-                </div>
-                <h3 className="text-xl font-black text-[#0A1628] dark:text-white">File d'attente vide</h3>
-                <p className="text-sm text-slate-400 dark:text-slate-500 mt-2 font-medium">Toutes les missions du Président ont été traitées.</p>
+          {/* Donut — Status */}
+          <div className="bg-white dark:bg-slate-900/50 rounded-[1.75rem] p-6 border border-slate-100 dark:border-slate-800/60 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[.18em] text-slate-400 dark:text-slate-500">Répartition</p>
+                <h3 className="text-sm font-black text-[#0A1628] dark:text-white mt-0.5">Par statut</h3>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {filteredDecls.map(d => {
-                  const pri = PRI[d.priority] || PRI['moyenne']
-                  return (
-                    <div key={d.id} className="bg-white dark:bg-slate-900/40 rounded-[2rem] border border-slate-200 dark:border-slate-800/50 shadow-sm overflow-hidden group hover:shadow-xl dark:hover:bg-slate-900/60 transition-all duration-300">
-                      <div className="p-6 flex gap-6">
-                        <div className="w-24 h-24 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 overflow-hidden shrink-0 shadow-inner">
-                          {d.image ? (
-                            <img src={d.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-3xl opacity-30">🏢</div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex items-center gap-3">
-                              <span className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest">{d.ref_citoyen}</span>
-                              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm" style={{ background: pri.bg, color: pri.color }}>
-                                {pri.label}
-                              </span>
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">{timeAgo(d.submitted)}</span>
-                          </div>
-                          <h3 className="text-lg font-black text-[#0A1628] dark:text-white leading-tight mb-2 truncate group-hover:text-[#1557FF] transition-colors">{d.title}</h3>
-                          <div className="flex items-center gap-4 text-xs font-bold text-slate-500 dark:text-slate-400">
-                            <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-slate-300 dark:text-slate-600" /> {d.delegation}</span>
-                            <span className="flex items-center gap-1.5"><ThumbsUp className="w-4 h-4 text-slate-300 dark:text-slate-600" /> {d.votes} votes</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="px-6 py-4 bg-slate-50/50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800/50 flex items-center gap-3">
-                        <button 
-                          onClick={() => setChatDecl(d)}
-                          className="px-5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-black text-xs hover:border-[#1557FF] dark:hover:border-[#1557FF] hover:text-[#1557FF] transition-all flex items-center gap-2 shadow-sm"
-                        >
-                          <MessageSquare className="w-4 h-4" /> Discussions
-                        </button>
-                        <div className="flex-1" />
-                        <button 
-                          onClick={() => setRefusing(d)}
-                          className="px-5 py-2.5 rounded-xl border border-red-100 dark:border-red-900/30 text-red-500 dark:text-red-400 font-black text-xs hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
-                        >
-                          Renvoyer
-                        </button>
-                        <button 
-                          onClick={() => setAssigning(d)}
-                          className="px-6 py-2.5 rounded-xl bg-[#1557FF] text-white font-black text-xs shadow-lg shadow-blue-500/20 hover:bg-blue-600 transition-all flex items-center gap-2 active:scale-95"
-                        >
-                          Accepter & Assigner
-                        </button>
-                      </div>
+              <div className="w-8 h-8 rounded-xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center">
+                <Activity className="w-4 h-4 text-violet-600" />
+              </div>
+            </div>
+            {statusChart.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart>
+                    <Pie data={statusChart} cx="50%" cy="50%" innerRadius={52} outerRadius={80} paddingAngle={3} dataKey="value">
+                      {statusChart.map((entry, i) => <Cell key={i} fill={entry.color} stroke="none" />)}
+                    </Pie>
+                    <ReTooltip content={<DonutTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
+                  {statusChart.map((s, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{s.name}</span>
+                      <span className="text-[10px] font-black text-[#0A1628] dark:text-white ml-0.5">{s.value}</span>
                     </div>
-                  )
-                })}
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="h-52 flex items-center justify-center text-slate-300 dark:text-slate-700">
+                <BarChart3 className="w-10 h-10" />
+              </div>
+            )}
+          </div>
+
+          {/* Bar — Priority */}
+          <div className="bg-white dark:bg-slate-900/50 rounded-[1.75rem] p-6 border border-slate-100 dark:border-slate-800/60 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[.18em] text-slate-400 dark:text-slate-500">Distribution</p>
+                <h3 className="text-sm font-black text-[#0A1628] dark:text-white mt-0.5">Par priorité</h3>
+              </div>
+              <div className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+                <Flame className="w-4 h-4 text-red-500" />
+              </div>
+            </div>
+            {priorityChart.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={priorityChart} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                  <ReTooltip content={<DonutTooltip />} />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                    {priorityChart.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-52 flex items-center justify-center text-slate-300 dark:text-slate-700">
+                <BarChart3 className="w-10 h-10" />
               </div>
             )}
           </div>
         </div>
 
-        {/* ── Sidebar: Team Workload (Right 1/4) ── */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-black text-[#0A1628] dark:text-white uppercase tracking-tight">État de l'Équipe</h2>
-            <Link to="/chef/agents" className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-[#1557FF] hover:scale-110 transition-all shadow-sm">
-              <Users className="w-4 h-4" />
-            </Link>
-          </div>
+        {/* ── Urgent + Team Workload ── */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
 
-          <div className="space-y-3">
-            {agents.map(agent => {
-              const st = AGENT_STATUS[agent.status]
-              const workloadPct = (agent.active_tasks / 7) * 100
-              return (
-                <div key={agent.id} className="bg-white dark:bg-slate-900/40 rounded-[2rem] border border-slate-200 dark:border-slate-800/50 shadow-sm p-5 group hover:translate-x-1 transition-all duration-300">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="relative">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md" style={{ background: agent.color }}>
-                        {agent.initials}
-                      </div>
-                      <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 ${st.dot}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-black truncate text-[#0A1628] dark:text-white">{agent.name}</p>
-                      <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: st.color }}>{st.label}</p>
+          {/* Urgent declarations */}
+          <div className="bg-white dark:bg-slate-900/50 rounded-[1.75rem] border border-slate-100 dark:border-slate-800/60 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800/60">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[.18em] text-slate-400 dark:text-slate-500">Prioritaire</p>
+                  <h3 className="text-sm font-black text-[#0A1628] dark:text-white">Signalements urgents</h3>
+                </div>
+              </div>
+              <Link to="/chef/declarations" className="text-[10px] font-black text-[#1557FF] flex items-center gap-1">
+                Voir tout <ArrowUpRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="divide-y divide-slate-50 dark:divide-slate-800/50">
+              {urgentDecls.length === 0 ? (
+                <div className="py-12 text-center">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                  <p className="text-sm font-black text-slate-700 dark:text-white">Aucune urgence</p>
+                  <p className="text-xs text-slate-400 mt-1">Tout est sous contrôle</p>
+                </div>
+              ) : urgentDecls.map(d => (
+                <div key={d.id} className="flex items-center gap-3.5 px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0 animate-pulse" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-[#0A1628] dark:text-white truncate group-hover:text-[#1557FF] transition-colors">{d.title}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[9px] font-bold text-slate-400">{d.ref_citoyen}</span>
+                      {d.delegation_name && <span className="text-[9px] font-bold text-slate-400">· {d.delegation_name}</span>}
+                      <span className="text-[9px] font-bold text-slate-400">· {timeAgo(d.created_at)}</span>
                     </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center text-[10px] font-black uppercase text-slate-400 dark:text-slate-500">
-                      <span>Charge de travail</span>
-                      <span className={agent.active_tasks >= 7 ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}>{agent.active_tasks}/7</span>
-                    </div>
-                    <div className="h-1.5 bg-slate-50 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-1000 shadow-sm ${
-                          agent.active_tasks >= 7 ? 'bg-red-500' : agent.active_tasks >= 4 ? 'bg-[#1557FF]' : 'bg-green-500'
-                        }`}
-                        style={{ width: `${Math.min(workloadPct, 100)}%` }}
+                  <Pill val={d.priority} type="priority" />
+                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                    {['assignee_chef', 'soumise'].includes(d.status) && (
+                      <>
+                        <button onClick={() => setAssigning(d)} className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 hover:bg-emerald-100 transition-colors" title="Accepter & Assigner"><Send className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setRefusing(d)} className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 transition-colors" title="Refuser"><X className="w-3.5 h-3.5" /></button>
+                      </>
+                    )}
+                    <button onClick={() => navigate(`/chef/declarations/${d.id}`)} className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 transition-colors" title="Détail"><Eye className="w-3.5 h-3.5" /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Team workload */}
+          <div className="bg-white dark:bg-slate-900/50 rounded-[1.75rem] border border-slate-100 dark:border-slate-800/60 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800/60">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                  <Users className="w-3.5 h-3.5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[.18em] text-slate-400 dark:text-slate-500">Mon équipe</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <h3 className="text-sm font-black text-[#0A1628] dark:text-white">Charge de travail</h3>
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-md px-1.5 py-0.5" title="Capacité maximale par agent">
+                      <span className="text-[9px] font-bold text-slate-500">Max:</span>
+                      <input 
+                        type="number" 
+                        min={1} 
+                        max={50} 
+                        value={maxTasks} 
+                        onChange={(e) => updateMaxTasks(parseInt(e.target.value) || 1)}
+                        className="w-7 bg-transparent text-xs font-black text-[#1557FF] outline-none text-center"
                       />
                     </div>
                   </div>
                 </div>
-              )
-            })}
-          </div>
-
-          <div className="bg-[#0A1628] dark:bg-slate-900 rounded-[2rem] p-6 text-white overflow-hidden relative shadow-xl shadow-blue-500/5 border border-white/5">
-            <BarChart3 className="absolute -right-4 -bottom-4 w-24 h-24 text-white/10 dark:text-white/5" />
-            <h4 className="text-[10px] font-black uppercase tracking-widest mb-2 text-slate-400">Performance Hebdo</h4>
-            <p className="text-3xl font-black mb-4">98%</p>
-            <div className="flex items-center gap-2 text-[10px] font-black text-green-400 bg-green-400/10 px-3 py-1.5 rounded-full w-fit border border-green-400/20">
-              <TrendingUp className="w-3 h-3" /> +12% cette semaine
+              </div>
+              <Link to="/chef/agents" className="text-[10px] font-black text-[#1557FF] flex items-center gap-1">
+                Gérer <ArrowUpRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="px-6">
+              {agents.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Users className="w-8 h-8 text-slate-200 dark:text-slate-700 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-slate-400">Aucun agent</p>
+                  <Link to="/chef/agents" className="text-[10px] font-black text-[#1557FF] mt-1 inline-block">+ Ajouter un agent</Link>
+                </div>
+              ) : agents.map((a, i) => <AgentRow key={a.id} agent={a} idx={i} maxTasks={maxTasks} />)}
             </div>
           </div>
+        </div>
+
+        {/* ── Recent Declarations Table ── */}
+        <div className="bg-white dark:bg-slate-900/50 rounded-[1.75rem] border border-slate-100 dark:border-slate-800/60 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800/60">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <FileText className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+              </div>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[.18em] text-slate-400 dark:text-slate-500">Activité récente</p>
+                <h3 className="text-sm font-black text-[#0A1628] dark:text-white">Dernières déclarations</h3>
+              </div>
+            </div>
+            <Link to="/chef/declarations" className="flex items-center gap-1.5 text-[10px] font-black text-[#1557FF] px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl hover:bg-blue-100 transition-colors">
+              Voir tout <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          {/* Table header */}
+          <div className="grid grid-cols-[1fr_110px_90px_100px_110px] gap-3 px-6 py-2.5 bg-slate-50/80 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800/60">
+            {['Déclaration', 'Statut', 'Priorité', 'Créée le', 'Actions'].map(h => (
+              <p key={h} className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{h}</p>
+            ))}
+          </div>
+
+          {recentDecls.length === 0 ? (
+            <div className="py-16 text-center">
+              <FileText className="w-10 h-10 text-slate-200 dark:text-slate-700 mx-auto mb-3" />
+              <p className="text-sm font-bold text-slate-400">Aucune déclaration récente</p>
+            </div>
+          ) : recentDecls.map((d, i) => (
+            <div key={d.id}
+              className={`grid grid-cols-[1fr_110px_90px_100px_110px] gap-3 px-6 py-4 items-center border-b border-slate-50 dark:border-slate-800/30 hover:bg-slate-50/60 dark:hover:bg-slate-800/20 transition-colors group last:border-0 ${i % 2 === 0 ? '' : 'bg-slate-50/20 dark:bg-slate-800/10'}`}>
+
+              {/* Name + meta */}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <p className="text-sm font-black text-[#0A1628] dark:text-white truncate group-hover:text-[#1557FF] transition-colors cursor-pointer" onClick={() => navigate(`/chef/declarations/${d.id}`)}>{d.title}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-[9px] font-bold text-slate-400">{d.ref_citoyen}</span>
+                  {d.category && <span className="text-[9px] font-bold text-slate-400">· {d.category}</span>}
+                  {d.citizen_name && <span className="text-[9px] font-bold text-slate-400">· {d.citizen_name}</span>}
+                </div>
+              </div>
+
+              <div><Pill val={d.status}   type="status"   /></div>
+              <div><Pill val={d.priority} type="priority" /></div>
+              <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{fmtDate(d.created_at)}</div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-1.5">
+                {['assignee_chef', 'soumise'].includes(d.status) && (
+                  <>
+                    <button onClick={() => setAssigning(d)}
+                      className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 hover:bg-emerald-100 transition-colors" title="Accepter & Assigner">
+                      <Send className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => setRefusing(d)}
+                      className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 transition-colors" title="Refuser">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                )}
+                <button onClick={() => navigate(`/chef/declarations/${d.id}`)}
+                  className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 transition-colors" title="Détail">
+                  <Eye className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* ── Modals ── */}
-      {assigning && (
-        <AssignAgentModal 
-          decl={assigning} 
-          agents={agents} 
-          onClose={() => setAssigning(null)} 
-          onAssigned={onAssigned} 
-        />
-      )}
-      {refusing && (
-        <RefuseModal 
-          decl={refusing} 
-          onClose={() => setRefusing(null)} 
-          onRefused={onRefused} 
-        />
-      )}
-
-      {/* Slide-over Discussion Panel */}
-      {chatDecl && (
-        <div className="fixed inset-0 z-[60] flex justify-end">
-          <div className="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-md" onClick={() => setChatDecl(null)} />
-          <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 border-l border-slate-100 dark:border-slate-800">
-            <div className="p-8 border-b border-slate-100 dark:border-slate-800 bg-[#F8F9FD] dark:bg-slate-950/30">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center text-2xl">💬</div>
-                <button onClick={() => setChatDecl(null)} className="p-2 rounded-xl hover:bg-white dark:hover:bg-slate-800 text-slate-400 transition-all">
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              <h2 className="text-2xl font-black text-[#0A1628] dark:text-white">Discussions Internes</h2>
-              <p className="text-sm text-slate-400 dark:text-slate-500 mt-1 font-medium">{chatDecl.title}</p>
-            </div>
-            <div className="flex-1 overflow-hidden p-8 dark:bg-slate-900/50">
-              <DeclarationCommentsPanel 
-                declarationId={chatDecl.id}
-                visibleChannels={['president_chef', 'chef_agent']}
-                writableChannels={['president_chef', 'chef_agent']}
-                role="chef"
-                currentUserId={user.id}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      {assigning && <AssignModal decl={assigning} agents={agents} maxTasks={maxTasks} onClose={() => setAssigning(null)} onDone={() => fetchDashboard(true)} />}
+      {refusing  && <RefuseModal decl={refusing}              onClose={() => setRefusing(null)}  onDone={() => fetchDashboard(true)} />}
     </ChefLayout>
-  )
-}
-
-function TrendingUp(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-      <polyline points="17 6 23 6 23 12" />
-    </svg>
   )
 }
 

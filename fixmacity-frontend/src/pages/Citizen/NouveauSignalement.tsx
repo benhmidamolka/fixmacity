@@ -639,6 +639,38 @@ function Step3({ data, onChange, onNext, onBack }: any) {
           </p>
         </div>
 
+        {/* Critical Infrastructure Checkbox */}
+        <div>
+          <label className="flex items-start gap-3 p-4 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-all">
+            <div className="pt-0.5">
+              <input type="checkbox" className="w-4 h-4 rounded text-[#1557FF] focus:ring-[#1557FF]" 
+                checked={data.has_critical_infrastructure || false}
+                onChange={e => onChange({ has_critical_infrastructure: e.target.checked, sensitive_type: e.target.checked ? 'ecole' : '' })} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-[#0A1628]">Lieu sensible à proximité ?</p>
+              <p className="text-xs text-slate-500 mt-0.5">Cochez cette case si le problème se trouve près d'une école, d'un hôpital, d'une clinique ou d'une mosquée.</p>
+            </div>
+          </label>
+          
+          {data.has_critical_infrastructure && (
+            <div className="mt-3 ml-11">
+              <label className="text-sm font-bold text-[#0A1628] block mb-1.5">Précisez le type de lieu :</label>
+              <select 
+                value={data.sensitive_type || 'ecole'} 
+                onChange={e => onChange({ sensitive_type: e.target.value })}
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-[#0A1628] outline-none focus:border-[#1557FF] transition-all"
+              >
+                <option value="ecole">École / Lycée / Université</option>
+                <option value="hopital">Hôpital / Clinique / Centre de santé</option>
+                <option value="mosquee">Mosquée</option>
+                <option value="administration">Administration Publique</option>
+                <option value="autre">Autre lieu sensible</option>
+              </select>
+            </div>
+          )}
+        </div>
+
         {/* Hazard warning */}
         {data.hazard && data.hazard_note && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-3">
@@ -824,6 +856,7 @@ const NouveauSignalement: React.FC = () => {
     latitude: 0, longitude: 0, address: '', delegation_id: '',
     category: '', urgency: 'moyen', title: '', description: '',
     photo: null as File | null, hazard: false, hazard_note: '',
+    has_critical_infrastructure: false, sensitive_type: '',
   })
 
   const update = (patch: Partial<typeof formData>) => setFormData(prev => ({ ...prev, ...patch }))
@@ -841,16 +874,22 @@ const NouveauSignalement: React.FC = () => {
       body.append('longitude',     String(formData.longitude))
       body.append('address',       formData.address)
       body.append('priority',      formData.urgency || 'moyen')
+      body.append('has_critical_infrastructure', String(formData.has_critical_infrastructure || false))
+      body.append('sensitive_type', formData.sensitive_type || '')
       if (formData.photo) body.append('photo', formData.photo)
       const res  = await fetch(`${API}/declarations`, {
         method: 'POST', headers: { Authorization: `Bearer ${token}` }, body,
       })
       const data = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Erreur lors de la soumission');
+      }
+      
       setRefCitoyen(data.declaration?.ref_citoyen || data.ref_citoyen || 'SOU-2026-00-0001')
       setSubmitted(true)
-    } catch {
-      setRefCitoyen('SOU-2026-00-0001')
-      setSubmitted(true)
+    } catch (err: any) {
+      alert(err.message || 'Une erreur est survenue');
     } finally {
       setLoading(false)
     }
@@ -858,7 +897,12 @@ const NouveauSignalement: React.FC = () => {
 
   const reset = () => {
     setSubmitted(false); setStep(1)
-    setFormData({ latitude:0, longitude:0, address:'', delegation_id:'', category:'', urgency:'moyen', title:'', description:'', photo:null, hazard:false, hazard_note:'' })
+    setFormData({
+      latitude:0, longitude:0, address:'', delegation_id:'',
+      category:'', urgency:'moyen', title:'', description:'',
+      photo:null, hazard:false, hazard_note:'',
+      has_critical_infrastructure: false, sensitive_type: ''
+    })
   }
 
   return (

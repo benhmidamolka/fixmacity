@@ -274,7 +274,7 @@ const UserModal: React.FC<{
           </Field>
 
           {/* Delegation / Arrondissement */}
-          <Field label="Arrondissement (Délégation)">
+          <Field label="Arrondissement">
             <select className={inp} value={form.delegation_id} onChange={e => set('delegation_id', e.target.value)}>
               <option value="">— Sélectionner un arrondissement —</option>
               {DELEGATIONS.map(d => (

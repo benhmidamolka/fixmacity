@@ -30,6 +30,7 @@ app.locals.getFileUrl = (filepath) => {
 app.use(helmet({
   contentSecurityPolicy: false,   // Disable CSP for dev (frontend serves separately)
   crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
 
 const allowedOrigins = [

@@ -14,15 +14,20 @@ router.post('/declarations/:id/accept', [
   body('agent_id').optional().isUUID().withMessage('Agent ID invalide.'),
 ], ctrl.acceptDeclaration);
 
+router.patch('/declarations/:id/reassign', [
+  body('agent_id').isUUID().withMessage('Agent ID invalide.'),
+], ctrl.reassignDeclaration);
+
 router.post('/declarations/:id/refuse', [
   body('reason').notEmpty().trim().withMessage('Motif de refus requis.'),
 ], ctrl.refuseDeclaration);
+
 
 // ── Declaration Comments (chef sees president_chef + chef_agent channels) ──
 router.get('/declarations/:id/comments', ctrl.listComments);
 router.post('/declarations/:id/comments', [
   body('content').notEmpty().trim().withMessage('Contenu requis.'),
-  body('channel').optional().isIn(['president_chef', 'chef_agent']),
+  body('channel').optional().isIn(['president_chef', 'chef_agent', 'inter_service']),
 ], ctrl.addComment);
 
 router.get('/agents', ctrl.listAgents);

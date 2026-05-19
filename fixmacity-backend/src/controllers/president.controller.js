@@ -119,10 +119,38 @@ exports.getDeclarationDetail = async (req, res) => {
     }
 
     // 2. Fetch photos
-    const { data: photos } = await supabase
+    const { data: rawPhotos } = await supabase
       .from('declaration_photos')
       .select('*')
       .eq('declaration_id', id);
+
+    const BASE_URL = process.env.BASE_URL || 'http://localhost:5005';
+    const resolvePhotoUrl = (raw) => {
+      if (!raw) return null;
+      if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+      const path = raw.startsWith('/') ? raw : `/${raw}`;
+      return `${BASE_URL}${path}`;
+    };
+
+    const photos = (rawPhotos || []).map(p => ({
+      ...p,
+      url: resolvePhotoUrl(p.url)
+    }));
+
+    const defaultPhoto = decl.photo_avant || decl.image_url;
+    if (defaultPhoto) {
+      decl.photo_avant = resolvePhotoUrl(defaultPhoto);
+      decl.image_url = decl.photo_avant; // Ensure both are populated for frontend compatibility
+      if (!photos.some(p => p.photo_type === 'photo_avant' || !p.photo_type)) {
+         photos.unshift({
+           id: 'citizen_photo',
+           url: decl.photo_avant,
+           photo_type: 'photo_avant',
+           uploaded_by: decl.citizen_id,
+           created_at: decl.created_at
+         });
+      }
+    }
 
     // 3. Fetch history
     const { data: history } = await supabase

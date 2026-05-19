@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FileText, Users, Bell,
   Settings, LogOut, Menu, X, Mail, HelpCircle,
-  ChevronDown, Search, MessageSquare, Sun, Moon
+  ChevronDown, Search, Sun, Moon,
+  CheckSquare
 } from 'lucide-react'
 import { useSocket } from '../hooks/useSocket'
 
@@ -13,8 +14,8 @@ const NAV = [
     items: [
       { label: 'Mes Affectations', icon: LayoutDashboard, to: '/chef/dashboard'      },
       { label: 'Déclarations',     icon: FileText,        to: '/chef/declarations'   },
+      { label: 'Tâches',           icon: CheckSquare,     to: '/chef/tasks'          },
       { label: 'Mon Équipe',       icon: Users,           to: '/chef/agents'         },
-      { label: 'Messages',         icon: MessageSquare,   to: '/chef/messages'       },
       { label: 'Notifications',    icon: Bell,            to: '/chef/notifications', badge: null },
       { label: 'Paramètres',       icon: Settings,        to: '/chef/settings'       },
     ]
@@ -245,12 +246,6 @@ const ChefLayout: React.FC<Props> = ({ children, title = 'Mes Affectations' }) =
                 }`}>
                 <Bell className="w-5 h-5" />
                 {(unreadCount ?? 0) > 0 && <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />}
-              </Link>
-              <Link to="/chef/messages"
-                className={`w-11 h-11 rounded-2xl border flex items-center justify-center transition-all shadow-sm ${
-                  darkMode ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white' : 'bg-white border-slate-100 text-slate-400 hover:text-purple-500 hover:border-purple-100'
-                }`}>
-                <MessageSquare className="w-5 h-5" />
               </Link>
             </div>
 

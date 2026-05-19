@@ -84,35 +84,35 @@ const MOCK_ALL = [
   {
     id: '1', ref_citoyen: 'SV-22-04-26-0042', ref_service: 'VR-22-04-26-0042',
     title: 'Nid-de-poule dangereux Av. Bourguiba', category: 'Voirie',
-    status: 'assignee_chef', priority: 'haute', delegation: 'Sousse Ville',
+    status: 'assignee_chef', priority: 'haute', delegation: 'Sousse Médina (Vieux-Sousse)',
     chef: 'Karim Mansour', agent: null, votes: 47, date: '22/04', rating: null,
     image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=120&q=70'
   },
   {
     id: '2', ref_citoyen: 'SJ-19-04-26-0027', ref_service: 'ST-19-04-26-0027',
     title: 'Signalisation manquante carrefour Jawhara', category: 'Signalisation',
-    status: 'assignee_chef', priority: 'haute', delegation: 'Sousse Jawhara',
+    status: 'assignee_chef', priority: 'haute', delegation: 'Sousse Nord',
     chef: 'Nadia Rekik', agent: null, votes: 22, date: '19/04', rating: null, image: null
   },
   // In progress
   {
     id: '3', ref_citoyen: 'SV-20-04-26-0031', ref_service: 'PD-20-04-26-0031',
     title: "Dépôt sauvage derrière le marché", category: 'Proprete',
-    status: 'en_cours', priority: 'moyenne', delegation: 'Sousse Ville',
+    status: 'en_cours', priority: 'moyenne', delegation: 'Sousse Médina (Vieux-Sousse)',
     chef: 'Mohamed Chaabani', agent: 'Riadh Hamdi', votes: 14, date: '20/04', rating: null,
     image: 'https://images.unsplash.com/photo-1604187351574-c75ca79f5807?w=120&q=70'
   },
   {
     id: '4', ref_citoyen: 'SA-18-04-26-0022', ref_service: 'EA-18-04-26-0022',
     title: "Fuite d'eau importante Rue Ibn Sina", category: 'Reseaux',
-    status: 'assignee_agent', priority: 'haute', delegation: 'Sousse SA',
+    status: 'assignee_agent', priority: 'haute', delegation: 'Sousse Sud',
     chef: 'Karim Jomaa', agent: 'Sami Mansour', votes: 29, date: '18/04', rating: null,
     image: 'https://images.unsplash.com/photo-1517409217698-3165b4c42407?w=120&q=70'
   },
   {
     id: '5', ref_citoyen: 'SJ-21-04-26-0038', ref_service: 'EP-21-04-26-0038',
     title: 'Câble électrique exposé Rue de Marseille', category: 'Eclairage',
-    status: 'en_cours', priority: 'haute', delegation: 'Sousse Jawhara',
+    status: 'en_cours', priority: 'haute', delegation: 'Sousse Nord',
     chef: 'Sonia Dridi', agent: 'Imen Ghrabi', votes: 38, date: '21/04', rating: null,
     image: 'https://images.unsplash.com/photo-1544983050-8b1b6d05ebcd?w=120&q=70'
   },
@@ -120,35 +120,35 @@ const MOCK_ALL = [
   {
     id: '6', ref_citoyen: 'SJ-15-04-26-0018', ref_service: 'EV-15-04-26-0018',
     title: 'Arbre tombé bloque la rue principale', category: 'Espaces verts',
-    status: 'resolue', priority: 'haute', delegation: 'Sousse Jawhara',
+    status: 'resolue', priority: 'haute', delegation: 'Sousse Nord',
     chef: 'Leila Bouzid', agent: 'Amira Trabelsi', votes: 22, date: '15/04', rating: null,
     image: 'https://images.unsplash.com/photo-1590680193854-47fca385a484?w=120&q=70'
   },
   {
     id: '7', ref_citoyen: 'SV-14-04-26-0015', ref_service: 'VR-14-04-26-0015',
     title: 'Affaissement de chaussée Rue Farhat Hached', category: 'Voirie',
-    status: 'resolue', priority: 'moyenne', delegation: 'Sousse Ville',
+    status: 'resolue', priority: 'moyenne', delegation: 'Sousse Médina (Vieux-Sousse)',
     chef: 'Karim Mansour', agent: 'Aymen Ben Ali', votes: 19, date: '14/04', rating: null, image: null
   },
   // Done (cloturee)
   {
     id: '8', ref_citoyen: 'SV-10-04-26-0009', ref_service: 'EP-10-04-26-0009',
     title: 'Lampadaires en panne Av. Mohamed V', category: 'Eclairage',
-    status: 'cloturee', priority: 'basse', delegation: 'Sousse Ville',
+    status: 'cloturee', priority: 'basse', delegation: 'Sousse Médina (Vieux-Sousse)',
     chef: 'Sonia Dridi', agent: 'Imen Ghrabi', votes: 8, date: '10/04', rating: 4.5,
     image: 'https://images.unsplash.com/photo-1506804886640-ed0e47018318?w=120&q=70'
   },
   {
     id: '9', ref_citoyen: 'SJ-08-04-26-0007', ref_service: 'PD-08-04-26-0007',
     title: 'Bacs ordures débordants Cité Erriadh', category: 'Proprete',
-    status: 'cloturee', priority: 'moyenne', delegation: 'Sousse Jawhara',
+    status: 'cloturee', priority: 'moyenne', delegation: 'Sousse Nord',
     chef: 'Mohamed Chaabani', agent: 'Riadh Hamdi', votes: 16, date: '08/04', rating: 3.5, image: null
   },
   // Rejected
   {
     id: '10', ref_citoyen: 'SA-16-04-26-0020', ref_service: 'VR-16-04-26-0020',
     title: 'Route dégradée Zone Industrielle SA', category: 'Voirie',
-    status: 'refusee_chef', priority: 'moyenne', delegation: 'Sousse SA',
+    status: 'refusee_chef', priority: 'moyenne', delegation: 'Sousse Sud',
     chef: 'Karim Mansour', agent: null, votes: 11, date: '16/04', rating: null, image: null
   },
 ]

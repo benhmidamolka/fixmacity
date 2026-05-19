@@ -110,7 +110,7 @@ const AssignModal: React.FC<{ decl: Decl; departments: { id: string, name: strin
               <span className="text-[10px] font-black text-[#1557FF] uppercase tracking-[0.2em] bg-blue-50 dark:bg-blue-500/10 px-3 py-1 rounded-lg">AFFECTATION</span>
               <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{decl.ref_citoyen}</span>
             </div>
-            <h2 className="text-3xl font-black text-[#0A1628] dark:text-white tracking-tight">Délégation de pouvoir</h2>
+            <h2 className="text-3xl font-black text-[#0A1628] dark:text-white tracking-tight">Arrondissement de pouvoir</h2>
             <p className="text-sm text-slate-400 dark:text-slate-500 font-medium italic mt-1">Transférer la responsabilité opérationnelle au département compétent.</p>
           </div>
           <button onClick={onClose} className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group">

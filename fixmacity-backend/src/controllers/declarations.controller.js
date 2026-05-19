@@ -25,6 +25,7 @@ function mapCitizenStatus(decl) {
 
 const fs = require('fs');
 const path = require('path');
+const { getNextGenAI } = require('../services/gemini.rotation');
 
 /* ──────────── POST /api/declarations ──────────── */
 exports.create = async (req, res) => {
@@ -34,7 +35,7 @@ exports.create = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, category, delegation_id, latitude, longitude, address } = req.body;
+    const { title, description, category, delegation_id, latitude, longitude, address, has_critical_infrastructure, sensitive_type: citizenSensitiveType } = req.body;
 
     // Resolve delegation code for ref_citoyen generation
     const actualDelegationId = delegation_id || req.user.delegation_id;
@@ -52,8 +53,56 @@ exports.create = async (req, res) => {
     const refCitoyen = await generateRefCitoyen(deleg.code);
     
     let publicUrl = null;
+    let is_sensitive = has_critical_infrastructure === 'true' || has_critical_infrastructure === true;
+    let sensitive_type = is_sensitive ? (citizenSensitiveType || 'signalé par citoyen') : null;
     
     if (req.file) {
+      // --- AI Validation (Image + Text) ---
+      try {
+        const genAI = getNextGenAI();
+        const model = genAI.getGenerativeModel({ 
+          model: "gemini-1.5-flash",
+          generationConfig: { responseMimeType: "application/json" }
+        });
+        
+        const prompt = `Tu es un assistant d'analyse pour une municipalité.
+        Voici la description fournie par le citoyen : "${description || 'Aucune description'}".
+        
+        Tâche 1 : Vérifier si l'image et la description sont pertinentes. Elles doivent montrer ou décrire un problème urbain ou municipal qui relève de la compétence d'une mairie/municipalité (ex: nid-de-poule, déchets, fuite d'eau, éclairage public cassé, trottoir endommagé, etc.). Si l'image est un selfie, un meme, un spam, un écran d'ordinateur, ou un sujet personnel/privé n'ayant rien à voir avec les services municipaux, c'est NON pertinent.
+        Tâche 2 : Vérifier s'il y a des infrastructures critiques/sensibles à proximité immédiate ou mentionnées dans le signalement. S'agit-il d'une école, d'un lycée, d'une université, d'un hôpital, d'une clinique, d'un centre de santé, d'une mosquée, ou d'une administration publique ? Sois très spécifique.
+        
+        Réponds strictement avec ce format JSON :
+        {
+          "is_relevant": boolean,
+          "critical_infrastructure_nearby": boolean,
+          "infrastructure_type": "école/université" | "hôpital/clinique" | "mosquée" | "administration publique" | "autre" | null,
+          "reason": "Explication claire en français du rejet ou de la validation"
+        }`;
+        
+        const imagePart = {
+          inlineData: {
+            data: req.file.buffer.toString("base64"),
+            mimeType: req.file.mimetype
+          }
+        };
+
+        const result = await model.generateContent([prompt, imagePart]);
+        const analysis = JSON.parse(result.response.text());
+
+        if (analysis.is_relevant === false) {
+          return res.status(400).json({ error: "Rejet automatique : Ce signalement ne concerne pas un problème urbain ou municipal. " + analysis.reason });
+        }
+
+        if (analysis.critical_infrastructure_nearby) {
+          is_sensitive = true;
+          sensitive_type = analysis.infrastructure_type || sensitive_type || 'critique';
+        }
+      } catch (aiError) {
+        console.error('[Gemini] Erreur lors de l\'analyse de l\'image :', aiError.message);
+        // We do not block the submission if the AI service temporarily fails
+      }
+
+      // --- File Saving ---
       const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
       if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
@@ -64,6 +113,39 @@ exports.create = async (req, res) => {
 
       const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5005}`;
       publicUrl = `${baseUrl}/uploads/${filename}`;
+    } else if (description) {
+      // --- AI Validation (Text Only) ---
+      try {
+        const genAI = getNextGenAI();
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", generationConfig: { responseMimeType: "application/json" } });
+        const prompt = `Tu es un assistant d'analyse pour une municipalité.
+        Voici la description fournie par le citoyen : "${description}".
+        
+        Tâche 1 : Vérifier si la description est pertinente. Elle doit décrire un problème urbain ou municipal (ex: nid-de-poule, déchets sauvages, fuite d'eau, éclairage public en panne, trottoir endommagé, etc.). Si la description est hors sujet, un spam, un meme, ou n'a aucun rapport avec la municipalité, c'est NON pertinent.
+        Tâche 2 : Vérifier s'il y a des infrastructures critiques/sensibles mentionnées (école, université, hôpital, clinique, mosquée, administration publique). Sois très spécifique.
+        
+        Réponds strictement avec ce format JSON :
+        {
+          "is_relevant": boolean,
+          "critical_infrastructure_nearby": boolean,
+          "infrastructure_type": "école/université" | "hôpital/clinique" | "mosquée" | "administration publique" | "autre" | null,
+          "reason": "Explication claire en français du rejet ou de la validation"
+        }`;
+        
+        const result = await model.generateContent([prompt]);
+        const analysis = JSON.parse(result.response.text());
+        
+        if (analysis.is_relevant === false) {
+          return res.status(400).json({ error: "Rejet automatique : Ce signalement ne concerne pas un problème urbain ou municipal. " + analysis.reason });
+        }
+
+        if (analysis.critical_infrastructure_nearby) {
+          is_sensitive = true;
+          sensitive_type = analysis.infrastructure_type || sensitive_type || 'critique';
+        }
+      } catch (aiErr) {
+        console.error('[Gemini text] Erreur:', aiErr.message);
+      }
     }
 
     const { data: decl, error } = await supabase
@@ -82,6 +164,8 @@ exports.create = async (req, res) => {
         address:       address || null,
         priority:      req.body.priority || 'moyenne',
         photo_avant:   publicUrl,
+        is_sensitive:  is_sensitive,
+        sensitive_type: sensitive_type,
         is_deleted:    false,
       })
       .select('*')

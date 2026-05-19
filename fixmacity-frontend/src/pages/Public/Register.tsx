@@ -7,9 +7,10 @@ const PHOTO = '/sousse-premium.png'
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 const DELEGATIONS = [
-  { id: 'a309fed2-6c50-49ae-b2be-a6e7ccd096df', name: 'Sousse Ville' },
-  { id: '0ede6556-2f67-4a0d-a7cb-d0cdca4504a5', name: 'Sousse Jawhara' },
-  { id: 'a1ca5994-b186-4970-91f6-c44925cfc4b4', name: 'Sousse Sidi Abdelhamid' },
+  { id: '11111111-1111-4111-8111-111111111111', name: 'Sousse Médina (Vieux-Sousse)' },
+  { id: '22222222-2222-4222-8222-222222222222', name: 'Sousse Sud' },
+  { id: '33333333-3333-4333-8333-333333333333', name: 'Sousse Nord' },
+  { id: '44444444-4444-4444-8444-444444444444', name: 'Sousse Erriadh (Hay Riad)' },
 ]
 
 function passwordStrength(p: string) {
@@ -35,7 +36,7 @@ const Register: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.delegation_id) { setError('Veuillez sélectionner une délégation'); return }
+          if (!form.delegation_id) { setError('Veuillez sélectionner un arrondissement'); return }
     if (form.password.length < 8) { setError('Mot de passe : minimum 8 caractères'); return }
     if (!/[A-Z]/.test(form.password)) { setError('Mot de passe : au moins une majuscule'); return }
     if (!/[0-9]/.test(form.password)) { setError('Mot de passe : au moins un chiffre'); return }
@@ -113,9 +114,9 @@ const Register: React.FC = () => {
 
             {/* Delegation */}
             <div className="relative">
-              <select value={form.delegation_id} onChange={e => set('delegation_id', e.target.value)}
+                    <select value={form.delegation_id} onChange={e => set('delegation_id', e.target.value)}
                 className="w-full bg-slate-100 rounded-xl px-4 py-3.5 pr-10 text-[#0A1628] outline-none focus:ring-2 focus:ring-[#1557FF]/40 focus:bg-white transition-all text-sm appearance-none">
-                <option value="" disabled>Votre délégation</option>
+                      <option value="" disabled>Votre arrondissement</option>
                 {DELEGATIONS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
               <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
