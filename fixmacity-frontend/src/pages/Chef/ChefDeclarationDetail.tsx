@@ -11,6 +11,7 @@ import {
   Activity, TrendingUp, School, Heart
 } from 'lucide-react'
 import ChefLayout from '../../layouts/ChefLayout'
+import AIPriorityPanel from '../President/AIPriorityPanel'
 
 const API   = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const tok   = () => localStorage.getItem('fmc_token') || ''
@@ -108,165 +109,7 @@ interface PriorityFactor {
   color: string
 }
 
-function computeAIPriorityScore(decl: any): { score: number; factors: PriorityFactor[]; level: string } {
-  const votes     = decl.votes_count || 0
-  const hasPhoto  = !!(decl.photo_avant || decl.photo_url || decl.has_photo)
-  const nearSens  = !!(decl.near_sensitive)
-  const priority  = decl.priority?.toLowerCase() || 'basse'
-  const isUrgent  = ['haute','high','urgent'].includes(priority)
-  const isMedium  = ['moyenne','medium'].includes(priority)
 
-  // Each factor: raw contribution 0-40 (votes), 0-25 (photo), 0-30 (sensitive), 0-30 (declared priority)
-  const voteScore     = Math.min(40, Math.round((votes / 50) * 40))
-  const photoScore    = hasPhoto ? 25 : 0
-  const sensScore     = nearSens ? 30 : 0
-  const prioScore     = isUrgent ? 30 : isMedium ? 15 : 5
-
-  const raw   = voteScore + photoScore + sensScore + prioScore
-  const score = Math.min(100, raw)
-
-  const level = score >= 75 ? 'CRITIQUE' : score >= 45 ? 'ÉLEVÉE' : score >= 20 ? 'MODÉRÉE' : 'FAIBLE'
-
-  const factors: PriorityFactor[] = [
-    {
-      key: 'votes',
-      label: 'Votes citoyens',
-      icon: <ThumbsUp size={14}/>,
-      value: voteScore,
-      weight: 40,
-      active: votes > 0,
-      detail: votes > 0 ? `${votes} citoyen${votes>1?'s':''} soutiennent ce signalement` : 'Aucun vote enregistré',
-      color: '#1557FF',
-    },
-    {
-      key: 'photo',
-      label: 'Photo fournie',
-      icon: <Camera size={14}/>,
-      value: photoScore,
-      weight: 25,
-      active: hasPhoto,
-      detail: hasPhoto ? 'Photo jointe — analyse IA disponible' : 'Aucune photo — moins de précision',
-      color: '#7c3aed',
-    },
-    {
-      key: 'sensitive',
-      label: 'Zone sensible',
-      icon: nearSens ? <Heart size={14}/> : <MapPin size={14}/>,
-      value: sensScore,
-      weight: 30,
-      active: nearSens,
-      detail: nearSens
-        ? `À proximité : ${decl.sensitive_place || 'lieu sensible détecté'}`
-        : 'Aucun lieu sensible détecté à proximité',
-      color: '#dc2626',
-    },
-    {
-      key: 'ai',
-      label: 'Priorité IA détectée',
-      icon: <Brain size={14}/>,
-      value: prioScore,
-      weight: 30,
-      active: isUrgent || isMedium,
-      detail: isUrgent ? 'IA classifie : URGENT — intervention immédiate' : isMedium ? 'IA classifie : MODÉRÉ — suivi recommandé' : 'IA classifie : BASSE priorité',
-      color: '#d97706',
-    },
-  ]
-
-  return { score, factors, level }
-}
-
-function AIPriorityPanel({ decl }: { decl: any }) {
-  const { score, factors, level } = computeAIPriorityScore(decl)
-  const [expanded, setExpanded] = useState(true)
-
-  const levelCfg = {
-    CRITIQUE: { color: '#dc2626', bg: 'bg-red-50 dark:bg-red-500/10',   ring: 'ring-red-200 dark:ring-red-500/30',   bar: '#dc2626' },
-    ÉLEVÉE:   { color: '#d97706', bg: 'bg-amber-50 dark:bg-amber-500/10', ring: 'ring-amber-200 dark:ring-amber-500/30', bar: '#d97706' },
-    MODÉRÉE:  { color: '#1d4ed8', bg: 'bg-blue-50 dark:bg-blue-500/10',  ring: 'ring-blue-200 dark:ring-blue-500/30',  bar: '#1d4ed8' },
-    FAIBLE:   { color: '#475569', bg: 'bg-slate-50 dark:bg-slate-800',   ring: 'ring-slate-200 dark:ring-slate-700',   bar: '#94a3b8' },
-  }[level] || { color:'#475569', bg:'bg-slate-50 dark:bg-slate-800', ring:'ring-slate-200', bar:'#94a3b8' }
-
-  return (
-    <div className={`rounded-2xl border overflow-hidden shadow-sm ${levelCfg.bg} ring-1 ${levelCfg.ring}`}>
-      {/* Header */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-5 py-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ background: `${levelCfg.color}20` }}>
-            <Brain size={16} style={{ color: levelCfg.color }} />
-          </div>
-          <div className="text-left">
-            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Priorité</p>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-lg font-black" style={{ color: levelCfg.color }}>{score}/100</span>
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white"
-                style={{ background: levelCfg.color }}>
-                {level}
-              </span>
-            </div>
-          </div>
-        </div>
-        {expanded ? <ChevronUp size={14} className="text-slate-400"/> : <ChevronDown size={14} className="text-slate-400"/>}
-      </button>
-
-      {/* Score bar */}
-      <div className="px-5 pb-3">
-        <div className="h-2.5 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
-          <div className="h-full rounded-full transition-all duration-700"
-            style={{ width: `${score}%`, background: `linear-gradient(90deg, ${levelCfg.bar}99, ${levelCfg.bar})` }}/>
-        </div>
-      </div>
-
-      {/* Factors breakdown */}
-      {expanded && (
-        <div className="px-5 pb-5 space-y-3 border-t border-black/5 dark:border-white/5 pt-4">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Facteurs d'analyse</p>
-          {factors.map(f => (
-            <div key={f.key} className="flex items-start gap-3">
-              {/* Icon */}
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                f.active ? '' : 'opacity-30'
-              }`} style={{ background: `${f.color}15`, color: f.color }}>
-                {f.icon}
-              </div>
-              {/* Label + bar */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`text-xs font-bold ${f.active ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400 dark:text-slate-600'}`}>
-                    {f.label}
-                  </span>
-                  <span className="text-[10px] font-black" style={{ color: f.active ? f.color : '#94a3b8' }}>
-                    +{f.value}/{f.weight}
-                  </span>
-                </div>
-                <div className="h-1.5 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden mb-1">
-                  <div className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${(f.value / f.weight) * 100}%`, background: f.active ? f.color : '#cbd5e1', opacity: f.active ? 1 : 0.3 }}/>
-                </div>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug">{f.detail}</p>
-              </div>
-              {/* Active badge */}
-              {f.active
-                ? <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 mt-1"><Check size={10} className="text-white"/></div>
-                : <div className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 flex-shrink-0 mt-1"/>
-              }
-            </div>
-          ))}
-
-          {/* Formula note */}
-          <div className="mt-3 pt-3 border-t border-black/5 dark:border-white/5 flex items-start gap-2">
-            <Info size={11} className="text-slate-400 flex-shrink-0 mt-0.5"/>
-            <p className="text-[10px] text-slate-400 leading-relaxed">
-              Calcul de priorité : <span className="font-bold">Votes (×40)</span> + <span className="font-bold">Photo (×25)</span> + <span className="font-bold">Zone sensible (×30)</span> + <span className="font-bold">Priorité IA (×30)</span>
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ── MODALS ────────────────────────────────────────────────────────────────────
@@ -1010,7 +853,13 @@ const ChefDeclarations: React.FC = () => {
                   {/* ── PRIORITY TAB ── */}
                   {activeTab==='priority' && (
                     <div className="space-y-5">
-                      <AIPriorityPanel decl={detailDecl}/>
+                      <AIPriorityPanel
+                        declarationId={detailDecl.id}
+                        data={detailDecl}
+                        onUpdated={() => {}}
+                        readOnly
+                        showAnalyzeButton={false}
+                      />
                       {/* Raw signals */}
                       <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-4">Données brutes utilisées par l'IA</h3>

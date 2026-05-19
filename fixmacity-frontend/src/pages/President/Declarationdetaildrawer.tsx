@@ -11,6 +11,7 @@ import {
   Vote, Zap, CheckCheck, RotateCcw, ChevronDown,
   Info, BarChart3, Navigation
 } from 'lucide-react'
+import AIPriorityPanel from './AIPriorityPanel'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const tok = () => localStorage.getItem('fmc_token') || ''
@@ -841,6 +842,8 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                   <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-medium">{detail.description}</p>
                 </div>
               )}
+              
+
               {loading ? (
                 <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 space-y-3">
                   {[...Array(4)].map((_,i) => <div key={i} className="flex gap-3"><Skel w="w-8" h="h-8"/><div className="flex-1 space-y-1"><Skel h="h-2" w="w-16"/><Skel h="h-4"/></div></div>)}
@@ -925,15 +928,10 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
           {tab === 'priority' && (
             <div className="absolute inset-0 overflow-y-auto px-5 py-5">
               {detail && (
-                <PriorityScoreCard
-                  decl={detail}
-                  aiResult={aiResult}
-                  aiLoading={aiLoading}
-                  aiError={aiError}
-                  onAnalyze={handleAnalyze}
-                  onOverride={handleOverride}
-                  overriding={overriding}
-                  finalPriority={finalPriority}
+                <AIPriorityPanel
+                  declarationId={detail.id}
+                  data={detail}
+                  onUpdated={patch => setDetail(prev => prev ? { ...prev, ...patch } : prev)}
                 />
               )}
               {!detail && <div className="flex items-center justify-center h-40"><Loader2 className="animate-spin text-blue-500" size={24}/></div>}

@@ -66,6 +66,7 @@ router.post('/:id/rate', authenticate, rbac('citizen'), [
   body('score').isInt({ min: 1, max: 5 }).withMessage('Note entre 1 et 5.'),
   body('comment').optional().trim(),
 ], ctrl.rate);
+router.get('/nearby/sensitive', ctrl.getNearSensitiveLocations)
 
 // ── Declaration Comments (citizen sees agent_citizen channel) ──
 router.get('/:id/comments', authenticate, rbac('citizen'), ctrl.listComments);

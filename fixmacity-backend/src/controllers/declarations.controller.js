@@ -3,7 +3,238 @@ const { validationResult } = require('express-validator');
 const { generateRefCitoyen } = require('../services/refGenerator.service');
 const { logStatusChange } = require('../services/statusHistory.service');
 const { notifyNewDeclaration } = require('../services/notification.service');
-
+'use strict';
+ 
+const path    = require('path');
+const fs      = require('fs');
+const supabase = require('../config/db');
+const { validationResult }    = require('express-validator');
+const { logStatusChange }     = require('../services/statusHistory.service');
+const { notifyNewDeclaration }= require('../services/notification.service');
+ 
+// ─── helpers ─────────────────────────────────────────────────────────────────
+ 
+function mapCitizenStatus(decl) {
+  const CITIZEN_STATUS_MAP = {
+    soumise:        'EN ATTENTE',
+    assignee_chef:  'EN ATTENTE',
+    assignee_agent: 'EN ATTENTE',
+    en_cours:       'EN COURS',
+    resolue:        'TERMINÉ',
+    cloturee:       'TERMINÉ',
+    refusee_chef:   'EN ATTENTE',
+    refusee_agent:  'EN ATTENTE',
+  };
+  return { ...decl, citizen_status: CITIZEN_STATUS_MAP[decl.status] || 'EN ATTENTE' };
+}
+ 
+async function generateRefCitoyen(code) {
+  const { generateRefCitoyen: gen } = require('../services/refGenerator.service');
+  return gen(code);
+}
+ 
+/**
+ * Haversine distance in metres between two lat/lng points.
+ * Used server-side to detect sensitive location proximity.
+ */
+function haversineM(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+ 
+/**
+ * Returns { is_sensitive, sensitive_type } by querying sensitive_locations table.
+ * Falls back to false/null if table doesn't exist yet.
+ */
+async function detectSensitiveLocation(lat, lng) {
+  if (!lat || !lng) return { is_sensitive: false, sensitive_type: null };
+  try {
+    const { data: locs } = await supabase.from('sensitive_locations').select('*');
+    if (!locs?.length) return { is_sensitive: false, sensitive_type: null };
+    for (const loc of locs) {
+      const dist = haversineM(lat, lng, loc.latitude, loc.longitude);
+      if (dist <= loc.radius_m) return { is_sensitive: true, sensitive_type: loc.type };
+    }
+    return { is_sensitive: false, sensitive_type: null };
+  } catch {
+    return { is_sensitive: false, sensitive_type: null };
+  }
+}
+ 
+/**
+ * Map AI priority labels (from vision service) to:
+ *  - DB priority column value ('haute'|'moyenne'|'basse')
+ *  - ai_priority_score (number fed into trigger)
+ */
+function mapAIPriority(aiPriority) {
+  const map = {
+    haute:    { db: 'haute',   score: 10, computed: 'urgent' },
+    urgente:  { db: 'haute',   score: 10, computed: 'urgent' },
+    urgent:   { db: 'haute',   score: 10, computed: 'urgent' },
+    critique: { db: 'haute',   score: 10, computed: 'urgent' },
+    critical: { db: 'haute',   score: 10, computed: 'urgent' },
+    moyenne:  { db: 'moyenne', score:  5, computed: 'normal' },
+    normal:   { db: 'moyenne', score:  5, computed: 'normal' },
+    normale:  { db: 'moyenne', score:  5, computed: 'normal' },
+    medium:   { db: 'moyenne', score:  5, computed: 'normal' },
+    basse:    { db: 'basse',   score:  1, computed: 'faible' },
+    faible:   { db: 'basse',   score:  1, computed: 'faible' },
+    low:      { db: 'basse',   score:  1, computed: 'faible' },
+  };
+  return map[aiPriority?.toLowerCase()] || { db: 'moyenne', score: 5, computed: 'normal' };
+}
+ 
+// ─── POST /api/declarations ───────────────────────────────────────────────────
+ 
+exports.create = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+ 
+    const {
+      title, description, category,
+      delegation_id, latitude, longitude, address,
+      // AI vision data sent by citizen frontend (optional)
+      ai_priority: ai_priority_raw,
+      ai_confidence,
+      ai_reasoning,
+      ai_visible_issues,
+      ai_severity_label,
+      used_ai_vision,
+    } = req.body;
+ 
+    const actualDelegationId = delegation_id || req.user.delegation_id;
+    const { data: deleg } = await supabase.from('delegations')
+      .select('id, code').eq('id', actualDelegationId).single();
+    if (!deleg) return res.status(400).json({ error: 'Délégation invalide.' });
+ 
+    const refCitoyen = await generateRefCitoyen(deleg.code);
+ 
+    // ── Save photo ─────────────────────────────────────────────────
+    let publicUrl = null;
+    let imagePath = null;
+    if (req.file) {
+      const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
+      if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+      const ext = path.extname(req.file.originalname) || '.jpg';
+      const filename = `citoyen_${req.user.id}_${Date.now()}${ext}`;
+      imagePath = path.join(UPLOAD_DIR, filename);
+      fs.writeFileSync(imagePath, req.file.buffer);
+      const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5005}`;
+      publicUrl = `${baseUrl}/uploads/${filename}`;
+    }
+ 
+    // ── AI priority mapping ────────────────────────────────────────
+    const usedAI = used_ai_vision === 'true' || used_ai_vision === true;
+    const aiMap  = usedAI && ai_priority_raw ? mapAIPriority(ai_priority_raw) : null;
+ 
+    // ── Sensitive location check ───────────────────────────────────
+    const { is_sensitive, sensitive_type } = await detectSensitiveLocation(
+      parseFloat(latitude), parseFloat(longitude)
+    );
+ 
+    // ── Compute initial priority_score for the trigger ─────────────
+    //   trigger will fire on INSERT and set computed_priority
+    const aiScore       = aiMap?.score    ?? 5;
+    const locationBonus = is_sensitive
+      ? (sensitive_type === 'hospital' ? 4 : sensitive_type === 'school' ? 3 : 2)
+      : 0;
+    const initialScore  = aiScore + locationBonus;
+ 
+    // ── Insert declaration ─────────────────────────────────────────
+    const { data: decl, error } = await supabase.from('declarations').insert({
+      title:              title.trim(),
+      description:        description.trim(),
+      category:           category || null,
+      delegation_id:      actualDelegationId,
+      citizen_id:         req.user.id,
+      user_id:            req.user.id,
+      ref_citoyen:        refCitoyen,
+      status:             'soumise',          // ← correct enum value
+      latitude:           latitude  ? parseFloat(latitude)  : null,
+      longitude:          longitude ? parseFloat(longitude) : null,
+      address:            address   || null,
+      // Priority
+      priority:           aiMap?.db ?? req.body.priority ?? 'moyenne',
+      priority_score:     initialScore,
+      // AI fields
+      ai_priority:        aiMap ? aiMap.computed : null,
+      ai_priority_score:  aiScore,
+      ai_confidence:      ai_confidence ? parseInt(ai_confidence) : null,
+      ai_reasoning:       ai_reasoning  || null,
+      ai_visible_issues:  ai_visible_issues ? JSON.stringify(ai_visible_issues) : '[]',
+      ai_severity_label:  ai_severity_label || null,
+      ai_analyzed_at:     usedAI ? new Date().toISOString() : null,
+      used_ai_vision:     usedAI,
+      // Location sensitivity
+      is_sensitive,
+      sensitive_type:     sensitive_type || null,
+      // Photo
+      photo_avant:        publicUrl,
+      image_url:          publicUrl,
+      is_deleted:         false,
+    }).select('*').single();
+ 
+    if (error) {
+      console.error('[Declarations] create error:', error.message);
+      return res.status(500).json({ error: 'Erreur lors de la soumission.' });
+    }
+ 
+    // Save photo record
+    if (publicUrl) {
+      await supabase.from('declaration_photos').insert({
+        declaration_id: decl.id,
+        url:            publicUrl,
+        uploaded_by:    req.user.id,
+        photo_type:     'photo_avant',
+      });
+    }
+ 
+    await logStatusChange(decl.id, null, 'soumise', req.user.id);
+    await notifyNewDeclaration(req.app, decl);
+ 
+    return res.status(201).json({
+      declaration: mapCitizenStatus(decl),
+      ai_used:         usedAI,
+      computed_priority: decl.computed_priority,
+      is_sensitive,
+      sensitive_type,
+    });
+  } catch (err) {
+    console.error('[Declarations] create exception:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+ 
+// ─── GET /api/declarations/nearby/sensitive ───────────────────────────────────
+// Returns sensitive locations near a given lat/lng (for citizen map overlay)
+ 
+exports.getNearSensitiveLocations = async (req, res) => {
+  try {
+    const { lat, lng, radius = 1000 } = req.query;
+    if (!lat || !lng) return res.status(400).json({ error: 'lat et lng requis.' });
+ 
+    const { data: locs } = await supabase.from('sensitive_locations').select('*');
+    if (!locs) return res.json({ locations: [] });
+ 
+    const nearby = locs.filter(loc => {
+      const dist = haversineM(parseFloat(lat), parseFloat(lng), loc.latitude, loc.longitude);
+      return dist <= parseInt(radius);
+    }).map(loc => ({
+      ...loc,
+      distance_m: Math.round(haversineM(parseFloat(lat), parseFloat(lng), loc.latitude, loc.longitude)),
+    }));
+ 
+    return res.json({ locations: nearby });
+  } catch (err) {
+    console.error('[Declarations] getNearSensitiveLocations error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
 /* ── Helper: map DB enum statuses → citizen-facing statuses ── */
 const CITIZEN_STATUS_MAP = {
   soumise:        'SOUMISE',
