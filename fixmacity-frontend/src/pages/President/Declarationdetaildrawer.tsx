@@ -63,7 +63,7 @@ interface Comment {
   user_id?: string; user?: { first_name: string; last_name: string; role: string }
 }
 interface AIResult {
-  ai_priority: 'critical' | 'normal' | 'low'
+  ai_priority: 'urgent' | 'normal' | 'faible'
   confidence: number; severity_label: string
   reasoning: string; visible_issues: string[]
 }
@@ -98,9 +98,9 @@ const PRIORITY_DB: Record<string, { label: string; color: string; bg: string }> 
 }
 
 const AI_LEVELS = {
-  critical: { label: 'Critique',  color: '#DC2626', bg: '#FEE2E2', border: '#FCA5A5', emoji: '🔴', score: 95 },
+  urgent: { label: 'Urgent',  color: '#DC2626', bg: '#FEE2E2', border: '#FCA5A5', emoji: '🔴', score: 95 },
   normal:   { label: 'Normal',    color: '#D97706', bg: '#FEF3C7', border: '#FCD34D', emoji: '🟡', score: 50 },
-  low:      { label: 'Faible',    color: '#16A34A', bg: '#DCFCE7', border: '#86EFAC', emoji: '🟢', score: 20 },
+  faible:      { label: 'Faible',    color: '#16A34A', bg: '#DCFCE7', border: '#86EFAC', emoji: '🟢', score: 20 },
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -159,9 +159,9 @@ const PriorityScoreCard: React.FC<{
   aiLoading: boolean
   aiError: string | null
   onAnalyze: () => void
-  onOverride: (level: 'critical' | 'normal' | 'low') => void
+  onOverride: (level: 'urgent' | 'normal' | 'faible') => void
   overriding: boolean
-  finalPriority: 'critical' | 'normal' | 'low' | null
+  finalPriority: 'urgent' | 'normal' | 'faible' | null
 }> = ({ decl, aiResult, aiLoading, aiError, onAnalyze, onOverride, overriding, finalPriority }) => {
 
   const hasImage    = !!(decl.image_url || decl.photo_avant || decl.photo_url)
@@ -400,7 +400,7 @@ const PriorityScoreCard: React.FC<{
                   </p>
                   <p className="text-[9px] text-slate-500 mt-0.5">Confirmée par le président</p>
                 </div>
-                <button onClick={() => onOverride(confirmedLevel === 'critical' ? 'normal' : 'critical')}
+                <button onClick={() => onOverride(confirmedLevel === 'urgent' ? 'normal' : 'urgent')}
                   className="text-[9px] font-bold text-slate-400 hover:text-slate-600 underline transition-colors">
                   Modifier
                 </button>
@@ -411,7 +411,7 @@ const PriorityScoreCard: React.FC<{
                   {aiResult ? 'L\'IA a suggéré une priorité. Confirmez ou modifiez.' : 'Définissez manuellement la priorité de cette déclaration.'}
                 </p>
                 <div className="flex gap-2">
-                  {(['critical','normal','low'] as const).map(level => {
+                  {(['urgent','normal','faible'] as const).map(level => {
                     const lv = AI_LEVELS[level]
                     const isAI = aiResult?.ai_priority === level
                     return (
@@ -571,7 +571,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
   const [aiLoading,  setAiLoading]  = useState(false)
   const [aiError,    setAiError]    = useState<string|null>(null)
   const [overriding, setOverriding] = useState(false)
-  const [finalPriority, setFinalPriority] = useState<'critical'|'normal'|'low'|null>(null)
+  const [finalPriority, setFinalPriority] = useState<'urgent'|'normal'|'faible'|null>(null)
 
   const flash = (msg: string, ok = true) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3200) }
 
@@ -589,10 +589,10 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
       setComments(data.comments ?? [])
       // Restore confirmed priority from DB if already set by president
       if (decl?.ai_priority_confirmed) {
-        const dbToLevel: Record<string, 'critical' | 'normal' | 'low'> = {
-          haute: 'critical', high: 'critical',
+        const dbToLevel: Record<string, 'urgent' | 'normal' | 'faible'> = {
+          haute: 'urgent', high: 'urgent', urgent: 'urgent', critique: 'urgent',
           moyenne: 'normal', medium: 'normal',
-          basse: 'low', low: 'low',
+          basse: 'faible', low: 'faible', faible: 'faible',
         }
         const lvl = dbToLevel[decl.priority?.toLowerCase()]
         if (lvl) setFinalPriority(lvl)
@@ -632,7 +632,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
     finally   { setAiLoading(false) }
   }
 
-  const handleOverride = async (level: 'critical'|'normal'|'low') => {
+  const handleOverride = async (level: 'urgent'|'normal'|'faible') => {
     if (!detail) return
     setOverriding(true)
     try {

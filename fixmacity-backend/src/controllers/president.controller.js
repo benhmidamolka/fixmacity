@@ -86,7 +86,7 @@ exports.getDeclarationDetail = async (req, res) => {
       .select('*')
       .eq('id', id)
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      .or('is_deleted.eq.false,is_deleted.is.null')
       .single();
  
     if (declErr || !decl) {
@@ -834,7 +834,7 @@ exports.listUsers = async (req, res) => {
         COUNT(*) FILTER (WHERE status IN ('resolue','cloturee'))              AS resolved,
         COUNT(*) FILTER (WHERE status NOT IN ('soumise','refusee_chef'))      AS accepted
       FROM declarations
-      WHERE agent_id IS NOT NULL AND deleted_at IS NULL AND is_deleted = false
+      WHERE agent_id IS NOT NULL AND deleted_at IS NULL AND COALESCE(is_deleted, false) = false
       GROUP BY agent_id
     `);
     const agentStats = {};
@@ -853,7 +853,7 @@ exports.listUsers = async (req, res) => {
         COUNT(*) FILTER (WHERE status IN ('resolue','cloturee'))              AS resolved,
         COUNT(*) FILTER (WHERE status NOT IN ('soumise','refusee_chef'))      AS accepted
       FROM declarations
-      WHERE department_id IS NOT NULL AND deleted_at IS NULL AND is_deleted = false
+      WHERE department_id IS NOT NULL AND deleted_at IS NULL AND COALESCE(is_deleted, false) = false
       GROUP BY department_id
     `);
     const deptStats = {};
@@ -1214,7 +1214,7 @@ exports.listDepartments = async (req, res) => {
       FROM declarations
       WHERE department_id IS NOT NULL
         AND deleted_at IS NULL
-        AND is_deleted = false
+        AND COALESCE(is_deleted, false) = false
       GROUP BY department_id
     `);
 
@@ -1386,7 +1386,7 @@ exports.dashboard = async (req, res) => {
       .from('declarations')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      .or('is_deleted.eq.false,is_deleted.is.null')
       ;
 
     let sqlFilter = ` AND d.deleted_at IS NULL AND COALESCE(d.is_deleted, false) = false`;
@@ -1572,7 +1572,7 @@ exports.dashboard = async (req, res) => {
       .from('declarations')
       .select('id, ref_citoyen, title, status, description, category, created_at, citizen_id, delegation_id, priority')
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      .or('is_deleted.eq.false,is_deleted.is.null')
 
       .order('created_at', { ascending: false })
       .limit(8);
@@ -1581,7 +1581,7 @@ exports.dashboard = async (req, res) => {
       .from('declarations')
       .select('id, ref_citoyen, title, status, description, created_at, citizen_id, votes_count, priority_score, address, category, delegation_id')
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      .or('is_deleted.eq.false,is_deleted.is.null')
 
       .in('status', ['soumise', 'assignee_chef', 'assignee_agent', 'en_cours'])
       .order('priority_score', { ascending: false })
@@ -1917,7 +1917,7 @@ exports.deleteDepartment = async (req, res) => {
       .select('id')
       .eq('department_id', id)
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      .or('is_deleted.eq.false,is_deleted.is.null')
       .not('status', 'in', '(resolue,cloturee,refusee_chef,refusee_agent)')
       .limit(1)
       .maybeSingle();

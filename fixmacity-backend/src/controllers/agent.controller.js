@@ -25,7 +25,7 @@ exports.getDeclarations = async (req, res) => {
       `, { count: 'exact' })
       .eq('department_id', agentScope(req))
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      .or('is_deleted.eq.false,is_deleted.is.null')
       .order('created_at', { ascending: false })
       .range(offset, offset + parseInt(limit) - 1);
 
@@ -61,7 +61,7 @@ exports.getDeclarationById = async (req, res) => {
       .eq('id', id)
       .eq('department_id', agentScope(req))
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      .or('is_deleted.eq.false,is_deleted.is.null')
       .single();
 
     if (error || !data) {

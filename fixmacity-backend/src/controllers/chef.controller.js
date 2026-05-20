@@ -45,7 +45,7 @@ exports.listDeclarations = async (req, res) => {
       .from('declarations')
       .select('*', { count: 'exact' })
       .eq('department_id', deptId)
-      .eq('is_deleted', false)
+      .or('is_deleted.eq.false,is_deleted.is.null')
       .order('priority_score', { ascending: false })
       .order('created_at',     { ascending: false })
       .range(offset, offset + Number(limit) - 1);
@@ -87,7 +87,7 @@ exports.getDeclarationDetail = async (req, res) => {
     const { data: decl, error } = await supabase
       .from('declarations').select('*')
       .eq('id', id).eq('department_id', deptId)
-      .eq('is_deleted', false).single();
+      .or('is_deleted.eq.false,is_deleted.is.null').single();
 
     if (error || !decl) return res.status(404).json({ error: 'Déclaration introuvable ou hors département.' });
 
@@ -176,7 +176,7 @@ exports.acceptDeclaration = async (req, res) => {
     const { agent_id } = req.body;
 
     const { data: decl, error: fetchErr } = await supabase.from('declarations')
-      .select('id, status, department_id, citizen_id').eq('id', id).eq('is_deleted', false).single();
+      .select('id, status, department_id, citizen_id').eq('id', id).or('is_deleted.eq.false,is_deleted.is.null').single();
     if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
     if (decl.department_id !== req.user.department_id) return res.status(403).json({ error: 'Hors département.' });
     if (decl.status !== 'assignee_chef') return res.status(400).json({ error: `Statut actuel "${decl.status}" — impossible d'accepter.` });
@@ -191,7 +191,7 @@ exports.acceptDeclaration = async (req, res) => {
 
       const { count: activeCount } = await supabase.from('declarations')
         .select('id', { count: 'exact', head: true })
-        .eq('agent_id', agent_id).in('status', ['assignee_agent', 'en_cours']).eq('is_deleted', false);
+        .eq('agent_id', agent_id).in('status', ['assignee_agent', 'en_cours']).or('is_deleted.eq.false,is_deleted.is.null');
       hasSurcharge = (activeCount || 0) >= 5;
     }
 
@@ -222,7 +222,7 @@ exports.refuseDeclaration = async (req, res) => {
     if (!reason?.trim()) return res.status(400).json({ error: 'Le motif est obligatoire.' });
 
     const { data: decl, error: fetchErr } = await supabase.from('declarations')
-      .select('id, status, department_id, citizen_id').eq('id', id).eq('is_deleted', false).single();
+      .select('id, status, department_id, citizen_id').eq('id', id).or('is_deleted.eq.false,is_deleted.is.null').single();
     if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
     if (decl.department_id !== req.user.department_id) return res.status(403).json({ error: 'Hors département.' });
     if (decl.status !== 'assignee_chef') return res.status(400).json({ error: `Statut actuel "${decl.status}" — impossible de refuser.` });
@@ -254,9 +254,9 @@ exports.listAgents = async (req, res) => {
     const agentsWithWorkload = await Promise.all((agents || []).map(async (agent) => {
       const [{ count: activeCount }, { count: resolvedCount }] = await Promise.all([
         supabase.from('declarations').select('id', { count: 'exact', head: true })
-          .eq('agent_id', agent.id).in('status', ['assignee_agent', 'en_cours']).eq('is_deleted', false),
+          .eq('agent_id', agent.id).in('status', ['assignee_agent', 'en_cours']).or('is_deleted.eq.false,is_deleted.is.null'),
         supabase.from('declarations').select('id', { count: 'exact', head: true })
-          .eq('agent_id', agent.id).in('status', ['resolue', 'cloturee']).eq('is_deleted', false),
+          .eq('agent_id', agent.id).in('status', ['resolue', 'cloturee']).or('is_deleted.eq.false,is_deleted.is.null'),
       ]);
       return { ...agent, workload: activeCount || 0, resolved_count: resolvedCount || 0, is_overloaded: (activeCount || 0) >= 5 };
     }));
@@ -329,7 +329,7 @@ exports.deactivateAgent = async (req, res) => {
     if (agent.is_active) {
       const { count: active } = await supabase.from('declarations')
         .select('id', { count: 'exact', head: true })
-        .eq('agent_id', id).in('status', ['assignee_agent', 'en_cours']).eq('is_deleted', false);
+        .eq('agent_id', id).in('status', ['assignee_agent', 'en_cours']).or('is_deleted.eq.false,is_deleted.is.null');
       if ((active || 0) > 0) return res.status(400).json({ error: 'Impossible de désactiver un agent avec des missions en cours.' });
     }
 
@@ -360,7 +360,7 @@ exports.dashboard = async (req, res) => {
     await Promise.all(VALID_STATUSES.map(async (s) => {
       const { count } = await supabase.from('declarations')
         .select('id', { count: 'exact', head: true })
-        .eq('department_id', deptId).eq('status', s).eq('is_deleted', false);
+        .eq('department_id', deptId).eq('status', s).or('is_deleted.eq.false,is_deleted.is.null');
       statusCounts[s] = count || 0;
     }));
 
@@ -386,17 +386,17 @@ exports.dashboard = async (req, res) => {
     // ── Priority distribution ──────────────────────────────────────
     const [{ count: urgentCount }, { count: normalCount }, { count: faibleCount }] = await Promise.all([
       supabase.from('declarations').select('id', { count: 'exact', head: true })
-        .eq('department_id', deptId).eq('priority', 'haute').eq('is_deleted', false),
+        .eq('department_id', deptId).eq('priority', 'haute').or('is_deleted.eq.false,is_deleted.is.null'),
       supabase.from('declarations').select('id', { count: 'exact', head: true })
-        .eq('department_id', deptId).eq('priority', 'moyenne').eq('is_deleted', false),
+        .eq('department_id', deptId).eq('priority', 'moyenne').or('is_deleted.eq.false,is_deleted.is.null'),
       supabase.from('declarations').select('id', { count: 'exact', head: true })
-        .eq('department_id', deptId).eq('priority', 'basse').eq('is_deleted', false),
+        .eq('department_id', deptId).eq('priority', 'basse').or('is_deleted.eq.false,is_deleted.is.null'),
     ]);
 
     // ── Urgent declarations (pending, high priority) ───────────────
     const { data: urgentDecls } = await supabase.from('declarations')
       .select('id, ref_citoyen, ref_service, title, category, priority, status, created_at, delegation_id, votes_count, image_url, photo_avant')
-      .eq('department_id', deptId).eq('status', 'assignee_chef').eq('is_deleted', false)
+      .eq('department_id', deptId).eq('status', 'assignee_chef').or('is_deleted.eq.false,is_deleted.is.null')
       .order('priority_score', { ascending: false }).limit(6);
 
     // Enrich with delegation name
@@ -412,7 +412,7 @@ exports.dashboard = async (req, res) => {
     // ── Recent declarations (last 8) ───────────────────────────────
     const { data: recentDecls } = await supabase.from('declarations')
       .select('id, ref_citoyen, title, category, priority, status, created_at, delegation_id, votes_count, citizen_id, agent_id, image_url, photo_avant')
-      .eq('department_id', deptId).eq('is_deleted', false)
+      .eq('department_id', deptId).or('is_deleted.eq.false,is_deleted.is.null')
       .order('created_at', { ascending: false }).limit(8);
 
     let recentEnriched = recentDecls || [];
@@ -444,9 +444,9 @@ exports.dashboard = async (req, res) => {
     const agentWorkload = await Promise.all((agentRows || []).map(async (a) => {
       const [{ count: active }, { count: resolvedA }] = await Promise.all([
         supabase.from('declarations').select('id', { count: 'exact', head: true })
-          .eq('agent_id', a.id).in('status', ['assignee_agent', 'en_cours']).eq('is_deleted', false),
+          .eq('agent_id', a.id).in('status', ['assignee_agent', 'en_cours']).or('is_deleted.eq.false,is_deleted.is.null'),
         supabase.from('declarations').select('id', { count: 'exact', head: true })
-          .eq('agent_id', a.id).in('status', ['resolue', 'cloturee']).eq('is_deleted', false),
+          .eq('agent_id', a.id).in('status', ['resolue', 'cloturee']).or('is_deleted.eq.false,is_deleted.is.null'),
       ]);
       return {
         id:             a.id,
@@ -496,7 +496,7 @@ exports.exportData = async (req, res) => {
   try {
     const { data, error } = await supabase.from('declarations')
       .select('ref_citoyen, ref_service, title, category, status, created_at, assigned_at, resolved_at')
-      .eq('department_id', req.user.department_id).eq('is_deleted', false)
+      .eq('department_id', req.user.department_id).or('is_deleted.eq.false,is_deleted.is.null')
       .order('created_at', { ascending: false });
 
     if (error) return res.status(500).json({ error: 'Erreur serveur.' });
@@ -521,7 +521,7 @@ exports.listComments = async (req, res) => {
     const deptId = req.user.department_id;
 
     const { data: decl } = await supabase.from('declarations')
-      .select('department_id').eq('id', id).eq('is_deleted', false).single();
+      .select('department_id').eq('id', id).or('is_deleted.eq.false,is_deleted.is.null').single();
     if (!decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
     if (decl.department_id !== deptId) return res.status(403).json({ error: 'Hors département.' });
 
@@ -564,7 +564,7 @@ exports.addComment = async (req, res) => {
     if (!['president_chef','chef_agent'].includes(channel)) return res.status(403).json({ error: 'Canal non autorisé.' });
 
     const { data: decl } = await supabase.from('declarations')
-      .select('department_id').eq('id', id).eq('is_deleted', false).single();
+      .select('department_id').eq('id', id).or('is_deleted.eq.false,is_deleted.is.null').single();
     if (!decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
     if (decl.department_id !== deptId) return res.status(403).json({ error: 'Hors département.' });
 

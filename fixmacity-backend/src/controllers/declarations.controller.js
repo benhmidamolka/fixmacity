@@ -288,7 +288,7 @@ exports.nearby = async (req, res) => {
     let query = supabase.from('declarations')
       .select('id, title, category, latitude, longitude')
       .eq('status', 'soumise')
-      .eq('is_deleted', false);
+      .or('is_deleted.eq.false,is_deleted.is.null');
       
     if (category) query = query.eq('category', category);
     
@@ -357,7 +357,7 @@ exports.update = async (req, res) => {
       .select('id, citizen_id, user_id, status')
       .eq('id', id)
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      .or('is_deleted.eq.false,is_deleted.is.null')
       .single();
 
     if (fetchErr || !existing) {
@@ -411,7 +411,7 @@ exports.remove = async (req, res) => {
       .select('id, citizen_id, user_id, status')
       .eq('id', id)
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      .or('is_deleted.eq.false,is_deleted.is.null')
       .single();
 
     if (fetchErr || !existing) {
@@ -454,7 +454,7 @@ exports.vote = async (req, res) => {
       .select('id')
       .eq('id', id)
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      .or('is_deleted.eq.false,is_deleted.is.null')
       .single();
 
     if (!decl) {
@@ -547,7 +547,7 @@ exports.rate = async (req, res) => {
       .select('id, citizen_id, user_id, status, resolved_at')
       .eq('id', id)
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      .or('is_deleted.eq.false,is_deleted.is.null')
       .single();
 
     if (fetchErr || !decl) {
@@ -785,7 +785,7 @@ exports.getById = async (req, res) => {
       `)
       .eq('id', id)
       .is('deleted_at', null)
-      .eq('is_deleted', false)
+      .or('is_deleted.eq.false,is_deleted.is.null')
       .single();
 
     if (error || !decl) {
