@@ -13,6 +13,7 @@ const supabase = require('../config/db');
 const { validationResult } = require('express-validator');
 const { logStatusChange }    = require('../services/statusHistory.service');
 const { notifyStatusChange, notifyAgentAssigned } = require('../services/notification.service');
+const priorityService        = require('../services/priority.service');
 
 // ─── Correct enum values ──────────────────────────────────────────────────────
 const VALID_STATUSES = [
@@ -137,6 +138,30 @@ exports.getDeclarationDetail = async (req, res) => {
     });
   } catch (e) {
     console.error('[Chef] getDeclarationDetail error:', e);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── GET /api/chef/declarations/:id/priority-score ──────────── */
+exports.getPriorityScore = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data: decl, error } = await supabase
+      .from('declarations')
+      .select('*')
+      .eq('id', id)
+      .eq('department_id', req.user.department_id)
+      .single();
+
+    if (error || !decl) {
+      return res.status(404).json({ error: 'Déclaration introuvable ou hors département.' });
+    }
+
+    // Compute priority score live to get the detailed breakdown
+    const priorityData = await priorityService.computePriorityScore(decl);
+    return res.status(200).json(priorityData);
+  } catch (err) {
+    console.error('[Chef] getPriorityScore error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
@@ -292,8 +317,8 @@ exports.updateAgent = async (req, res) => {
   }
 };
 
-/* ──────────── PATCH /api/chef/agents/:id/toggle-status ──────────── */
-exports.toggleAgentStatus = async (req, res) => {
+/* ──────────── PATCH /api/chef/agents/:id/deactivate ──────────── */
+exports.deactivateAgent = async (req, res) => {
   try {
     const { id } = req.params;
     const { data: agent, error: fetchErr } = await supabase.from('users')
@@ -309,12 +334,12 @@ exports.toggleAgentStatus = async (req, res) => {
     }
 
     const { data: updated, error: updateErr } = await supabase.from('users')
-      .update({ is_active: !agent.is_active, updated_at: new Date().toISOString() })
+      .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq('id', id).select('id, is_active').single();
     if (updateErr) return res.status(500).json({ error: 'Erreur serveur.' });
     return res.status(200).json({ agent: updated });
   } catch (err) {
-    console.error('[Chef] toggleAgentStatus error:', err);
+    console.error('[Chef] deactivateAgent error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };

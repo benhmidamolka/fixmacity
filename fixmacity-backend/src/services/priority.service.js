@@ -1,208 +1,261 @@
+'use strict';
+
 /**
  * priority.service.js
- * Calculates priority_score (0–100) and priority_label ('faible'|'normal'|'urgent')
- * for every new declaration.
  *
- * Strategy:
- *   1. Try Gemini 2.0 Flash with a structured prompt (returns 0–100 + reasoning).
- *   2. On any failure / timeout, fall back to a deterministic algorithm that uses:
- *        - proximity to critical locations (hospitals, clinics, schools, fire stations)
- *        - vote count
- *        - category urgency weight
- *        - declaration age
- *   3. In both paths, votes boost the score by up to +15 points.
- *   4. scoreToLabel() maps the final score to a label.
+ * Computes a priority score (0–100) for a declaration using:
+ *   1. Gemini Vision AI  — if the citizen uploaded a photo (primary)
+ *   2. Heuristic fallback — votes + sensitive location proximity (always runs)
+ *
+ * Returned object:
+ * {
+ *   score: number,          // 0–100
+ *   level: string,          // 'FAIBLE' | 'NORMAL' | 'URGENT'
+ *   source: string,         // 'AI' | 'HEURISTIC'
+ *   factors: object,        // breakdown of each factor
+ *   ai_description: string  // Gemini's danger description (or null)
+ * }
  */
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const fs   = require('fs');
+const path = require('path');
+const http = require('http');
+const https = require('https');
 
-// ─── Label thresholds ────────────────────────────────────────────────────────
-const THRESHOLDS = { urgent: 70, normal: 40 }; // <40 = faible
-
-function scoreToLabel(score) {
-  if (score >= THRESHOLDS.urgent)  return 'urgent';
-  if (score >= THRESHOLDS.normal)  return 'normal';
-  return 'faible';
+// ── Gemini client ─────────────────────────────────────────────────────────────
+let genAI = null;
+function getGenAI() {
+  if (!genAI && process.env.GEMINI_API_KEY) {
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  }
+  return genAI;
 }
 
-// ─── Category base urgency weights (0–40) ────────────────────────────────────
-const CATEGORY_WEIGHT = {
-  EA: 40, // Réseaux & Drainage — floods, water leaks
-  EP: 35, // Éclairage Public — exposed cables, safety risk
-  VR: 30, // Voirie & Routes — potholes, sinkholes
-  ST: 25, // Signalisation Routière — missing signs, broken lights
-  PD: 20, // Propreté & Déchets
-  EV: 15, // Espaces Verts
-  BP: 10, // Administratif
-  SG:  5, // Suggestions
-};
-
-// ─── Critical locations in Sousse (lat, lng, radius_m, weight) ───────────────
-// Add / update coordinates to match actual Sousse POIs.
-const CRITICAL_LOCATIONS = [
-  // Hospitals & clinics
-  { name: 'CHU Farhat Hached',       lat: 35.8288, lng: 10.6408, radius: 500, weight: 30 },
-  { name: 'Hôpital Sahloul',         lat: 35.8500, lng: 10.5900, radius: 500, weight: 30 },
-  { name: 'Clinique Les Oliviers',   lat: 35.8270, lng: 10.6390, radius: 400, weight: 25 },
-  { name: 'Polyclinique CNSS Sousse',lat: 35.8310, lng: 10.6370, radius: 400, weight: 25 },
-  // Schools
-  { name: 'Lycée Rue de Sousse',     lat: 35.8280, lng: 10.6370, radius: 300, weight: 20 },
-  { name: 'École primaire Médina',   lat: 35.8260, lng: 10.6340, radius: 300, weight: 20 },
-  // Fire stations
-  { name: 'Protection civile Sousse',lat: 35.8320, lng: 10.6400, radius: 600, weight: 20 },
-  // Main roads / intersections (high-traffic, accidents matter more)
-  { name: 'Av. Habib Bourguiba',     lat: 35.8291, lng: 10.6380, radius: 200, weight: 15 },
-  { name: 'Av. de la République',    lat: 35.8310, lng: 10.6360, radius: 200, weight: 15 },
+// ── Sensitive places (hardcoded for Sousse — extend as needed) ────────────────
+const SENSITIVE_PLACES = [
+  { name: 'École primaire',   lat: 35.8278, lng: 10.6389, radius: 300 },
+  { name: 'Hôpital Farhat',   lat: 35.8201, lng: 10.6341, radius: 400 },
+  { name: 'Marché Central',   lat: 35.8245, lng: 10.6372, radius: 250 },
+  { name: 'Médina de Sousse', lat: 35.8256, lng: 10.6369, radius: 500 },
+  { name: 'Place des Martyrs',lat: 35.8312, lng: 10.6401, radius: 200 },
+  { name: 'Gare de Sousse',   lat: 35.8289, lng: 10.6378, radius: 300 },
 ];
 
-// ─── Haversine distance (metres) ─────────────────────────────────────────────
-function haversineM(lat1, lng1, lat2, lng2) {
-  const R = 6371000;
-  const toRad = (d) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+function haversineDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000; // metres
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ─── Vote boost: up to +15 pts (logarithmic, same in both paths) ──────────────
-function voteBoost(votes) {
-  if (!votes || votes <= 0) return 0;
-  return Math.min(15, Math.round(5 * Math.log10(votes + 1)));
+function findNearbySensitivePlace(lat, lng) {
+  if (!lat || !lng) return null;
+  for (const place of SENSITIVE_PLACES) {
+    const dist = haversineDistance(lat, lng, place.lat, place.lng);
+    if (dist <= place.radius) return place.name;
+  }
+  return null;
 }
 
-// ─── Fallback (deterministic) scoring ────────────────────────────────────────
-function fallbackScore(declaration) {
-  const { latitude, longitude, votes_count = 0, department_id, created_at } = declaration;
+// ── Fetch image as base64 ─────────────────────────────────────────────────────
+async function fetchImageAsBase64(imageUrl) {
+  return new Promise((resolve, reject) => {
+    const protocol = imageUrl.startsWith('https') ? https : http;
+    protocol.get(imageUrl, (res) => {
+      const chunks = [];
+      res.on('data', chunk => chunks.push(chunk));
+      res.on('end', () => {
+        const buf = Buffer.concat(chunks);
+        resolve({ data: buf.toString('base64'), mimeType: res.headers['content-type'] || 'image/jpeg' });
+      });
+      res.on('error', reject);
+    }).on('error', reject);
+  });
+}
 
-  // 1. Category weight (0–40)
-  const categoryScore = CATEGORY_WEIGHT[department_id] ?? 15;
-
-  // 2. Proximity score (0–30): highest weight among matched critical locations
-  let proximityScore = 0;
-  if (latitude && longitude) {
-    for (const loc of CRITICAL_LOCATIONS) {
-      const dist = haversineM(parseFloat(latitude), parseFloat(longitude), loc.lat, loc.lng);
-      if (dist <= loc.radius) {
-        proximityScore = Math.max(proximityScore, loc.weight);
-      }
+// ── Read local file as base64 ─────────────────────────────────────────────────
+function readLocalImageAsBase64(photoUrl) {
+  try {
+    // photoUrl might be http://localhost:5005/uploads/filename.jpg
+    const filename = path.basename(photoUrl.split('?')[0]);
+    const filePath = path.join(__dirname, '..', '..', 'uploads', filename);
+    if (fs.existsSync(filePath)) {
+      const buf = fs.readFileSync(filePath);
+      const ext = path.extname(filename).toLowerCase().replace('.', '');
+      const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+      return { data: buf.toString('base64'), mimeType: mime };
     }
+  } catch (e) {
+    console.warn('[Priority] Could not read local image:', e.message);
   }
-
-  // 3. Age boost (0–15): older unresolved issues are more pressing
-  let ageScore = 0;
-  if (created_at) {
-    const ageDays = (Date.now() - new Date(created_at).getTime()) / 86400000;
-    ageScore = Math.min(15, Math.round(ageDays * 0.5));
-  }
-
-  // 4. Vote boost (0–15)
-  const vBoost = voteBoost(votes_count);
-
-  const total = Math.min(100, categoryScore + proximityScore + ageScore + vBoost);
-  return { score: total, method: 'fallback', proximityScore, categoryScore, ageScore, vBoost };
+  return null;
 }
 
-// ─── AI scoring via Gemini 2.0 Flash ─────────────────────────────────────────
-async function aiScore(declaration) {
-  if (!process.env.GEMINI_API_KEY) throw new Error('No GEMINI_API_KEY');
-
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
-  const prompt = `
-Tu es un système d'évaluation de priorité pour la plateforme municipale FixMaCity de Sousse, Tunisie.
-Évalue la PRIORITÉ de ce signalement citoyen et retourne UNIQUEMENT un objet JSON valide, sans Markdown.
-
-SIGNALEMENT :
-- Titre : ${declaration.title}
-- Description : ${declaration.description || 'Non fournie'}
-- Catégorie : ${declaration.category || declaration.department_id || 'Inconnue'}
-- Arrondissement : ${declaration.delegation_id || 'Inconnu'}
-- Latitude : ${declaration.latitude || 'Non fournie'}
-- Longitude : ${declaration.longitude || 'Non fournie'}
-- Votes : ${declaration.votes_count || 0}
-
-CRITÈRES (score total 0–85, les votes ajoutent jusqu'à 15 pts séparément) :
-1. Risque pour la sécurité publique immédiate (0–35) : danger de vie, blessures potentielles
-2. Impact sur les services essentiels (0–25) : eau, électricité, routes principales, hôpitaux proches
-3. Ampleur de l'impact (0–15) : nombre de personnes affectées, zone couverte
-4. Urgence temporelle (0–10) : aggravation rapide si non traité
-
-Réponds UNIQUEMENT avec ce JSON (pas de backticks, pas d'explication) :
-{"ai_score": <entier 0-85>, "safety_risk": <0-35>, "service_impact": <0-25>, "population_impact": <0-15>, "temporal_urgency": <0-10>, "reasoning": "<max 80 chars en français>"}
-`;
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000); // 5s max
+// ── Gemini Vision analysis ────────────────────────────────────────────────────
+async function analyzeImageWithGemini(imageData) {
+  const client = getGenAI();
+  if (!client) return null;
 
   try {
-    const result = await model.generateContent(prompt);
-    clearTimeout(timeout);
-    const text = result.response.text().replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(text);
+    const model = client.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-    if (typeof parsed.ai_score !== 'number') throw new Error('Invalid AI response');
+    const prompt = `Tu es un expert en sécurité urbaine pour la municipalité de Sousse, Tunisie.
+Analyse cette photo d'un signalement citoyen et évalue le niveau de danger.
 
+Réponds UNIQUEMENT avec ce JSON (aucun texte avant ou après) :
+{
+  "danger_score": <nombre entier de 0 à 40>,
+  "danger_level": "<FAIBLE|MODERE|URGENT>",
+  "description": "<description courte du danger en français, max 100 caractères>",
+  "immediate_risk": <true|false>
+}
+
+Critères :
+- 0-10 : problème esthétique ou mineur (graffiti, banc abîmé)
+- 11-25 : risque modéré (nid-de-poule, éclairage défaillant, déchets)
+- 26-35 : danger sérieux (trottoir effondré, fuite d'eau, arbre tombé)
+- 36-40 : danger immédiat (câble électrique exposé, effondrement, danger vital)`;
+
+    const result = await model.generateContent([
+      prompt,
+      { inlineData: imageData }
+    ]);
+
+    const text = result.response.text().trim();
+    // Extract JSON from response (Gemini sometimes wraps in markdown)
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+
+    const parsed = JSON.parse(jsonMatch[0]);
     return {
-      score: Math.min(85, Math.max(0, Math.round(parsed.ai_score))),
-      method: 'ai',
-      reasoning: parsed.reasoning || '',
-      safety_risk: parsed.safety_risk,
-      service_impact: parsed.service_impact,
-      population_impact: parsed.population_impact,
-      temporal_urgency: parsed.temporal_urgency,
+      danger_score:  Math.min(40, Math.max(0, parseInt(parsed.danger_score) || 0)),
+      danger_level:  parsed.danger_level || 'FAIBLE',
+      description:   parsed.description || '',
+      immediate_risk: !!parsed.immediate_risk,
     };
-  } finally {
-    clearTimeout(timeout);
+  } catch (e) {
+    console.warn('[Priority] Gemini vision error:', e.message);
+    return null;
   }
 }
 
-// ─── Main exported function ───────────────────────────────────────────────────
-/**
- * calculatePriorityScore(declaration)
- *
- * @param {object} declaration - declaration row (or form data before insert)
- * @returns {Promise<{ priority_score: number, priority_label: string, priority_method: string, priority_meta: object }>}
- */
-async function calculatePriorityScore(declaration) {
-  let baseResult;
-
-  try {
-    baseResult = await aiScore(declaration);
-  } catch (err) {
-    console.warn('[Priority] AI scoring failed, using fallback:', err.message);
-    baseResult = fallbackScore(declaration);
-  }
-
-  // Votes always boost regardless of method (prevents double-counting for AI path)
-  const boost = voteBoost(declaration.votes_count || 0);
-  // For AI path, votes were NOT included in the 0–85 AI score, so we add them here.
-  // For fallback path, boost was already included, but fallbackScore caps at 100, so re-capping is safe.
-  const finalScore = Math.min(100, baseResult.score + (baseResult.method === 'ai' ? boost : 0));
-  const label = scoreToLabel(finalScore);
+// ── Heuristic scoring (no AI) ─────────────────────────────────────────────────
+function computeHeuristicScore(decl, sensitivePlaceName) {
+  const votes        = Math.min(decl.votes_count || 0, 50);
+  const voteScore    = Math.round((votes / 50) * 40);       // 0–40
+  const sensScore    = sensitivePlaceName ? 30 : 0;          // 0 or 30
+  const hasPhoto     = !!(decl.photo_avant || decl.photo_url);
+  const photoScore   = hasPhoto ? 10 : 0;                    // partial credit without AI
+  const ageScore     = computeAgeScore(decl.created_at);    // 0–10 (older = more urgent)
 
   return {
-    priority_score: finalScore,
-    priority_label: label,
-    priority_method: baseResult.method,
-    priority_meta: {
-      ...baseResult,
-      vote_boost: boost,
-      final_score: finalScore,
-    },
+    voteScore,
+    sensScore,
+    photoScore,
+    ageScore,
+    total: Math.min(100, voteScore + sensScore + photoScore + ageScore),
   };
 }
 
-/**
- * recalculatePriorityAfterVote(declaration)
- * Called by the vote trigger / vote endpoint to update score when a vote is cast.
- * Same logic — just re-run calculatePriorityScore with updated votes_count.
- */
-async function recalculatePriorityAfterVote(declaration) {
-  return calculatePriorityScore(declaration);
+function computeAgeScore(createdAt) {
+  if (!createdAt) return 0;
+  const ageHours = (Date.now() - new Date(createdAt).getTime()) / 3600000;
+  // Escalates up to 10 points after 72 hours unresolved
+  return Math.min(10, Math.round((ageHours / 72) * 10));
 }
 
-module.exports = { calculatePriorityScore, recalculatePriorityAfterVote, scoreToLabel, fallbackScore };
+// ── MAIN EXPORT ───────────────────────────────────────────────────────────────
+/**
+ * computePriorityScore(decl)
+ *
+ * @param {object} decl - declaration row from DB
+ * @returns {Promise<{score, level, source, factors, ai_description}>}
+ */
+async function computePriorityScore(decl) {
+  const sensitivePlaceName = findNearbySensitivePlace(decl.latitude, decl.longitude);
+
+  // ── Try Gemini Vision if photo exists ─────────────────────────────────────
+  const photoUrl = decl.photo_avant || decl.photo_url;
+  let aiResult   = null;
+
+  if (photoUrl && process.env.GEMINI_API_KEY) {
+    try {
+      let imageData = null;
+
+      // Try local file first (faster, no network)
+      imageData = readLocalImageAsBase64(photoUrl);
+
+      // Fall back to HTTP fetch for remote URLs
+      if (!imageData && photoUrl.startsWith('http')) {
+        imageData = await fetchImageAsBase64(photoUrl).catch(() => null);
+      }
+
+      if (imageData) {
+        aiResult = await analyzeImageWithGemini(imageData);
+      }
+    } catch (e) {
+      console.warn('[Priority] Image fetch/analysis failed:', e.message);
+    }
+  }
+
+  // ── Compute heuristic factors (always) ───────────────────────────────────
+  const h = computeHeuristicScore(decl, sensitivePlaceName);
+
+  // ── Combine scores ────────────────────────────────────────────────────────
+  let finalScore;
+  let source;
+  let aiDangerScore = 0;
+
+  if (aiResult) {
+    // AI available: AI danger (0-40) + votes (0-30) + sensitive (0-20) + age (0-10)
+    aiDangerScore = aiResult.danger_score;
+    const voteContrib  = Math.round((Math.min(decl.votes_count || 0, 50) / 50) * 30);
+    const sensContrib  = sensitivePlaceName ? 20 : 0;
+    const ageContrib   = computeAgeScore(decl.created_at);
+    finalScore = Math.min(100, aiDangerScore + voteContrib + sensContrib + ageContrib);
+    source = 'AI';
+  } else {
+    // Heuristic only
+    finalScore = h.total;
+    source = 'HEURISTIC';
+  }
+
+  // ── Determine level ───────────────────────────────────────────────────────
+  let level;
+  if (finalScore >= 70 || (aiResult && aiResult.immediate_risk)) {
+    level = 'URGENT';
+  } else if (finalScore >= 35) {
+    level = 'NORMAL';
+  } else {
+    level = 'FAIBLE';
+  }
+
+  return {
+    score: finalScore,
+    level,
+    source,
+    factors: {
+      ai_danger_score:   aiResult ? aiDangerScore : null,
+      ai_immediate_risk: aiResult ? aiResult.immediate_risk : null,
+      votes_count:       decl.votes_count || 0,
+      vote_contribution: aiResult
+        ? Math.round((Math.min(decl.votes_count || 0, 50) / 50) * 30)
+        : h.voteScore,
+      sensitive_place:       sensitivePlaceName,
+      sensitive_contribution: aiResult ? (sensitivePlaceName ? 20 : 0) : h.sensScore,
+      photo_available:        !!photoUrl,
+      photo_contribution:     aiResult ? aiDangerScore : h.photoScore,
+      age_hours:              Math.round((Date.now() - new Date(decl.created_at).getTime()) / 3600000),
+      age_contribution:       computeAgeScore(decl.created_at),
+    },
+    ai_description: aiResult ? aiResult.description : null,
+    ai_danger_level: aiResult ? aiResult.danger_level : null,
+  };
+}
+
+module.exports = { computePriorityScore, findNearbySensitivePlace };
