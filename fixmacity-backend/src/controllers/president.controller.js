@@ -76,32 +76,50 @@ exports.listDeclarations = async (req, res) => {
   }
 };
 
-/* ──────────── GET /api/president/declarations/:id ──────────── */
 exports.getDeclarationDetail = async (req, res) => {
   try {
     const { id } = req.params;
  
-    // 1. Full declaration fetch — include ALL priority fields
-    const { data: decl, error } = await supabase
+    // ── 1. Fetch base declaration ──────────────────────────────────────────
+    const { data: decl, error: declErr } = await supabase
       .from('declarations')
-      .select(`
-        *,
-        citizen:users!citizen_id(id, first_name, last_name, email, phone),
-        department:services!department_id(id, name_fr, code),
-        agent:users!agent_id(id, first_name, last_name)
-      `)
+      .select('*')
       .eq('id', id)
       .is('deleted_at', null)
+      .eq('is_deleted', false)
       .single();
  
-    if (error || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
+    if (declErr || !decl) {
+      return res.status(404).json({ error: 'Déclaration introuvable.' });
+    }
  
-    if (decl.department) decl.department.name = decl.department.name_fr || decl.department.name;
+    // ── 2. Citizen info ────────────────────────────────────────────────────
+    let citizen = null;
+    const citizenId = decl.citizen_id || decl.user_id;
+    if (citizenId) {
+      const { data } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, email, phone')
+        .eq('id', citizenId)
+        .maybeSingle();
+      citizen = data || null;
+    }
  
-    // 2. Chef de service
+    // ── 3. Department / service ────────────────────────────────────────────
+    let department = null;
+    if (decl.department_id) {
+      const { data } = await supabase
+        .from('services')
+        .select('id, name_fr, name_ar, name_en, code')
+        .eq('id', decl.department_id)
+        .maybeSingle();
+      if (data) department = { ...data, name: data.name_fr || data.name_en || data.code };
+    }
+ 
+    // ── 4. Chef de service ─────────────────────────────────────────────────
     let chef = null;
     if (decl.department_id) {
-      const { data: chefData } = await supabase
+      const { data } = await supabase
         .from('users')
         .select('id, first_name, last_name, email')
         .eq('role', 'chef')
@@ -109,70 +127,100 @@ exports.getDeclarationDetail = async (req, res) => {
         .eq('is_active', true)
         .limit(1)
         .maybeSingle();
-      chef = chefData || null;
+      chef = data || null;
     }
  
-    // 3. Photos
-    const { data: photos } = await supabase
-      .from('declaration_photos').select('*').eq('declaration_id', id);
+    // ── 5. Agent ───────────────────────────────────────────────────────────
+    let agent = null;
+    const agentId = decl.agent_id || decl.assigned_agent_id;
+    if (agentId) {
+      const { data } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, email')
+        .eq('id', agentId)
+        .maybeSingle();
+      agent = data || null;
+    }
  
-    // 4. History with user info
-    const { data: history } = await supabase
+    // ── 6. Photos ──────────────────────────────────────────────────────────
+    const { data: photos } = await supabase
+      .from('declaration_photos')
+      .select('*')
+      .eq('declaration_id', id);
+ 
+    // ── 7. Status history ──────────────────────────────────────────────────
+    const { data: historyRaw } = await supabase
       .from('status_history')
-      .select('*, user:users(id, first_name, last_name, role)')
+      .select('*')
       .eq('declaration_id', id)
       .order('created_at', { ascending: false });
  
-    // 5. Comments
-    const { data: comments } = await supabase
+    // Enrich history with user info
+    let history = [];
+    if (historyRaw && historyRaw.length > 0) {
+      const uIds = [...new Set(historyRaw.map(h => h.changed_by).filter(Boolean))];
+      let userMap = {};
+      if (uIds.length > 0) {
+        const { data: uData } = await supabase
+          .from('users')
+          .select('id, first_name, last_name, role')
+          .in('id', uIds);
+        if (uData) uData.forEach(u => userMap[u.id] = u);
+      }
+      history = historyRaw.map(h => ({
+        ...h,
+        user: h.changed_by ? (userMap[h.changed_by] || null) : null,
+      }));
+    }
+ 
+    // ── 8. Internal comments ───────────────────────────────────────────────
+    const { data: commentsRaw } = await supabase
       .from('internal_comments')
-      .select('*, user:users(id, first_name, last_name, role)')
+      .select('*')
       .eq('declaration_id', id)
       .order('created_at', { ascending: true });
  
-    // 6. Sensitive locations near this declaration (for display in the panel)
-    let nearbyLocations = [];
-    if (decl.latitude && decl.longitude) {
-      const { data: allLocs } = await supabase.from('sensitive_locations').select('*').catch(() => ({ data: [] }));
-      if (allLocs?.length) {
-        nearbyLocations = allLocs
-          .map(loc => {
-            const dist = haversineM(decl.latitude, decl.longitude, loc.latitude, loc.longitude);
-            return { ...loc, distance_m: Math.round(dist) };
-          })
-          .filter(loc => loc.distance_m <= 800)
-          .sort((a, b) => a.distance_m - b.distance_m);
+    let comments = [];
+    if (commentsRaw && commentsRaw.length > 0) {
+      const uIds = [...new Set(commentsRaw.map(c => c.user_id).filter(Boolean))];
+      let userMap = {};
+      if (uIds.length > 0) {
+        const { data: uData } = await supabase
+          .from('users')
+          .select('id, first_name, last_name, role')
+          .in('id', uIds);
+        if (uData) uData.forEach(u => userMap[u.id] = u);
       }
+      comments = commentsRaw.map(c => ({
+        ...c,
+        user: userMap[c.user_id] || null,
+      }));
     }
  
-    // 7. Compute live priority score for display
-    //    (mirrors what the DB trigger does, so president sees exact breakdown)
-    const aiScore    = decl.ai_priority === 'urgent' ? 10 : decl.ai_priority === 'normal' ? 5 : decl.ai_priority === 'faible' ? 1 : 0;
-    const voteBonus  = Math.min(decl.votes_count || 0, 5);
-    const locBonus   = decl.is_sensitive
-      ? (decl.sensitive_type === 'hospital' ? 4 : decl.sensitive_type === 'school' ? 3 : 2)
-      : 0;
-    const totalScore = aiScore + voteBonus + locBonus;
-    const autoLabel  = totalScore >= 12 ? 'urgent' : totalScore >= 5 ? 'normal' : 'faible';
+    // ── 9. Rating (if any) ─────────────────────────────────────────────────
+    const { data: rating } = await supabase
+      .from('ratings')
+      .select('score, comment, rated_at')
+      .eq('declaration_id', id)
+      .maybeSingle();
  
-    const priorityBreakdown = {
-      ai_score:    aiScore,
-      vote_bonus:  voteBonus,
-      loc_bonus:   locBonus,
-      total_score: totalScore,
-      auto_label:  autoLabel,   // what the system computed
-    };
- 
+    // ── 10. Build response ─────────────────────────────────────────────────
     return res.status(200).json({
-      declaration: { ...decl, chef },
-      photos: photos || [],
-      history: history || [],
+      declaration: {
+        ...decl,
+        citizen,
+        department,
+        chef,
+        agent,
+        rating: rating || null,
+      },
+      photos:   photos   || [],
+      history:  history  || [],
       comments: comments || [],
-      priority_breakdown: priorityBreakdown,
-      nearby_locations: nearbyLocations,
     });
-  } catch (e) {
-    console.error('[President] getDeclarationDetail error:', e);
+ 
+  } catch (err) {
+    console.error('[President] getDeclarationDetail error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };

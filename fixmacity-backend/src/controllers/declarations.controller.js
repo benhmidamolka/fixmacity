@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const path    = require('path');
 const fs      = require('fs');
@@ -802,7 +802,6 @@ exports.getById = async (req, res) => {
       if (decl.department_id !== req.user.department_id) {
         return res.status(403).json({ error: 'Hors de votre département.' });
       }
-        updated_at: new Date().toISOString() 
     }
 
     return res.status(200).json({ declaration: mapCitizenStatus(decl) });
@@ -816,7 +815,7 @@ exports.getPriorityDetail = async (req, res) => {
     const { id } = req.params;
     const { data: decl, error } = await supabase
       .from('declarations')
-      .select('id, priority_score, priority_label, priority_method, priority_meta, president_override, president_override_note, priority_approved, priority_approved_at')
+      .select('id, priority_score, priority, ai_priority, ai_priority_score, ai_confidence, ai_reasoning, ai_visible_issues, is_sensitive, sensitive_type, votes_count, president_override, president_override_note, priority_approved, priority_approved_at')
       .eq('id', id)
       .single();
 
@@ -824,9 +823,109 @@ exports.getPriorityDetail = async (req, res) => {
       return res.status(404).json({ error: 'Déclaration introuvable ou erreur DB.' });
     }
 
-    return res.json(decl);
+    const mapToLevel = (val) => {
+      if (!val) return 'normal';
+      const v = val.toLowerCase();
+      if (['haute', 'high', 'critique', 'critical', 'urgent'].includes(v)) return 'urgent';
+      if (['basse', 'low', 'faible'].includes(v)) return 'faible';
+      return 'normal';
+    };
+
+    // Calculate score components
+    let score_ai = 0;
+    if (decl.ai_priority) {
+      const level = mapToLevel(decl.ai_priority);
+      score_ai = level === 'urgent' ? 10 : level === 'normal' ? 5 : 1;
+    } else if (decl.ai_priority_score !== null && decl.ai_priority_score !== undefined) {
+      score_ai = decl.ai_priority_score;
+    }
+    
+    const score_votes = Math.min(decl.votes_count || 0, 5);
+    const score_location = decl.is_sensitive
+      ? (decl.sensitive_type === 'hospital' ? 4 : decl.sensitive_type === 'school' ? 3 : 2)
+      : 0;
+    
+    // Capped at 10 for the UI display, but computed score can be full sum
+    const computed_score = score_ai + score_votes + score_location;
+    const score_total = Math.min(10, computed_score);
+
+    const computed_priority = score_total >= 7 ? 'urgent' : score_total >= 4 ? 'normal' : 'faible';
+    const final_priority = decl.president_override
+      ? mapToLevel(decl.president_override)
+      : computed_priority;
+
+    let parsedIssues = [];
+    if (decl.ai_visible_issues) {
+      try {
+        parsedIssues = Array.isArray(decl.ai_visible_issues)
+          ? decl.ai_visible_issues
+          : JSON.parse(decl.ai_visible_issues);
+      } catch (e) {
+        parsedIssues = typeof decl.ai_visible_issues === 'string'
+          ? [decl.ai_visible_issues]
+          : [];
+      }
+    }
+
+    const responseData = {
+      id: decl.id,
+      ai_priority: decl.ai_priority ? mapToLevel(decl.ai_priority) : 'normal',
+      ai_priority_score: score_ai,
+      ai_confidence: decl.ai_confidence ? (decl.ai_confidence > 1 ? decl.ai_confidence / 100 : decl.ai_confidence) : 0.8,
+      ai_reasoning: decl.ai_reasoning || null,
+      ai_visible_issues: parsedIssues,
+      is_sensitive: !!decl.is_sensitive,
+      sensitive_type: decl.sensitive_type || null,
+      sensitive_distance_m: decl.is_sensitive ? 120 : null,
+      votes_count: decl.votes_count || 0,
+      computed_priority,
+      computed_score,
+      final_priority,
+      president_override: decl.president_override ? mapToLevel(decl.president_override) : null,
+      president_override_note: decl.president_override_note || null,
+      priority_approved: !!decl.priority_approved,
+      priority_approved_at: decl.priority_approved_at || null,
+      approved_by_name: decl.priority_approved ? 'Président' : null,
+      score_ai,
+      score_votes,
+      score_location,
+      score_total,
+    };
+
+    return res.json(responseData);
   } catch (err) {
     console.error('[Declarations] getPriorityDetail error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
+const VALID_PRIORITY_LABELS = ['low', 'medium', 'high', 'urgent'];
+ 
+function sanitizePriorityLabel(raw) {
+  if (!raw) return 'low';
+  const lo = String(raw).toLowerCase().trim();
+ 
+  // Map common variants to valid enum values
+  const MAP = {
+    'faible':  'low',
+    'basse':   'low',
+    'low':     'low',
+    'normal':  'medium',
+    'normale': 'medium',
+    'moyen':   'medium',
+    'moyenne': 'medium',
+    'modere':  'medium',
+    'modéré':  'medium',
+    'medium':  'medium',
+    'haute':   'high',
+    'high':    'high',
+    'élevé':   'high',
+    'eleve':   'high',
+    'urgent':  'urgent',
+    'urgente': 'urgent',
+    'critique':'urgent',
+  };
+ 
+  return MAP[lo] || (VALID_PRIORITY_LABELS.includes(lo) ? lo : 'low');
+}
+ 
+exports.sanitizePriorityLabel = sanitizePriorityLabel;
