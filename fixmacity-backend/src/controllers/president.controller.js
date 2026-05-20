@@ -262,8 +262,12 @@ exports.analyzeDeclarationImage = async (req, res) => {
         if (!imageRes.ok) throw new Error('Image fetch failed');
         const imageBuffer = await imageRes.arrayBuffer();
         const base64Image = Buffer.from(imageBuffer).toString('base64');
-        const mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
- 
+        let mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
+        if (mimeType === 'application/octet-stream' || !mimeType.startsWith('image/')) {
+          const ext = imageUrl.split('.').pop().split('?')[0].toLowerCase();
+          mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+        }
+
         const contextParts = [
           `Titre: ${decl.title}`,
           `Catégorie: ${decl.category || 'Non spécifiée'}`,

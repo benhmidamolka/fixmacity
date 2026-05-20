@@ -71,7 +71,12 @@ async function fetchImageAsBase64(imageUrl) {
       res.on('data', chunk => chunks.push(chunk));
       res.on('end', () => {
         const buf = Buffer.concat(chunks);
-        resolve({ data: buf.toString('base64'), mimeType: res.headers['content-type'] || 'image/jpeg' });
+        let mimeType = res.headers['content-type'] || 'image/jpeg';
+        if (mimeType === 'application/octet-stream' || !mimeType.startsWith('image/')) {
+          const ext = imageUrl.split('.').pop().split('?')[0].toLowerCase();
+          mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+        }
+        resolve({ data: buf.toString('base64'), mimeType });
       });
       res.on('error', reject);
     }).on('error', reject);

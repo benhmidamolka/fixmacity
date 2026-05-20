@@ -7,7 +7,7 @@ const { validationResult }     = require('express-validator');
 const { generateRefCitoyen }   = require('../services/refGenerator.service');
 const { logStatusChange }      = require('../services/statusHistory.service');
 const { notifyNewDeclaration } = require('../services/notification.service');
-const { calculatePriorityScore } = require('../services/priority.service');
+const { computePriorityScore } = require('../services/priority.service');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
  
@@ -194,12 +194,12 @@ exports.create = async (req, res) => {
     setImmediate(async () => {
       try {
         const pool = supabase.pool;
-        const priority = await calculatePriorityScore({ ...decl, votes_count: 0 });
+        const priority = await computePriorityScore({ ...decl, votes_count: 0 });
         await pool.query(
           'UPDATE declarations SET priority_score=$1, priority_label=$2, priority_method=$3 WHERE id=$4',
-          [priority.priority_score, priority.priority_label, priority.priority_method || 'fallback', decl.id]
+          [priority.score, sanitizePriorityLabel(priority.level), priority.source || 'fallback', decl.id]
         );
-        console.log(`[Priority] ${decl.id} → ${priority.priority_label} (${priority.priority_score})`);
+        console.log(`[Priority] ${decl.id} → ${priority.level} (${priority.score})`);
       } catch (e) {
         console.warn('[Priority] async calc failed:', e.message);
       }
@@ -511,11 +511,11 @@ exports.vote = async (req, res) => {
           .eq('id', id)
           .single();
         if (freshDecl) {
-          const priority = await calculatePriorityScore(freshDecl);
+          const priority = await computePriorityScore(freshDecl);
           const pool = supabase.pool;
           await pool.query(
             'UPDATE declarations SET priority_score=$1, priority_label=$2, priority_method=$3 WHERE id=$4',
-            [priority.priority_score, priority.priority_label, priority.priority_method || 'fallback', id]
+            [priority.score, sanitizePriorityLabel(priority.level), priority.source || 'fallback', id]
           );
         }
       } catch (e) {

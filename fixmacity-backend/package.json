@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "predev": "powershell -Command \"$p = Get-NetTCPConnection -LocalPort 5005 -ErrorAction SilentlyContinue; if ($p) { Stop-Process -Id $p.OwningProcess -Force -ErrorAction SilentlyContinue }; exit 0\"",
+    "predev": "powershell -Command \"$p = Get-NetTCPConnection -LocalPort 5005 -ErrorAction SilentlyContinue; if ($p) { $p | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } }; exit 0\"",
     "dev": "nodemon server.js",
     "ai": "py -m g4f.api.run"
   },
