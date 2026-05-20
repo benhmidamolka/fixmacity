@@ -587,13 +587,18 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
       setPhotos(data.photos ?? [])
       setHistory(data.history ?? [])
       setComments(data.comments ?? [])
-      // Restore confirmed priority from DB if already set by president
-      if (decl?.ai_priority_confirmed) {
-        const dbToLevel: Record<string, 'urgent' | 'normal' | 'faible'> = {
-          haute: 'urgent', high: 'urgent', urgent: 'urgent', critique: 'urgent',
-          moyenne: 'normal', medium: 'normal',
-          basse: 'faible', low: 'faible', faible: 'faible',
-        }
+      // Restore confirmed priority from DB:
+      // 1. president_override is the canonical field (set by both drawer and dashboard override)
+      // 2. Fall back to ai_priority_confirmed + legacy priority DB field
+      const dbToLevel: Record<string, 'urgent' | 'normal' | 'faible'> = {
+        haute: 'urgent', high: 'urgent', urgent: 'urgent', critique: 'urgent', critical: 'urgent',
+        moyenne: 'normal', medium: 'normal', normal: 'normal',
+        basse: 'faible', low: 'faible', faible: 'faible',
+      }
+      if (decl?.president_override) {
+        const lvl = dbToLevel[decl.president_override?.toLowerCase()]
+        if (lvl) setFinalPriority(lvl)
+      } else if (decl?.ai_priority_confirmed) {
         const lvl = dbToLevel[decl.priority?.toLowerCase()]
         if (lvl) setFinalPriority(lvl)
       }
@@ -937,7 +942,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                 <AIPriorityPanel
                   declarationId={detail.id}
                   data={detail}
-                  onUpdated={patch => setDetail(prev => prev ? { ...prev, ...patch } : prev)}
+                  onUpdated={(patch: any) => setDetail((prev: any) => prev ? { ...prev, ...patch } : prev)}
                 />
               )}
               {!detail && <div className="flex items-center justify-center h-40"><Loader2 className="animate-spin text-blue-500" size={24}/></div>}

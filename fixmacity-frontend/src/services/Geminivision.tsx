@@ -1,30 +1,41 @@
 // ─── Gemini Vision Service ────────────────────────────────────────────────────
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
-async function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve((reader.result as string).split(',')[1])
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
-
 export interface DeclarationAnalysis {
+  source: 'gemini_vision' | 'heuristic_fallback'
   title: string
   description: string
   category: string
   urgency: 'faible' | 'moyen' | 'urgent'
+  danger_score: number
   hazard: boolean
   hazard_note: string
+  confidence: number
+  visible_issues: string[]
+  near_sensitive_area: boolean
+  sensitive_area_impact: string | null
+  suggestions: string[]
 }
 
-export async function analyzeDeclarationPhoto(file: File): Promise<DeclarationAnalysis> {
+interface AnalyzeOptions {
+  latitude?: number | null
+  longitude?: number | null
+  category?: string | null
+}
+
+export async function analyzeDeclarationPhoto(
+  file: File,
+  options: AnalyzeOptions = {}
+): Promise<DeclarationAnalysis> {
   const token = localStorage.getItem('fmc_token')
   const formData = new FormData()
   formData.append('photo', file)
 
-  // Switching to the more robust declarations/analyze-photo endpoint
+  // Append GPS coordinates and category for contextual AI analysis
+  if (options.latitude)  formData.append('latitude',  String(options.latitude))
+  if (options.longitude) formData.append('longitude', String(options.longitude))
+  if (options.category)  formData.append('category',  options.category)
+
   const res = await fetch(`${API}/declarations/analyze-photo`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
@@ -44,12 +55,19 @@ export async function analyzeDeclarationPhoto(file: File): Promise<DeclarationAn
   }
 
   return {
-    title:       data.title || 'Signalement détecté',
-    description: data.description || 'Problème identifié sur la photo.',
-    category:    data.category || 'Autre',
-    urgency:     priorityMap[data.priority] || 'moyen',
-    hazard:      Boolean(data.is_hazard),
-    hazard_note: data.hazard_details || '',
+    source:               data.source || 'gemini_vision',
+    title:                data.title || '',
+    description:          data.description || '',
+    category:             data.category || 'Autre',
+    urgency:              priorityMap[data.priority] || 'moyen',
+    danger_score:         data.danger_score || 5,
+    hazard:               Boolean(data.is_hazard),
+    hazard_note:          data.hazard_details || '',
+    confidence:           data.confidence || 0.5,
+    visible_issues:       data.visible_issues || [],
+    near_sensitive_area:  data.near_sensitive_area || false,
+    sensitive_area_impact: data.sensitive_area_impact || null,
+    suggestions:          data.suggestions || [],
   }
 }
 
@@ -62,6 +80,10 @@ export async function analyzeChatbotPhoto(file: File): Promise<string> {
     
     if (analysis.hazard) {
       response += `⚠️ **Attention :** ${analysis.hazard_note || 'Un danger potentiel a été détecté.'} `;
+    }
+
+    if (analysis.near_sensitive_area) {
+      response += `📍 **Zone sensible à proximité** : ${analysis.sensitive_area_impact || 'lieu sensible détecté'}. `;
     }
     
     response += `\n\nSouhaitez-vous que je crée un signalement pour vous avec ces détails ?`;

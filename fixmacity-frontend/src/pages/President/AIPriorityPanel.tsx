@@ -1,560 +1,273 @@
+/**
+ * PriorityTab.tsx  (or PriorityTab.jsx)
+ * ========================================
+ * Drop-in replacement for the "PRIORITÉ IA" tab content in
+ * your declaration details modal (president view).
+ *
+ * Handles 3 states:
+ *   1. priority_label is null/missing  → "no data" + "Analyser IA" button
+ *   2. priority_method = 'fallback'    → shows fallback breakdown
+ *   3. priority_method = 'ai'          → shows full AI breakdown
+ *
+ * Props: { declaration: DeclarationDetail, onAnalyze?: () => void }
+ */
 
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../context/AuthContext';
-import { Brain, ShieldCheck, ChevronDown, Loader2, CheckCircle2, Building2, School, MapPin, ThumbsUp, Star } from 'lucide-react';
+import React, { useState } from 'react';
 
-// ── Types ──────────────────────────────────────────────────────────────────
-type PriorityLevel = 'faible' | 'normal' | 'urgent';
-
-interface PriorityData {
-  id: string;
-  ai_priority: PriorityLevel;
-  ai_priority_score: number;
-  ai_confidence: number;
-  ai_reasoning: string | null;
-  ai_visible_issues: string[] | null;
-  is_sensitive: boolean;
-  sensitive_type: string | null;
-  sensitive_distance_m: number | null;
-  votes_count: number;
-  computed_priority: PriorityLevel;
-  computed_score: number;
-  final_priority: PriorityLevel;
-  president_override: PriorityLevel | null;
-  president_override_note: string | null;
-  priority_approved: boolean;
-  priority_approved_at: string | null;
-  approved_by_name: string | null;
-  score_ai: number;
-  score_votes: number;
-  score_location: number;
-  score_total: number;
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface PriorityMeta {
+  score?: number;
+  method?: string;
+  final_score?: number;
+  vote_boost?: number;
+  // AI path
+  reasoning?: string;
+  safety_risk?: number;
+  service_impact?: number;
+  population_impact?: number;
+  temporal_urgency?: number;
+  // Fallback path
+  categoryScore?: number;
+  proximityScore?: number;
+  ageScore?: number;
+  vBoost?: number;
 }
 
-interface Props {
-  declarationId: string;
-  data?: any;
-  onUpdated?: (patch: Partial<PriorityData>) => void;
+interface DeclarationDetail {
+  id: number;
+  priority_score?: number | null;
+  priority_label?: 'urgent' | 'normal' | 'faible' | null;
+  priority_method?: 'ai' | 'fallback' | null;
+  priority_meta?: PriorityMeta | null;
+  votes_count?: number;
+}
+
+interface AIPriorityPanelProps {
+  declarationId: string | number;
+  data: any;
+  onUpdated?: (patch: any) => void;
   readOnly?: boolean;
   showAnalyzeButton?: boolean;
 }
 
-// ── Priority Meta ─────────────────────────────────────────────────────────
-const PRIORITY_META: Record<PriorityLevel, {
-  label: string; color: string; bg: string; border: string;
-  icon: string; ring: string;
-}> = {
-  faible: {
-    label: 'Faible',   icon: '🟢',
-    color:  'text-green-700',
-    bg:     'bg-green-50',
-    border: 'border-green-200',
-    ring:   'ring-green-400',
-  },
-  normal: {
-    label: 'Normal',   icon: '🟡',
-    color:  'text-amber-700',
-    bg:     'bg-amber-50',
-    border: 'border-amber-200',
-    ring:   'ring-amber-400',
-  },
-  urgent: {
-    label: 'Urgent',   icon: '🔴',
-    color:  'text-red-700',
-    bg:     'bg-red-50',
-    border: 'border-red-200',
-    ring:   'ring-red-400',
-  },
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const LABEL_CONFIG: Record<string, { text: string; color: string; bg: string; bar: string }> = {
+  urgent: { text: 'Urgent',  color: '#E24B4A', bg: '#FCEBEB', bar: '#E24B4A' },
+  normal: { text: 'Normale', color: '#BA7517', bg: '#FAEEDA', bar: '#EF9F27' },
+  faible: { text: 'Faible',  color: '#0F6E56', bg: '#E1F5EE', bar: '#1D9E75' },
 };
 
-const SENSITIVE_ICONS: Record<string, string> = {
-  hospital: '🏥', school: '🏫', mosque: '🕌',
-  market: '🛒', admin: '🏛️', police: '👮', fire_station: '🚒',
-};
-
-// ── Sub-components ────────────────────────────────────────────────────────
-const ScoreBar = ({
-  label, value, max = 10, color = 'bg-indigo-500',
-}: {
-  label: string; value: number; max?: number; color?: string;
-}) => {
-  const pct = Math.min(Math.round((value / max) * 100), 100);
+function ScoreBar({ value, max, color }: { value: number; max: number; color: string }) {
+  const pct = Math.min(100, Math.round((value / max) * 100));
   return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs font-medium text-gray-600">
-        <span>{label}</span>
-        <span className="font-bold text-gray-800">{value.toFixed(1)}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ flex: 1, height: 6, borderRadius: 4, background: '#e5e7eb', overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 4, transition: 'width 0.6s ease' }} />
       </div>
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-700 ${color}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+      <span style={{ fontSize: 12, color: '#6b7280', minWidth: 32, textAlign: 'right' }}>{value}/{max}</span>
     </div>
   );
-};
+}
 
-const PriorityBadge = ({ level, size = 'md' }: { level: PriorityLevel; size?: 'sm' | 'md' | 'lg' }) => {
-  const m = PRIORITY_META[level];
-  const sz = { sm: 'text-xs px-2 py-0.5', md: 'text-sm px-3 py-1', lg: 'text-base px-4 py-1.5' }[size];
+function MetricCard({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full font-semibold border ${sz} ${m.bg} ${m.color} ${m.border}`}>
-      {m.icon} {m.label}
-    </span>
+    <div style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 14px', border: '0.5px solid #e5e7eb' }}>
+      <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>{label}</div>
+      <ScoreBar value={value} max={max} color={color} />
+    </div>
   );
-};
+}
 
-// ── Main Component ────────────────────────────────────────────────────────
-export default function AIPriorityPanel({ declarationId, data: initialData, onUpdated, readOnly = false, showAnalyzeButton = true }: Props) {
-  const auth = useAuth();
-  let user: any = auth?.user;
-  if (!user) {
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
+
+// ── Main Component ─────────────────────────────────────────────────────────────
+export default function AIPriorityPanel({ declarationId, data, onUpdated, readOnly, showAnalyzeButton = true }: AIPriorityPanelProps) {
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const { priority_score, priority_label, priority_method, priority_meta } = data;
+
+  const handleAnalyze = async () => {
+    setAnalyzing(true);
     try {
-      const stored = localStorage.getItem('fmc_user');
-      if (stored) user = JSON.parse(stored);
-    } catch (e) {}
-  }
-  const [pdata,    setPdata]    = useState<PriorityData | null>(null);
-  const [loading,  setLoading]  = useState(true);
-  const [saving,   setSaving]   = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
-  const [success,  setSuccess]  = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(false);
-
-  // Override form state
-  const [override,     setOverride]     = useState<PriorityLevel | ''>('');
-  const [overrideNote, setOverrideNote] = useState('');
-  const [showForm,     setShowForm]     = useState(false);
-
-  // ── Fetch priority data ─────────────────────────────────────────────────
-  const fetchPriorityData = useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5005/api'}/president/declarations/${declarationId}/priority`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
-      });
-      if (!res.ok) {
-        if (res.status === 404) {
-          // It's possible the declaration doesn't have AI data yet
-          return;
-        }
-        throw new Error('Erreur de chargement des données de priorité');
-      }
-      const data = await res.json();
-      setPdata(data as PriorityData);
-    } catch (e: any) {
-      setError(e.message ?? 'Erreur de chargement');
-    } finally {
-      setLoading(false);
-    }
-  }, [declarationId]);
-
-  useEffect(() => { fetchPriorityData(); }, [fetchPriorityData]);
-
-  // Pre-populate override form when data loads
-  useEffect(() => {
-    if (pdata) {
-      setOverride(pdata.president_override ?? '');
-      setOverrideNote(pdata.president_override_note ?? '');
-    }
-  }, [pdata]);
-
-  // ── Save president decision ─────────────────────────────────────────────
-  const handleSave = async () => {
-    if (!user) return;
-    setSaving(true); setError(null); setSuccess(null);
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5005/api'}/president/declarations/${declarationId}/priority`, {
-        method: 'PATCH',
-        headers: { 
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('fmc_token')}` 
-        },
-        body: JSON.stringify({
-          president_override: override || null,
-          president_override_note: overrideNote.trim() || null,
-          president_id: user.id
-        })
-      });
-      if (!res.ok) throw new Error('Erreur lors de la sauvegarde');
-      const data = await res.json();
-
-      // Update local state
-      const patch = data as Partial<PriorityData>;
-      setPdata(prev => prev ? { ...prev, ...patch } : prev);
-      onUpdated?.(patch);
-      setShowForm(false);
-      setSuccess(
-        override
-          ? `Priorité modifiée → ${PRIORITY_META[override as PriorityLevel].label}`
-          : 'Priorité de l\'IA approuvée ✓'
-      );
-      setTimeout(() => setSuccess(null), 4000);
-    } catch (e: any) {
-      setError(e.message ?? 'Erreur lors de la sauvegarde');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ── Reject override (revert to AI) ─────────────────────────────────────
-  const handleRevertToAI = async () => {
-    setOverride('');
-    setOverrideNote('Revenir à la priorité calculée par l\'IA');
-    setSaving(true); setError(null);
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5005/api'}/president/declarations/${declarationId}/priority`, {
-        method: 'PATCH',
-        headers: { 
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('fmc_token')}` 
-        },
-        body: JSON.stringify({
-          president_override: null,
-          president_override_note: 'Revenir à la priorité calculée par l\'IA',
-          president_id: user?.id
-        })
-      });
-      if (!res.ok) throw new Error('Erreur de réinitialisation');
-      const data = await res.json();
+      // Determine if we should call the chef or president endpoint based on the URL
+      const isChef = window.location.pathname.includes('/chef/');
+      const basePath = isChef ? '/chef' : '/president';
+      const token = localStorage.getItem('fmc_token');
       
-      setPdata(prev => prev ? { ...prev, ...(data as any), president_override: null } : prev);
-      onUpdated?.(data as any);
-      setSuccess('Priorité réinitialisée à la valeur calculée ✓');
-      setTimeout(() => setSuccess(null), 4000);
-    } catch (e: any) {
-      setError(e.message);
+      const res = await fetch(
+        `${API}${basePath}/declarations/${declarationId}/recalculate-priority`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const resData = await res.json();
+      if (resData.success && onUpdated) {
+        onUpdated({
+          priority_score:  resData.data.priority_score,
+          priority_label:  resData.data.priority_label,
+          priority_method: resData.data.priority_method,
+          priority_meta:   resData.data.priority_meta,
+        });
+      }
+    } catch (e) {
+      console.error('Failed to recalculate priority', e);
     } finally {
-      setSaving(false);
-      setShowForm(false);
+      setAnalyzing(false);
     }
   };
 
-  // ── Loading state ───────────────────────────────────────────────────────
-  if (loading) {
+  // ── State 1: No priority data at all ──────────────────────────────────────
+  if (!priority_label || priority_score == null) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-9 h-9 bg-indigo-50 rounded-xl animate-pulse" />
-          <div className="h-5 bg-gray-100 rounded w-40 animate-pulse" />
+      <div style={{ padding: '16px 0' }}>
+        <div style={{
+          background: '#FFF3F3',
+          border: '0.5px solid #fca5a5',
+          borderRadius: 8,
+          padding: '14px 16px',
+          color: '#b91c1c',
+          fontSize: 14,
+          marginBottom: 16,
+        }}>
+          Données de priorité non disponibles pour cette déclaration.
         </div>
-        <div className="space-y-3">
-          {[1,2,3].map(i => <div key={i} className="h-3 bg-gray-100 rounded animate-pulse" />)}
-        </div>
+        <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+          La priorité n'a pas encore été calculée. Cliquez sur "Analyser IA" pour lancer l'analyse.
+        </p>
+        {showAnalyzeButton && (
+          <button
+            onClick={handleAnalyze}
+            disabled={analyzing || readOnly}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '8px 16px', borderRadius: 8,
+              background: (analyzing || readOnly) ? '#e5e7eb' : '#4f46e5',
+              color: (analyzing || readOnly) ? '#9ca3af' : '#fff',
+              border: 'none', fontSize: 14, cursor: (analyzing || readOnly) ? 'not-allowed' : 'pointer',
+              fontWeight: 500, transition: 'background 0.2s',
+            }}
+          >
+            {analyzing ? '⏳ Analyse en cours…' : '⚡ Analyser IA'}
+          </button>
+        )}
       </div>
     );
   }
 
-  if (!pdata) return (
-    <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-600 text-sm">
-      {error ?? 'Données de priorité non disponibles'}
-    </div>
-  );
+  const cfg = LABEL_CONFIG[priority_label] ?? LABEL_CONFIG.normal;
+  const meta: PriorityMeta = priority_meta ?? {};
+  const isAI = priority_method === 'ai';
 
-  const finalMeta    = PRIORITY_META[pdata.final_priority];
-  const computedMeta = PRIORITY_META[pdata.computed_priority];
-  const hasOverride  = !!pdata.president_override;
-  const isApproved   = pdata.priority_approved;
+  // Score out of 10 for the visual bar (score is 0–100)
+  const scoreOutOf10 = Math.round(priority_score / 10);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div style={{ padding: '16px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-      {/* ── Header ── */}
-      <div className={`px-5 py-4 ${finalMeta.bg} border-b ${finalMeta.border}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl
-              ${finalMeta.bg} border ${finalMeta.border}`}>
-              🤖
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Priorité finale</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <PriorityBadge level={pdata.final_priority} size="lg" />
-                {hasOverride && (
-                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full border border-purple-200">
-                    ✏️ Modifiée par président
-                  </span>
-                )}
-                {isApproved && !hasOverride && (
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full border border-green-200">
-                    ✅ Approuvée
-                  </span>
-                )}
-                {!isApproved && (
-                  <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full border border-gray-200">
-                    ⏳ En attente d'approbation
-                  </span>
-                )}
-              </div>
+      {/* ── Header: label + method badge ── */}
+      <div style={{
+        background: cfg.bg, borderRadius: 10, padding: '14px 18px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        border: `0.5px solid ${cfg.color}33`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 22 }}>{isAI ? '🤖' : '⚙️'}</span>
+          <div>
+            <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>PRIORITÉ FINALE</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                background: cfg.color, color: '#fff',
+                borderRadius: 6, padding: '3px 12px',
+                fontWeight: 600, fontSize: 14,
+              }}>{cfg.text}</span>
+              <span style={{
+                background: '#f3f4f6', color: '#374151',
+                borderRadius: 6, padding: '3px 10px',
+                fontSize: 12,
+              }}>
+                {isAI ? '🤖 Analyse IA' : '⚙️ Calcul automatique'}
+              </span>
             </div>
           </div>
+        </div>
+        {showAnalyzeButton && (
           <button
-            onClick={() => setExpanded(v => !v)}
-            className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-all"
+            onClick={handleAnalyze}
+            disabled={analyzing || readOnly}
+            style={{
+              padding: '6px 12px', borderRadius: 6,
+              background: (analyzing || readOnly) ? '#e5e7eb' : 'transparent',
+              color: (analyzing || readOnly) ? '#9ca3af' : '#4f46e5',
+              border: `0.5px solid ${(analyzing || readOnly) ? '#e5e7eb' : '#4f46e5'}`,
+              fontSize: 12, cursor: (analyzing || readOnly) ? 'not-allowed' : 'pointer', fontWeight: 500,
+            }}
           >
-            {expanded ? '▲ Réduire' : '▼ Détails'}
+            {analyzing ? '⏳' : '🔄 Recalculer'}
           </button>
-        </div>
-      </div>
-
-      {/* ── Score Summary (always visible) ── */}
-      <div className="px-5 py-4">
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          {[
-            { label: 'Score IA',     value: pdata.score_ai,       color: 'text-indigo-600', bg: 'bg-indigo-50', max: 10 },
-            { label: 'Votes',        value: pdata.score_votes,    color: 'text-blue-600',   bg: 'bg-blue-50',   max: 5  },
-            { label: 'Localisation', value: pdata.score_location, color: 'text-green-600',  bg: 'bg-green-50',  max: 4  },
-          ].map(c => (
-            <div key={c.label} className={`rounded-xl p-3 text-center ${c.bg}`}>
-              <p className={`text-xl font-bold ${c.color}`}>+{c.value.toFixed(1)}</p>
-              <p className="text-xs text-gray-500 font-medium mt-0.5">{c.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Total score bar */}
-        <div className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
-          <div className="flex-1">
-            <div className="flex justify-between mb-1">
-              <span className="text-xs font-semibold text-gray-600">Score total</span>
-              <span className="text-xs font-bold text-gray-800">{pdata.score_total.toFixed(1)} / 10</span>
-            </div>
-            <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-700 ${
-                  pdata.score_total >= 7 ? 'bg-red-500' :
-                  pdata.score_total >= 4 ? 'bg-amber-500' : 'bg-green-500'
-                }`}
-                style={{ width: `${Math.min((pdata.score_total / 10) * 100, 100)}%` }}
-              />
-            </div>
-          </div>
-          <div className="text-2xl">{finalMeta.icon}</div>
-        </div>
-
-        {/* Sensitive location badge */}
-        {pdata.is_sensitive && pdata.sensitive_type && (
-          <div className="mt-3 flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5">
-            <span className="text-xl">{SENSITIVE_ICONS[pdata.sensitive_type] ?? '📍'}</span>
-            <div>
-              <p className="text-xs font-semibold text-orange-700">Zone sensible détectée</p>
-              <p className="text-xs text-orange-600">
-                {pdata.sensitive_type === 'hospital' ? 'Hôpital' :
-                 pdata.sensitive_type === 'school'   ? 'École'   :
-                 pdata.sensitive_type === 'mosque'   ? 'Mosquée' :
-                 pdata.sensitive_type}
-                {pdata.sensitive_distance_m && ` · ${Math.round(pdata.sensitive_distance_m)}m`}
-              </p>
-            </div>
-            <span className="ml-auto text-xs font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
-              +{pdata.score_location}pts
-            </span>
-          </div>
         )}
       </div>
 
-      {/* ── Expanded details ── */}
-      {expanded && (
-        <div className="px-5 pb-4 space-y-4 border-t border-gray-50 pt-4">
-
-          {/* AI Analysis */}
-          <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">🤖 Analyse IA</p>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Priorité suggérée</span>
-                <PriorityBadge level={pdata.ai_priority} size="sm" />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Confiance</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-indigo-500 rounded-full"
-                      style={{ width: `${Math.round((pdata.ai_confidence ?? 0) * 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-semibold text-gray-700">
-                    {Math.round((pdata.ai_confidence ?? 0) * 100)}%
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {pdata.ai_reasoning && (
-              <div className="mt-2 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
-                <p className="text-xs text-indigo-700 leading-relaxed">{pdata.ai_reasoning}</p>
-              </div>
-            )}
-
-            {pdata.ai_visible_issues && pdata.ai_visible_issues.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {pdata.ai_visible_issues.map((issue, i) => (
-                  <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full border border-gray-200">
-                    {issue}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Score breakdown bars */}
-          <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">📊 Détail du score</p>
-            <div className="space-y-2">
-              <ScoreBar label="Score IA (0–10)"             value={pdata.score_ai}       max={10} color="bg-indigo-500" />
-              <ScoreBar label="Bonus votes (max 5)"         value={pdata.score_votes}    max={5}  color="bg-blue-400"   />
-              <ScoreBar label="Bonus localisation (max 4)"  value={pdata.score_location} max={4}  color="bg-orange-400" />
-              <div className="border-t border-gray-100 pt-2">
-                <ScoreBar label="Score final (0–10)" value={pdata.score_total} max={10}
-                  color={pdata.score_total >= 7 ? 'bg-red-500' : pdata.score_total >= 4 ? 'bg-amber-500' : 'bg-green-500'}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Computed vs final */}
-          {hasOverride && (
-            <div className="bg-purple-50 border border-purple-200 rounded-xl p-3">
-              <p className="text-xs font-semibold text-purple-700 mb-2">✏️ Modification présidentielle</p>
-              <div className="flex items-center gap-2 text-sm">
-                <PriorityBadge level={pdata.computed_priority} size="sm" />
-                <span className="text-gray-400">→</span>
-                <PriorityBadge level={pdata.final_priority} size="sm" />
-              </div>
-              {pdata.president_override_note && (
-                <p className="text-xs text-purple-600 mt-2 italic">"{pdata.president_override_note}"</p>
-              )}
-              {pdata.priority_approved_at && (
-                <p className="text-xs text-gray-400 mt-1">
-                  {pdata.approved_by_name ?? 'Président'} —{' '}
-                  {new Date(pdata.priority_approved_at).toLocaleString('fr-FR')}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Votes info */}
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">Votes citoyens</span>
-            <span className="font-bold text-blue-600">{pdata.votes_count} vote{pdata.votes_count !== 1 ? 's' : ''}</span>
-          </div>
+      {/* ── Score breakdown cards ── */}
+      {isAI ? (
+        // AI path: 4 sub-scores
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <MetricCard label="Risque sécurité"       value={meta.safety_risk      ?? 0} max={35} color="#E24B4A" />
+          <MetricCard label="Impact services"        value={meta.service_impact   ?? 0} max={25} color="#EF9F27" />
+          <MetricCard label="Impact population"      value={meta.population_impact?? 0} max={15} color="#185FA5" />
+          <MetricCard label="Urgence temporelle"     value={meta.temporal_urgency ?? 0} max={10} color="#0F6E56" />
+        </div>
+      ) : (
+        // Fallback path: 4 sub-scores
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <MetricCard label="Catégorie"              value={meta.categoryScore  ?? 0} max={40} color="#185FA5" />
+          <MetricCard label="Proximité critique"     value={meta.proximityScore ?? 0} max={30} color="#E24B4A" />
+          <MetricCard label="Ancienneté"             value={meta.ageScore       ?? 0} max={15} color="#BA7517" />
+          <MetricCard label="Boost votes"            value={meta.vBoost ?? meta.vote_boost ?? 0} max={15} color="#0F6E56" />
         </div>
       )}
 
-      {/* ── Success / Error messages ── */}
-      {success && (
-        <div className="mx-5 mb-3 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2">
-          ✅ {success}
+      {/* ── AI reasoning text (only for AI path) ── */}
+      {isAI && meta.reasoning && (
+        <div style={{
+          background: '#f0f9ff', borderRadius: 8, padding: '10px 14px',
+          border: '0.5px solid #bae6fd', fontSize: 13, color: '#0369a1',
+          lineHeight: 1.5,
+        }}>
+          💬 {meta.reasoning}
         </div>
       )}
-      {error && (
-        <div className="mx-5 mb-3 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm flex items-center gap-2">
-          ⚠️ {error}
-          <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600">✕</button>
+
+      {/* ── Total score bar ── */}
+      <div style={{
+        background: '#f9fafb', borderRadius: 8, padding: '12px 16px',
+        border: '0.5px solid #e5e7eb',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>Score total</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16, fontWeight: 600, color: cfg.color }}>{priority_score}/100</span>
+            <div style={{ width: 14, height: 14, borderRadius: '50%', background: cfg.color }} />
+          </div>
         </div>
-      )}
-
-      {/* ── Presidential action panel ── */}
-      {!readOnly && (
-      <div className="px-5 pb-5 pt-2 border-t border-gray-50">
-        {!showForm ? (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowForm(true)}
-              className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-all"
-            >
-              {isApproved ? '✏️ Modifier la priorité' : '✅ Approuver / Modifier'}
-            </button>
-            {!isApproved && (
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-4 py-2.5 rounded-xl bg-green-50 text-green-700 border border-green-200 text-sm font-semibold hover:bg-green-100 transition-all disabled:opacity-60"
-              >
-                {saving ? '...' : '✓ Approuver l\'IA'}
-              </button>
-            )}
-            {hasOverride && (
-              <button
-                onClick={handleRevertToAI}
-                disabled={saving}
-                className="px-3 py-2.5 rounded-xl bg-gray-50 text-gray-500 border border-gray-200 text-xs hover:bg-gray-100 transition-all disabled:opacity-60"
-                title="Revenir à la priorité IA"
-              >
-                🔄
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm font-bold text-gray-700">Définir la priorité finale</p>
-
-            {/* Priority selector */}
-            <div className="grid grid-cols-3 gap-2">
-              {(['faible', 'normal', 'urgent'] as PriorityLevel[]).map(level => {
-                const m = PRIORITY_META[level];
-                const selected = override === level;
-                return (
-                  <button
-                    key={level}
-                    onClick={() => setOverride(level)}
-                    className={`py-3 rounded-xl border-2 text-sm font-semibold transition-all flex flex-col items-center gap-1
-                      ${selected
-                        ? `${m.bg} ${m.border} ${m.color} ring-2 ${m.ring}`
-                        : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
-                      }`}
-                  >
-                    <span className="text-xl">{m.icon}</span>
-                    {m.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Accept AI option */}
-            <button
-              onClick={() => setOverride('')}
-              className={`w-full py-2.5 rounded-xl border-2 text-sm font-medium transition-all
-                ${override === ''
-                  ? 'bg-indigo-50 border-indigo-300 text-indigo-700 ring-2 ring-indigo-300'
-                  : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
-                }`}
-            >
-              🤖 Accepter la priorité IA ({computedMeta.icon} {computedMeta.label})
-            </button>
-
-            {/* Note */}
-            <textarea
-              value={overrideNote}
-              onChange={e => setOverrideNote(e.target.value)}
-              placeholder="Note (optionnel) — raison de la modification..."
-              rows={2}
-              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none placeholder-gray-400"
-            />
-
-            {/* Actions */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowForm(false)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-all"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-all disabled:opacity-60"
-              >
-                {saving ? 'Enregistrement...' : '💾 Confirmer'}
-              </button>
-            </div>
-          </div>
-        )}
+        <div style={{ height: 8, borderRadius: 4, background: '#e5e7eb', overflow: 'hidden' }}>
+          <div style={{
+            width: `${priority_score}%`, height: '100%',
+            background: cfg.bar, borderRadius: 4, transition: 'width 0.8s ease',
+          }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: '#9ca3af' }}>
+          <span>Faible (0–39)</span>
+          <span>Normale (40–69)</span>
+          <span>Urgent (70–100)</span>
+        </div>
       </div>
+
+      {/* ── Vote count note ── */}
+      {(data.votes_count ?? 0) > 0 && (
+        <div style={{ fontSize: 12, color: '#6b7280', textAlign: 'center' }}>
+          👍 {data.votes_count} vote{(data.votes_count ?? 0) > 1 ? 's' : ''} citoyen(s) pris en compte
+        </div>
       )}
     </div>
   );

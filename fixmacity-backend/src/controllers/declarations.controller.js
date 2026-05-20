@@ -622,52 +622,96 @@ exports.rate = async (req, res) => {
 
 /* ──────────── POST /api/declarations/analyze-photo ──────────── */
 exports.analyzePhoto = async (req, res) => {
+  let tmpPath;
+  const pathMod = require('path');
+  const fsMod = require('fs');
+
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Aucune photo fournie.' });
     }
 
-    const path = require('path');
-    const fs = require('fs');
-    const { analyzePhoto } = require('../services/vision.service');
+    const { analyzePhoto: aiAnalyze, heuristicAnalysis } = require('../services/vision.service');
 
-    // Save temp file
-    const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
-    if (!fs.existsSync(UPLOAD_DIR)) {
-      fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    // ── Read GPS + category from request body ────────────────────
+    const latitude  = parseFloat(req.body.latitude)  || null;
+    const longitude = parseFloat(req.body.longitude) || null;
+    const category  = req.body.category || null;
+
+    // ── Detect nearby sensitive locations from DB ────────────────
+    let nearbyLocations = [];
+    if (latitude && longitude) {
+      try {
+        const { data: locs } = await supabase.from('sensitive_locations').select('*');
+        if (locs && locs.length > 0) {
+          for (const loc of locs) {
+            const dist = haversineM(latitude, longitude, loc.latitude, loc.longitude);
+            if (dist <= (loc.radius_m || 300)) {
+              nearbyLocations.push({
+                type: loc.type,
+                name: loc.name || loc.type,
+                distance_m: Math.round(dist),
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Analyze] Could not fetch sensitive_locations:', e.message);
+      }
+    }
+
+    const context = { latitude, longitude, nearbyLocations, category };
+
+    // ── Save temp file ──────────────────────────────────────────
+    const UPLOAD_DIR = pathMod.join(__dirname, '..', '..', 'uploads');
+    if (!fsMod.existsSync(UPLOAD_DIR)) {
+      fsMod.mkdirSync(UPLOAD_DIR, { recursive: true });
     }
     
-    const ext = path.extname(req.file.originalname) || '.jpg';
+    const ext = pathMod.extname(req.file.originalname) || '.jpg';
     const tmpFilename = `analyze_${Date.now()}${ext}`;
-    const tmpPath = path.join(UPLOAD_DIR, tmpFilename);
+    tmpPath = pathMod.join(UPLOAD_DIR, tmpFilename);
     
-    fs.writeFileSync(tmpPath, req.file.buffer);
+    fsMod.writeFileSync(tmpPath, req.file.buffer);
 
-    // Analyze with Gemini Vision
-    const analysis = await analyzePhoto(tmpPath);
-
-    // Clean up temp file
-    try { fs.unlinkSync(tmpPath); } catch (_) {}
+    // ── Try AI analysis, fall back to heuristic ─────────────────
+    let analysis;
+    try {
+      analysis = await aiAnalyze(tmpPath, context);
+    } catch (aiErr) {
+      console.warn('[Analyze] AI failed, switching to heuristic fallback:', aiErr.message?.substring(0, 100));
+      analysis = heuristicAnalysis(context);
+    }
 
     return res.status(200).json({
       success: true,
       analysis: {
-        category:       analysis.category,
-        title:          analysis.title,
-        description:    analysis.description,
-        priority:       analysis.priority,
-        is_hazard:      analysis.is_hazard,
-        hazard_details: analysis.hazard_details,
-        confidence:     analysis.confidence,
-        suggestions:    analysis.suggestions
+        source:              analysis.source || 'gemini_vision',
+        category:            analysis.category,
+        title:               analysis.title,
+        description:         analysis.description,
+        priority:            analysis.priority,
+        danger_score:        analysis.danger_score || 5,
+        is_hazard:           analysis.is_hazard,
+        hazard_details:      analysis.hazard_details,
+        confidence:          analysis.confidence,
+        visible_issues:      analysis.visible_issues || [],
+        near_sensitive_area: analysis.near_sensitive_area || false,
+        sensitive_area_impact: analysis.sensitive_area_impact || null,
+        suggestions:         analysis.suggestions || [],
       }
     });
 
   } catch (err) {
     console.error('[Analyze] Error:', err.message);
     return res.status(500).json({ 
-      error: 'Analyse impossible. Vérifiez GEMINI_API_KEY.' 
+      error: 'Analyse impossible.' 
     });
+  } finally {
+    // Clean up temp file
+    if (tmpPath) {
+      try { fsMod.unlinkSync(tmpPath); } catch (_) {}
+    }
   }
 };
 

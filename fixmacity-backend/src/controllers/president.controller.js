@@ -417,15 +417,19 @@ exports.overridePriority = async (req, res) => {
       }
     }
 
-    // Handle older format: priority field (critical/normal/low)
+    // Handle all priority formats: critical/normal/low (dashboard) OR urgent/normal/faible (drawer)
     if (priority) {
-      if (!['critical', 'normal', 'low'].includes(priority)) {
+      const VALID = ['critical', 'normal', 'low', 'urgent', 'faible',
+                     'haute', 'high', 'moyenne', 'medium', 'basse', 'critique'];
+      if (!VALID.includes(priority.toLowerCase())) {
         return res.status(400).json({ error: 'Priorité invalide.' });
       }
       const mapped = levelToDb(priority);
       updateData.priority = mapped.priority;
       updateData.priority_score = mapped.priority_score;
       updateData.ai_priority_confirmed = ai_confirmed ?? true;
+      // Always persist as president_override so both views read the same source
+      updateData.president_override = priority.toLowerCase();
     }
 
     const { data: updated, error } = await supabase

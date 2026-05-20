@@ -504,21 +504,34 @@ function Step3({ data, onChange, onNext, onBack }: any) {
     setAnalyzing(true)
     setAiDone(false)
     try {
-      const result = await analyzeDeclarationPhoto(file)
+      // Pass GPS coordinates for contextual AI analysis (sensitive area detection)
+      const result = await analyzeDeclarationPhoto(file, {
+        latitude:  data.latitude  || null,
+        longitude: data.longitude || null,
+        category:  data.category  || null,
+      })
       onChange({
         photo:       file,
-        title:       result.title,
-        description: result.description,
-        category:    result.category,
+        title:       result.title || data.title || '',
+        description: result.description || data.description || '',
+        category:    result.category || data.category || '',
         urgency:     result.urgency,
         hazard:      result.hazard,
         hazard_note: result.hazard_note,
-        // Mark that AI vision was used + capture confidence for backend
-        ai_analyzed:   true,
-        ai_confidence: 85,   // default confidence when Gemini responds
-        ai_reasoning:  result.hazard_note || result.description || '',
+        // AI enrichment fields
+        ai_analyzed:          true,
+        ai_source:            result.source,
+        ai_confidence:        Math.round((result.confidence || 0.5) * 100),
+        ai_reasoning:         result.hazard_note || result.description || '',
+        ai_danger_score:      result.danger_score,
+        ai_visible_issues:    result.visible_issues,
+        near_sensitive_area:  result.near_sensitive_area,
+        sensitive_area_impact: result.sensitive_area_impact,
       })
       setAiDone(true)
+      if (result.source === 'heuristic_fallback') {
+        toast('IA indisponible — priorité calculée par heuristique.', { icon: '⚙️' })
+      }
     } catch {
       // fail silently — user fills manually
     } finally {
@@ -682,6 +695,17 @@ function Step3({ data, onChange, onNext, onBack }: any) {
             <div>
               <p className="text-xs font-bold text-red-600 uppercase tracking-wider mb-0.5">Danger détecté par l'IA</p>
               <p className="text-sm text-red-700">{data.hazard_note}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Sensitive area detected by AI */}
+        {data.near_sensitive_area && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-3">
+            <span className="text-blue-500 text-lg flex-shrink-0">🏥</span>
+            <div>
+              <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-0.5">Zone sensible détectée</p>
+              <p className="text-sm text-blue-700">{data.sensitive_area_impact || 'Ce signalement est situé à proximité d\'un lieu sensible (école, hôpital…). La priorité a été ajustée automatiquement.'}</p>
             </div>
           </div>
         )}

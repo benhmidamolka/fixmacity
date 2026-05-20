@@ -66,9 +66,9 @@ export function computePriority(d: {
 const COMPUTED_PRIORITY_CONFIG: Record<'critical' | 'normal' | 'low', {
   label: string; color: string; bg: string; border: string; icon: string
 }> = {
-  critical: { label: 'Critique',   color: '#dc2626', bg: '#fee2e2', border: '#fca5a5', icon: '🔴' },
-  normal:   { label: 'Moyen',      color: '#d97706', bg: '#fef3c7', border: '#fcd34d', icon: '🟡' },
-  low:      { label: 'Faible',     color: '#16a34a', bg: '#dcfce7', border: '#86efac', icon: '🟢' },
+  critical: { label: 'Urgent',  color: '#dc2626', bg: '#fee2e2', border: '#fca5a5', icon: '🔴' },
+  normal:   { label: 'Normal',  color: '#d97706', bg: '#fef3c7', border: '#fcd34d', icon: '🟡' },
+  low:      { label: 'Faible', color: '#16a34a', bg: '#dcfce7', border: '#86efac', icon: '🟢' },
 }
 
 const ARRONDISSEMENTS = ['Sousse Riadh', 'Sousse Nord', 'Sousse Sud', 'Sousse Médina']
@@ -353,13 +353,28 @@ const PresidentDeclarations: React.FC = () => {
           const citizenName = cit
             ? [cit.first_name, cit.last_name].filter(Boolean).join(' ').trim()
             : ''
-          // If president has confirmed priority, map DB value back to level
+          // ── Priority resolution (single source of truth) ─────────────────
+          // Priority 1: president_override — explicit decision in drawer (urgent/normal/faible)
+          // Priority 2: ai_priority_confirmed + legacy DB priority field (haute/moyenne/basse)
+          // Priority 3: computePriority heuristic fallback
+          const overrideToLevel: Record<string, 'critical' | 'normal' | 'low'> = {
+            urgent: 'critical', critical: 'critical',
+            normal: 'normal',   moyenne: 'normal', medium: 'normal',
+            faible: 'low',      basse: 'low',   low: 'low',
+          }
           const dbToLevel: Record<string, 'critical' | 'normal' | 'low'> = {
             haute: 'critical', high: 'critical',
             moyenne: 'normal', medium: 'normal',
             basse: 'low', low: 'low',
           }
-          const confirmedLevel = d.ai_priority_confirmed
+
+          // Check president_override first (set when president clicks override in the drawer)
+          const presidentOverrideLevel = d.president_override
+            ? (overrideToLevel[d.president_override?.toLowerCase()] ?? null)
+            : null
+
+          // Fall back to ai_priority_confirmed + DB priority field
+          const confirmedLevel = !presidentOverrideLevel && d.ai_priority_confirmed
             ? (dbToLevel[d.priority?.toLowerCase()] ?? null)
             : null
 
@@ -385,7 +400,8 @@ const PresidentDeclarations: React.FC = () => {
             citizen_name: citizenName || `Réf. ${d.ref_citoyen || String(d.id).slice(0, 8)}`,
             citizen_email: cit?.email || '—',
             citizen_avatar: undefined,
-            computed_priority: confirmedLevel ?? computePriority({
+            // Final computed priority — consistent with the detail drawer display
+            computed_priority: presidentOverrideLevel ?? confirmedLevel ?? computePriority({
               sensitive_type: d.sensitive_type || 'none',
               category: d.category || 'Voirie',
               votes: d.votes_count || 0,
