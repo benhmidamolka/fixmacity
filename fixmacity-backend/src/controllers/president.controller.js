@@ -55,6 +55,10 @@ exports.listDeclarations = async (req, res) => {
         const agent = d.agent_id ? userMap[d.agent_id] : null;
         return {
           ...d,
+          // Ensure priority fields are always present
+          priority_score:  d.priority_score  ?? 0,
+          priority_label:  d.priority_label  ?? null,
+          priority_method: d.priority_method ?? null,
           users: userMap[d.user_id || d.citizen_id] || null,
           agent_name: agent ? `${agent.first_name} ${agent.last_name}` : null,
           delegation_name: d.delegation_id ? (delegMap[d.delegation_id] || 'Sousse Nord') : 'Sousse Nord',
@@ -88,6 +92,14 @@ exports.getDeclarationDetail = async (req, res) => {
       .is('deleted_at', null)
       .or('is_deleted.eq.false,is_deleted.is.null')
       .single();
+
+    // Ensure priority fields are included (in case * doesn't include them)
+    if (decl && !('priority_score' in decl)) {
+      decl.priority_score = decl.priority_score ?? 0;
+      decl.priority_label = decl.priority_label ?? null;
+      decl.priority_method = decl.priority_method ?? null;
+      decl.priority_meta = decl.priority_meta ?? {};
+    }
  
     if (declErr || !decl) {
       return res.status(404).json({ error: 'Déclaration introuvable.' });
@@ -208,6 +220,11 @@ exports.getDeclarationDetail = async (req, res) => {
     return res.status(200).json({
       declaration: {
         ...decl,
+        // Ensure priority fields are always present (even if null in DB)
+        priority_score:  decl.priority_score  ?? 0,
+        priority_label:  decl.priority_label  ?? null,
+        priority_method: decl.priority_method ?? null,
+        priority_meta:   decl.priority_meta   ?? {},
         citizen,
         department,
         chef,
