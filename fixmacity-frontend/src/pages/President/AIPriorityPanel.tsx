@@ -129,15 +129,20 @@ export default function AIPriorityPanel({ declarationId, data: initialData, onUp
   const [showForm,     setShowForm]     = useState(false);
 
   // ── Fetch priority data ─────────────────────────────────────────────────
-  const fetch = useCallback(async () => {
+  const fetchPriorityData = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const { data, error: err } = await supabase
-        .from('v_declaration_priority')
-        .select('*')
-        .eq('id', declarationId)
-        .single();
-      if (err) throw err;
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5005/api'}/president/declarations/${declarationId}/priority`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
+      });
+      if (!res.ok) {
+        if (res.status === 404) {
+          // It's possible the declaration doesn't have AI data yet
+          return;
+        }
+        throw new Error('Erreur de chargement des données de priorité');
+      }
+      const data = await res.json();
       setPdata(data as PriorityData);
     } catch (e: any) {
       setError(e.message ?? 'Erreur de chargement');
@@ -146,7 +151,7 @@ export default function AIPriorityPanel({ declarationId, data: initialData, onUp
     }
   }, [declarationId]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { fetchPriorityData(); }, [fetchPriorityData]);
 
   // Pre-populate override form when data loads
   useEffect(() => {
@@ -161,13 +166,20 @@ export default function AIPriorityPanel({ declarationId, data: initialData, onUp
     if (!user) return;
     setSaving(true); setError(null); setSuccess(null);
     try {
-      const { data, error: err } = await supabase.rpc('approve_priority', {
-        p_declaration_id: declarationId,
-        p_override:       override || null,
-        p_note:           overrideNote.trim() || null,
-        p_president_id:   user.id,
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5005/api'}/president/declarations/${declarationId}/priority`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('fmc_token')}` 
+        },
+        body: JSON.stringify({
+          president_override: override || null,
+          president_override_note: overrideNote.trim() || null,
+          president_id: user.id
+        })
       });
-      if (err) throw err;
+      if (!res.ok) throw new Error('Erreur lors de la sauvegarde');
+      const data = await res.json();
 
       // Update local state
       const patch = data as Partial<PriorityData>;
@@ -191,16 +203,23 @@ export default function AIPriorityPanel({ declarationId, data: initialData, onUp
   const handleRevertToAI = async () => {
     setOverride('');
     setOverrideNote('Revenir à la priorité calculée par l\'IA');
-    // Will call handleSave with null override
     setSaving(true); setError(null);
     try {
-      const { data, error: err } = await supabase.rpc('approve_priority', {
-        p_declaration_id: declarationId,
-        p_override:       null,
-        p_note:           'Revenir à la priorité calculée par l\'IA',
-        p_president_id:   user?.id,
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5005/api'}/president/declarations/${declarationId}/priority`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('fmc_token')}` 
+        },
+        body: JSON.stringify({
+          president_override: null,
+          president_override_note: 'Revenir à la priorité calculée par l\'IA',
+          president_id: user?.id
+        })
       });
-      if (err) throw err;
+      if (!res.ok) throw new Error('Erreur de réinitialisation');
+      const data = await res.json();
+      
       setPdata(prev => prev ? { ...prev, ...(data as any), president_override: null } : prev);
       onUpdated?.(data as any);
       setSuccess('Priorité réinitialisée à la valeur calculée ✓');

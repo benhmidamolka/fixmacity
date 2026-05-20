@@ -313,27 +313,37 @@ Réponds UNIQUEMENT avec ce JSON (sans markdown):
 exports.overridePriority = async (req, res) => {
   try {
     const { id } = req.params;
-    const { priority, ai_confirmed } = req.body;
+    const { priority, ai_confirmed, president_override, president_override_note } = req.body;
 
-    if (!['critical', 'normal', 'low'].includes(priority)) {
-      return res.status(400).json({ error: 'Priorité invalide. Valeurs acceptées: critical, normal, low.' });
+    const updateData = {
+      updated_at: new Date().toISOString(),
+      priority_approved: true,
+      priority_approved_at: new Date().toISOString()
+    };
+
+    if (president_override !== undefined) {
+      updateData.president_override = president_override;
+      updateData.president_override_note = president_override_note;
     }
 
-    // Map computed priority back to DB values (score uses 0-100 scale)
-    const dbPriorityMap = { critical: 'haute', normal: 'moyenne', low: 'basse' };
-    const scoreMap = { critical: 90, normal: 50, low: 15 };
+    // Maintain backward compatibility for older payload
+    if (priority) {
+      if (!['critical', 'normal', 'low'].includes(priority)) {
+        return res.status(400).json({ error: 'Priorité invalide. Valeurs acceptées: critical, normal, low.' });
+      }
+      const dbPriorityMap = { critical: 'haute', normal: 'moyenne', low: 'basse' };
+      const scoreMap = { critical: 90, normal: 50, low: 15 };
+      updateData.priority = dbPriorityMap[priority];
+      updateData.priority_score = scoreMap[priority];
+      updateData.ai_priority_confirmed = ai_confirmed ?? true;
+    }
 
     const { data: updated, error } = await supabase
       .from('declarations')
-      .update({
-        priority: dbPriorityMap[priority],
-        priority_score: scoreMap[priority],
-        ai_priority_confirmed: ai_confirmed ?? true,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', id)
       .is('deleted_at', null)
-      .select('id, priority, priority_score')
+      .select('*')
       .single();
 
     if (error) {

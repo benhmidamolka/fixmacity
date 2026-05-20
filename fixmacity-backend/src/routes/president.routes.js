@@ -15,6 +15,7 @@ router.post('/declarations/bulk-delete', ctrl.bulkDeleteDeclarations);
 
 // AI image analysis + priority override
 router.post('/declarations/:id/analyze-image', ctrl.analyzeDeclarationImage);
+router.get('/declarations/:id/priority', require('../controllers/declarations.controller').getPriorityDetail);
 router.patch('/declarations/:id/priority', ctrl.overridePriority);
 
 router.post('/declarations/:id/assign', [

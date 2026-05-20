@@ -1,17 +1,14 @@
-const supabase = require('../config/db');
-const { validationResult } = require('express-validator');
-const { generateRefCitoyen } = require('../services/refGenerator.service');
-const { logStatusChange } = require('../services/statusHistory.service');
-const { notifyNewDeclaration } = require('../services/notification.service');
-'use strict';
- 
+﻿'use strict';
+
 const path    = require('path');
 const fs      = require('fs');
 const supabase = require('../config/db');
-const { validationResult }    = require('express-validator');
-const { logStatusChange }     = require('../services/statusHistory.service');
-const { notifyNewDeclaration }= require('../services/notification.service');
- 
+const { validationResult }     = require('express-validator');
+const { generateRefCitoyen }   = require('../services/refGenerator.service');
+const { logStatusChange }      = require('../services/statusHistory.service');
+const { notifyNewDeclaration } = require('../services/notification.service');
+const { calculatePriorityScore } = require('../services/priority.service');
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
  
 function mapCitizenStatus(decl) {
@@ -28,10 +25,6 @@ function mapCitizenStatus(decl) {
   return { ...decl, citizen_status: CITIZEN_STATUS_MAP[decl.status] || 'EN ATTENTE' };
 }
  
-async function generateRefCitoyen(code) {
-  const { generateRefCitoyen: gen } = require('../services/refGenerator.service');
-  return gen(code);
-}
  
 /**
  * Haversine distance in metres between two lat/lng points.
@@ -196,7 +189,22 @@ exports.create = async (req, res) => {
  
     await logStatusChange(decl.id, null, 'soumise', req.user.id);
     await notifyNewDeclaration(req.app, decl);
- 
+
+    // ── Async priority calculation (non-blocking) ─────────────────────────
+    setImmediate(async () => {
+      try {
+        const pool = supabase.pool;
+        const priority = await calculatePriorityScore({ ...decl, votes_count: 0 });
+        await pool.query(
+          'UPDATE declarations SET priority_score=$1, priority_label=$2, priority_method=$3 WHERE id=$4',
+          [priority.priority_score, priority.priority_label, priority.priority_method || 'fallback', decl.id]
+        );
+        console.log(`[Priority] ${decl.id} → ${priority.priority_label} (${priority.priority_score})`);
+      } catch (e) {
+        console.warn('[Priority] async calc failed:', e.message);
+      }
+    });
+
     return res.status(201).json({
       declaration: mapCitizenStatus(decl),
       ai_used:         usedAI,
@@ -235,195 +243,6 @@ exports.getNearSensitiveLocations = async (req, res) => {
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
-/* ── Helper: map DB enum statuses → citizen-facing statuses ── */
-const CITIZEN_STATUS_MAP = {
-  soumise:        'SOUMISE',
-  assignee_chef:  'EN COURS',
-  assignee_agent: 'EN COURS',
-  refusee_chef:   'SOUMISE',
-  refusee_agent:  'EN COURS',
-  en_cours:       'EN COURS',
-  resolue:        'ÉVALUÉ',
-  cloturee:       'CLÔTURÉ',
-};
-
-function mapCitizenStatus(decl) {
-  return {
-    ...decl,
-    citizen_status: CITIZEN_STATUS_MAP[decl.status] || decl.status,
-  };
-}
-
-const fs = require('fs');
-const path = require('path');
-const { getNextGenAI } = require('../services/gemini.rotation');
-
-/* ──────────── POST /api/declarations ──────────── */
-exports.create = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { title, description, category, delegation_id, latitude, longitude, address, has_critical_infrastructure, sensitive_type: citizenSensitiveType } = req.body;
-
-    // Resolve delegation code for ref_citoyen generation
-    const actualDelegationId = delegation_id || req.user.delegation_id;
-
-    const { data: deleg } = await supabase
-      .from('delegations')
-      .select('id, code')
-      .eq('id', actualDelegationId)
-      .single();
-
-    if (!deleg) {
-      return res.status(400).json({ error: 'Délégation invalide.' });
-    }
-
-    const refCitoyen = await generateRefCitoyen(deleg.code);
-    
-    let publicUrl = null;
-    let is_sensitive = has_critical_infrastructure === 'true' || has_critical_infrastructure === true;
-    let sensitive_type = is_sensitive ? (citizenSensitiveType || 'signalé par citoyen') : null;
-    
-    if (req.file) {
-      // --- AI Validation (Image + Text) ---
-      try {
-        const genAI = getNextGenAI();
-        const model = genAI.getGenerativeModel({ 
-          model: "gemini-1.5-flash",
-          generationConfig: { responseMimeType: "application/json" }
-        });
-        
-        const prompt = `Tu es un assistant d'analyse pour une municipalité.
-        Voici la description fournie par le citoyen : "${description || 'Aucune description'}".
-        
-        Tâche 1 : Vérifier si l'image et la description sont pertinentes. Elles doivent montrer ou décrire un problème urbain ou municipal qui relève de la compétence d'une mairie/municipalité (ex: nid-de-poule, déchets, fuite d'eau, éclairage public cassé, trottoir endommagé, etc.). Si l'image est un selfie, un meme, un spam, un écran d'ordinateur, ou un sujet personnel/privé n'ayant rien à voir avec les services municipaux, c'est NON pertinent.
-        Tâche 2 : Vérifier s'il y a des infrastructures critiques/sensibles à proximité immédiate ou mentionnées dans le signalement. S'agit-il d'une école, d'un lycée, d'une université, d'un hôpital, d'une clinique, d'un centre de santé, d'une mosquée, ou d'une administration publique ? Sois très spécifique.
-        
-        Réponds strictement avec ce format JSON :
-        {
-          "is_relevant": boolean,
-          "critical_infrastructure_nearby": boolean,
-          "infrastructure_type": "école/université" | "hôpital/clinique" | "mosquée" | "administration publique" | "autre" | null,
-          "reason": "Explication claire en français du rejet ou de la validation"
-        }`;
-        
-        const imagePart = {
-          inlineData: {
-            data: req.file.buffer.toString("base64"),
-            mimeType: req.file.mimetype
-          }
-        };
-
-        const result = await model.generateContent([prompt, imagePart]);
-        const analysis = JSON.parse(result.response.text());
-
-        if (analysis.is_relevant === false) {
-          return res.status(400).json({ error: "Rejet automatique : Ce signalement ne concerne pas un problème urbain ou municipal. " + analysis.reason });
-        }
-
-        if (analysis.critical_infrastructure_nearby) {
-          is_sensitive = true;
-          sensitive_type = analysis.infrastructure_type || sensitive_type || 'critique';
-        }
-      } catch (aiError) {
-        console.error('[Gemini] Erreur lors de l\'analyse de l\'image :', aiError.message);
-        // We do not block the submission if the AI service temporarily fails
-      }
-
-      // --- File Saving ---
-      const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
-      if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-      const ext = path.extname(req.file.originalname) || '.jpg';
-      const filename = `citoyen_${req.user.id}_${Date.now()}${ext}`;
-      const destPath = path.join(UPLOAD_DIR, filename);
-      fs.writeFileSync(destPath, req.file.buffer);
-
-      const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5005}`;
-      publicUrl = `${baseUrl}/uploads/${filename}`;
-    } else if (description) {
-      // --- AI Validation (Text Only) ---
-      try {
-        const genAI = getNextGenAI();
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        const prompt = `Tu es un assistant d'analyse pour une municipalité.
-        Voici la description fournie par le citoyen : "${description}".
-        
-        Tâche 1 : Vérifier si la description est pertinente. Elle doit décrire un problème urbain ou municipal (ex: nid-de-poule, déchets sauvages, fuite d'eau, éclairage public en panne, trottoir endommagé, etc.). Si la description est hors sujet, un spam, un meme, ou n'a aucun rapport avec la municipalité, c'est NON pertinent.
-        Tâche 2 : Vérifier s'il y a des infrastructures critiques/sensibles mentionnées (école, université, hôpital, clinique, mosquée, administration publique). Sois très spécifique.
-        
-        Réponds strictement avec ce format JSON :
-        {
-          "is_relevant": boolean,
-          "critical_infrastructure_nearby": boolean,
-          "infrastructure_type": "école/université" | "hôpital/clinique" | "mosquée" | "administration publique" | "autre" | null,
-          "reason": "Explication claire en français du rejet ou de la validation"
-        }`;
-        
-        const result = await model.generateContent([prompt]);
-        const analysis = JSON.parse(result.response.text());
-        
-        if (analysis.is_relevant === false) {
-          return res.status(400).json({ error: "Rejet automatique : Ce signalement ne concerne pas un problème urbain ou municipal. " + analysis.reason });
-        }
-
-        if (analysis.critical_infrastructure_nearby) {
-          is_sensitive = true;
-          sensitive_type = analysis.infrastructure_type || sensitive_type || 'critique';
-        }
-      } catch (aiErr) {
-        console.error('[Gemini text] Erreur:', aiErr.message);
-      }
-    }
-
-    const { data: decl, error } = await supabase
-      .from('declarations')
-      .insert({
-        title:         title.trim(),
-        description:   description.trim(),
-        category:      category || null,
-        delegation_id: actualDelegationId,
-        citizen_id:    req.user.id,
-        user_id:       req.user.id,
-        ref_citoyen:   refCitoyen,
-        status:        'soumise',
-        latitude:      latitude || null,
-        longitude:     longitude || null,
-        address:       address || null,
-        priority:      req.body.priority || 'moyenne',
-        photo_avant:   publicUrl,
-        is_sensitive:  is_sensitive,
-        sensitive_type: sensitive_type,
-        is_deleted:    false,
-      })
-      .select('*')
-      .single();
-
-    if (error) {
-      console.error('[Declarations] Create error:', error.message);
-      return res.status(500).json({ error: 'Erreur lors de la soumission.' });
-    }
-
-    if (publicUrl) {
-      await supabase.from('declaration_photos').insert({
-        declaration_id: decl.id,
-        url: publicUrl,
-        uploaded_by: req.user.id
-      });
-    }
-
-    await logStatusChange(decl.id, null, 'soumise', req.user.id);
-    await notifyNewDeclaration(req.app, decl);
-
-    return res.status(201).json({ declaration: mapCitizenStatus(decl) });
-  } catch (err) {
-    console.error('[Declarations] Create error:', err);
-    return res.status(500).json({ error: 'Erreur serveur.' });
-  }
-};
 
 /* ──────────── GET /api/declarations/mine ──────────── */
 exports.mine = async (req, res) => {
@@ -432,7 +251,7 @@ exports.mine = async (req, res) => {
     const limitNum = parseInt(limit, 10);
     const offset = (parseInt(page, 10) - 1) * limitNum;
 
-    const { pool } = require('../config/db');
+    const pool = supabase.pool;
     const [dataRes, countRes] = await Promise.all([
       pool.query(`SELECT d.*, CASE WHEN d.status IN ('resolue','cloturee') THEN 'RESOLUE'
         WHEN d.status IN ('assignee_chef','assignee_agent','en_cours','refusee_agent') THEN 'EN COURS'
@@ -497,7 +316,7 @@ exports.nearby = async (req, res) => {
 /* ──────────── GET /api/declarations/map ──────────── */
 exports.map = async (req, res) => {
   try {
-    const { pool } = require('../config/db');
+    const pool = supabase.pool;
     
     // We query declarations directly to ensure we get all statuses (soumise, en_cours, resolue, cloturee)
     // and join with ratings to get the citizen's score and comment if they exist.
@@ -682,6 +501,27 @@ exports.vote = async (req, res) => {
     if (rpcErr) {
       console.error('[Declarations] Vote count increment error:', rpcErr.message);
     }
+
+    // ── Async priority recalculation ───────────────────────────────────
+    setImmediate(async () => {
+      try {
+        const { data: freshDecl } = await supabase
+          .from('declarations')
+          .select('*, votes_count')
+          .eq('id', id)
+          .single();
+        if (freshDecl) {
+          const priority = await calculatePriorityScore(freshDecl);
+          const pool = supabase.pool;
+          await pool.query(
+            'UPDATE declarations SET priority_score=$1, priority_label=$2, priority_method=$3 WHERE id=$4',
+            [priority.priority_score, priority.priority_label, priority.priority_method || 'fallback', id]
+          );
+        }
+      } catch (e) {
+        console.warn('[Priority] vote recalc failed:', e.message);
+      }
+    });
 
     return res.status(201).json({ message: 'Vote enregistré.' });
   } catch (err) {
@@ -962,6 +802,7 @@ exports.getById = async (req, res) => {
       if (decl.department_id !== req.user.department_id) {
         return res.status(403).json({ error: 'Hors de votre département.' });
       }
+        updated_at: new Date().toISOString() 
     }
 
     return res.status(200).json({ declaration: mapCitizenStatus(decl) });
@@ -969,206 +810,23 @@ exports.getById = async (req, res) => {
     console.error('[Declarations] getById error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
-  // ============================================================
-// PATCH for declarations.controller.js
-// Add/replace these exports in your existing controller
-// ============================================================
-
-const { supabase } = require('../config/supabase');
-
-// ── HELPER: detect sensitive location via DB function ────────────────
-async function detectSensitiveLocation(lat, lng) {
-  if (!lat || !lng) return { nearby: false };
-  const { data, error } = await supabase.rpc('is_near_sensitive_location', {
-    p_lat: parseFloat(lat),
-    p_lng: parseFloat(lng),
-  });
-  if (error || !data) return { nearby: false };
-  // RPC returns array of rows from OUT params
-  const row = Array.isArray(data) ? data[0] : data;
-  return {
-    nearby:        row.nearby        ?? false,
-    location_type: row.location_type ?? null,
-    location_name: row.location_name ?? null,
-    distance_m:    row.distance_m    ?? null,
-    bonus:         row.bonus         ?? 0,
-  };
-}
-
-// ── CREATE DECLARATION (replace exports.create) ──────────────────────
-exports.create = async (req, res) => {
-  try {
-    const citizenId = req.user?.id;
-    if (!citizenId) return res.status(401).json({ error: 'Non authentifié' });
-
-    const {
-      title, description, type_probleme, address,
-      latitude, longitude, service_id, photo_avant_url,
-      delegation_id, category,
-      // AI fields from citizen frontend (optional)
-      ai_priority        = 'normal',
-      ai_priority_score  = 5.0,
-      ai_confidence      = 0.5,
-      ai_reasoning       = null,
-      ai_visible_issues  = null,
-      used_ai_vision     = false,
-    } = req.body;
-
-    if (!title?.trim()) {
-      return res.status(400).json({ error: 'Le titre est obligatoire' });
-    }
-
-    // Detect sensitive location server-side
-    const locInfo = await detectSensitiveLocation(latitude, longitude);
-
-    // Insert declaration — DB trigger will compute final priority
-    const { data, error } = await supabase
-      .from('declarations')
-      .insert({
-        citizen_id:        citizenId,
-        title:             title.trim(),
-        description:       description?.trim() ?? null,
-        type_probleme:     type_probleme ?? null,
-        address:           address ?? null,
-        latitude:          latitude ? parseFloat(latitude) : null,
-        longitude:         longitude ? parseFloat(longitude) : null,
-        service_id:        service_id ?? null,
-        photo_avant_url:   photo_avant_url ?? null,
-        delegation_id:     delegation_id ?? null,
-        category:          category ?? null,
-        status:            'soumise',
-        // AI fields
-        ai_priority:       ai_priority,
-        ai_priority_score: parseFloat(ai_priority_score) || 5.0,
-        ai_confidence:     parseFloat(ai_confidence)     || 0.5,
-        ai_reasoning:      ai_reasoning,
-        ai_visible_issues: ai_visible_issues,
-        // Location (trigger will also set these, but pass them explicitly)
-        is_sensitive:      locInfo.nearby,
-        sensitive_type:    locInfo.location_type,
-      })
-      .select(`
-        *,
-        services(name_fr, icon),
-        users!declarations_citizen_id_fkey(first_name, last_name)
-      `)
-      .single();
-
-    if (error) throw error;
-    return res.status(201).json({ success: true, data });
-
-  } catch (err) {
-    console.error('[declarations.create]', err);
-    return res.status(500).json({ error: err.message ?? 'Erreur serveur' });
-  }
 };
-
-// ── GET NEARBY SENSITIVE LOCATIONS ──────────────────────────────────
-// Route: GET /declarations/nearby/sensitive?lat=...&lng=...
-exports.getNearSensitiveLocations = async (req, res) => {
-  try {
-    const { lat, lng, radius = 1000 } = req.query;
-    if (!lat || !lng) {
-      return res.status(400).json({ error: 'lat et lng sont requis' });
-    }
-
-    const { data, error } = await supabase
-      .from('sensitive_locations')
-      .select('id, name, type, latitude, longitude, address, bonus_score, radius_m')
-      .eq('is_active', true);
-
-    if (error) throw error;
-
-    // Filter by distance client-side (or use PostGIS in prod)
-    const lat_ = parseFloat(lat), lng_ = parseFloat(lng), r = parseFloat(radius);
-    const nearby = (data ?? []).filter(loc => {
-      const dist = haversineMeters(lat_, lng_, loc.latitude, loc.longitude);
-      return dist <= r;
-    }).map(loc => ({
-      ...loc,
-      distance_m: Math.round(haversineMeters(lat_, lng_, loc.latitude, loc.longitude)),
-    })).sort((a, b) => a.distance_m - b.distance_m);
-
-    return res.json({ data: nearby, count: nearby.length });
-  } catch (err) {
-    console.error('[getNearSensitiveLocations]', err);
-    return res.status(500).json({ error: err.message });
-  }
-};
-
-// ── PRESIDENT: APPROVE / OVERRIDE PRIORITY ──────────────────────────
-// Route: POST /declarations/:id/priority
-exports.approvePriority = async (req, res) => {
-  try {
-    const presidentId = req.user?.id;
-    const { id } = req.params;
-    const { override, note } = req.body;
-
-    if (!presidentId) return res.status(401).json({ error: 'Non authentifié' });
-
-    // Validate override value
-    const VALID = ['faible', 'normal', 'urgent', null, undefined, ''];
-    if (!VALID.includes(override)) {
-      return res.status(400).json({ error: 'Valeur de priorité invalide' });
-    }
-
-    const { data, error } = await supabase.rpc('approve_priority', {
-      p_declaration_id: id,
-      p_override:       override || null,
-      p_note:           note?.trim() || null,
-      p_president_id:   presidentId,
-    });
-
-    if (error) throw error;
-    return res.json({ success: true, data });
-
-  } catch (err) {
-    console.error('[approvePriority]', err);
-    return res.status(500).json({ error: err.message });
-  }
-};
-
-// ── GET DECLARATION PRIORITY DETAIL ─────────────────────────────────
-// Route: GET /declarations/:id/priority
 exports.getPriorityDetail = async (req, res) => {
   try {
     const { id } = req.params;
-    const { data, error } = await supabase
-      .from('v_declaration_priority')
-      .select('*')
+    const { data: decl, error } = await supabase
+      .from('declarations')
+      .select('id, priority_score, priority_label, priority_method, priority_meta, president_override, president_override_note, priority_approved, priority_approved_at')
       .eq('id', id)
       .single();
 
-    if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Déclaration introuvable' });
+    if (error || !decl) {
+      return res.status(404).json({ error: 'Déclaration introuvable ou erreur DB.' });
+    }
 
-    return res.json({ data });
+    return res.json(decl);
   } catch (err) {
-    console.error('[getPriorityDetail]', err);
-    return res.status(500).json({ error: err.message });
+    console.error('[Declarations] getPriorityDetail error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
   }
-};
-
-// ── Haversine helper ─────────────────────────────────────────────────
-function haversineMeters(lat1, lng1, lat2, lng2) {
-  const R = 6371000;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) *
-    Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-// ── ADD TO declarations.routes.js ────────────────────────────────────
-/*
-  const ctrl = require('./declarations.controller');
-
-  router.post('/',                          auth, ctrl.create);
-  router.get('/nearby/sensitive',           ctrl.getNearSensitiveLocations);
-  router.get('/:id/priority',              auth, ctrl.getPriorityDetail);
-  router.post('/:id/priority',     presidentOnly, ctrl.approvePriority);
-*/
 };
