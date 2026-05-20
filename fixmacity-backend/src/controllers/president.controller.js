@@ -80,8 +80,8 @@ exports.listDeclarations = async (req, res) => {
 exports.getDeclarationDetail = async (req, res) => {
   try {
     const { id } = req.params;
-
-    // 1. Fetch declaration with joins
+ 
+    // 1. Full declaration fetch — include ALL priority fields
     const { data: decl, error } = await supabase
       .from('declarations')
       .select(`
@@ -92,19 +92,13 @@ exports.getDeclarationDetail = async (req, res) => {
       `)
       .eq('id', id)
       .is('deleted_at', null)
-
       .single();
-
-    if (error || !decl) {
-      return res.status(404).json({ error: 'Déclaration introuvable.' });
-    }
-
-    // 1b. Normalize department name field
-    if (decl.department) {
-      decl.department.name = decl.department.name_fr || decl.department.name;
-    }
-
-    // 1c. Fetch the chef de service via users.department_id
+ 
+    if (error || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
+ 
+    if (decl.department) decl.department.name = decl.department.name_fr || decl.department.name;
+ 
+    // 2. Chef de service
     let chef = null;
     if (decl.department_id) {
       const { data: chefData } = await supabase
@@ -117,197 +111,211 @@ exports.getDeclarationDetail = async (req, res) => {
         .maybeSingle();
       chef = chefData || null;
     }
-
-    // 2. Fetch photos
-    const { data: rawPhotos } = await supabase
-      .from('declaration_photos')
-      .select('*')
-      .eq('declaration_id', id);
-
-    const BASE_URL = process.env.BASE_URL || 'http://localhost:5005';
-    const resolvePhotoUrl = (raw) => {
-      if (!raw) return null;
-      if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-      const path = raw.startsWith('/') ? raw : `/${raw}`;
-      return `${BASE_URL}${path}`;
-    };
-
-    const photos = (rawPhotos || []).map(p => ({
-      ...p,
-      url: resolvePhotoUrl(p.url)
-    }));
-
-    const defaultPhoto = decl.photo_avant || decl.image_url;
-    if (defaultPhoto) {
-      decl.photo_avant = resolvePhotoUrl(defaultPhoto);
-      decl.image_url = decl.photo_avant; // Ensure both are populated for frontend compatibility
-      if (!photos.some(p => p.photo_type === 'photo_avant' || !p.photo_type)) {
-        photos.unshift({
-          id: 'citizen_photo',
-          url: decl.photo_avant,
-          photo_type: 'photo_avant',
-          uploaded_by: decl.citizen_id,
-          created_at: decl.created_at
-        });
-      }
-    }
-
-    // 3. Fetch history
+ 
+    // 3. Photos
+    const { data: photos } = await supabase
+      .from('declaration_photos').select('*').eq('declaration_id', id);
+ 
+    // 4. History with user info
     const { data: history } = await supabase
       .from('status_history')
-      .select(`
-        *,
-        user:users(id, first_name, last_name, role)
-      `)
+      .select('*, user:users(id, first_name, last_name, role)')
       .eq('declaration_id', id)
       .order('created_at', { ascending: false });
-
-    // 4. Fetch comments
+ 
+    // 5. Comments
     const { data: comments } = await supabase
       .from('internal_comments')
-      .select(`
-        *,
-        user:users(id, first_name, last_name, role)
-      `)
+      .select('*, user:users(id, first_name, last_name, role)')
       .eq('declaration_id', id)
       .order('created_at', { ascending: true });
-
+ 
+    // 6. Sensitive locations near this declaration (for display in the panel)
+    let nearbyLocations = [];
+    if (decl.latitude && decl.longitude) {
+      const { data: allLocs } = await supabase.from('sensitive_locations').select('*').catch(() => ({ data: [] }));
+      if (allLocs?.length) {
+        nearbyLocations = allLocs
+          .map(loc => {
+            const dist = haversineM(decl.latitude, decl.longitude, loc.latitude, loc.longitude);
+            return { ...loc, distance_m: Math.round(dist) };
+          })
+          .filter(loc => loc.distance_m <= 800)
+          .sort((a, b) => a.distance_m - b.distance_m);
+      }
+    }
+ 
+    // 7. Compute live priority score for display
+    //    (mirrors what the DB trigger does, so president sees exact breakdown)
+    const aiScore    = decl.ai_priority === 'urgent' ? 10 : decl.ai_priority === 'normal' ? 5 : decl.ai_priority === 'faible' ? 1 : 0;
+    const voteBonus  = Math.min(decl.votes_count || 0, 5);
+    const locBonus   = decl.is_sensitive
+      ? (decl.sensitive_type === 'hospital' ? 4 : decl.sensitive_type === 'school' ? 3 : 2)
+      : 0;
+    const totalScore = aiScore + voteBonus + locBonus;
+    const autoLabel  = totalScore >= 12 ? 'urgent' : totalScore >= 5 ? 'normal' : 'faible';
+ 
+    const priorityBreakdown = {
+      ai_score:    aiScore,
+      vote_bonus:  voteBonus,
+      loc_bonus:   locBonus,
+      total_score: totalScore,
+      auto_label:  autoLabel,   // what the system computed
+    };
+ 
     return res.status(200).json({
       declaration: { ...decl, chef },
       photos: photos || [],
       history: history || [],
-      comments: comments || []
+      comments: comments || [],
+      priority_breakdown: priorityBreakdown,
+      nearby_locations: nearbyLocations,
     });
   } catch (e) {
     console.error('[President] getDeclarationDetail error:', e);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
-
+ 
 /* ──────────── POST /api/president/declarations/:id/analyze-image ──────────── */
 exports.analyzeDeclarationImage = async (req, res) => {
   try {
     const { id } = req.params;
-
-    // 1. Fetch the declaration to get image URL and context
+ 
     const { data: decl, error } = await supabase
       .from('declarations')
-      .select('id, title, category, description, image_url, photo_avant, is_sensitive, sensitive_type, votes_count')
+      .select('id, title, category, description, photo_avant, image_url, is_sensitive, sensitive_type, votes_count, latitude, longitude')
       .eq('id', id)
       .is('deleted_at', null)
       .single();
-
-    if (error || !decl) {
-      return res.status(404).json({ error: 'Déclaration introuvable.' });
+ 
+    if (error || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
+ 
+    // Resolve image URL — try photo_avant first, then image_url, then first photo record
+    let imageUrl = decl.photo_avant || decl.image_url;
+    if (!imageUrl) {
+      const { data: firstPhoto } = await supabase
+        .from('declaration_photos').select('url').eq('declaration_id', id).limit(1).maybeSingle();
+      imageUrl = firstPhoto?.url || null;
     }
-
-    // Resolve the best available image (photo_avant takes priority over image_url)
-    const BASE_URL = process.env.BASE_URL || 'http://localhost:5005';
-    const resolveUrl = (raw) => {
-      if (!raw) return null;
-      if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-      return `${BASE_URL}${raw.startsWith('/') ? raw : `/${raw}`}`;
-    };
-    const rawImageUrl = decl.photo_avant || decl.image_url;
-    const resolvedImageUrl = resolveUrl(rawImageUrl);
-
-    if (!resolvedImageUrl) {
-      return res.status(400).json({ error: 'Aucune image disponible pour cette déclaration.' });
-    }
-
-    // 2. Fetch image as base64
-    const imageRes = await fetch(resolvedImageUrl);
-    if (!imageRes.ok) {
-      return res.status(502).json({ error: 'Impossible de récupérer l\'image.' });
-    }
-    const imageBuffer = await imageRes.arrayBuffer();
-    const base64Image = Buffer.from(imageBuffer).toString('base64');
-    const mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
-
-    // 3. Build context-aware prompt
-    const contextInfo = [
-      `Titre: ${decl.title}`,
-      `Catégorie: ${decl.category || 'Non spécifiée'}`,
-      `Description du citoyen: ${decl.description || 'Aucune'}`,
-      decl.sensitive_type && decl.sensitive_type !== 'none'
-        ? `Zone sensible: ${decl.sensitive_type === 'hospital' ? 'Proximité hôpital' : 'Proximité école'}`
-        : '',
-      decl.votes_count > 0 ? `Votes communautaires: ${decl.votes_count}` : '',
-    ].filter(Boolean).join('\n');
-
-    const prompt = `Tu es un expert en maintenance urbaine municipale pour la ville de Sousse (Tunisie).
-
-Analyse cette photo d'un signalement citoyen et évalue sa priorité d'intervention.
-
-Contexte du signalement:
-${contextInfo}
-
-Évalue la priorité selon ces critères:
-- CRITIQUE: Danger immédiat pour la sécurité (nid-de-poule profond, câble électrique exposé, fuite d'eau importante, éclairage public cassé sur route principale, etc.)
-- NORMAL: Problème visible nécessitant une intervention rapide mais sans danger immédiat
-- FAIBLE: Problème esthétique ou mineur (graffiti, fissure superficielle, herbe non taillée, etc.)
-
+ 
+    // Build score from non-AI signals regardless of whether we have an image
+    const voteBonus = Math.min(decl.votes_count || 0, 5);
+    const locBonus  = decl.is_sensitive
+      ? (decl.sensitive_type === 'hospital' ? 4 : decl.sensitive_type === 'school' ? 3 : 2)
+      : 0;
+ 
+    let aiResult = null;
+ 
+    // Only call Gemini if we have an image
+    if (imageUrl) {
+      try {
+        const imageRes = await fetch(imageUrl);
+        if (!imageRes.ok) throw new Error('Image fetch failed');
+        const imageBuffer = await imageRes.arrayBuffer();
+        const base64Image = Buffer.from(imageBuffer).toString('base64');
+        const mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
+ 
+        const contextParts = [
+          `Titre: ${decl.title}`,
+          `Catégorie: ${decl.category || 'Non spécifiée'}`,
+          `Description: ${decl.description || 'Aucune'}`,
+          decl.is_sensitive ? `Zone sensible: ${decl.sensitive_type === 'hospital' ? 'Proximité hôpital' : 'Proximité école'}` : '',
+          decl.votes_count > 0 ? `Votes communautaires: ${decl.votes_count}` : '',
+        ].filter(Boolean).join('\n');
+ 
+        const prompt = `Tu es expert en maintenance urbaine à Sousse, Tunisie.
+Analyse cette photo et évalue la priorité d'intervention municipale.
+ 
+Contexte:
+${contextParts}
+ 
+Critères:
+- URGENT: Danger immédiat (nid-de-poule profond, câble électrique exposé, fuite d'eau majeure, éclairage cassé sur route principale)
+- NORMAL: Problème visible nécessitant intervention rapide sans danger immédiat
+- FAIBLE: Problème esthétique ou mineur (graffiti, fissure légère, herbe haute)
+ 
 Réponds UNIQUEMENT avec ce JSON (sans markdown):
 {
-  "priority": "critique" | "normal" | "faible",
+  "priority": "urgent" | "normal" | "faible",
   "confidence": 0-100,
-  "severity_label": "courte étiquette (max 4 mots)",
-  "reasoning": "explication courte en 1-2 phrases max en français",
-  "visible_issues": ["liste", "des", "problèmes", "visibles"]
+  "severity_label": "max 4 mots",
+  "reasoning": "1-2 phrases en français",
+  "visible_issues": ["problème1", "problème2"]
 }`;
-
-    // 4. Call Gemini Vision
-    const genAI = getNextGenAI();
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          mimeType,
-          data: base64Image,
-        },
-      },
-    ]);
-
-    const text = result.response.text().trim();
-
-    // 5. Parse JSON response
-    let analysis;
-    try {
-      // Strip possible ```json ``` wrapping
-      const jsonStr = text.replace(/^```json?\n?/, '').replace(/\n?```$/, '').trim();
-      analysis = JSON.parse(jsonStr);
-    } catch {
-      console.error('[President] Gemini response parse error:', text);
-      return res.status(500).json({ error: 'Réponse IA invalide.', raw: text });
+ 
+        const genAI = getNextGenAI();
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const result = await model.generateContent([prompt, { inlineData: { mimeType, data: base64Image } }]);
+        const text = result.response.text().trim();
+        const jsonStr = text.replace(/^```json?\n?/, '').replace(/\n?```$/, '').trim();
+        aiResult = JSON.parse(jsonStr);
+ 
+        // Normalize priority value
+        const prioMap = {
+          critique: 'urgent', critical: 'urgent', urgent: 'urgent',
+          normal: 'normal', normale: 'normal', medium: 'normal',
+          faible: 'faible', low: 'faible', basse: 'faible',
+        };
+        aiResult.priority = prioMap[aiResult.priority?.toLowerCase()] || 'normal';
+      } catch (aiErr) {
+        console.warn('[President] Gemini call failed, using fallback score:', aiErr.message);
+        // aiResult stays null → we compute without AI
+      }
     }
-
-    // 6. Normalize priority to our 3 levels
-    const priorityMap = {
-      critique: 'critical',
-      critical: 'critical',
-      normal: 'normal',
-      normale: 'normal',
-      faible: 'low',
-      low: 'low',
-      basse: 'low',
+ 
+    // Score computation
+    const aiScore = aiResult
+      ? (aiResult.priority === 'urgent' ? 10 : aiResult.priority === 'normal' ? 5 : 1)
+      : 0;
+    const totalScore = aiScore + voteBonus + locBonus;
+    const autoLabel  = totalScore >= 12 ? 'urgent' : totalScore >= 5 ? 'normal' : 'faible';
+ 
+    // Persist analysis result to declarations table
+    const updatePayload = {
+      ai_priority:           aiResult ? aiResult.priority : null,
+      ai_confidence:         aiResult?.confidence || null,
+      ai_reasoning:          aiResult?.reasoning || null,
+      ai_visible_issues:     aiResult?.visible_issues || [],
+      ai_severity_label:     aiResult?.severity_label || null,
+      ai_analyzed_at:        new Date().toISOString(),
+      priority_score:        totalScore,
+      // Mirror final priority into DB priority column (unless president already locked it)
+      ...(!(decl.ai_priority_confirmed) && {
+        priority: autoLabel === 'urgent' ? 'haute' : autoLabel === 'normal' ? 'moyenne' : 'basse',
+      }),
     };
-    const normalizedPriority = priorityMap[analysis.priority?.toLowerCase()] || 'normal';
-
+ 
+    await supabase.from('declarations').update(updatePayload).eq('id', id).is('deleted_at', null);
+ 
     return res.status(200).json({
-      ai_priority: normalizedPriority,
-      ai_priority_label: analysis.priority,
-      confidence: analysis.confidence || 75,
-      severity_label: analysis.severity_label || '',
-      reasoning: analysis.reasoning || '',
-      visible_issues: analysis.visible_issues || [],
+      // AI analysis (null if no image or AI failed)
+      has_image:     !!imageUrl,
+      ai_used:       !!aiResult,
+      ai_priority:   aiResult?.priority || null,
+      ai_confidence: aiResult?.confidence || null,
+      ai_reasoning:  aiResult?.reasoning || null,
+      ai_visible_issues: aiResult?.visible_issues || [],
+      ai_severity_label: aiResult?.severity_label || null,
+      // Score breakdown
+      score_breakdown: {
+        ai_score:    aiScore,
+        vote_bonus:  voteBonus,
+        loc_bonus:   locBonus,
+        total_score: totalScore,
+      },
+      // Final computed label
+      computed_priority: autoLabel,
     });
   } catch (e) {
     console.error('[President] analyzeDeclarationImage error:', e);
-    return res.status(500).json({ error: 'Erreur lors de l\'analyse IA.' });
+    return res.status(500).json({ error: 'Erreur lors de l\'analyse.' });
   }
 };
+
+
+
+
 
 /* ──────────── PATCH /api/president/declarations/:id/priority ──────────── */
 exports.overridePriority = async (req, res) => {

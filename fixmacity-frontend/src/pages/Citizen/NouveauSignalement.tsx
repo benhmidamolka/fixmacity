@@ -513,6 +513,10 @@ function Step3({ data, onChange, onNext, onBack }: any) {
         urgency:     result.urgency,
         hazard:      result.hazard,
         hazard_note: result.hazard_note,
+        // Mark that AI vision was used + capture confidence for backend
+        ai_analyzed:   true,
+        ai_confidence: 85,   // default confidence when Gemini responds
+        ai_reasoning:  result.hazard_note || result.description || '',
       })
       setAiDone(true)
     } catch {
@@ -857,6 +861,10 @@ const NouveauSignalement: React.FC = () => {
     category: '', urgency: 'moyen', title: '', description: '',
     photo: null as File | null, hazard: false, hazard_note: '',
     has_critical_infrastructure: false, sensitive_type: '',
+    // AI vision result fields
+    ai_analyzed: false,
+    ai_confidence: 0,
+    ai_reasoning: '',
   })
 
   const update = (patch: Partial<typeof formData>) => setFormData(prev => ({ ...prev, ...patch }))
@@ -873,9 +881,35 @@ const NouveauSignalement: React.FC = () => {
       body.append('latitude',      String(formData.latitude))
       body.append('longitude',     String(formData.longitude))
       body.append('address',       formData.address)
-      body.append('priority',      formData.urgency || 'moyen')
+
+      // ── AI vision fields ──────────────────────────────────────────
+      if (formData.ai_analyzed) {
+        // Map urgency → ai_priority label the backend understands
+        const urgencyToAI: Record<string, string> = {
+          urgent: 'haute', moyen: 'moyenne', faible: 'basse'
+        }
+        body.append('ai_priority',     urgencyToAI[formData.urgency] || 'moyenne')
+        body.append('used_ai_vision',  'true')
+        body.append('ai_confidence',   String(formData.ai_confidence || 80))
+        body.append('ai_reasoning',    formData.ai_reasoning || '')
+        body.append('ai_severity_label', formData.urgency)
+      } else {
+        // Manual urgency — still send as priority fallback
+        const urgencyToDb: Record<string, string> = {
+          urgent: 'haute', moyen: 'moyenne', faible: 'basse'
+        }
+        body.append('priority',        urgencyToDb[formData.urgency] || 'moyenne')
+        body.append('used_ai_vision',  'false')
+      }
+
+      // ── Hazard flag ───────────────────────────────────────────────
+      body.append('hazard',      String(formData.hazard))
+      body.append('hazard_note', formData.hazard_note || '')
+
+      // ── Sensitive zone (citizen self-report) ──────────────────────
       body.append('has_critical_infrastructure', String(formData.has_critical_infrastructure || false))
-      body.append('sensitive_type', formData.sensitive_type || '')
+      body.append('citizen_sensitive_type',      formData.sensitive_type || '')
+
       if (formData.photo) body.append('photo', formData.photo)
       const res  = await fetch(`${API}/declarations`, {
         method: 'POST', headers: { Authorization: `Bearer ${token}` }, body,
@@ -901,7 +935,8 @@ const NouveauSignalement: React.FC = () => {
       latitude:0, longitude:0, address:'', delegation_id:'',
       category:'', urgency:'moyen', title:'', description:'',
       photo:null, hazard:false, hazard_note:'',
-      has_critical_infrastructure: false, sensitive_type: ''
+      has_critical_infrastructure: false, sensitive_type: '',
+      ai_analyzed: false, ai_confidence: 0, ai_reasoning: '',
     })
   }
 
