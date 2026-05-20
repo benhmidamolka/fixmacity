@@ -142,13 +142,13 @@ exports.getDeclarationDetail = async (req, res) => {
       decl.photo_avant = resolvePhotoUrl(defaultPhoto);
       decl.image_url = decl.photo_avant; // Ensure both are populated for frontend compatibility
       if (!photos.some(p => p.photo_type === 'photo_avant' || !p.photo_type)) {
-         photos.unshift({
-           id: 'citizen_photo',
-           url: decl.photo_avant,
-           photo_type: 'photo_avant',
-           uploaded_by: decl.citizen_id,
-           created_at: decl.created_at
-         });
+        photos.unshift({
+          id: 'citizen_photo',
+          url: decl.photo_avant,
+          photo_type: 'photo_avant',
+          uploaded_by: decl.citizen_id,
+          created_at: decl.created_at
+        });
       }
     }
 
@@ -313,28 +313,41 @@ Réponds UNIQUEMENT avec ce JSON (sans markdown):
 exports.overridePriority = async (req, res) => {
   try {
     const { id } = req.params;
-    const { priority, ai_confirmed, president_override, president_override_note } = req.body;
+    const { priority, ai_confirmed, president_override, president_override_note, president_id } = req.body;
 
     const updateData = {
       updated_at: new Date().toISOString(),
       priority_approved: true,
-      priority_approved_at: new Date().toISOString()
+      priority_approved_at: new Date().toISOString(),
     };
 
+    // Map any priority string to DB values
+    const levelToDb = (level) => {
+      const v = (level || '').toLowerCase();
+      if (['urgent', 'critique', 'critical', 'haute', 'high'].includes(v)) return { priority: 'haute', priority_score: 90 };
+      if (['faible', 'low', 'basse'].includes(v)) return { priority: 'basse', priority_score: 15 };
+      return { priority: 'moyenne', priority_score: 50 };
+    };
+
+    // Handle AIPriorityPanel format: president_override field
     if (president_override !== undefined) {
       updateData.president_override = president_override;
-      updateData.president_override_note = president_override_note;
+      updateData.president_override_note = president_override_note ?? null;
+      if (president_override) {
+        const mapped = levelToDb(president_override);
+        updateData.priority = mapped.priority;
+        updateData.priority_score = mapped.priority_score;
+      }
     }
 
-    // Maintain backward compatibility for older payload
+    // Handle older format: priority field (critical/normal/low)
     if (priority) {
       if (!['critical', 'normal', 'low'].includes(priority)) {
-        return res.status(400).json({ error: 'Priorité invalide. Valeurs acceptées: critical, normal, low.' });
+        return res.status(400).json({ error: 'Priorité invalide.' });
       }
-      const dbPriorityMap = { critical: 'haute', normal: 'moyenne', low: 'basse' };
-      const scoreMap = { critical: 90, normal: 50, low: 15 };
-      updateData.priority = dbPriorityMap[priority];
-      updateData.priority_score = scoreMap[priority];
+      const mapped = levelToDb(priority);
+      updateData.priority = mapped.priority;
+      updateData.priority_score = mapped.priority_score;
       updateData.ai_priority_confirmed = ai_confirmed ?? true;
     }
 
@@ -343,7 +356,7 @@ exports.overridePriority = async (req, res) => {
       .update(updateData)
       .eq('id', id)
       .is('deleted_at', null)
-      .select('*')
+      .select('id, priority, priority_score, president_override, president_override_note, priority_approved, priority_approved_at')
       .single();
 
     if (error) {
@@ -351,13 +364,29 @@ exports.overridePriority = async (req, res) => {
       return res.status(500).json({ error: 'Erreur lors de la mise à jour.' });
     }
 
-    return res.status(200).json({ success: true, declaration: updated });
+    // Return in format AIPriorityPanel expects
+    const mapToLevel = (val) => {
+      if (!val) return 'normal';
+      const v = val.toLowerCase();
+      if (['haute', 'high', 'critique', 'critical', 'urgent'].includes(v)) return 'urgent';
+      if (['basse', 'low', 'faible'].includes(v)) return 'faible';
+      return 'normal';
+    };
+
+    return res.status(200).json({
+      success: true,
+      final_priority: mapToLevel(updated.priority),
+      president_override: updated.president_override ? mapToLevel(updated.president_override) : null,
+      president_override_note: updated.president_override_note,
+      priority_approved: updated.priority_approved,
+      priority_approved_at: updated.priority_approved_at,
+      declaration: updated,
+    });
   } catch (e) {
     console.error('[President] overridePriority error:', e);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
-
 /* ──────────── POST /api/president/declarations/:id/assign ──────────── */
 exports.assignDeclaration = async (req, res) => {
   try {
@@ -466,28 +495,28 @@ exports.assignDeclaration = async (req, res) => {
         const refServiceSub = await generateRefService(serviceAdd.code);
 
         const subDeclData = {
-          title:          decl.title,
-          description:    decl.description,
-          category:       decl.category || null,
-          delegation_id:  decl.delegation_id,
-          citizen_id:     decl.citizen_id,
-          user_id:        decl.user_id,
-          ref_citoyen:    decl.ref_citoyen,
-          status:         'assignee_chef',
-          department_id:  addDeptId,
-          service_id:     addDeptId,
-          ref_service:    refServiceSub,
+          title: decl.title,
+          description: decl.description,
+          category: decl.category || null,
+          delegation_id: decl.delegation_id,
+          citizen_id: decl.citizen_id,
+          user_id: decl.user_id,
+          ref_citoyen: decl.ref_citoyen,
+          status: 'assignee_chef',
+          department_id: addDeptId,
+          service_id: addDeptId,
+          ref_service: refServiceSub,
           priority_score: priority_score,
-          planned_start:  planned_start || null,
-          planned_end:    planned_end || null,
-          assigned_at:    new Date().toISOString(),
-          updated_at:     new Date().toISOString(),
-          latitude:       decl.latitude || null,
-          longitude:      decl.longitude || null,
-          address:        decl.address || null,
-          priority:       decl.priority || 'moyenne',
-          photo_avant:    decl.photo_avant || null,
-          is_deleted:     false,
+          planned_start: planned_start || null,
+          planned_end: planned_end || null,
+          assigned_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          latitude: decl.latitude || null,
+          longitude: decl.longitude || null,
+          address: decl.address || null,
+          priority: decl.priority || 'moyenne',
+          photo_avant: decl.photo_avant || null,
+          is_deleted: false,
         };
 
         const { data: subDecl, error: subDeclErr } = await supabase
@@ -644,28 +673,28 @@ exports.reassignDeclaration = async (req, res) => {
         const refServiceSub = await generateRefService(serviceAdd.code);
 
         const subDeclData = {
-          title:          decl.title,
-          description:    decl.description,
-          category:       decl.category || null,
-          delegation_id:  decl.delegation_id,
-          citizen_id:     decl.citizen_id,
-          user_id:        decl.user_id,
-          ref_citoyen:    decl.ref_citoyen,
-          status:         'assignee_chef',
-          department_id:  addDeptId,
-          service_id:     addDeptId,
-          ref_service:    refServiceSub,
+          title: decl.title,
+          description: decl.description,
+          category: decl.category || null,
+          delegation_id: decl.delegation_id,
+          citizen_id: decl.citizen_id,
+          user_id: decl.user_id,
+          ref_citoyen: decl.ref_citoyen,
+          status: 'assignee_chef',
+          department_id: addDeptId,
+          service_id: addDeptId,
+          ref_service: refServiceSub,
           priority_score: priority_score,
-          planned_start:  planned_start || null,
-          planned_end:    planned_end || null,
-          assigned_at:    new Date().toISOString(),
-          updated_at:     new Date().toISOString(),
-          latitude:       decl.latitude || null,
-          longitude:      decl.longitude || null,
-          address:        decl.address || null,
-          priority:       decl.priority || 'moyenne',
-          photo_avant:    decl.photo_avant || null,
-          is_deleted:     false,
+          planned_start: planned_start || null,
+          planned_end: planned_end || null,
+          assigned_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          latitude: decl.latitude || null,
+          longitude: decl.longitude || null,
+          address: decl.address || null,
+          priority: decl.priority || 'moyenne',
+          photo_avant: decl.photo_avant || null,
+          is_deleted: false,
         };
 
         const { data: subDecl, error: subDeclErr } = await supabase
@@ -751,7 +780,7 @@ exports.listUsers = async (req, res) => {
     const agentStats = {};
     agentStatsRes.rows.forEach(r => {
       agentStats[r.agent_id] = {
-        total:    parseInt(r.total,    10),
+        total: parseInt(r.total, 10),
         resolved: parseInt(r.resolved, 10),
         accepted: parseInt(r.accepted, 10),
       };
@@ -770,7 +799,7 @@ exports.listUsers = async (req, res) => {
     const deptStats = {};
     deptStatsRes.rows.forEach(r => {
       deptStats[r.department_id] = {
-        total:    parseInt(r.total,    10),
+        total: parseInt(r.total, 10),
         resolved: parseInt(r.resolved, 10),
         accepted: parseInt(r.accepted, 10),
       };
@@ -802,14 +831,14 @@ exports.listUsers = async (req, res) => {
 
       enrichedData = enrichedData.map(u => {
         const stats = u.role === 'agent'
-          ? (agentStats[u.id]              || { total:0, resolved:0, accepted:0 })
-          : (deptStats[u.department_id]    || { total:0, resolved:0, accepted:0 });
+          ? (agentStats[u.id] || { total: 0, resolved: 0, accepted: 0 })
+          : (deptStats[u.department_id] || { total: 0, resolved: 0, accepted: 0 });
         return {
           ...u,
-          department_name:  u.department_id ? (serviceMap[u.department_id]?.name_fr || 'Service') : 'N/A',
-          department_code:  u.department_id ? (serviceMap[u.department_id]?.code    || '??')      : '??',
-          location:         u.delegation_id ? (delegMap[u.delegation_id]            || 'Sousse')  : 'Sousse',
-          total_tasks:    stats.total,
+          department_name: u.department_id ? (serviceMap[u.department_id]?.name_fr || 'Service') : 'N/A',
+          department_code: u.department_id ? (serviceMap[u.department_id]?.code || '??') : '??',
+          location: u.delegation_id ? (delegMap[u.delegation_id] || 'Sousse') : 'Sousse',
+          total_tasks: stats.total,
           resolved_tasks: stats.resolved,
           accepted_tasks: stats.accepted,
         };
@@ -889,13 +918,13 @@ exports.updateUser = async (req, res) => {
       first_name, last_name, email, phone, password
     } = req.body;
 
-    if (role          !== undefined) updates.role          = role;
+    if (role !== undefined) updates.role = role;
     if (department_id !== undefined) updates.department_id = department_id;
     if (delegation_id !== undefined) updates.delegation_id = delegation_id;
-    if (is_active     !== undefined) updates.is_active     = is_active;
-    if (first_name    !== undefined) updates.first_name    = first_name.trim();
-    if (last_name     !== undefined) updates.last_name     = last_name.trim();
-    if (phone         !== undefined) updates.phone         = phone.trim() || null;
+    if (is_active !== undefined) updates.is_active = is_active;
+    if (first_name !== undefined) updates.first_name = first_name.trim();
+    if (last_name !== undefined) updates.last_name = last_name.trim();
+    if (phone !== undefined) updates.phone = phone.trim() || null;
 
     // Email: check uniqueness before updating
     if (email !== undefined) {
@@ -968,17 +997,17 @@ exports.deleteUser = async (req, res) => {
     if (error) {
       if (error.code === '23503') {
         await supabase.from('users').update({ is_active: false }).eq('id', id);
-        return res.status(200).json({ 
+        return res.status(200).json({
           message: 'L\'utilisateur ne peut pas être supprimé définitivement car il possède un historique d\'activité (déclarations archivées). Il a été désactivé à la place.',
-          is_active: false 
+          is_active: false
         });
       }
       throw error;
     }
 
-    return res.status(200).json({ 
+    return res.status(200).json({
       message: 'Utilisateur supprimé définitivement.',
-      id: id 
+      id: id
     });
   } catch (err) {
     console.error('[President] DeleteUser error:', err);
@@ -994,14 +1023,14 @@ exports.listDepartments = async (req, res) => {
       .from('services')
       .select('id, name_fr, name_ar, name_en, code, description, is_active, created_at')
       .order('name_fr', { ascending: true });
- 
+
     if (error) {
       console.error('[President] ListDept error:', error.message);
       return res.status(500).json({ error: 'Erreur serveur.' });
     }
- 
+
     const deptIds = (services || []).map(s => s.id);
- 
+
     /* 2 ── Chefs map  (one per department, first active chef wins) */
     let chefMap = {};
     if (deptIds.length > 0) {
@@ -1017,7 +1046,7 @@ exports.listDepartments = async (req, res) => {
         });
       }
     }
- 
+
     /* 3 ── Agent counts per department */
     let agentsCountMap = {};
     if (deptIds.length > 0) {
@@ -1033,86 +1062,86 @@ exports.listDepartments = async (req, res) => {
         });
       }
     }
- /* ── POST /api/president/departments ── */
-exports.createDepartment = async (req, res) => {
-  try {
-    const { name_fr, name_ar, name_en, code, description } = req.body;
+    /* ── POST /api/president/departments ── */
+    exports.createDepartment = async (req, res) => {
+      try {
+        const { name_fr, name_ar, name_en, code, description } = req.body;
 
-    if (!name_fr?.trim()) return res.status(400).json({ error: 'Nom français obligatoire.' });
-    if (!code?.trim())    return res.status(400).json({ error: 'Code obligatoire.' });
-    if (code.length > 3)  return res.status(400).json({ error: 'Code max 3 caractères.' });
+        if (!name_fr?.trim()) return res.status(400).json({ error: 'Nom français obligatoire.' });
+        if (!code?.trim()) return res.status(400).json({ error: 'Code obligatoire.' });
+        if (code.length > 3) return res.status(400).json({ error: 'Code max 3 caractères.' });
 
-    const upperCode = code.toUpperCase().trim();
+        const upperCode = code.toUpperCase().trim();
 
-    // Check code uniqueness
-    const { data: byCode } = await supabase.from('services').select('id').eq('code', upperCode).maybeSingle();
-    if (byCode) return res.status(409).json({ error: `Le code ${upperCode} est déjà utilisé.` });
+        // Check code uniqueness
+        const { data: byCode } = await supabase.from('services').select('id').eq('code', upperCode).maybeSingle();
+        if (byCode) return res.status(409).json({ error: `Le code ${upperCode} est déjà utilisé.` });
 
-    // Check name uniqueness
-    const { data: byName } = await supabase.from('services').select('id').eq('name_fr', name_fr.trim()).maybeSingle();
-    if (byName) return res.status(409).json({ error: 'Un service avec ce nom existe déjà.' });
+        // Check name uniqueness
+        const { data: byName } = await supabase.from('services').select('id').eq('name_fr', name_fr.trim()).maybeSingle();
+        if (byName) return res.status(409).json({ error: 'Un service avec ce nom existe déjà.' });
 
-    const { data: dept, error } = await supabase
-      .from('services')
-      .insert({
-        name_fr:     name_fr.trim(),
-        name_ar:     name_ar?.trim() || null,
-        name_en:     name_en?.trim() || null,
-        code:        upperCode,
-        description: description?.trim() || null,
-        is_active:   true,
-      })
-      .select('*')
-      .single();
+        const { data: dept, error } = await supabase
+          .from('services')
+          .insert({
+            name_fr: name_fr.trim(),
+            name_ar: name_ar?.trim() || null,
+            name_en: name_en?.trim() || null,
+            code: upperCode,
+            description: description?.trim() || null,
+            is_active: true,
+          })
+          .select('*')
+          .single();
 
-    if (error) {
-      console.error('[President] CreateDept error:', error.message);
-      return res.status(500).json({ error: 'Erreur lors de la création.' });
-    }
+        if (error) {
+          console.error('[President] CreateDept error:', error.message);
+          return res.status(500).json({ error: 'Erreur lors de la création.' });
+        }
 
-    return res.status(201).json({ department: dept, success: true });
-  } catch (err) {
-    console.error('[President] CreateDept error:', err);
-    return res.status(500).json({ error: 'Erreur serveur.' });
-  }
-};
+        return res.status(201).json({ department: dept, success: true });
+      } catch (err) {
+        console.error('[President] CreateDept error:', err);
+        return res.status(500).json({ error: 'Erreur serveur.' });
+      }
+    };
 
-/* ── DELETE /api/president/departments/:id ── */
-exports.deleteDepartment = async (req, res) => {
-  try {
-    const { id } = req.params;
+    /* ── DELETE /api/president/departments/:id ── */
+    exports.deleteDepartment = async (req, res) => {
+      try {
+        const { id } = req.params;
 
-    // Block if active declarations exist
-    const { data: active } = await supabase
-      .from('declarations')
-      .select('id')
-      .eq('department_id', id)
-      .is('deleted_at', null)
-      .not('status', 'in', '(resolue,cloturee)')
-      .limit(1)
-      .maybeSingle();
+        // Block if active declarations exist
+        const { data: active } = await supabase
+          .from('declarations')
+          .select('id')
+          .eq('department_id', id)
+          .is('deleted_at', null)
+          .not('status', 'in', '(resolue,cloturee)')
+          .limit(1)
+          .maybeSingle();
 
-    if (active) {
-      return res.status(409).json({
-        error: 'Impossible de supprimer: des déclarations actives sont encore assignées à ce service.'
-      });
-    }
+        if (active) {
+          return res.status(409).json({
+            error: 'Impossible de supprimer: des déclarations actives sont encore assignées à ce service.'
+          });
+        }
 
-    // Detach users first
-    await supabase.from('users').update({ department_id: null }).eq('department_id', id);
+        // Detach users first
+        await supabase.from('users').update({ department_id: null }).eq('department_id', id);
 
-    const { error } = await supabase.from('services').delete().eq('id', id);
-    if (error) {
-      console.error('[President] DeleteDept error:', error.message);
-      return res.status(500).json({ error: 'Erreur lors de la suppression.' });
-    }
+        const { error } = await supabase.from('services').delete().eq('id', id);
+        if (error) {
+          console.error('[President] DeleteDept error:', error.message);
+          return res.status(500).json({ error: 'Erreur lors de la suppression.' });
+        }
 
-    return res.status(200).json({ success: true });
-  } catch (err) {
-    console.error('[President] DeleteDept error:', err);
-    return res.status(500).json({ error: 'Erreur serveur.' });
-  }
-};
+        return res.status(200).json({ success: true });
+      } catch (err) {
+        console.error('[President] DeleteDept error:', err);
+        return res.status(500).json({ error: 'Erreur serveur.' });
+      }
+    };
     /* 4 ── Declaration counts per department — all status buckets in one query */
     const declRes = await supabase.pool.query(`
       SELECT
@@ -1128,49 +1157,49 @@ exports.deleteDepartment = async (req, res) => {
         AND is_deleted = false
       GROUP BY department_id
     `);
- 
+
     const countsMap = {};
     (declRes.rows || []).forEach(r => {
       countsMap[r.department_id] = {
-        total:       parseInt(r.total,       10),
-        accepted:    parseInt(r.accepted,    10),
-        resolved:    parseInt(r.resolved,    10),
-        rejected:    parseInt(r.rejected,    10),
+        total: parseInt(r.total, 10),
+        accepted: parseInt(r.accepted, 10),
+        resolved: parseInt(r.resolved, 10),
+        rejected: parseInt(r.rejected, 10),
         in_progress: parseInt(r.in_progress, 10),
       };
     });
- 
+
     /* 5 ── Build response */
     const departments = (services || []).map(dept => {
-      const chef   = chefMap[dept.id]   || null;
-      const counts = countsMap[dept.id] || { total:0, accepted:0, resolved:0, rejected:0, in_progress:0 };
+      const chef = chefMap[dept.id] || null;
+      const counts = countsMap[dept.id] || { total: 0, accepted: 0, resolved: 0, rejected: 0, in_progress: 0 };
       return {
         ...dept,
-        name:         dept.name_fr,
-        chef_name:    chef ? `${chef.first_name} ${chef.last_name}` : null,
-        chef_id:      chef?.id || null,
+        name: dept.name_fr,
+        chef_name: chef ? `${chef.first_name} ${chef.last_name}` : null,
+        chef_id: chef?.id || null,
         agents_count: agentsCountMap[dept.id] || 0,
         ...counts,
       };
     });
- 
+
     return res.status(200).json({ departments, success: true });
   } catch (err) {
     console.error('[President] ListDept error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
- 
+
 
 /* ──────────── POST /api/president/propositions ──────────── */
 exports.createProposition = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
- 
+
     const { title, description, start_date, end_date, category, status = 'active' } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: 'Titre requis.' });
- 
+
     const { data: prop, error } = await supabase
       .from('propositions')
       .insert({
@@ -1183,7 +1212,7 @@ exports.createProposition = async (req, res) => {
         status,
       })
       .select('*').single();
- 
+
     if (error) throw error;
     return res.status(201).json({ success: true, proposition: prop });
   } catch (err) {
@@ -1197,18 +1226,18 @@ exports.updateProposition = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, category, start_date, end_date, status } = req.body;
- 
+
     const updates = { updated_at: new Date().toISOString() };
-    if (title)       updates.title       = title.trim();
+    if (title) updates.title = title.trim();
     if (description !== undefined) updates.description = description.trim();
-    if (category)    updates.category    = category;
+    if (category) updates.category = category;
     if (start_date !== undefined) updates.start_date = start_date || null;
-    if (end_date !== undefined)   updates.end_date   = end_date || null;
-    if (status)      updates.status      = status;
- 
+    if (end_date !== undefined) updates.end_date = end_date || null;
+    if (status) updates.status = status;
+
     const { data, error } = await supabase
       .from('propositions').update(updates).eq('id', id).select('*').single();
- 
+
     if (error) throw error;
     return res.status(200).json({ success: true, proposition: data });
   } catch (err) {
@@ -1216,7 +1245,7 @@ exports.updateProposition = async (req, res) => {
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
- 
+
 
 /* ──────────── DELETE /api/president/propositions/:id  ──────────── (NEW) */
 exports.deleteProposition = async (req, res) => {
@@ -1239,18 +1268,18 @@ exports.listPropositions = async (req, res) => {
   try {
     const { status, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
- 
+
     let query = supabase
       .from('propositions')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
- 
+
     if (status && status !== 'all') query = query.eq('status', status);
- 
+
     const { data, error, count } = await query;
     if (error) throw error;
- 
+
     // Enrich with creator info
     const userIds = [...new Set((data || []).map(p => p.created_by).filter(Boolean))];
     let userMap = {};
@@ -1259,7 +1288,7 @@ exports.listPropositions = async (req, res) => {
         .from('users').select('id, role, first_name, last_name').in('id', userIds);
       if (usersData) usersData.forEach(u => (userMap[u.id] = u));
     }
- 
+
     const structured = (data || []).map(p => {
       const creator = userMap[p.created_by];
       const isPresidential = creator?.role === 'president';
@@ -1274,7 +1303,7 @@ exports.listPropositions = async (req, res) => {
         category: p.category || 'Général',
       };
     });
- 
+
     return res.status(200).json({
       success: true,
       propositions: structured,
@@ -1419,12 +1448,12 @@ exports.dashboard = async (req, res) => {
         ORDER BY total DESC
       `);
       byDepartment = deptRes.rows.map(r => ({
-        id:       r.id,
-        name:     r.name,
-        code:     r.code,
-        total:    parseInt(r.total,    10),
+        id: r.id,
+        name: r.name,
+        code: r.code,
+        total: parseInt(r.total, 10),
         resolved: parseInt(r.resolved, 10),
-        perf:     parseInt(r.total, 10) > 0
+        perf: parseInt(r.total, 10) > 0
           ? Math.round((parseInt(r.resolved, 10) / parseInt(r.total, 10)) * 100)
           : 0,
         highSatisfactionCount: 0,   // computed separately below
@@ -1776,10 +1805,10 @@ exports.updateDepartment = async (req, res) => {
     const { name_fr, name_ar, name_en, description } = req.body;
 
     const updates = {};
-    if (name_fr      !== undefined) updates.name_fr      = name_fr.trim();
-    if (name_ar      !== undefined) updates.name_ar      = name_ar?.trim() || null;
-    if (name_en      !== undefined) updates.name_en      = name_en?.trim() || null;
-    if (description  !== undefined) updates.description  = description?.trim() || null;
+    if (name_fr !== undefined) updates.name_fr = name_fr.trim();
+    if (name_ar !== undefined) updates.name_ar = name_ar?.trim() || null;
+    if (name_en !== undefined) updates.name_en = name_en?.trim() || null;
+    if (description !== undefined) updates.description = description?.trim() || null;
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'Aucune donnée à mettre à jour.' });
@@ -2074,5 +2103,5 @@ exports.bulkDeleteDeclarations = async (req, res) => {
     console.error('[President] bulkDelete error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
-  
+
 };
