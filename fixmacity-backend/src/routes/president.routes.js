@@ -12,6 +12,7 @@ router.get('/declarations', ctrl.listDeclarations);
 router.get('/declarations/:id', ctrl.getDeclarationDetail);
 router.delete('/declarations/:id', ctrl.deleteDeclaration);
 router.post('/declarations/bulk-delete', ctrl.bulkDeleteDeclarations);
+router.post('/declarations/:id/recalculate-priority', ctrl.recalculateDeclarationPriority);
 
 // AI image analysis + priority override
 router.post('/declarations/:id/analyze-image', ctrl.analyzeDeclarationImage);

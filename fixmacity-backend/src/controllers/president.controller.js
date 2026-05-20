@@ -2182,3 +2182,62 @@ exports.bulkDeleteDeclarations = async (req, res) => {
   }
 
 };
+
+/* ──────────── POST /api/president/declarations/:id/recalculate-priority ──────────── */
+exports.recalculateDeclarationPriority = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch the declaration
+    const { data: decl, error: declErr } = await supabase
+      .from('declarations')
+      .select('*')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .single();
+
+    if (declErr || !decl) {
+      return res.status(404).json({ error: 'Déclaration introuvable.' });
+    }
+
+    // Import the priority computation service
+    const { computePriorityScore } = require('../services/priority.service');
+
+    // Compute new priority
+    const priority = await computePriorityScore(decl);
+
+    // Update the declaration with new priority values
+    const { error: updateErr } = await supabase
+      .from('declarations')
+      .update({
+        priority_score:  priority.score,
+        priority_label:  priority.level,
+        priority_method: priority.source,
+        priority_meta:   {
+          factors: priority.factors,
+          ai_description: priority.ai_description,
+          ai_danger_level: priority.ai_danger_level,
+        },
+      })
+      .eq('id', id);
+
+    if (updateErr) throw updateErr;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        priority_score:  priority.score,
+        priority_label:  priority.level,
+        priority_method: priority.source,
+        priority_meta: {
+          factors: priority.factors,
+          ai_description: priority.ai_description,
+          ai_danger_level: priority.ai_danger_level,
+        },
+      },
+    });
+  } catch (err) {
+    console.error('[President] recalculateDeclarationPriority error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
