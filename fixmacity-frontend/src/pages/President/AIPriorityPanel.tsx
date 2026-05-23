@@ -118,7 +118,8 @@ export default function AIPriorityPanel({ declarationId, data, onUpdated, readOn
   };
 
   // ── State 1: No priority data at all ──────────────────────────────────────
-  if (!priority_label || priority_score == null) {
+  let rawLabel = data.president_override || data.priority_label || data.priority;
+  if (!rawLabel || priority_score == null) {
     return (
       <div style={{ padding: '16px 0' }}>
         <div style={{
@@ -155,9 +156,16 @@ export default function AIPriorityPanel({ declarationId, data, onUpdated, readOn
     );
   }
 
-  const cfg = LABEL_CONFIG[priority_label] ?? LABEL_CONFIG.normal;
-  const meta: PriorityMeta = priority_meta ?? {};
-  const isAI = priority_method === 'ai';
+  const dbToLevel: Record<string, string> = {
+    haute: 'urgent', high: 'urgent', urgent: 'urgent', critique: 'urgent', critical: 'urgent',
+    moyenne: 'normal', medium: 'normal', normal: 'normal',
+    basse: 'faible', low: 'faible', faible: 'faible',
+  }
+  const finalLabel = dbToLevel[rawLabel.toLowerCase()] || 'normal';
+
+  const cfg = LABEL_CONFIG[finalLabel] ?? LABEL_CONFIG.normal;
+  const meta: any = priority_meta?.factors ?? priority_meta ?? {};
+  const isAI = priority_method === 'ai' || priority_method === 'AI';
 
   // Score out of 10 for the visual bar (score is 0–100)
   const scoreOutOf10 = Math.round(priority_score / 10);
@@ -212,29 +220,29 @@ export default function AIPriorityPanel({ declarationId, data, onUpdated, readOn
       {isAI ? (
         // AI path: 4 sub-scores
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <MetricCard label="Risque sécurité"       value={meta.safety_risk      ?? 0} max={35} color="#E24B4A" />
-          <MetricCard label="Impact services"        value={meta.service_impact   ?? 0} max={25} color="#EF9F27" />
-          <MetricCard label="Impact population"      value={meta.population_impact?? 0} max={15} color="#185FA5" />
-          <MetricCard label="Urgence temporelle"     value={meta.temporal_urgency ?? 0} max={10} color="#0F6E56" />
+          <MetricCard label="Risque danger (IA)"     value={meta.ai_danger_score ?? 0} max={40} color="#E24B4A" />
+          <MetricCard label="Lieu sensible"          value={meta.sensitive_contribution ?? 0} max={20} color="#EF9F27" />
+          <MetricCard label="Boost votes"            value={meta.vote_contribution ?? 0} max={15} color="#185FA5" />
+          <MetricCard label="Ancienneté"             value={meta.age_contribution ?? 0} max={10} color="#0F6E56" />
         </div>
       ) : (
         // Fallback path: 4 sub-scores
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <MetricCard label="Catégorie"              value={meta.categoryScore  ?? 0} max={40} color="#185FA5" />
-          <MetricCard label="Proximité critique"     value={meta.proximityScore ?? 0} max={30} color="#E24B4A" />
-          <MetricCard label="Ancienneté"             value={meta.ageScore       ?? 0} max={15} color="#BA7517" />
-          <MetricCard label="Boost votes"            value={meta.vBoost ?? meta.vote_boost ?? 0} max={15} color="#0F6E56" />
+          <MetricCard label="Lieu sensible"          value={meta.sensitive_contribution ?? meta.sensScore ?? 0} max={30} color="#E24B4A" />
+          <MetricCard label="Boost votes"            value={meta.vote_contribution ?? meta.voteScore ?? 0} max={20} color="#185FA5" />
+          <MetricCard label="Ancienneté"             value={meta.age_contribution ?? meta.ageScore ?? 0} max={15} color="#BA7517" />
+          <MetricCard label="Photo jointe"           value={meta.photo_contribution ?? meta.photoScore ?? 0} max={10} color="#0F6E56" />
         </div>
       )}
 
       {/* ── AI reasoning text (only for AI path) ── */}
-      {isAI && meta.reasoning && (
+      {isAI && (priority_meta?.ai_description || meta.reasoning) && (
         <div style={{
           background: '#f0f9ff', borderRadius: 8, padding: '10px 14px',
           border: '0.5px solid #bae6fd', fontSize: 13, color: '#0369a1',
           lineHeight: 1.5,
         }}>
-          💬 {meta.reasoning}
+          💬 {priority_meta?.ai_description || meta.reasoning}
         </div>
       )}
 

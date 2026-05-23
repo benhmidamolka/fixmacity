@@ -58,6 +58,12 @@ interface DeclRow {
   citizen_name?: string
   agent_name?: string | null
   image_url?: string | null
+  priority_score?: number
+  assigned_agent?: {
+    id: string
+    first_name: string
+    last_name: string
+  } | null
 }
 
 interface AgentLoad {
@@ -420,7 +426,7 @@ const ChefDashboard: React.FC = () => {
 
   const kpis = data?.kpis
   const urgentDecls     = data?.urgent_declarations    || []
-  const recentDecls     = data?.recent_declarations    || []
+  const recentDecls     = (data?.recent_declarations    || []).slice(0, 5)
   const statusChart     = data?.status_chart           || []
   const priorityChart   = data?.priority_chart         || []
 
@@ -677,8 +683,9 @@ const ChefDashboard: React.FC = () => {
           </div>
 
           {/* Table header */}
-          <div className="grid grid-cols-[1fr_110px_90px_100px_110px] gap-3 px-6 py-2.5 bg-slate-50/80 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800/60">
-            {['Déclaration', 'Statut', 'Priorité', 'Créée le', 'Actions'].map(h => (
+          <div className="grid items-center gap-4 px-6 py-2.5 bg-slate-50/80 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800"
+            style={{ gridTemplateColumns: '1fr 120px 130px 130px 150px 130px 130px' }}>
+            {['Déclaration', 'Catégorie', 'Statut', 'Priorité', 'Agent assigné', 'Soumis le', 'Actions'].map(h => (
               <p key={h} className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{h}</p>
             ))}
           </div>
@@ -688,47 +695,97 @@ const ChefDashboard: React.FC = () => {
               <FileText className="w-10 h-10 text-slate-200 dark:text-slate-700 mx-auto mb-3" />
               <p className="text-sm font-bold text-slate-400">Aucune déclaration récente</p>
             </div>
-          ) : recentDecls.map((d, i) => (
-            <div key={d.id}
-              className={`grid grid-cols-[1fr_110px_90px_100px_110px] gap-3 px-6 py-4 items-center border-b border-slate-50 dark:border-slate-800/30 hover:bg-slate-50/60 dark:hover:bg-slate-800/20 transition-colors group last:border-0 ${i % 2 === 0 ? '' : 'bg-slate-50/20 dark:bg-slate-800/10'}`}>
+          ) : (
+            <div className="divide-y divide-slate-50 dark:divide-slate-800/30">
+              {recentDecls.map((d, i) => {
+                const agent = null; // Normally agentOf(d)
+                return (
+                  <div key={d.id}
+                    className={`grid gap-4 px-6 py-3.5 items-center cursor-pointer group hover:bg-slate-50/70 dark:hover:bg-slate-800/20 transition-colors ${i % 2 !== 0 ? 'bg-slate-50/30 dark:bg-slate-800/10' : ''}`}
+                    style={{ gridTemplateColumns: '1fr 120px 130px 130px 150px 130px 130px' }}>
 
-              {/* Name + meta */}
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className="text-sm font-black text-[#0A1628] dark:text-white truncate group-hover:text-[#1557FF] transition-colors cursor-pointer" onClick={() => navigate(`/chef/declarations/${d.id}`)}>{d.title}</p>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-[9px] font-bold text-slate-400">{d.ref_citoyen}</span>
-                  {d.category && <span className="text-[9px] font-bold text-slate-400">· {d.category}</span>}
-                  {d.citizen_name && <span className="text-[9px] font-bold text-slate-400">· {d.citizen_name}</span>}
-                </div>
-              </div>
+                    {/* Title + ref */}
+                    <div className="min-w-0" onClick={() => navigate(`/chef/declarations/${d.id}`)}>
+                      <p className="text-sm font-black text-[#0A1628] dark:text-white truncate group-hover:text-[#1557FF] transition-colors">
+                        {d.title}
+                      </p>
+                      <p className="font-mono text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">{d.ref_citoyen}</p>
+                      {/* Project indicator */}
+                      {(d.category === 'Projet' || (d as any).shared_departments?.length > 0) && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800/30 uppercase tracking-widest flex items-center gap-1">
+                            <Users className="w-2.5 h-2.5" /> Projet Partagé
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
-              <div><Pill val={d.status}   type="status"   /></div>
-              <div><Pill val={d.priority} type="priority" /></div>
-              <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{fmtDate(d.created_at)}</div>
+                    {/* Category */}
+                    <div onClick={() => navigate(`/chef/declarations/${d.id}`)}>
+                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg whitespace-nowrap">
+                        {d.category || '—'}
+                      </span>
+                    </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-1.5">
-                {['assignee_chef', 'soumise'].includes(d.status) && (
-                  <>
-                    <button onClick={() => setAssigning(d)}
-                      className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 hover:bg-emerald-100 transition-colors" title="Accepter & Assigner">
-                      <Send className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => setRefusing(d)}
-                      className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 transition-colors" title="Refuser">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </>
-                )}
-                <button onClick={() => navigate(`/chef/declarations/${d.id}`)}
-                  className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 transition-colors" title="Détail">
-                  <Eye className="w-3.5 h-3.5" />
-                </button>
-              </div>
+                    {/* Status */}
+                    <div onClick={() => navigate(`/chef/declarations/${d.id}`)}><Pill val={d.status} type="status" /></div>
+
+                    {/* Priority (with score) */}
+                    <div onClick={() => navigate(`/chef/declarations/${d.id}`)}>
+                      <div className="flex items-center gap-2">
+                        <Pill val={d.priority} type="priority" />
+                        <span className="text-[10px] font-bold text-slate-400">Score: {d.priority_score || 0}</span>
+                      </div>
+                    </div>
+
+                    {/* Assigned agent */}
+                    <div onClick={() => navigate(`/chef/declarations/${d.id}`)}>
+                      {d.assigned_agent ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[9px] font-black flex-shrink-0"
+                            style={{ background: '#1557FF' }}>
+                            {d.assigned_agent.first_name?.[0]}{d.assigned_agent.last_name?.[0]}
+                          </div>
+                          <span className="text-[11px] font-bold text-[#0A1628] dark:text-slate-200 truncate">
+                            {d.assigned_agent.first_name} {d.assigned_agent.last_name}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 italic">
+                          Non assigné
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Date */}
+                    <div onClick={() => navigate(`/chef/declarations/${d.id}`)}>
+                      <p className="text-[11px] font-bold text-[#0A1628] dark:text-slate-300">{fmtDate(d.created_at)}</p>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      {['assignee_chef', 'soumise'].includes(d.status) && (
+                        <>
+                          <button onClick={() => setAssigning(d)}
+                            className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors" title="Accepter & Assigner">
+                            <Send className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => setRefusing(d)}
+                            className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors" title="Refuser">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                      <button onClick={() => navigate(`/chef/declarations/${d.id}`)}
+                        className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors" title="Détail">
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-          ))}
+          )}
         </div>
       </div>
 

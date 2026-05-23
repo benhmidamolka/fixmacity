@@ -71,12 +71,7 @@ async function fetchImageAsBase64(imageUrl) {
       res.on('data', chunk => chunks.push(chunk));
       res.on('end', () => {
         const buf = Buffer.concat(chunks);
-        let mimeType = res.headers['content-type'] || 'image/jpeg';
-        if (mimeType === 'application/octet-stream' || !mimeType.startsWith('image/')) {
-          const ext = imageUrl.split('.').pop().split('?')[0].toLowerCase();
-          mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-        }
-        resolve({ data: buf.toString('base64'), mimeType });
+        resolve({ data: buf.toString('base64'), mimeType: res.headers['content-type'] || 'image/jpeg' });
       });
       res.on('error', reject);
     }).on('error', reject);
@@ -149,11 +144,17 @@ Critères :
   }
 }
 
+function computeVoteContribution(votes, maxPoints) {
+  if (!votes || votes < 3) return 0;
+  // Gives a small boost: 3 votes = ~20% of maxPoints, escalating to maxPoints at 20 votes.
+  const effectiveVotes = Math.min(votes - 2, 20);
+  return Math.round((effectiveVotes / 18) * maxPoints);
+}
+
 // ── Heuristic scoring (no AI) ─────────────────────────────────────────────────
-function computeHeuristicScore(decl, sensitivePlaceName) {
-  const votes        = Math.min(decl.votes_count || 0, 50);
-  const voteScore    = Math.round((votes / 50) * 40);       // 0–40
-  const sensScore    = sensitivePlaceName ? 30 : 0;          // 0 or 30
+function computeHeuristicScore(decl, sensitivePlaceName, isSensitiveVerified) {
+  const voteScore    = computeVoteContribution(decl.votes_count, 20); // max 20 points
+  const sensScore    = sensitivePlaceName ? (isSensitiveVerified ? 30 : 10) : 0;
   const hasPhoto     = !!(decl.photo_avant || decl.photo_url);
   const photoScore   = hasPhoto ? 10 : 0;                    // partial credit without AI
   const ageScore     = computeAgeScore(decl.created_at);    // 0–10 (older = more urgent)
@@ -182,7 +183,15 @@ function computeAgeScore(createdAt) {
  * @returns {Promise<{score, level, source, factors, ai_description}>}
  */
 async function computePriorityScore(decl) {
-  const sensitivePlaceName = findNearbySensitivePlace(decl.latitude, decl.longitude);
+  let sensitivePlaceName = findNearbySensitivePlace(decl.latitude, decl.longitude);
+  let isSensitiveVerified = !!sensitivePlaceName;
+  
+  // If GPS didn't find a hardcoded place, but the citizen explicitly checked "Lieu sensible"
+  if (!sensitivePlaceName && decl.is_sensitive) {
+    if (decl.sensitive_type === 'hospital') sensitivePlaceName = 'Hôpital (Déclaré - À vérifier)';
+    else if (decl.sensitive_type === 'school') sensitivePlaceName = 'École (Déclaré - À vérifier)';
+    else sensitivePlaceName = 'Lieu sensible (Déclaré - À vérifier)';
+  }
 
   // ── Try Gemini Vision if photo exists ─────────────────────────────────────
   const photoUrl = decl.photo_avant || decl.photo_url;
@@ -209,7 +218,7 @@ async function computePriorityScore(decl) {
   }
 
   // ── Compute heuristic factors (always) ───────────────────────────────────
-  const h = computeHeuristicScore(decl, sensitivePlaceName);
+  const h = computeHeuristicScore(decl, sensitivePlaceName, isSensitiveVerified);
 
   // ── Combine scores ────────────────────────────────────────────────────────
   let finalScore;
@@ -217,10 +226,10 @@ async function computePriorityScore(decl) {
   let aiDangerScore = 0;
 
   if (aiResult) {
-    // AI available: AI danger (0-40) + votes (0-30) + sensitive (0-20) + age (0-10)
+    // AI available: AI danger (0-40) + votes (0-15) + sensitive (0-20) + age (0-10)
     aiDangerScore = aiResult.danger_score;
-    const voteContrib  = Math.round((Math.min(decl.votes_count || 0, 50) / 50) * 30);
-    const sensContrib  = sensitivePlaceName ? 20 : 0;
+    const voteContrib  = computeVoteContribution(decl.votes_count, 15);
+    const sensContrib  = sensitivePlaceName ? (isSensitiveVerified ? 20 : 10) : 0;
     const ageContrib   = computeAgeScore(decl.created_at);
     finalScore = Math.min(100, aiDangerScore + voteContrib + sensContrib + ageContrib);
     source = 'AI';
@@ -248,11 +257,9 @@ async function computePriorityScore(decl) {
       ai_danger_score:   aiResult ? aiDangerScore : null,
       ai_immediate_risk: aiResult ? aiResult.immediate_risk : null,
       votes_count:       decl.votes_count || 0,
-      vote_contribution: aiResult
-        ? Math.round((Math.min(decl.votes_count || 0, 50) / 50) * 30)
-        : h.voteScore,
+      vote_contribution: aiResult ? computeVoteContribution(decl.votes_count, 15) : h.voteScore,
       sensitive_place:       sensitivePlaceName,
-      sensitive_contribution: aiResult ? (sensitivePlaceName ? 20 : 0) : h.sensScore,
+      sensitive_contribution: aiResult ? (sensitivePlaceName ? (isSensitiveVerified ? 20 : 10) : 0) : h.sensScore,
       photo_available:        !!photoUrl,
       photo_contribution:     aiResult ? aiDangerScore : h.photoScore,
       age_hours:              Math.round((Date.now() - new Date(decl.created_at).getTime()) / 3600000),
@@ -263,4 +270,4 @@ async function computePriorityScore(decl) {
   };
 }
 
-module.exports = { computePriorityScore, findNearbySensitivePlace };
+module.exports = { computePriorityScore, findNearbySensitivePlace };                                                                                               

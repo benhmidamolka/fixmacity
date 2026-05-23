@@ -10,6 +10,7 @@ import PresidentServices from './pages/President/PresidentServices'
 import PresidentPropositions from './pages/President/PresidentPropositions'
 import PresidentNotifications from './pages/President/PresidentNotifications'
 import PresidentSettings from './pages/President/PresidentSettings'
+import ChefDeclarations      from './pages/Chef/ChefDeclarations'
 import ChefDeclarationDetail from './pages/Chef/ChefDeclarationDetail'
 import ChefDashboard         from './pages/Chef/ChefDashboard'
 import ChefMap               from './pages/Chef/ChefMap'
@@ -129,7 +130,7 @@ const App: React.FC = () => {
           <ProtectedRoute allowedRoles={['chef']}><ChefDashboard /></ProtectedRoute>
         } />
         <Route path="/chef/declarations" element={
-          <ProtectedRoute allowedRoles={['chef']}><ChefDeclarationDetail /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['chef']}><ChefDeclarations /></ProtectedRoute>
         } />
         <Route path="/chef/tasks" element={
           <ProtectedRoute allowedRoles={['chef']}><ChefTasks /></ProtectedRoute>

@@ -97,10 +97,10 @@ const PRIORITY_DB: Record<string, { label: string; color: string; bg: string }> 
   low:     { label: 'Faible',   color: '#16A34A', bg: '#DCFCE7' },
 }
 
-const AI_LEVELS = {
-  urgent: { label: 'Urgent',  color: '#DC2626', bg: '#FEE2E2', border: '#FCA5A5', emoji: '🔴', score: 95 },
-  normal:   { label: 'Normal',    color: '#D97706', bg: '#FEF3C7', border: '#FCD34D', emoji: '🟡', score: 50 },
-  faible:      { label: 'Faible',    color: '#16A34A', bg: '#DCFCE7', border: '#86EFAC', emoji: '🟢', score: 20 },
+const AI_LEVELS: Record<string, any> = {
+  urgent: { label: 'URGENTE', color: '#EF4444', bg: '#FEF2F2', border: '#FEE2E2', icon: '🚨' },
+  normal: { label: 'NORMALE', color: '#F59E0B', bg: '#FFFBEB', border: '#FEF3C7', icon: '⚡' },
+  faible: { label: 'FAIBLE',  color: '#3B82F6', bg: '#EFF6FF', border: '#DBEAFE', icon: 'ℹ️' },
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -587,21 +587,23 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
       setPhotos(data.photos ?? [])
       setHistory(data.history ?? [])
       setComments(data.comments ?? [])
-      // Restore confirmed priority from DB:
-      // 1. president_override is the canonical field (set by both drawer and dashboard override)
-      // 2. Fall back to ai_priority_confirmed + legacy priority DB field
+      // ── Priority resolution (same hierarchy as the dashboard) ──────────────
+      // 1. president_override  → manual decision, always wins
+      // 2. priority_label      → computed by backend (AI or heuristic)
+      // 3. priority (DB enum)  → legacy column fallback
+      // 4. default: 'normal'
       const dbToLevel: Record<string, 'urgent' | 'normal' | 'faible'> = {
         haute: 'urgent', high: 'urgent', urgent: 'urgent', critique: 'urgent', critical: 'urgent',
         moyenne: 'normal', medium: 'normal', normal: 'normal',
         basse: 'faible', low: 'faible', faible: 'faible',
       }
-      if (decl?.president_override) {
-        const lvl = dbToLevel[decl.president_override?.toLowerCase()]
-        if (lvl) setFinalPriority(lvl)
-      } else if (decl?.ai_priority_confirmed) {
-        const lvl = dbToLevel[decl.priority?.toLowerCase()]
-        if (lvl) setFinalPriority(lvl)
-      }
+      const rawPriority =
+        decl?.president_override ||
+        decl?.priority_label     ||
+        decl?.priority           ||
+        'normal'
+      const resolved = dbToLevel[rawPriority.toLowerCase()] ?? 'normal'
+      setFinalPriority(resolved)
     } catch { flash('Erreur de chargement.', false) }
     finally   { setLoading(false) }
   }, [declarationId])
@@ -648,6 +650,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
       if (res.ok) {
         setFinalPriority(level)
         flash(`Priorité ${AI_LEVELS[level].label} confirmée ✓`)
+        load() // Refresh detail state to reflect new president_override
         onAssigned?.()
       } else flash('Erreur lors de la mise à jour.', false)
     } catch { flash('Erreur serveur.', false) }
@@ -682,7 +685,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
   // Derived
   const s        = detail ? (STATUS[detail.status] ?? STATUS.soumise) : STATUS.soumise
-  const p        = detail ? (PRIORITY_DB[detail.priority] ?? PRIORITY_DB.moyenne) : PRIORITY_DB.moyenne
+  const p        = finalPriority ? AI_LEVELS[finalPriority] : AI_LEVELS.normal
   const isRes    = detail && ['resolue','cloturee'].includes(detail.status)
   const canAss   = detail && ['soumise'].includes(detail.status)
   const canReas  = detail && ['refusee_chef'].includes(detail.status)
@@ -817,14 +820,25 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                       {detail.sensitive_type === 'hospital' ? 'Hôpital' : 'École'}
                     </span>
                   )}
-                  {finalPriority && (
-                    <span className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full" style={{ color: AI_LEVELS[finalPriority].color, background: AI_LEVELS[finalPriority].bg }}>
-                      <Shield size={9}/> {AI_LEVELS[finalPriority].label}
-                    </span>
-                  )}
+                  {finalPriority && (() => {
+                    const cp = AI_LEVELS[finalPriority] || AI_LEVELS.normal;
+                    return (
+                      <span
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black border ml-auto"
+                        style={{ color: cp.color, background: cp.bg, borderColor: cp.border }}
+                      >
+                        <span className="text-[8px]">{cp.icon}</span>
+                        {cp.label}
+                        {detail.ai_priority_confirmed && (
+                          <span title="Confirmé par le Président">
+                            <Shield className="w-2.5 h-2.5 ml-0.5" />
+                          </span>
+                        )}
+                      </span>
+                    )
+                  })()}
                 </div>
               </div>
-              <span className="flex-shrink-0 text-[10px] font-black px-3 py-1.5 rounded-xl" style={{ color:p.color, background:p.bg }}>{p.label}</span>
             </div>
           )}
         </div>
@@ -937,13 +951,49 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
           {/* PRIORITY AI TAB */}
           {tab === 'priority' && (
-            <div className="absolute inset-0 overflow-y-auto px-5 py-5">
+            <div className="absolute inset-0 overflow-y-auto px-5 py-5 pb-24">
               {detail && (
-                <AIPriorityPanel
-                  declarationId={detail.id}
-                  data={detail}
-                  onUpdated={(patch: any) => setDetail((prev: any) => prev ? { ...prev, ...patch } : prev)}
-                />
+                <>
+                  <AIPriorityPanel
+                    declarationId={detail.id}
+                    data={detail}
+                    onUpdated={(patch: any) => {
+                      setDetail((prev: any) => prev ? { ...prev, ...patch } : prev);
+                      // Trigger load to refresh top-level data
+                      load();
+                    }}
+                  />
+                  
+                  {/* President Override Section */}
+                  <div className="mt-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+                    <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-indigo-500" />
+                      Décision Présidentielle
+                    </h3>
+                    <p className="text-[11px] text-slate-500 mb-4 leading-relaxed">
+                      Vous pouvez modifier manuellement le niveau de priorité de cette déclaration. Votre décision prévaut sur le calcul automatique de l'IA et de l'heuristique.
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['urgent', 'normal', 'faible'] as const).map(lvl => (
+                        <button
+                          key={lvl}
+                          onClick={() => handleOverride(lvl)}
+                          disabled={overriding}
+                          className={`py-2.5 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all ${
+                            finalPriority === lvl
+                              ? "bg-slate-50 dark:bg-slate-800/50 border-[#1557FF] ring-1 ring-[#1557FF] shadow-sm"
+                              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/30 opacity-80 hover:opacity-100"
+                          }`}
+                        >
+                          <span className="text-[12px]">{AI_LEVELS[lvl].icon}</span>
+                          <span className="text-[10px] font-black" style={{ color: AI_LEVELS[lvl].color }}>
+                            {AI_LEVELS[lvl].label}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
               {!detail && <div className="flex items-center justify-center h-40"><Loader2 className="animate-spin text-blue-500" size={24}/></div>}
             </div>

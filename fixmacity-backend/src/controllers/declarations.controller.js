@@ -195,9 +195,10 @@ exports.create = async (req, res) => {
       try {
         const pool = supabase.pool;
         const priority = await computePriorityScore({ ...decl, votes_count: 0 });
+        const levelToDb = { URGENT: 'haute', NORMAL: 'moyenne', FAIBLE: 'basse' };
         await pool.query(
-          'UPDATE declarations SET priority_score=$1, priority_label=$2, priority_method=$3 WHERE id=$4',
-          [priority.score, sanitizePriorityLabel(priority.level), priority.source || 'fallback', decl.id]
+          'UPDATE declarations SET priority_score=$1, priority_label=$2, priority_method=$3, priority=$4 WHERE id=$5',
+          [priority.score, sanitizePriorityLabel(priority.level), priority.source || 'fallback', levelToDb[priority.level] || 'moyenne', decl.id]
         );
         console.log(`[Priority] ${decl.id} → ${priority.level} (${priority.score})`);
       } catch (e) {
@@ -297,7 +298,7 @@ exports.nearby = async (req, res) => {
     
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);
-    const radiusInDegrees = 0.005; // Roughly 500 meters
+    const radiusInDegrees = 0.0005; // Roughly 50 meters (exact same problem)
     
     const nearby = data.filter(d => {
       if (!d.latitude || !d.longitude) return false;
@@ -503,6 +504,7 @@ exports.vote = async (req, res) => {
     }
 
     // ── Async priority recalculation ───────────────────────────────────
+    // ── Async priority recalculation on vote ───────────────────────
     setImmediate(async () => {
       try {
         const { data: freshDecl } = await supabase
@@ -512,10 +514,14 @@ exports.vote = async (req, res) => {
           .single();
         if (freshDecl) {
           const priority = await computePriorityScore(freshDecl);
+          const LEVEL_TO_DB = { URGENT: 'haute', NORMAL: 'moyenne', FAIBLE: 'basse' };
+          const dbPriority = LEVEL_TO_DB[priority.level] || 'moyenne';
           const pool = supabase.pool;
           await pool.query(
-            'UPDATE declarations SET priority_score=$1, priority_label=$2, priority_method=$3 WHERE id=$4',
-            [priority.score, sanitizePriorityLabel(priority.level), priority.source || 'fallback', id]
+            `UPDATE declarations
+               SET priority_score=$1, priority_label=$2, priority_method=$3, priority=$4
+             WHERE id=$5`,
+            [priority.score, sanitizePriorityLabel(priority.level), priority.source || 'fallback', dbPriority, id]
           );
         }
       } catch (e) {

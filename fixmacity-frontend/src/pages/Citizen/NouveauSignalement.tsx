@@ -396,16 +396,104 @@ function Step1({ data, onChange, onNext, delegations }: any) {
 
 // ─── STEP 2: Category ─────────────────────────────────────────────────────────
 function Step2({ data, onChange, onNext, onBack }: any) {
-  const handleNext = () => {
+  const [loading, setLoading] = useState(false)
+  const [duplicates, setDuplicates] = useState<any[]>([])
+  const [showDuplicates, setShowDuplicates] = useState(false)
+  const navigate = useNavigate()
+
+  const handleNext = async () => {
     if (!data.category) {
       toast.error("L'information [Catégorie] est manquante")
       return
     }
+    
+    // Check for nearby duplicates
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const r = await fetch(`${API}/declarations/nearby?latitude=${data.latitude}&longitude=${data.longitude}&category=${data.category}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (r.ok) {
+        const nearby = await r.json()
+        if (nearby && nearby.length > 0) {
+          setDuplicates(nearby)
+          setShowDuplicates(true)
+          setLoading(false)
+          return
+        }
+      }
+    } catch (e) {
+      console.error(e)
+    }
+    setLoading(false)
     onNext()
+  }
+
+  const handleSupport = async (declId: string) => {
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`${API}/declarations/${declId}/vote`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        toast.success("Votre vote de soutien a bien été enregistré !")
+        navigate('/citizen/map') // or dashboard
+      } else {
+        toast.error("Erreur lors du vote.")
+      }
+    } catch {
+      toast.error("Erreur serveur.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="p-6">
+      {showDuplicates && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 relative flex flex-col max-h-[80vh]">
+            <button onClick={() => setShowDuplicates(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-[#0A1628]">Ce problème a déjà été signalé</h3>
+                <p className="text-xs text-slate-500">Un problème identique existe déjà à cet emplacement exact. Souhaitez-vous le soutenir pour augmenter sa priorité ?</p>
+              </div>
+            </div>
+            
+            <div className="overflow-y-auto pr-1 mb-4 space-y-3">
+              {duplicates.map(d => (
+                <div key={d.id} className="border border-slate-200 rounded-xl p-3 bg-slate-50">
+                  <div className="flex justify-between items-start mb-2">
+                    <p className="text-sm font-bold text-slate-800">{d.title}</p>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-100 text-blue-700">{d.category}</span>
+                  </div>
+                  <button onClick={() => handleSupport(d.id)}
+                    className="w-full py-2 bg-white border border-[#1557FF] text-[#1557FF] text-xs font-bold rounded-lg hover:bg-blue-50 transition-all">
+                    👍 Soutenir cette déclaration
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-slate-100 pt-4 mt-auto">
+              <button onClick={() => { setShowDuplicates(false); onNext(); }}
+                className="w-full py-3 bg-[#0A1628] text-white text-sm font-bold rounded-xl hover:bg-[#152a4d] transition-all">
+                Non, créer une nouvelle déclaration
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <h2 className="text-2xl font-bold text-[#0A1628] mb-1">De quel type de problème s'agit-il ?</h2>
       <p className="text-slate-500 text-sm mb-6">Choisissez la catégorie la plus proche</p>
       <div className="grid grid-cols-3 gap-3 mb-6">
@@ -438,14 +526,14 @@ function Step2({ data, onChange, onNext, onBack }: any) {
         </div>
       </div>
       <div className="flex gap-3">
-        <button onClick={onBack}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all">
+        <button onClick={onBack} disabled={loading}
+          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all disabled:opacity-50">
           <ArrowLeft className="w-4 h-4" /> Précédent
         </button>
-        <button onClick={handleNext}
-          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-sm transition-all"
+        <button onClick={handleNext} disabled={loading}
+          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-sm transition-all disabled:opacity-50"
           style={{ background: '#1557FF' }}>
-          Continuer <ArrowRight className="w-4 h-4" />
+          {loading ? 'Vérification...' : 'Continuer'} <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </div>
