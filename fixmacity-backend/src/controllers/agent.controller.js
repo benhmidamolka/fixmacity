@@ -19,18 +19,32 @@ exports.getStats = async (req, res) => {
     const agentId = req.user.id;
     const deptId = agentScope(req);
 
-    // All declarations visible to this agent
-    const { data, error } = await supabase
+    // Query 1: declarations assigned directly to this agent
+    const { data: mine } = await supabase
       .from('declarations')
       .select('id, status, agent_id')
       .eq('department_id', deptId)
+      .eq('agent_id', agentId)
       .is('deleted_at', null)
-      .eq('is_deleted', false)
-      .or(`agent_id.eq.${agentId},and(agent_id.is.null,status.eq.assignee_agent)`);
+      .eq('is_deleted', false);
 
-    if (error) throw error;
+    // Query 2: unassigned declarations pending agent pick-up in this dept
+    const { data: unassigned } = await supabase
+      .from('declarations')
+      .select('id, status, agent_id')
+      .eq('department_id', deptId)
+      .eq('status', 'assignee_agent')
+      .is('agent_id', null)
+      .is('deleted_at', null)
+      .eq('is_deleted', false);
 
-    const rows = data || [];
+    // Merge & deduplicate by id
+    const seen = new Set();
+    const rows = [...(mine || []), ...(unassigned || [])].filter(r => {
+      if (seen.has(r.id)) return false;
+      seen.add(r.id);
+      return true;
+    });
 
     const pending = rows.filter(r => r.status === 'assignee_agent').length;
     const active = rows.filter(r => r.status === 'en_cours').length;
@@ -65,84 +79,126 @@ exports.getDeclarations = async (req, res) => {
     const deptId = agentScope(req);
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // Base query — agent sees tasks assigned to them OR unassigned dept tasks pending agent pick-up
-    let q = supabase
-      .from('declarations')
-      .select(
-        `id, ref_citoyen, ref_service, title, description, category, status,
+    const SELECT_FIELDS = `id, ref_citoyen, ref_service, title, description, category, status,
          priority, priority_score, is_sensitive, sensitive_type,
          created_at, assigned_at, started_at, resolved_at, votes_count,
          address, latitude, longitude, photo_avant,
          agent_id, department_id,
          delegations:delegation_id (name, code),
-         citizen:citizen_id (id, first_name, last_name, email, phone)`,
-        { count: 'exact' }
-      )
+         citizen:citizen_id (id, first_name, last_name, email, phone)`;
+
+    // Run two separate queries to avoid broken compound .or() syntax
+    // Query A: declarations explicitly assigned to this agent
+    let qA = supabase
+      .from('declarations')
+      .select(SELECT_FIELDS)
       .eq('department_id', deptId)
+      .eq('agent_id', agentId)
       .is('deleted_at', null)
-      .eq('is_deleted', false)
-      .or(`agent_id.eq.${agentId},and(agent_id.is.null,status.eq.assignee_agent)`);
+      .eq('is_deleted', false);
 
-    // ── Filters ──
+    // Query B: unassigned declarations in pending state within this dept
+    let qB = supabase
+      .from('declarations')
+      .select(SELECT_FIELDS)
+      .eq('department_id', deptId)
+      .eq('status', 'assignee_agent')
+      .is('agent_id', null)
+      .is('deleted_at', null)
+      .eq('is_deleted', false);
+
+    // ── Apply status filter ──
     if (status && VALID_STATUSES.includes(status)) {
-      q = q.eq('status', status);
+      qA = qA.eq('status', status);
+      // qB only returns assignee_agent; skip it entirely if filtering for another status
+      if (status !== 'assignee_agent') qB = null;
     }
 
+    // ── Priority filter ──
     if (priority && ['critique', 'elevee', 'moyenne', 'basse'].includes(priority)) {
-      q = q.eq('priority', priority);
+      qA = qA.eq('priority', priority);
+      if (qB) qB = qB.eq('priority', priority);
     }
 
+    // ── Search filter ──
     if (search && search.trim()) {
       const s = search.trim();
-      q = q.or(
-        `title.ilike.%${s}%,description.ilike.%${s}%,category.ilike.%${s}%,address.ilike.%${s}%,ref_citoyen.ilike.%${s}%,ref_service.ilike.%${s}%`
-      );
+      const orClause = `title.ilike.%${s}%,description.ilike.%${s}%,category.ilike.%${s}%,address.ilike.%${s}%,ref_citoyen.ilike.%${s}%,ref_service.ilike.%${s}%`;
+      qA = qA.or(orClause);
+      if (qB) qB = qB.or(orClause);
     }
 
-    // Multi-department: declarations whose ref_citoyen appears in >1 dept — use raw SQL via RPC would be ideal
-    // For Supabase JS, we pre-fetch qualifying ref_citoyen values
-    if (filter_multi_dept === 'true') {
-      const { data: multiRows } = await supabase.rpc('get_multi_dept_refs').select('ref_citoyen');
-      // Fallback: if RPC not set up just skip filter gracefully
-      if (multiRows && multiRows.length > 0) {
-        const refs = multiRows.map(r => r.ref_citoyen);
-        q = q.in('ref_citoyen', refs);
-      }
-    }
+    // ── Execute both queries in parallel ──
+    const [resA, resB] = await Promise.all([
+      qA,
+      qB ? qB : Promise.resolve({ data: [] }),
+    ]);
 
-    if (filter_multi_agent === 'true') {
-      const { data: multiRows } = await supabase.rpc('get_multi_agent_refs');
-      if (multiRows && multiRows.length > 0) {
-        const refs = multiRows.map(r => r.ref_citoyen);
-        q = q.in('ref_citoyen', refs);
-      }
-    }
+    if (resA.error) throw resA.error;
 
-    // ── Sort ──
+    // Merge and deduplicate by id
+    const seen = new Set();
+    let declarations = [...(resA.data || []), ...(resB.data || [])].filter(d => {
+      if (seen.has(d.id)) return false;
+      seen.add(d.id);
+      return true;
+    });
+
+    // ── Sort in JS (priority_score DESC, then created_at) ──
     const asc = sort.toLowerCase() === 'asc';
-    q = q
-      .order('priority_score', { ascending: false })  // always sort critical first within date sort
-      .order('created_at', { ascending: asc });
+    declarations.sort((a, b) => {
+      const scoreDiff = (b.priority_score || 0) - (a.priority_score || 0);
+      if (scoreDiff !== 0) return scoreDiff;
+      const tA = new Date(a.created_at).getTime();
+      const tB = new Date(b.created_at).getTime();
+      return asc ? tA - tB : tB - tA;
+    });
 
-    // ── Pagination ──
-    q = q.range(offset, offset + parseInt(limit) - 1);
+    const total = declarations.length;
 
-    const { data, error, count } = await q;
-    if (error) throw error;
+    // ── Paginate in JS ──
+    declarations = declarations.slice(offset, offset + parseInt(limit));
+
+    // ── Co-assignments ──
+    const refCitoyens = [...new Set(declarations.map(d => d.ref_citoyen).filter(Boolean))];
+    let coAssignmentsMap = {};
+    if (refCitoyens.length > 0) {
+      try {
+        const { data: allDecls } = await supabase
+          .from('declarations')
+          .select('id, ref_citoyen, agent_id')
+          .in('ref_citoyen', refCitoyens)
+          .is('deleted_at', null)
+          .eq('is_deleted', false);
+
+        if (allDecls) {
+          allDecls.forEach(d => {
+            if (!coAssignmentsMap[d.ref_citoyen]) coAssignmentsMap[d.ref_citoyen] = [];
+            coAssignmentsMap[d.ref_citoyen].push(d);
+          });
+        }
+      } catch (e) {
+        console.error('[Agent] co-assignments fetch error:', e.message);
+      }
+    }
 
     res.json({
-      declarations: (data || []).map(d => ({
-        ...d,
-        priority: d.priority || 'moyenne',
-        priority_score: d.priority_score ?? 0,
-        is_sensitive: d.is_sensitive || false,
-        sensitive_type: d.sensitive_type || 'none',
-      })),
+      declarations: declarations.map(d => {
+        const others = coAssignmentsMap[d.ref_citoyen] || [];
+        return {
+          ...d,
+          priority: d.priority || 'moyenne',
+          priority_score: d.priority_score ?? 0,
+          is_sensitive: d.is_sensitive || false,
+          sensitive_type: d.sensitive_type || 'none',
+          co_assignments_count: others.filter(o => o.id !== d.id).length,
+        };
+      }),
       pagination: {
-        total: count || 0,
+        total,
         page: parseInt(page),
         limit: parseInt(limit),
-        pages: Math.ceil((count || 0) / parseInt(limit)),
+        pages: Math.ceil(total / parseInt(limit)),
       },
     });
   } catch (err) {
@@ -158,7 +214,12 @@ exports.getDeclarationById = async (req, res) => {
     const agentId = req.user.id;
     const deptId = agentScope(req);
 
-    const { data, error } = await supabase
+    // Try to find the declaration assigned to this agent, or unassigned in their dept
+    // Run two queries to avoid broken compound .or() syntax
+    let data = null;
+
+    // First: try the one explicitly assigned to this agent
+    const { data: mine, error: mineErr } = await supabase
       .from('declarations')
       .select(`
         *,
@@ -169,13 +230,35 @@ exports.getDeclarationById = async (req, res) => {
       `)
       .eq('id', id)
       .eq('department_id', deptId)
+      .eq('agent_id', agentId)
       .is('deleted_at', null)
       .eq('is_deleted', false)
-      // Allow viewing if assigned to me OR unassigned and pending
-      .or(`agent_id.eq.${agentId},agent_id.is.null`)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
+    if (mine) {
+      data = mine;
+    } else {
+      // Second: look for an unassigned pending one (agent is viewing before accepting)
+      const { data: unassigned } = await supabase
+        .from('declarations')
+        .select(`
+          *,
+          delegations:delegation_id (name, code),
+          department:department_id (name_fr, name_ar, code),
+          citizen:citizen_id (id, first_name, last_name, email, phone),
+          agent:agent_id (id, first_name, last_name, email)
+        `)
+        .eq('id', id)
+        .eq('department_id', deptId)
+        .eq('status', 'assignee_agent')
+        .is('agent_id', null)
+        .is('deleted_at', null)
+        .eq('is_deleted', false)
+        .maybeSingle();
+      data = unassigned;
+    }
+
+    if (!data) {
       return res.status(404).json({ error: 'Déclaration introuvable ou accès refusé.' });
     }
 
@@ -206,11 +289,35 @@ exports.getDeclarationById = async (req, res) => {
       .eq('declaration_id', id)
       .order('created_at', { ascending: true });
 
+    // Fetch other declarations with the same ref_citoyen to find other assigned agents or departments
+    let other_assignments = [];
+    if (data && data.ref_citoyen) {
+      const { data: others, error: othersError } = await supabase
+        .from('declarations')
+        .select(`
+          id,
+          status,
+          department_id,
+          agent_id,
+          department:department_id (name_fr, name_ar, code),
+          agent:agent_id (id, first_name, last_name, email)
+        `)
+        .eq('ref_citoyen', data.ref_citoyen)
+        .neq('id', id)
+        .is('deleted_at', null)
+        .eq('is_deleted', false);
+
+      if (!othersError && others) {
+        other_assignments = others;
+      }
+    }
+
     res.json({
       ...data,
       photos: photos || [],
       history: history || [],
       comments: comments || [],
+      other_assignments: other_assignments || [],
     });
   } catch (err) {
     console.error('[Agent] getDeclarationById:', err.message);
@@ -511,6 +618,46 @@ exports.addComment = async (req, res) => {
     res.status(201).json(data);
   } catch (err) {
     console.error('[Agent] addComment:', err.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};
+
+// ─── POST /api/agent/declarations/:id/close ──────────────────────────────────
+exports.closeDeclaration = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const agentId = req.user.id;
+
+    const { data: decl, error: fetchErr } = await supabase
+      .from('declarations')
+      .select('id, ref_citoyen, status, citizen_id, agent_id')
+      .eq('id', id)
+      .eq('department_id', agentScope(req))
+      .eq('agent_id', agentId)
+      .single();
+
+    if (fetchErr || !decl) {
+      return res.status(404).json({ error: 'Déclaration introuvable ou non assignée à vous.' });
+    }
+
+    const { error: updateErr } = await supabase
+      .from('declarations')
+      .update({
+        status: 'cloturee',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (updateErr) throw updateErr;
+
+    await logStatusChange(id, decl.status, 'cloturee', agentId, 'Clôturée par l\'agent via le Board');
+    if (decl.citizen_id) {
+      await notifyStatusChange(req.app, decl, decl.citizen_id, 'cloturee');
+    }
+
+    res.json({ message: 'Mission clôturée avec succès.', status: 'cloturee' });
+  } catch (err) {
+    console.error('[Agent] closeDeclaration:', err.message);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 };

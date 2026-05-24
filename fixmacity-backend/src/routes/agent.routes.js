@@ -32,6 +32,7 @@ router.post('/declarations/:id/accept',   ctrl.acceptDeclaration);
 router.post('/declarations/:id/refuse',   ctrl.refuseDeclaration);
 router.post('/declarations/:id/photo',    memUpload.single('photo'), ctrl.uploadPhoto);
 router.post('/declarations/:id/resolve',  ctrl.resolveDeclaration);
+router.post('/declarations/:id/close',    ctrl.closeDeclaration);
 
 // ── Internal comments ─────────────────────────────────────────────────────────
 router.get('/declarations/:id/comments',  ctrl.getComments);

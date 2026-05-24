@@ -247,17 +247,25 @@ class QB {
     return parts.join(' ');
   }
 
-  /** Strip PostgREST embed specs like  users!fk(col1, col2)  */
+  /** Strip PostgREST embed specs like  users!fk(col1, col2)  or  delegations:delegation_id (name, code) */
   _stripEmbeds(cols) {
     if (cols === '*') return '*';
-    // Remove alias:table!fk(cols), table!fk(cols), alias:table(cols)
-    let clean = cols
-      .replace(/\w+:\w+![^,()\s]*\([^)]*\)/g, '')
-      .replace(/\w+![^,()\s]*\([^)]*\)/g, '')
-      .replace(/\w+:\w+\([^)]*\)/g, '');
-    const parts = clean.split(',').map(c => c.trim())
-      .filter(c => c && !c.includes('(') && !c.includes(':'));
-    return parts.length ? parts.join(', ') : '*';
+
+    // Tokenize respecting nested parentheses
+    const tokens = [];
+    let depth = 0;
+    let current = '';
+    for (const ch of cols) {
+      if (ch === '(') { depth++; current += ch; }
+      else if (ch === ')') { depth--; current += ch; if (depth === 0) { tokens.push(current.trim()); current = ''; } }
+      else if (ch === ',' && depth === 0) { if (current.trim()) tokens.push(current.trim()); current = ''; }
+      else { current += ch; }
+    }
+    if (current.trim()) tokens.push(current.trim());
+
+    // Keep only plain column names — no parens, no colons, not empty
+    const plain = tokens.filter(t => !t.includes('(') && !t.includes(':') && t.length > 0);
+    return plain.length ? plain.join(', ') : '*';
   }
 
   // ── Execution ────────────────────────────────────────────

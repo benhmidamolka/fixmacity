@@ -5,7 +5,7 @@ import {
   ArrowLeft, MapPin, Calendar, Camera, CheckCircle, XCircle,
   Clock, User, AlertTriangle, Loader2, Send, Lock, Unlock,
   FileText, MessageSquare, ChevronRight, Image as ImageIcon,
-  Briefcase, Crown, UserCheck
+  Briefcase, Crown, UserCheck, Users
 } from 'lucide-react'
 import AgentLayout from '../../components/agent/AgentLayout'
 
@@ -245,6 +245,64 @@ const AgentDeclarationDetail: React.FC = () => {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Co-assignments card */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 space-y-3">
+              <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <Users size={13} /> Co-affectations & Autres agents
+              </h2>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                Autres agents ou services mobilisés sur cette même déclaration citoyenne (Réf: <span className="font-mono text-slate-600 font-bold">{decl.ref_citoyen}</span>) :
+              </p>
+              {decl.other_assignments && decl.other_assignments.length > 0 ? (
+                <div className="space-y-2">
+                  {decl.other_assignments.map((assignment: any) => {
+                    const hasAgent = assignment.agent && assignment.agent.first_name;
+                    return (
+                      <div key={assignment.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100/50 transition-colors">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                          hasAgent ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-600'
+                        }`}>
+                          {hasAgent 
+                            ? `${assignment.agent.first_name[0]}${assignment.agent.last_name?.[0] || ''}`
+                            : '🏢'
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-[#0A1628] truncate">
+                            {hasAgent 
+                              ? `${assignment.agent.first_name} ${assignment.agent.last_name}`
+                              : 'Agent non affecté'
+                            }
+                          </p>
+                          <p className="text-[10px] text-slate-500 truncate font-semibold">
+                            {assignment.department?.name_fr || 'Service non spécifié'} 
+                            {assignment.department?.code ? ` (${assignment.department.code})` : ''}
+                          </p>
+                        </div>
+                        <span className={`text-[9px] font-bold px-2.5 py-0.5 rounded-full ${
+                          assignment.status === 'assignee_agent' 
+                            ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                            : assignment.status === 'en_cours'
+                            ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                            : assignment.status === 'resolue' || assignment.status === 'cloturee'
+                            ? 'bg-green-50 text-green-600 border border-green-200'
+                            : 'bg-slate-100 text-slate-500 border border-slate-200'
+                        }`}>
+                          {assignment.status === 'assignee_agent' ? 'À accepter'
+                            : assignment.status === 'en_cours' ? 'En cours'
+                            : assignment.status === 'resolue' ? 'Résolue'
+                            : assignment.status === 'cloturee' ? 'Clôturée'
+                            : assignment.status}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 italic py-2 pl-2">Aucun autre service ou agent n'est co-assigné sur cette déclaration.</p>
+              )}
             </div>
 
             {/* Photos */}
