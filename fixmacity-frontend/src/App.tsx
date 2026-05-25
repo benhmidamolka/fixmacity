@@ -159,9 +159,7 @@ const App: React.FC = () => {
         <Route path="/agent/declarations" element={
           <ProtectedRoute allowedRoles={['agent']}><AgentDeclarations /></ProtectedRoute>
         } />
-        <Route path="/agent/declarations/:id" element={
-          <ProtectedRoute allowedRoles={['agent']}><AgentDeclarationDetail /></ProtectedRoute>
-        } />
+
 
         <Route path="/agent/notifications" element={
           <ProtectedRoute allowedRoles={['agent']}><AgentNotifications /></ProtectedRoute>

@@ -166,7 +166,7 @@ exports.getDeclarations = async (req, res) => {
       try {
         const { data: allDecls } = await supabase
           .from('declarations')
-          .select('id, ref_citoyen, agent_id')
+          .select('id, ref_citoyen, agent_id, department_id')
           .in('ref_citoyen', refCitoyens)
           .is('deleted_at', null)
           .eq('is_deleted', false);
@@ -185,6 +185,16 @@ exports.getDeclarations = async (req, res) => {
     res.json({
       declarations: declarations.map(d => {
         const others = coAssignmentsMap[d.ref_citoyen] || [];
+        const sameDeptOthers = others.filter(o => o.id !== d.id && o.department_id === d.department_id);
+        const diffDeptOthers = others.filter(o => o.department_id !== d.department_id);
+        
+        let assignment_type = 'agent_unique';
+        if (diffDeptOthers.length > 0) {
+          assignment_type = 'inter_departement';
+        } else if (sameDeptOthers.length > 0) {
+          assignment_type = 'multi_agents';
+        }
+
         return {
           ...d,
           priority: d.priority || 'moyenne',
@@ -192,6 +202,7 @@ exports.getDeclarations = async (req, res) => {
           is_sensitive: d.is_sensitive || false,
           sensitive_type: d.sensitive_type || 'none',
           co_assignments_count: others.filter(o => o.id !== d.id).length,
+          assignment_type,
         };
       }),
       pagination: {
