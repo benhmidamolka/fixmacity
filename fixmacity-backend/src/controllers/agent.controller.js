@@ -276,9 +276,9 @@ exports.getDeclarationById = async (req, res) => {
     // Photos (before + after intervention)
     const { data: photos } = await supabase
       .from('declaration_photos')
-      .select('id, url, public_id, uploaded_by, created_at, photo_type')
+      .select('id, url, public_id, uploaded_by, uploaded_at, photo_type')
       .eq('declaration_id', id)
-      .order('created_at', { ascending: true });
+      .order('uploaded_at', { ascending: true });
 
     // Status history with user info
     const { data: history } = await supabase

@@ -730,12 +730,9 @@ const ChefDashboard: React.FC = () => {
                     {/* Status */}
                     <div onClick={() => navigate(`/chef/declarations/${d.id}`)}><Pill val={d.status} type="status" /></div>
 
-                    {/* Priority (with score) */}
+                    {/* Priority */}
                     <div onClick={() => navigate(`/chef/declarations/${d.id}`)}>
-                      <div className="flex items-center gap-2">
-                        <Pill val={d.priority} type="priority" />
-                        <span className="text-[10px] font-bold text-slate-400">Score: {d.priority_score || 0}</span>
-                      </div>
+                      <Pill val={d.priority} type="priority" />
                     </div>
 
                     {/* Assigned agent */}

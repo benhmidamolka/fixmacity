@@ -829,7 +829,7 @@ exports.getById = async (req, res) => {
       .select(`
         *,
         delegations ( id, name, code ),
-        declaration_photos ( id, url, uploaded_by, created_at ),
+        declaration_photos ( id, url, uploaded_by, uploaded_at ),
         status_history ( id, from_status, to_status, user_id, comment, created_at ),
         ratings ( id, score, comment, created_at )
       `)
