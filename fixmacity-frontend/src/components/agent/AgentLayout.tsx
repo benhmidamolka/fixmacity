@@ -15,14 +15,6 @@ const NAV = [
     section: 'Travail',
     items: [
       { label: 'Tableau de bord', icon: LayoutDashboard, to: '/agent/dashboard'     },
-      { label: 'Mes Missions',    icon: List,            to: '/agent/declarations'  },
-      { label: 'Notifications',   icon: Bell,            to: '/agent/notifications' },
-    ]
-  },
-  {
-    section: 'Compte',
-    items: [
-      { label: 'Paramètres', icon: Settings, to: '/agent/settings' },
     ]
   }
 ]
