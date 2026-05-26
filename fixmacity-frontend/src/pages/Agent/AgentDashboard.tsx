@@ -1,255 +1,240 @@
-import React, { useState, useEffect } from 'react'
-import AgentLayout from '../../components/agent/AgentLayout'
-import AgentDeclarationDetail from './AgentDeclarationDetail'
-import {
-  ListFilter, Search, Clock, CheckCircle2,
-  AlertTriangle, Filter, Loader2, ArrowUpDown, MapPin
-} from 'lucide-react'
-import { toast } from 'react-hot-toast'
+import React, { useState, useEffect } from 'react';
+import AgentLayout from '../../layouts/AgentLayout';
+import AgentDeclarationDetail from './AgentDeclarationDetail';
+import type { Declaration, DeclarationStatus } from '../../types/agent.types';
+import { PriorityBadge, StatusPill, TypeBadge, StatCard, Btn } from '../ui';
+import { toast } from 'react-hot-toast';
+import { Loader2 } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api';
+const tok = () => localStorage.getItem('fmc_token') || '';
+const hdr = () => ({ Authorization: `Bearer ${tok()}` });
+const hjson = () => ({ ...hdr(), 'Content-Type': 'application/json' });
 
-const PRIORITY_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  haute: { label: 'Haute', color: '#dc2626', bg: '#fee2e2' },
-  moyenne: { label: 'Moyenne', color: '#d97706', bg: '#fef3c7' },
-  faible: { label: 'Faible', color: '#059669', bg: '#dcfce7' },
-}
-
-const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  assignee_agent: { label: 'À Accepter', color: '#1d4ed8', bg: '#dbeafe' },
-  en_cours:       { label: 'En cours', color: '#c2410c', bg: '#ffedd5' },
-  resolue:        { label: 'Résolue', color: '#15803d', bg: '#dcfce7' },
-}
+const FILTERS: { key: 'all' | DeclarationStatus; label: string }[] = [
+  { key: 'all',            label: 'Toutes' },
+  { key: 'assignee_agent', label: 'Nouvelles' },
+  { key: 'en_cours',       label: 'En cours' },
+  { key: 'resolue',        label: 'Résolues' },
+  { key: 'refusee_agent',  label: 'Refusées' },
+];
 
 export default function AgentDashboard() {
-  const [declarations, setDeclarations] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [selectedDecl, setSelectedDecl] = useState<string | null>(null)
+  const [declarations, setDeclarations] = useState<Declaration[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | DeclarationStatus>('all');
+  const [selectedDecl, setSelectedDecl] = useState<string | null>(null);
+  const [stats, setStats] = useState({ pending: 0, active: 0, resolved: 0, refused: 0, total: 0, successRate: 0 });
 
   const fetchDecls = async () => {
     try {
-      setLoading(true)
-      const res = await fetch(`${API}/agent/declarations`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('fmc_token')}` }
-      })
-      if (!res.ok) throw new Error('Erreur de chargement')
-      const data = await res.json()
-      setDeclarations(data.declarations || (Array.isArray(data) ? data : []))
-    } catch (e) {
-      toast.error('Impossible de charger vos missions')
+      setLoading(true);
+      const [resDecls, resStats] = await Promise.all([
+        fetch(`${API}/agent/declarations`, { headers: hdr() }),
+        fetch(`${API}/agent/stats`, { headers: hdr() })
+      ]);
+      
+      if (!resDecls.ok || !resStats.ok) throw new Error();
+      
+      const dataDecls = await resDecls.json();
+      const dataStats = await resStats.json();
+      
+      setDeclarations(dataDecls.declarations || (Array.isArray(dataDecls) ? dataDecls : []));
+      setStats(dataStats);
+    } catch {
+      toast.error('Impossible de charger vos missions');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchDecls()
-  }, [])
+    fetchDecls();
+  }, []);
 
-  const safeDeclarations = Array.isArray(declarations) ? declarations : (declarations.declarations || [])
+  const safeDeclarations = Array.isArray(declarations) ? declarations : [];
+  const filtered = filter === 'all' ? safeDeclarations : safeDeclarations.filter(d => d.statut === filter || (d as any).status === filter);
 
-  const filtered = safeDeclarations.filter((d: any) => {
-    const matchSearch = d.title.toLowerCase().includes(search.toLowerCase()) || 
-                        d.ref_citoyen?.toLowerCase().includes(search.toLowerCase()) ||
-                        d.address?.toLowerCase().includes(search.toLowerCase())
-    const matchStatus = statusFilter === 'all' || d.status === statusFilter
-    // Agent should only see relevant statuses (not already closed maybe, or everything assigned to them)
-    // But backend should handle this mostly.
-    return matchSearch && matchStatus
-  })
+  const statsCards = [
+    { label: 'Total reçues',  value: stats.total,       sub: 'toutes missions confondues' },
+    { label: 'En attente',    value: stats.pending,     sub: 'nouvelles assignations' },
+    { label: 'En cours',      value: stats.active,      sub: 'interventions actives' },
+    { label: 'Résolues (Taux)', value: `${stats.resolved} (${stats.successRate}%)`, sub: 'missions terminées' },
+  ];
 
-  // Group by status for summary
-  const counts = {
-    total: safeDeclarations.length,
-    a_accepter: safeDeclarations.filter((d: any) => d.status === 'assignee_agent').length,
-    en_cours: safeDeclarations.filter((d: any) => d.status === 'en_cours').length,
-    resolue: safeDeclarations.filter((d: any) => d.status === 'resolue').length,
-  }
+  const onQuickAccept = async (id: string) => {
+    try {
+      const res = await fetch(`${API}/agent/declarations/${id}/accept`, {
+        method: 'POST',
+        headers: hjson(),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Mission acceptée');
+      fetchDecls();
+    } catch {
+      toast.error("Erreur lors de l'acceptation");
+    }
+  };
+
+  const onQuickRefuse = async (id: string) => {
+    try {
+      const res = await fetch(`${API}/agent/declarations/${id}/refuse`, {
+        method: 'POST',
+        headers: hjson(),
+        body: JSON.stringify({ reason: 'Refus rapide depuis le dashboard' })
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Mission refusée');
+      fetchDecls();
+    } catch {
+      toast.error("Erreur lors du refus");
+    }
+  };
 
   return (
     <AgentLayout>
-      <div className="p-8 max-w-7xl mx-auto space-y-8">
-        
-        {/* HEADER */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Mes Missions</h1>
-            <p className="text-sm font-medium text-slate-500 mt-1">Gérez vos interventions sur le terrain.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input 
-                type="text" 
-                placeholder="Rechercher une mission..." 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1557FF] focus:ring-2 focus:ring-[#1557FF]/20 transition-all w-64 shadow-sm"
-              />
-            </div>
-          </div>
+      <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', marginBottom: 24 }}>Tableau de Bord</h1>
+        {/* Stat cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+          {statsCards.map(s => <StatCard key={s.label} label={s.label} value={s.value} sub={s.sub} />)}
         </div>
 
-        {/* SUMMARY CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500">
-              <ListFilter size={20} />
-            </div>
-            <div>
-              <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Total Assignées</p>
-              <p className="text-2xl font-black text-slate-800">{counts.total}</p>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
-              <AlertTriangle size={20} />
-            </div>
-            <div>
-              <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider">À Accepter</p>
-              <p className="text-2xl font-black text-slate-800">{counts.a_accepter}</p>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600">
-              <Clock size={20} />
-            </div>
-            <div>
-              <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider">En cours</p>
-              <p className="text-2xl font-black text-slate-800">{counts.en_cours}</p>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-              <CheckCircle2 size={20} />
-            </div>
-            <div>
-              <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Résolues</p>
-              <p className="text-2xl font-black text-slate-800">{counts.resolue}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* FILTERS & TABLE */}
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
-            <Filter size={16} className="text-slate-400" />
-            <span className="text-xs font-bold text-slate-600 mr-2">Filtrer par statut:</span>
-            {[
-              { id: 'all', label: 'Toutes' },
-              { id: 'assignee_agent', label: 'À Accepter' },
-              { id: 'en_cours', label: 'En cours' },
-              { id: 'resolue', label: 'Résolues' }
-            ].map(f => (
-              <button 
-                key={f.id}
-                onClick={() => setStatusFilter(f.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${statusFilter === f.id ? 'bg-slate-800 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-              >
+        {/* Filter chips */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+          {FILTERS.map(f => {
+            const count = safeDeclarations.filter(d => d.statut === f.key || (d as any).status === f.key).length;
+            return (
+              <button key={f.key} onClick={() => setFilter(f.key)} style={{
+                padding: '5px 14px', borderRadius: 20, fontSize: 12,
+                border: filter === f.key ? '1px solid #86EFAC' : '1px solid #E2E8F0',
+                background: filter === f.key ? '#F0FDF4' : '#fff',
+                color: filter === f.key ? '#15803D' : '#64748B',
+                cursor: 'pointer', fontFamily: 'inherit', fontWeight: filter === f.key ? 600 : 400,
+                transition: 'all 0.12s',
+              }}>
                 {f.label}
+                {f.key !== 'all' && (
+                  <span style={{ marginLeft: 5, fontSize: 11, opacity: 0.7 }}>
+                    ({count})
+                  </span>
+                )}
               </button>
-            ))}
-          </div>
-
-          <div className="overflow-x-auto">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                <Loader2 size={32} className="animate-spin mb-4 text-[#1557FF]" />
-                <p className="text-sm font-bold">Chargement de vos missions...</p>
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">
-                  <CheckCircle2 size={32} className="text-slate-300" />
-                </div>
-                <p className="text-sm font-bold text-slate-600">Aucune mission trouvée.</p>
-                <p className="text-xs mt-1">Vous n'avez pas de tâches correspondant à ces critères.</p>
-              </div>
-            ) : (
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-white border-b border-slate-100">
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-24">Réf</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Détails de la mission</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Catégorie</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Priorité</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Statut</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {filtered.map(d => {
-                    const prio = PRIORITY_CFG[d.priority?.toLowerCase()] || PRIORITY_CFG.moyenne
-                    const stat = STATUS_CFG[d.status] || { label: d.status, color: '#64748b', bg: '#f1f5f9' }
-                    
-                    return (
-                      <tr 
-                        key={d.id} 
-                        className="group hover:bg-slate-50/80 transition-colors cursor-pointer"
-                        onClick={() => setSelectedDecl(d.id)}
-                      >
-                        <td className="px-6 py-4">
-                          <span className="text-xs font-mono font-black text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
-                            {d.ref_citoyen || `#${d.id.slice(-4)}`}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-sm font-bold text-slate-900 group-hover:text-[#1557FF] transition-colors line-clamp-1">{d.title}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <MapPin size={12} className="text-slate-400" />
-                            <span className="text-xs text-slate-500 truncate max-w-[250px]">{d.address || 'Non spécifiée'}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1.5 rounded-lg whitespace-nowrap">
-                            {d.category || 'Général'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span 
-                            className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"
-                            style={{ color: prio.color, backgroundColor: prio.bg }}
-                          >
-                            {prio.label}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span 
-                            className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"
-                            style={{ color: stat.color, backgroundColor: stat.bg }}
-                          >
-                            {stat.label}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button 
-                            className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 group-hover:bg-[#1557FF] group-hover:text-white flex items-center justify-center transition-all inline-flex ml-auto"
-                            onClick={(e) => { e.stopPropagation(); setSelectedDecl(d.id); }}
-                          >
-                            <ArrowUpDown size={14} className="rotate-90" />
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
+            )
+          })}
         </div>
 
+        {/* Table */}
+        <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #F1F5F9', overflow: 'hidden' }}>
+          {loading ? (
+             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', color: '#94A3B8' }}>
+               <Loader2 size={32} className="animate-spin mb-4 text-emerald-600" />
+               <p style={{ fontSize: 13, fontWeight: 600 }}>Chargement des données...</p>
+             </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#F8FAFC' }}>
+                  {['Titre / Réf.', 'Description', 'Priorité', 'Type', 'Date assignation', 'État', 'Actions'].map(h => (
+                    <th key={h} style={{
+                      textAlign: 'left', padding: '11px 16px',
+                      fontSize: 10, color: '#94A3B8', textTransform: 'uppercase',
+                      letterSpacing: '0.05em', fontWeight: 600,
+                      borderBottom: '1px solid #F1F5F9',
+                    }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '48px 0', color: '#94A3B8', fontSize: 13 }}>
+                      Aucune déclaration pour ce filtre
+                    </td>
+                  </tr>
+                )}
+                {filtered.map((d, i) => (
+                  <TableRow
+                    key={d.id}
+                    decl={d}
+                    isLast={i === filtered.length - 1}
+                    onView={() => setSelectedDecl(d.id)}
+                    onAccept={() => onQuickAccept(d.id)}
+                    onRefuse={() => onQuickRefuse(d.id)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
-
+      
       {selectedDecl && (
-        <AgentDeclarationDetail 
-          tacheId={selectedDecl} 
-          onClose={() => setSelectedDecl(null)} 
-          onAccepted={() => { setSelectedDecl(null); fetchDecls(); }} 
-          onRejected={() => { setSelectedDecl(null); fetchDecls(); }} 
+        <AgentDeclarationDetail
+          tacheId={selectedDecl}
+          onClose={() => setSelectedDecl(null)}
+          onAccepted={() => { setSelectedDecl(null); fetchDecls(); }}
+          onRejected={() => { setSelectedDecl(null); fetchDecls(); }}
         />
       )}
     </AgentLayout>
-  )
+  );
+}
+
+// ─── Table Row ────────────────────────────────────────────────────────────────
+interface RowProps {
+  decl: any;
+  isLast: boolean;
+  onView: () => void;
+  onAccept: () => void;
+  onRefuse: () => void;
+}
+function TableRow({ decl, isLast, onView, onAccept, onRefuse }: RowProps) {
+  const [hover, setHover] = useState(false);
+  const status = decl.statut || decl.status;
+  const isPending = status === 'assignee_agent';
+  const border = isLast ? 'none' : '1px solid #F8FAFC';
+
+  return (
+    <tr
+      onClick={onView}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{ background: hover ? '#FAFAFA' : '#fff', cursor: 'pointer', transition: 'background 0.1s' }}
+    >
+      <td style={{ padding: '13px 16px', borderBottom: border }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#0F172A', marginBottom: 3 }}>{decl.titre || decl.title}</div>
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#CBD5E1' }}>{decl.ref_citoyen || `#${decl.id.slice(-4)}`}</div>
+      </td>
+      <td style={{ padding: '13px 16px', borderBottom: border, maxWidth: 200 }}>
+        <div style={{ fontSize: 12, color: '#64748B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {decl.description || 'Aucune description'}
+        </div>
+      </td>
+      <td style={{ padding: '13px 16px', borderBottom: border }}>
+        <PriorityBadge p={decl.priorite || decl.priority} />
+      </td>
+      <td style={{ padding: '13px 16px', borderBottom: border }}>
+        <TypeBadge t={decl.type || decl.category} />
+      </td>
+      <td style={{ padding: '13px 16px', borderBottom: border, fontSize: 12, color: '#64748B', whiteSpace: 'nowrap' }}>
+        {decl.dateAssignation || (decl.assigned_at ? new Date(decl.assigned_at).toLocaleDateString('fr-FR') : '—')}
+      </td>
+      <td style={{ padding: '13px 16px', borderBottom: border }}>
+        <StatusPill s={status} />
+      </td>
+      <td style={{ padding: '13px 16px', borderBottom: border }} onClick={e => e.stopPropagation()}>
+        {isPending ? (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <Btn variant="primary" size="sm" onClick={onAccept}>✓ Accepter</Btn>
+            <Btn variant="danger" size="sm" onClick={onRefuse}>✕ Refuser</Btn>
+          </div>
+        ) : (
+          <Btn variant="outline" size="sm" onClick={onView}>Détails →</Btn>
+        )}
+      </td>
+    </tr>
+  );
 }

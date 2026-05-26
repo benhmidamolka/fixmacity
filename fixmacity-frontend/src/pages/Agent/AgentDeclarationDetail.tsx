@@ -1,692 +1,651 @@
-import React, { useEffect, useState, useRef } from 'react'
-import {
-  X, Loader2, MapPin, Calendar, User, Phone, Mail,
-  CheckCircle2, MessageSquare, Send, Building2, Layers,
-  Activity, Info, FileText, Camera,
-  XCircle, Zap, ArrowDown, History, Image as ImageIcon, Clock, CheckSquare, AlertTriangle
-} from 'lucide-react'
-import { toast } from 'react-hot-toast'
+import React, { useState, useEffect } from 'react';
+import type { Declaration, DeclarationStatus, Comment, HistoryEvent, AgentInfo } from '../../types/agent.types';
+import { PriorityBadge, StatusPill, TypeBadge, Avatar, Btn, SectionDivider } from '../ui';
+import { ROLE_CFG, HISTORY_CFG } from '../../styles/tokens';
+import { toast } from 'react-hot-toast';
+import { Loader2, X, Upload, MessageSquare, Clock, MapPin, Eye, FileText, Users } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
-const tok = () => localStorage.getItem('fmc_token') || ''
-const hdr = () => ({ Authorization: `Bearer ${tok()}` })
-const hjson = () => ({ ...hdr(), 'Content-Type': 'application/json' })
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api';
+const tok = () => localStorage.getItem('fmc_token') || '';
+const hdr = () => ({ Authorization: `Bearer ${tok()}` });
+const hjson = () => ({ ...hdr(), 'Content-Type': 'application/json' });
 
-const STATUS_CFG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  soumise:        { label: 'Soumise',        color: '#d97706', bg: '#fffbeb', dot: '#f59e0b' },
-  assignee_chef:  { label: 'En attente Chef', color: '#7c3aed', bg: '#ede9fe', dot: '#8b5cf6' },
-  assignee_agent: { label: 'Assignée',       color: '#1d4ed8', bg: '#dbeafe', dot: '#3b82f6' },
-  en_cours:       { label: 'En cours',       color: '#c2410c', bg: '#ffedd5', dot: '#f97316' },
-  resolue:        { label: 'Résolue',        color: '#15803d', bg: '#dcfce7', dot: '#22c55e' },
-  cloturee:       { label: 'Clôturée',       color: '#475569', bg: '#f1f5f9', dot: '#94a3b8' },
-  refusee_chef:   { label: 'Refusée Chef',   color: '#dc2626', bg: '#fee2e2', dot: '#ef4444' },
-  refusee_agent:  { label: 'Refusée Agent',  color: '#b91c1c', bg: '#fee2e2', dot: '#ef4444' },
+interface DetailPageProps {
+  tacheId: string;
+  onClose: () => void;
+  onAccepted: () => void;
+  onRejected: () => void;
 }
 
-const CHANNEL_CFG: Record<string, { label: string; color: string; bg: string; role: string }> = {
-  chef_agent:     { label: 'Chef ↔ Agent',      color: '#1d4ed8', bg: '#dbeafe', role: 'Agent' },
-  interdept:      { label: 'Inter-département', color: '#0891b2', bg: '#e0f2fe', role: 'Agent' },
-}
+type Tab = 'info' | 'comments' | 'history' | 'actions';
 
-const fmtDate = (d: string) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
-const fmtFull = (d: string) => new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-const fmtTime = (d: string) => new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+export default function AgentDeclarationDetail({
+  tacheId, onClose, onAccepted, onRejected
+}: DetailPageProps) {
+  const [decl, setDecl] = useState<Declaration | null>(null);
+  const [loading, setLoading] = useState(true);
 
-function getCatEmoji(cat?: string) {
-  const m: Record<string, string> = {
-    'Voirie': '🛣️', 'Éclairage Public': '💡', 'Propreté': '🗑️',
-    'Espaces Verts': '🌿', 'Réseaux': '💧', 'Signalisation': '🚦',
-    'Administratif': '🏢', 'Suggestions': '💬'
-  }
-  return cat ? (m[cat] || '📌') : '📌'
-}
+  const [activeTab, setActiveTab] = useState<Tab>('info');
+  const [newComment, setNewComment] = useState('');
+  const [statusSel, setStatusSel] = useState<DeclarationStatus>('en_cours');
+  const [motif, setMotif] = useState('');
+  const [showMotif, setShowMotif] = useState(false);
+  const [photoUploaded, setPhotoUploaded] = useState(false);
+  const [photoAvantUrl, setPhotoAvantUrl] = useState<string | null>(null);
+  const [photoApresUrl, setPhotoApresUrl] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState('');
+  const [localComments, setLocalComments] = useState<Comment[]>([]);
+  const [localHistory, setLocalHistory] = useState<HistoryEvent[]>([]);
+  const [localAgents, setLocalAgents] = useState<AgentInfo[]>([]);
 
-const StatusPill = ({ status }: { status: string }) => {
-  const c = STATUS_CFG[status] || { label: status, color: '#64748b', bg: '#f1f5f9', dot: '#94a3b8' }
-  return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black whitespace-nowrap"
-      style={{ color: c.color, background: c.bg }}>
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.dot }} />
-      {c.label}
-    </span>
-  )
-}
+  const mapComments = (backendComments: any[]): Comment[] => {
+    return (backendComments || []).map((c: any) => {
+      const author = c.author || {};
+      const firstName = author.first_name || '';
+      const lastName = author.last_name || '';
+      const name = `${firstName} ${lastName}`.trim() || 'Utilisateur';
+      const init = firstName && lastName ? `${firstName[0]}${lastName[0]}` : firstName ? firstName.slice(0, 2) : 'UI';
+      return {
+        auteur: name,
+        role: author.role || 'user',
+        initiales: init.toUpperCase(),
+        heure: c.created_at ? new Date(c.created_at).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }) : 'À l\'instant',
+        text: c.content || '',
+      };
+    });
+  };
 
-const PriPill = ({ priority }: { priority: string }) => {
-  const lo = priority?.toLowerCase()
-  const isHigh = ['haute','high','urgent','urgente','critique'].includes(lo)
-  const isMed  = ['moyenne','medium'].includes(lo)
-  const color  = isHigh ? '#dc2626' : isMed ? '#d97706' : '#059669'
-  const bg     = isHigh ? '#fee2e2' : isMed ? '#fef3c7' : '#dcfce7'
-  const label  = isHigh ? 'Urgent' : isMed ? 'Normal' : 'Faible'
-  const Icon   = isHigh ? Zap : isMed ? Activity : ArrowDown
-  return (
-    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black whitespace-nowrap"
-      style={{ color, background: bg }}>
-      <Icon size={10} />
-      {label}
-    </span>
-  )
-}
-
-function RefuseModal({ tacheId, onClose, onDone }: { tacheId: string; onClose: () => void; onDone: () => void }) {
-  const [reason,  setReason]  = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState<string | null>(null)
-  const REASONS = ['Hors de mes compétences', 'Matériel manquant', 'Surcharge de travail', 'Doublon', 'Autre']
-
-  const go = async () => {
-    if (!reason.trim()) { setError('Motif obligatoire.'); return }
-    setLoading(true)
-    const res = await fetch(`${API}/agent/declarations/${tacheId}/refuse`, {
-      method: 'POST', headers: hjson(), body: JSON.stringify({ raison: reason })
-    }).catch(() => null)
-    if (!res || !res.ok) { setLoading(false); setError('Erreur lors du refus.'); return }
-    toast.success('Mission refusée')
-    onDone(); onClose()
-  }
-
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-      style={{ background: 'rgba(10,22,40,.6)', backdropFilter: 'blur(6px)' }} onClick={onClose}>
-      <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-5 bg-red-50/60 border-b border-red-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-red-100 flex items-center justify-center"><XCircle size={16} className="text-red-500" /></div>
-            <p className="text-sm font-black text-red-700">Refuser l'assignation</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center text-red-400"><X size={14} /></button>
-        </div>
-        <div className="p-6 space-y-3">
-          <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-xs text-red-700">Le Chef de Service sera notifié et devra réassigner ce dossier.</div>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Motif *</p>
-          {REASONS.map(r => (
-            <button key={r} onClick={() => setReason(r)}
-              className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold border-2 transition-all ${reason === r ? 'border-red-400 bg-red-50 text-red-600' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}>
-              {r}
-            </button>
-          ))}
-          <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Précisions…" rows={3}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-red-400 resize-none text-slate-700 placeholder-slate-400" />
-          {error && <div className="text-xs text-red-500 font-bold">{error}</div>}
-        </div>
-        <div className="px-6 pb-6 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Annuler</button>
-          <button onClick={go} disabled={loading || !reason.trim()}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-black text-sm disabled:opacity-40 transition-all">
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <><XCircle size={14} /> Confirmer</>}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ResolveModal({ tacheId, onClose, onDone }: { tacheId: string; onClose: () => void; onDone: () => void }) {
-  const [reason,  setReason]  = useState('')
-  const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  const go = async () => {
-    if (!photoFile) return toast.error("La photo de l'intervention est obligatoire.")
-    setLoading(true)
-    try {
-      const formData = new FormData()
-      formData.append('photo', photoFile)
-      const photoRes = await fetch(`${API}/agent/declarations/${tacheId}/photo`, {
-        method: 'POST', headers: hdr(), body: formData
-      })
-      if (!photoRes.ok) throw new Error('Erreur upload photo')
-
-      const res = await fetch(`${API}/agent/declarations/${tacheId}/resolve`, {
-        method: 'POST', headers: hjson(), body: JSON.stringify({ rapport_interne: reason || 'Résolu.' })
-      })
-      if (!res.ok) throw new Error('Erreur résolution')
+  const mapHistory = (backendHistory: any[]): HistoryEvent[] => {
+    return (backendHistory || []).map((h: any) => {
+      const user = h.changed_by_user || {};
+      const name = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Système';
+      const statusMap: Record<string, string> = {
+        soumise: 'Soumise',
+        assignee_chef: 'Assignée au Chef',
+        assignee_agent: 'Assignée à l\'Agent',
+        en_cours: 'En cours',
+        resolue: 'Résolue',
+        cloturee: 'Clôturée',
+        refusee_chef: 'Refusée par le Chef',
+        refusee_agent: 'Refusée par l\'Agent',
+      };
+      const oldLbl = statusMap[h.old_status] || h.old_status || 'Inconnu';
+      const newLbl = statusMap[h.new_status] || h.new_status || 'Inconnu';
       
-      toast.success('Mission clôturée avec succès')
-      onDone(); onClose()
-    } catch (e) {
-      toast.error('Une erreur est survenue.')
-      setLoading(false)
+      let color: 'green' | 'blue' | 'orange' | 'red' | 'gray' = 'blue';
+      if (h.new_status === 'resolue') color = 'green';
+      else if (h.new_status === 'en_cours') color = 'orange';
+      else if (h.new_status === 'refusee_agent' || h.new_status === 'refusee_chef') color = 'red';
+      else if (h.new_status === 'cloturee') color = 'gray';
+
+      const actionText = h.raison ? ` — "${h.raison}"` : '';
+
+      return {
+        titre: `${name} a changé le statut de [${oldLbl}] à [${newLbl}]${actionText}`,
+        heure: h.created_at ? new Date(h.created_at).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }) : 'À l\'instant',
+        color,
+      };
+    });
+  };
+
+  const mapAgents = (data: any): AgentInfo[] => {
+    const list: AgentInfo[] = [];
+    
+    // current assigned agent
+    if (data.agent) {
+      list.push({
+        nom: `${data.agent.first_name || ''} ${data.agent.last_name || ''}`.trim() || 'Agent Assigné',
+        dept: data.department?.name_fr || 'Votre Département',
+      });
+    } else {
+      list.push({
+        nom: 'Non Assigné',
+        dept: data.department?.name_fr || 'Votre Département',
+      });
     }
-  }
 
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-      style={{ background: 'rgba(10,22,40,.6)', backdropFilter: 'blur(6px)' }} onClick={onClose}>
-      <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-5 bg-emerald-50/60 border-b border-emerald-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-emerald-100 flex items-center justify-center"><CheckCircle2 size={16} className="text-emerald-500" /></div>
-            <p className="text-sm font-black text-emerald-700">Clôturer l'intervention</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-400"><X size={14} /></button>
-        </div>
-        <div className="p-6 space-y-4">
-          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-emerald-300 bg-emerald-50/50 rounded-2xl cursor-pointer hover:bg-emerald-100/50 overflow-hidden relative">
-            {photoPreview ? (
-               <img src={photoPreview} alt="Aperçu" className="w-full h-full object-cover" />
-            ) : (
-              <div className="text-center p-4">
-                <Camera className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                <span className="text-xs font-bold text-emerald-700 block">Photo (Preuve de résolution) *</span>
-              </div>
-            )}
-            <input type="file" accept="image/*" className="hidden" onChange={e => {
-              if (e.target.files && e.target.files[0]) {
-                setPhotoFile(e.target.files[0])
-                setPhotoPreview(URL.createObjectURL(e.target.files[0]))
-              }
-            }} />
-          </label>
+    // other co-assignments
+    if (data.other_assignments && Array.isArray(data.other_assignments)) {
+      data.other_assignments.forEach((oa: any) => {
+        const name = oa.agent 
+          ? `${oa.agent.first_name || ''} ${oa.agent.last_name || ''}`.trim() 
+          : 'Non Assigné';
+        list.push({
+          nom: name,
+          dept: oa.department?.name_fr || 'Autre Département',
+        });
+      });
+    }
 
-          <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Rapport d'intervention (Optionnel)…" rows={3}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-400 resize-none text-slate-700 placeholder-slate-400" />
-        </div>
-        <div className="px-6 pb-6 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Annuler</button>
-          <button onClick={go} disabled={loading || !photoFile}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm disabled:opacity-40 transition-all">
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <><CheckCircle2 size={14} /> Clôturer</>}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
+    return list;
+  };
 
-export default function AgentDeclarationDetail({ tacheId, onClose, onAccepted, onRejected }: any) {
-  const [decl,    setDecl]    = useState<any | null>(null)
-  const [photos,  setPhotos]  = useState<any[]>([])
-  const [history, setHistory] = useState<any[]>([])
-  const [comments,setComments]= useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(false)
-  const [tab,     setTab]     = useState<'info' | 'photos' | 'history' | 'comments'>('info')
-  const [lightbox, setLightbox] = useState<string | null>(null)
-  const [channel, setChannel] = useState<'chef_agent' | 'interdept'>('chef_agent')
-  const [msg,     setMsg]     = useState('')
-  const [sending, setSending] = useState(false)
-  const [showRefuse, setShowRefuse] = useState(false)
-  const [showResolve, setShowResolve] = useState(false)
-  
-  const endRef = useRef<HTMLDivElement>(null)
-  const me = JSON.parse(localStorage.getItem('fmc_user') || '{}')
+  useEffect(() => {
+    const fetchDecl = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${API}/agent/declarations/${tacheId}`, { headers: hdr() });
+        if (!res.ok) {
+           throw new Error();
+        }
+        
+        const data = await res.json();
+        
+        // Find avant and intervention photos
+        const beforePhoto = data.photos?.find((p: any) => p.photo_type === 'avant')?.url || data.photo_avant || null;
+        const afterPhoto = data.photos?.find((p: any) => p.photo_type === 'intervention')?.url || null;
+        
+        setPhotoAvantUrl(beforePhoto);
+        setPhotoApresUrl(afterPhoto);
+        setPhotoUploaded(!!afterPhoto);
 
-  const fetchDetail = async () => {
-    try {
-      setLoading(true)
-      const res = await fetch(`${API}/agent/declarations/${tacheId}`, { headers: hdr() })
-      if (!res.ok) throw new Error('Introuvable')
-      const d = await res.json()
-      setDecl(d)
-      setPhotos(d.photos || [])
-      setHistory(d.history || [])
-      setComments(d.comments || [])
-    } catch (e) {
-      toast.error('Erreur chargement')
-      onClose()
-    } finally { setLoading(false) }
-  }
-
-  useEffect(() => { fetchDetail() }, [tacheId])
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [comments.length, channel, tab])
-
-  const sendMsg = async () => {
-    if (!msg.trim() || !decl) return
-    setSending(true)
-    try {
-      const r = await fetch(`${API}/agent/declarations/${tacheId}/comments`, {
-        method: 'POST', headers: hjson(),
-        body: JSON.stringify({ content: msg.trim(), channel })
-      })
-      if (r.ok) {
-        const d = await r.json()
-        setComments(p => [...p, { ...d.comment, user_id: me.id, user: { ...me, role: 'agent' } }])
-        setMsg('')
+        const mapped: Declaration = {
+             id: data.id,
+             ref_citoyen: data.ref_citoyen || `#${data.id.slice(-4)}`,
+             titre: data.title || data.titre,
+             description: data.description,
+             statut: data.status || data.statut,
+             priorite: data.priority || data.priorite,
+             type: data.category || data.type,
+             dateAssignation: data.assigned_at ? new Date(data.assigned_at).toLocaleDateString('fr-FR') : '—',
+             dateSubmission: data.created_at ? new Date(data.created_at).toLocaleDateString('fr-FR') : '—',
+             arrondissement: data.address || 'Non spécifié',
+             gps: data.latitude && data.longitude ? `${data.latitude}, ${data.longitude}` : 'Non spécifié',
+             photoSignalement: !!beforePhoto,
+             photoPreuve: !!afterPhoto,
+             citoyen: data.citizen ? {
+               nom: `${data.citizen.first_name || ''} ${data.citizen.last_name || ''}`.trim() || 'Citoyen',
+               email: data.citizen.email || 'Non renseigné',
+               phone: data.citizen.phone || 'Non renseigné',
+               initiales: data.citizen.first_name ? `${data.citizen.first_name[0]}${data.citizen.last_name?.[0] || ''}`.toUpperCase() : 'CI',
+             } : { nom: 'Citoyen Anonyme', email: '—', phone: '—', initiales: 'CA' },
+             agents: mapAgents(data),
+             history: mapHistory(data.history),
+             comments: mapComments(data.comments),
+        };
+        
+        setDecl(mapped);
+        setStatusSel(mapped.statut);
+        setLocalComments(mapped.comments);
+        setLocalHistory(mapped.history);
+        setLocalAgents(mapped.agents);
+        // Auto-focus the decision tab for pending missions
+        if (mapped.statut === 'assignee_agent') setActiveTab('actions');
+      } catch {
+        toast.error('Impossible de charger les détails');
+        onClose();
+      } finally {
+        setLoading(false);
       }
-    } catch {} finally { setSending(false) }
-  }
+    };
+    fetchDecl();
+  }, [tacheId]);
 
-  const handleAccept = async () => {
-    try {
-      setActionLoading(true)
-      const res = await fetch(`${API}/agent/declarations/${tacheId}/accept`, {
-        method: 'POST', headers: hjson()
-      })
-      if (!res.ok) throw new Error('Erreur')
-      toast.success('Mission acceptée !')
-      onAccepted?.()
-      fetchDetail()
-    } catch (e) {
-      toast.error("Erreur lors de l'acceptation")
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  if (loading) return (
-    <div className="fixed inset-0 z-[100] flex justify-end bg-slate-900/60 backdrop-blur-md">
-      <div className="w-full max-w-[680px] bg-slate-50 h-full shadow-2xl flex items-center justify-center">
-        <Loader2 className="w-10 h-10 animate-spin text-[#6C63FF]" />
+  if (loading) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: '#fff', padding: 40, borderRadius: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}>
+           <Loader2 className="animate-spin text-emerald-600" size={36} style={{ marginBottom: 16 }} />
+           <p style={{ fontWeight: 700, color: '#0F172A', fontSize: 15 }}>Chargement des détails de la mission...</p>
+        </div>
       </div>
-    </div>
-  )
+    );
+  }
 
-  if (!decl) return null
+  if (!decl) return null;
 
-  const isAssigned = decl.status === 'assignee_agent'
-  const isEnCours = decl.status === 'en_cours'
-  const isResolue = decl.status === 'resolue' || decl.status === 'cloturee'
+  const isPending = decl.statut === 'assignee_agent';
+  const isEditable = ['assignee_agent', 'en_cours'].includes(decl.statut);
 
-  const photoAvant  = photos.find(p => p.photo_type === 'photo_avant' || p.photo_type === 'before' || !p.photo_type) || (decl.photo_avant ? { id: 'inline', url: decl.photo_avant, photo_type: 'photo_avant' } : null) || (decl.image_url ? { id: 'inline2', url: decl.image_url, photo_type: 'photo_avant' } : null)
-  const photosApres = photos.filter(p => p.photo_type === 'photo_apres' || p.photo_type === 'after')
+  const onAccept = async () => {
+    try {
+      const res = await fetch(`${API}/agent/declarations/${decl.id}/accept`, { method: 'POST', headers: hjson() });
+      if (!res.ok) throw new Error();
+      toast.success('Mission acceptée');
+      onAccepted();
+    } catch {
+      toast.error('Erreur lors de l\'acceptation');
+    }
+  };
 
-  const filteredComments = comments.filter(c => !c.channel || c.channel === channel || c.channel === 'internal')
+  const onRefuse = async () => {
+    if (!motif.trim()) { setFeedback('⚠ Motif de refus obligatoire.'); return; }
+    try {
+      const res = await fetch(`${API}/agent/declarations/${decl.id}/refuse`, { 
+        method: 'POST', 
+        headers: hjson(),
+        body: JSON.stringify({ reason: motif })
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Mission refusée');
+      onRejected();
+    } catch {
+      toast.error('Erreur lors du refus');
+    }
+  };
 
-  const STEPS = ['soumise', 'assignee_chef', 'assignee_agent', 'en_cours', 'resolue', 'cloturee']
-  const STEP_LABELS: Record<string, string> = { soumise: 'Soumis', assignee_chef: 'Chef', assignee_agent: 'Assigné', en_cours: 'En cours', resolue: 'Résolu', cloturee: 'Clôturé' }
-  const stepIdx = STEPS.indexOf(decl.status || 'soumise')
+  const onStatusChange = async (status: DeclarationStatus) => {
+    if (status === 'resolue' && !photoUploaded) {
+      setFeedback('⚠ Uploadez une photo preuve avant de marquer comme résolu.');
+      return;
+    }
+    
+    if (status === 'cloturee') {
+      try {
+        const res = await fetch(`${API}/agent/declarations/${decl.id}/close`, {
+          method: 'POST',
+          headers: hjson(),
+        });
+        if (!res.ok) throw new Error();
+        toast.success('Mission clôturée');
+        setFeedback('✓ Mission clôturée avec succès.');
+        onAccepted();
+        return;
+      } catch {
+        toast.error('Erreur lors de la clôture');
+        return;
+      }
+    }
 
-  const TABS = [
-    { key: 'info',     label: 'Infos',      icon: Info        },
-    { key: 'photos',   label: 'Médias',     icon: Camera      },
-    ...(isAssigned ? [] : [
-      { key: 'history',  label: 'Progression', icon: Activity   },
-      { key: 'comments', label: 'Commentaires', icon: MessageSquare, badge: filteredComments.length },
-    ])
-  ]
+    try {
+      const res = await fetch(`${API}/agent/declarations/${decl.id}/resolve`, {
+        method: 'POST',
+        headers: hjson(),
+        body: JSON.stringify({ rapport_interne: 'Changement de statut via panel détails' })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur');
+      }
+      toast.success('Statut mis à jour (Résolu)');
+      setFeedback('✓ Statut mis à jour avec succès.');
+      onAccepted(); // refresh parent
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur de mise à jour');
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+    try {
+      const res = await fetch(`${API}/agent/declarations/${decl.id}/comments`, {
+        method: 'POST',
+        headers: hjson(),
+        body: JSON.stringify({ content: newComment.trim(), channel: 'chef_agent' })
+      });
+      if (!res.ok) throw new Error();
+      const newCommentData = await res.json();
+      
+      const mapped = mapComments([newCommentData])[0];
+      setLocalComments(prev => [...prev, mapped]);
+      setNewComment('');
+      toast.success('Commentaire ajouté');
+    } catch {
+      toast.error('Erreur d\'envoi du commentaire');
+    }
+  };
+
+  const handlePhotoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fd = new FormData();
+    fd.append('photo', file);
+
+    try {
+      setFeedback('Téléversement de la photo de preuve...');
+      const res = await fetch(`${API}/agent/declarations/${decl.id}/photo`, {
+        method: 'POST',
+        headers: hdr(),
+        body: fd
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Erreur lors du téléversement');
+      }
+      const data = await res.json();
+      setPhotoApresUrl(data.url);
+      setPhotoUploaded(true);
+      setFeedback('✓ Photo de preuve téléversée avec succès. Vous pouvez maintenant résoudre.');
+      toast.success('Photo de preuve enregistrée');
+    } catch (err: any) {
+      setFeedback(`⚠ ${err.message}`);
+      toast.error(err.message || 'Erreur lors du téléversement');
+    }
+  };
+
+  const TABS: { key: Tab; label: string; icon: React.ReactNode; locked?: boolean }[] = [
+    { key: 'info',     label: 'Informations', icon: <FileText size={14} /> },
+    { key: 'comments', label: isPending ? '🔒 Commentaires' : `Commentaires (${localComments.length})`, icon: <MessageSquare size={14} />, locked: isPending },
+    { key: 'history',  label: 'Historique', icon: <Clock size={14} /> },
+    ...(isEditable ? [{ key: 'actions' as Tab, label: isPending ? '⚡ Décision' : 'Statut & Actions', icon: <Upload size={14} /> }] : []),
+  ];
 
   return (
-    <>
-      <div className="fixed inset-0 z-[60] bg-slate-950/40 backdrop-blur-sm" onClick={onClose} />
+    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: '#F8FAFC', width: '100%', maxWidth: 900, maxHeight: '92vh', overflowY: 'auto', borderRadius: 20, position: 'relative', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', border: '1px solid #E2E8F0' }}>
+        
+        {/* Close Button */}
+        <button onClick={onClose} style={{ position: 'absolute', top: 20, right: 20, width: 36, height: 36, borderRadius: '50%', background: '#fff', border: '1px solid #E2E8F0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)', transition: 'all 0.2s' }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          <X size={18} color="#64748B" />
+        </button>
 
-      <div className="fixed right-0 top-0 bottom-0 z-[61] w-full max-w-[680px] bg-white shadow-2xl flex flex-col border-l border-slate-100">
-
-        <div className="flex-shrink-0 px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <StatusPill status={decl.status || 'soumise'} />
-            {decl.ref_citoyen && <span className="font-mono text-[10px] font-black text-blue-600">{decl.ref_citoyen}</span>}
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {isAssigned && (
-              <>
-                <button disabled={actionLoading} onClick={handleAccept} className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black shadow-sm transition-all">
-                  {actionLoading ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />} Accepter
-                </button>
-                <button disabled={actionLoading} onClick={() => setShowRefuse(true)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-black border border-red-200 transition-all">
-                  <XCircle size={13} /> Refuser
-                </button>
-              </>
-            )}
-            {isEnCours && (
-              <button disabled={actionLoading} onClick={() => setShowResolve(true)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-green-500 hover:bg-green-600 text-white text-xs font-black shadow-sm transition-all">
-                <CheckSquare size={13} /> Résoudre
-              </button>
-            )}
-            <button onClick={onClose} className="w-9 h-9 rounded-2xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-all">
-              <X size={15} />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-shrink-0 px-6 py-4 border-b border-slate-100">
-          <div className="flex items-start gap-3 mb-3">
-            <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-xl flex-shrink-0">
-              {getCatEmoji(decl.category)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-base font-black text-slate-900 leading-tight">{decl.title}</h2>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                {decl.category && <span className="text-[10px] font-bold text-slate-400">{decl.category}</span>}
-                <span className="text-[10px] text-slate-300">·</span>
-                <span className="text-[10px] text-slate-400 flex items-center gap-0.5"><Calendar size={9} /> {fmtDate(decl.created_at)}</span>
-                <PriPill priority={decl.priority} />
+        <div style={{ padding: 30 }}>
+          {/* ─── Header card ─── */}
+          <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #E2E8F0', padding: '24px 28px', marginBottom: 20, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.02)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#94A3B8', fontWeight: 600, background: '#F1F5F9', padding: '2px 8px', borderRadius: 6 }}>
+                    {decl.ref_citoyen}
+                  </span>
+                  <span style={{ fontSize: 11, color: '#64748B', fontWeight: 500 }}>
+                    Assigné le {decl.dateAssignation}
+                  </span>
+                </div>
+                <h1 style={{ fontSize: 22, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.5px', marginBottom: 12, lineHeight: 1.35 }}>
+                  {decl.titre}
+                </h1>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <PriorityBadge p={decl.priorite} />
+                  <TypeBadge t={decl.type} />
+                  <StatusPill s={decl.statut} />
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            {STEPS.map((step, i) => {
-              const done    = i < stepIdx
-              const current = i === stepIdx
-              return (
-                <React.Fragment key={step}>
-                  <div className="flex flex-col items-center gap-0.5 flex-1">
-                    <div className={`h-1.5 w-full rounded-full transition-all ${done ? 'bg-[#1557FF]' : current ? 'bg-blue-300' : 'bg-slate-100'}`} />
-                    <span className={`text-[8px] font-black whitespace-nowrap ${done || current ? 'text-[#1557FF]' : 'text-slate-300'}`}>
-                      {STEP_LABELS[step]}
-                    </span>
-                  </div>
-                </React.Fragment>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className="flex-shrink-0 flex border-b border-slate-100 px-2 overflow-x-auto">
-          {TABS.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key as any)}
-              className={`flex items-center gap-1.5 px-4 py-3 text-[11px] font-black border-b-2 transition-all whitespace-nowrap ${tab === t.key ? 'border-[#1557FF] text-[#1557FF]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>
-              <t.icon size={13} />
-              {t.label}
-              {t.badge !== undefined && t.badge > 0 && (
-                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${tab === t.key ? 'bg-blue-100 text-[#1557FF]' : 'bg-slate-100 text-slate-400'}`}>
-                  {t.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex-1 min-h-0 relative">
-
-          {tab === 'info' && (
-            <div className="absolute inset-0 overflow-y-auto p-6 space-y-5">
               
-              <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[.18em] mb-3 flex items-center gap-1.5">
-                  <User size={10} /> 1. Citoyen déclarant
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-black">
-                    {(decl.citizen?.first_name || decl.citizen_name || 'C')[0].toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">{decl.citizen ? `${decl.citizen.first_name} ${decl.citizen.last_name}` : (decl.citizen_name || 'Anonyme')}</p>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-1">
-                      {(decl.citizen?.phone || decl.citizen_phone) && <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1.5"><Phone size={12}/> {decl.citizen?.phone || decl.citizen_phone}</span>}
-                      {(decl.citizen?.email || decl.citizen_email) && <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1.5"><Mail size={12}/> {decl.citizen?.email || decl.citizen_email}</span>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-5">
-                <p className="text-[9px] font-black text-blue-600 uppercase tracking-[.18em] mb-2 flex items-center gap-1.5">
-                  <FileText size={10} /> 2. Description du problème
-                </p>
-                <p className="text-sm text-slate-700 font-medium leading-relaxed">
-                  {decl.description || <span className="italic text-slate-400">Aucune description fournie.</span>}
-                </p>
-              </div>
-
-              {photoAvant && (
-                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[.18em] mb-3 flex items-center gap-1.5">
-                    <ImageIcon size={10} /> 3. Photo Avant
-                  </p>
-                  <img src={photoAvant.url} alt="Avant" className="w-full h-48 object-cover rounded-xl cursor-zoom-in border border-slate-100" onClick={() => setLightbox(photoAvant.url)} />
+              {/* Quick actions for pending */}
+              {isPending && (
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <Btn variant="danger" onClick={() => { setShowMotif(true); setActiveTab('actions'); }}>✕ Refuser</Btn>
+                  <Btn variant="primary" onClick={() => onAccept()}>✓ Accepter la mission</Btn>
                 </div>
               )}
+            </div>
+          </div>
 
-              <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[.18em] mb-3 flex items-center gap-1.5">
-                  <MapPin size={10} /> {photoAvant ? '4' : '3'}. Localisation
-                </p>
-                {decl.address ? (
-                  <div className="flex items-start gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
-                      <MapPin size={14} className="text-red-500" />
+          {/* ─── Tab strip ─── */}
+          <div style={{ background: '#fff', borderRadius: '16px 16px 0 0', border: '1px solid #E2E8F0', borderBottom: 'none' }}>
+            <div style={{ display: 'flex', padding: '0 12px' }}>
+              {TABS.map(t => (
+                <button key={t.key} onClick={() => { if (!t.locked) setActiveTab(t.key); }} style={{
+                  padding: '16px 20px', fontSize: 13, cursor: t.locked ? 'not-allowed' : 'pointer',
+                  border: 'none', background: 'none', fontFamily: 'inherit',
+                  color: t.locked ? '#CBD5E1' : activeTab === t.key ? '#10B981' : '#64748B',
+                  fontWeight: activeTab === t.key ? 700 : 500,
+                  borderBottom: activeTab === t.key ? '3px solid #10B981' : '3px solid transparent',
+                  transition: 'all 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  opacity: t.locked ? 0.5 : 1,
+                }}>
+                  {t.icon}
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ─── Tab content ─── */}
+          <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: '0 0 16px 16px', padding: '28px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.02)' }}>
+
+            {/* INFO TAB */}
+            {activeTab === 'info' && (
+              <div>
+                {/* Images row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                  {/* Photo Signalement */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Photo du signalement</div>
+                    {photoAvantUrl ? (
+                      <div style={{ width: '100%', height: 180, borderRadius: 12, overflow: 'hidden', border: '1px solid #E2E8F0' }}>
+                        <img src={photoAvantUrl} alt="Signalement" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                    ) : (
+                      <div style={{ width: '100%', height: 180, borderRadius: 12, background: '#F8FAFC', border: '1px dashed #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: 12 }}>
+                        Aucune photo fournie par le citoyen
+                      </div>
+                    )}
+                  </div>
+                  {/* Photo Intervention */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>Preuve d'intervention</div>
+                    {photoApresUrl ? (
+                      <div style={{ width: '100%', height: 180, borderRadius: 12, overflow: 'hidden', border: '1px solid #E2E8F0' }}>
+                        <img src={photoApresUrl} alt="Intervention" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                    ) : (
+                      <div style={{ width: '100%', height: 180, borderRadius: 12, background: '#F8FAFC', border: '1px dashed #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: 12 }}>
+                        Pas encore de photo de preuve soumise
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Details grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+                  {[
+                    ['Arrondissement',   decl.arrondissement],
+                    ['Date de soumission', decl.dateSubmission],
+                    ['Coordonnées GPS',  decl.gps],
+                    ["Date d'assignation", decl.dateAssignation],
+                  ].map(([label, val]) => (
+                    <div key={label} style={{ background: '#F8FAFC', padding: '12px 16px', borderRadius: 10, border: '1px solid #F1F5F9' }}>
+                      <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, fontWeight: 700 }}>{label}</div>
+                      <div style={{ fontSize: 13, color: '#0F172A', fontWeight: 600, fontFamily: label === 'Coordonnées GPS' ? "'JetBrains Mono', monospace" : 'inherit' }}>{val}</div>
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">{decl.address}</p>
-                      {decl.latitude && decl.longitude && (
-                        <p className="text-[10px] font-mono text-slate-400 mt-0.5">{Number(decl.latitude).toFixed(5)}°N, {Number(decl.longitude).toFixed(5)}°E</p>
-                      )}
+                  ))}
+                  <div style={{ gridColumn: '1 / -1', background: '#F8FAFC', padding: '16px', borderRadius: 10, border: '1px solid #F1F5F9' }}>
+                    <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, fontWeight: 700 }}>Description du citoyen</div>
+                    <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.6, fontWeight: 500 }}>{decl.description}</div>
+                  </div>
+                </div>
+
+                {/* Citizen */}
+                <SectionDivider label="Citoyen déclarant" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#F8FAFC', borderRadius: 12, padding: '14px 18px', marginBottom: 24, border: '1px solid #F1F5F9' }}>
+                  <Avatar initiales={decl.citoyen.initiales} role="citizen" size={44} />
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0F172A' }}>{decl.citoyen.nom}</div>
+                    <div style={{ fontSize: 12, color: '#64748B', marginTop: 4, display: 'flex', gap: 16, flexWrap: 'wrap', fontWeight: 500 }}>
+                      <span>✉ {decl.citoyen.email}</span>
+                      <span>📞 {decl.citoyen.phone}</span>
                     </div>
                   </div>
-                ) : <p className="text-xs text-slate-400 italic">Localisation non précisée.</p>}
-                
-                {decl.is_sensitive && (
-                  <div className="mt-2.5 flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-100 rounded-xl text-xs font-bold text-red-600">
-                    <AlertTriangle size={12} /> Zone sensible : {decl.sensitive_type || 'détectée'}
-                  </div>
-                )}
+                </div>
+
+                {/* Agents */}
+                <SectionDivider label="Coordination & Agents affectés" />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  {localAgents.map((a, i) => (
+                    <span key={i} style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 16px',
+                      borderRadius: 12,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      background: '#ECFDF5',
+                      border: '1px solid #A7F3D0',
+                      color: '#065F46',
+                      boxShadow: '0 2px 4px -1px rgb(0 0 0 / 0.02)'
+                    }}>
+                      <Users size={14} />
+                      {a.nom} <span style={{ opacity: 0.6, fontSize: 10 }}>({a.dept})</span>
+                    </span>
+                  ))}
+                </div>
               </div>
+            )}
 
-              <div className="bg-purple-50/30 border border-purple-100 rounded-2xl p-5">
-                <p className="text-[9px] font-black text-purple-600 uppercase tracking-[.18em] mb-3 flex items-center gap-1.5">
-                  <Layers size={10} /> {photoAvant ? '5' : '4'}. Équipe & Assignations
-                </p>
-                {decl.other_assignments?.length > 0 ? (
+            {/* COMMENTS TAB */}
+            {activeTab === 'comments' && (
+              <div>
+                {isPending ? (
+                  <div style={{ textAlign: 'center', padding: '48px 24px', color: '#94A3B8' }}>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#64748B', marginBottom: 6 }}>Canal de communication verrouillé</div>
+                    <div style={{ fontSize: 12, fontWeight: 500 }}>Acceptez la mission pour débloquer la messagerie interne avec votre Chef de Service.</div>
+                  </div>
+                ) : (
                   <>
-                    <p className="text-xs text-slate-500 font-semibold mb-4">
-                      Cette mission nécessite l'intervention de plusieurs départements/agents.
-                    </p>
-                    <div className="grid grid-cols-1 gap-3">
-                      {decl.other_assignments.map((oa: any) => (
-                        <div key={oa.id} className="flex flex-col bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                          <div className="flex items-center gap-2 mb-2">
-                             <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-500 flex items-center justify-center shrink-0 border border-purple-100"><Building2 size={14} /></div>
-                             <div className="min-w-0">
-                               <p className="text-xs font-black text-slate-800 truncate">{oa.department?.name_fr || 'Département Inconnu'}</p>
-                               <p className="text-[10px] font-bold text-slate-500 truncate">{oa.agent ? `Agent assigné: ${oa.agent.first_name} ${oa.agent.last_name}` : "En attente d'agent"}</p>
-                             </div>
-                          </div>
-                          <div className="mt-auto pt-2 border-t border-slate-100">
-                             <StatusPill status={oa.status} />
-                          </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
+                      {localComments.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '36px 0', color: '#94A3B8', fontSize: 13, fontWeight: 500 }}>
+                          Aucun commentaire interne pour l'instant sur ce canal agent-chef.
                         </div>
-                      ))}
+                      )}
+                      {localComments.map((c, i) => {
+                        const roleCfg = ROLE_CFG[c.role] ?? ROLE_CFG.agent;
+                        const isMe = c.role === 'agent';
+                        return (
+                          <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                            <Avatar initiales={c.initiales} role={c.role} size={34} />
+                            <div style={{ flex: 1, background: isMe ? '#ECFDF5' : '#F8FAFC', borderRadius: '0 12px 12px 12px', padding: '12px 16px', border: isMe ? '1px solid #D1FAE5' : '1px solid #F1F5F9' }}>
+                              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>{c.auteur}</span>
+                                <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: roleCfg.bg, color: roleCfg.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{c.role}</span>
+                                <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500 }}>{c.heure}</span>
+                              </div>
+                              <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.55, fontWeight: 500 }}>{c.text}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', borderTop: '1px solid #F1F5F9', paddingTop: 20 }}>
+                      <Avatar initiales="AM" role="agent" size={34} />
+                      <textarea value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment(); } }} placeholder="Envoyer un message au chef de service ou autres agents..." rows={2} style={{ flex: 1, border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 16px', fontSize: 13, fontFamily: 'inherit', color: '#0F172A', resize: 'none', minHeight: 46, outline: 'none', fontWeight: 500 }} />
+                      <Btn variant="primary" onClick={handleAddComment} style={{ height: 46, padding: '0 18px', borderRadius: 10 }}>➤</Btn>
                     </div>
                   </>
-                ) : (
-                  <p className="text-xs font-medium text-slate-500">Vous êtes le seul agent/département assigné à cette déclaration.</p>
                 )}
               </div>
-              
-              {isResolue && decl.resolved_at && (
-                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 flex items-center gap-3">
-                  <CheckCircle2 size={20} className="text-emerald-500 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-black text-emerald-800">Dossier résolu</p>
-                    <p className="text-[10px] text-emerald-600 mt-0.5">Clôturé le {fmtFull(decl.resolved_at)}</p>
-                  </div>
-                </div>
-              )}
+            )}
 
-              {isAssigned && (
-                <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-5 space-y-4">
-                  <div>
-                    <h3 className="text-sm font-black text-amber-800 flex items-center gap-2">
-                      <AlertTriangle className="text-amber-600 shrink-0" size={16} /> Mission en attente de votre réponse
-                    </h3>
-                    <p className="text-xs text-amber-700/80 font-medium mt-1 leading-relaxed">
-                      Cette tâche vous a été assignée par votre Chef de Service. Veuillez l'accepter pour commencer l'intervention ou la refuser avec un motif.
-                    </p>
+            {/* HISTORY TAB */}
+            {activeTab === 'history' && (
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                {localHistory.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '36px 0', color: '#94A3B8', fontSize: 13 }}>
+                    Aucun historique d'état enregistré.
                   </div>
-                  <div className="flex gap-3">
-                    <button disabled={actionLoading} onClick={handleAccept}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-sm shadow-md shadow-emerald-500/10 transition-all">
-                      {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                      Accepter
-                    </button>
-                    <button disabled={actionLoading} onClick={() => setShowRefuse(true)}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-white border border-red-200 hover:border-red-300 text-red-600 font-black text-sm hover:bg-red-50/40 transition-all">
-                      <XCircle size={16} />
-                      Refuser
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+                {localHistory.map((h, i) => {
+                  const cfg = HISTORY_CFG[h.color];
+                  const isLast = i === localHistory.length - 1;
+                  return (
+                    <li key={i} style={{ display: 'flex', gap: 16, paddingBottom: isLast ? 0 : 26, position: 'relative' }}>
+                      {!isLast && (
+                        <div style={{ position: 'absolute', left: 16, top: 32, width: 2, height: 'calc(100% - 12px)', background: '#F1F5F9' }} />
+                      )}
+                      <div style={{
+                        width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                        background: cfg?.bg || '#F1F5F9', color: cfg?.color || '#475569',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14,
+                        boxShadow: '0 2px 4px 0 rgb(0 0 0 / 0.02)',
+                        border: '1px solid #F1F5F9'
+                      }}>
+                        ●
+                      </div>
+                      <div style={{ paddingTop: 6 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#1E293B', lineHeight: 1.4 }}>{h.titre}</div>
+                        <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4, fontWeight: 500 }}>{h.heure}</div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
 
-          {tab === 'photos' && (
-            <div className="absolute inset-0 overflow-y-auto p-6 space-y-5">
-              <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-                  <div className="w-2 h-2 rounded-full bg-blue-500" />
-                  <p className="text-xs font-black text-slate-700">Photo avant — Déclarée par le citoyen</p>
+            {/* ACTIONS TAB — Pending: show Accept/Reject decision panel */}
+            {activeTab === 'actions' && isPending && (
+              <div style={{ maxWidth: 580 }}>
+                <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 14, padding: '18px 22px', marginBottom: 24, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 22 }}>⚡</span>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#92400E', marginBottom: 4 }}>Mission en attente de votre décision</div>
+                    <div style={{ fontSize: 12, color: '#A16207', fontWeight: 500 }}>Vous avez été assigné à ce dossier. Acceptez pour démarrer l'intervention ou refusez avec un motif justifié.</div>
+                  </div>
                 </div>
-                <div className="aspect-video bg-slate-100 flex items-center justify-center">
-                  {photoAvant ? (
-                    <img src={photoAvant.url} alt="Avant" className="w-full h-full object-cover cursor-zoom-in" onClick={() => setLightbox(photoAvant.url)} />
+
+                {/* ACCEPT */}
+                <div style={{ background: '#F0FDF4', border: '1px solid #A7F3D0', borderRadius: 14, padding: '20px 24px', marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#065F46', marginBottom: 6 }}>✅ Accepter la mission</div>
+                  <div style={{ fontSize: 12, color: '#047857', fontWeight: 500, marginBottom: 14 }}>La mission passera en "En cours" et apparaîtra sur le Kanban. La messagerie interne sera débloquée.</div>
+                  <Btn variant="primary" onClick={onAccept} style={{ width: '100%', justifyContent: 'center', padding: '13px' }}>
+                    ✓ Accepter et démarrer l'intervention
+                  </Btn>
+                </div>
+
+                {/* REJECT */}
+                <div style={{ background: '#FFF5F5', border: '1px solid #FED7D7', borderRadius: 14, padding: '20px 24px' }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#C53030', marginBottom: 6 }}>✕ Refuser la mission</div>
+                  <div style={{ fontSize: 12, color: '#E53E3E', fontWeight: 500, marginBottom: 14 }}>Le refus sera transmis à votre Chef de Service. Un motif complet est obligatoire.</div>
+                  {!showMotif ? (
+                    <Btn variant="danger" style={{ width: '100%', justifyContent: 'center', padding: '13px' }} onClick={() => setShowMotif(true)}>
+                      ✕ Déclarer un refus d'affectation
+                    </Btn>
                   ) : (
-                    <div className="flex flex-col items-center gap-2 text-slate-400">
-                      <ImageIcon size={28} className="text-slate-300" />
-                      <p className="text-xs font-bold">Aucune photo soumise</p>
-                    </div>
+                    <>
+                      <textarea
+                        value={motif}
+                        onChange={e => setMotif(e.target.value)}
+                        placeholder="Ex : Matériel manquant, zone inaccessible, compétence hors voirie..."
+                        style={{ width: '100%', border: '1px solid #FEB2B2', borderRadius: 10, padding: '12px 14px', fontSize: 13, fontFamily: 'inherit', resize: 'none', minHeight: 88, marginBottom: 12, color: '#2D3748', outline: 'none', fontWeight: 500, background: '#fff', boxSizing: 'border-box' }}
+                      />
+                      {feedback && <div style={{ marginBottom: 10, fontSize: 12, color: '#DC2626', fontWeight: 600 }}>{feedback}</div>}
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button onClick={() => { setShowMotif(false); setMotif(''); setFeedback(''); }} style={{ flex: 1, padding: '10px', border: '1px solid #E2E8F0', borderRadius: 10, background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#64748B' }}>Annuler</button>
+                        <Btn variant="danger" style={{ flex: 1, justifyContent: 'center', background: '#E53E3E', padding: '10px' }} onClick={onRefuse}>Confirmer le refus</Btn>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
+            )}
 
-              <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <p className="text-xs font-black text-slate-700">Photos après intervention — Par vous</p>
+            {/* ACTIONS TAB — Accepted: status change + photo upload */}
+            {activeTab === 'actions' && !isPending && (
+              <div style={{ maxWidth: 580 }}>
+                <div style={{ marginBottom: 28 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Changer le statut de la mission</div>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <select value={statusSel} onChange={e => setStatusSel(e.target.value as DeclarationStatus)} style={{ padding: '10px 16px', border: '1px solid #E2E8F0', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', color: '#0F172A', background: '#fff', outline: 'none', fontWeight: 600, cursor: 'pointer' }}>
+                      <option value="en_cours">En cours d'intervention</option>
+                      <option value="resolue">{`Évaluée / Résolue${!photoUploaded ? ' (photo requise)' : ''}`}</option>
+                    </select>
+                    <Btn variant="primary" onClick={() => onStatusChange(statusSel)}>Mettre à jour</Btn>
+                  </div>
+                  {feedback && <div style={{ marginTop: 14, fontSize: 13, fontWeight: 600, color: feedback.startsWith('⚠') ? '#DC2626' : '#059669', padding: '10px 14px', borderRadius: 10, background: feedback.startsWith('⚠') ? '#FEF2F2' : '#ECFDF5', border: feedback.startsWith('⚠') ? '1px solid #FEE2E2' : '1px solid #D1FAE5' }}>{feedback}</div>}
+                  <div style={{ marginTop: 10, fontSize: 12, color: '#94A3B8', fontWeight: 500 }}>ℹ Marquer comme "Évaluée / Résolue" exige une photo de preuve.</div>
                 </div>
-                {photosApres.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-0.5">
-                    {photosApres.map((p: any, i: number) => (
-                      <div key={p.id || i} className="aspect-video bg-slate-100 overflow-hidden relative">
-                        <img src={p.url} alt={`Après ${i + 1}`} className="w-full h-full object-cover cursor-zoom-in" onClick={() => setLightbox(p.url)} />
-                        <div className="absolute bottom-2 left-2 bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">✓ Après {i + 1}</div>
-                      </div>
-                    ))}
+
+                <SectionDivider label="Photo preuve d'intervention" />
+                {photoUploaded ? (
+                  <div style={{ marginBottom: 28 }}>
+                    <div style={{ padding: '12px 16px', background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 10, color: '#065F46', fontSize: 13, display: 'flex', gap: 8, alignItems: 'center', fontWeight: 600, marginBottom: 12 }}>✅ Photo de preuve validée et enregistrée.</div>
+                    {photoApresUrl && <div style={{ width: '100%', maxWidth: 280, height: 160, borderRadius: 12, overflow: 'hidden', border: '1px solid #E2E8F0' }}><img src={photoApresUrl} alt="Preuve" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>}
                   </div>
                 ) : (
-                  <div className="aspect-video bg-slate-50 flex flex-col items-center justify-center gap-2 text-slate-400">
-                    <Clock size={24} className="text-slate-300" />
-                    <p className="text-xs font-bold">{isResolue ? 'Aucune photo.' : "En attente de votre intervention."}</p>
+                  <div style={{ marginBottom: 28 }}>
+                    <label style={{ border: '2px dashed #CBD5E1', borderRadius: 12, padding: 32, textAlign: 'center', cursor: 'pointer', color: '#64748B', fontSize: 13, display: 'block', transition: 'all 0.2s', background: '#F8FAFC' }} onMouseEnter={e => { e.currentTarget.style.borderColor = '#10B981'; e.currentTarget.style.background = '#ECFDF5'; }} onMouseLeave={e => { e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.background = '#F8FAFC'; }}>
+                      <input type="file" accept="image/*" onChange={handlePhotoFileChange} style={{ display: 'none' }} />
+                      <div style={{ fontSize: 32, marginBottom: 10 }}>☁</div>
+                      <div style={{ fontWeight: 700, color: '#334155' }}>Importer une photo de preuve</div>
+                      <div style={{ fontSize: 11, marginTop: 6, color: '#94A3B8', fontWeight: 500 }}>JPEG / PNG / WebP — Max. 10 Mo</div>
+                    </label>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-
-          {tab === 'history' && (
-            <div className="absolute inset-0 overflow-y-auto p-6">
-              {!isAssigned && !isResolue && (
-                <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4 mb-6">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Mettre à jour le statut</p>
-                  <div className="flex flex-wrap gap-2">
-                    <button onClick={() => setShowResolve(true)} className="px-3.5 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-sm">
-                      <CheckSquare size={13} /> Résoudre (Preuve photo)
-                    </button>
-                    <button onClick={async () => {
-                      setActionLoading(true)
-                      try {
-                        const res = await fetch(`${API}/agent/declarations/${tacheId}/close`, { method: 'POST', headers: hjson() })
-                        if (!res.ok) throw new Error()
-                        toast.success('Mission clôturée avec succès')
-                        fetchDetail()
-                        onAccepted?.()
-                      } catch { toast.error('Erreur lors de la clôture') }
-                      finally { setActionLoading(false) }
-                    }} className="px-3.5 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-black transition-all border border-slate-200">
-                      Clôturer la mission
-                    </button>
-                  </div>
-                </div>
-              )}
-              {history.length === 0 ? (
-                <div className="text-center py-12">
-                  <History size={24} className="text-slate-200 mx-auto mb-2" />
-                  <p className="text-sm font-bold text-slate-400">Aucun historique</p>
-                </div>
-              ) : (
-                <div className="relative">
-                  <div className="absolute left-3 top-4 bottom-4 w-0.5 bg-slate-100" />
-                  {[...history].reverse().map((h: any, i: number) => {
-                    const sc = STATUS_CFG[h.new_status]
-                    return (
-                      <div key={h.id || i} className="flex gap-4 pb-5 last:pb-0 relative">
-                        <div className="w-7 h-7 rounded-full flex items-center justify-center z-10 flex-shrink-0" style={{ background: sc?.bg || '#f1f5f9', border: `2px solid ${sc?.dot || '#94a3b8'}` }}>
-                          <div className="w-2 h-2 rounded-full" style={{ background: sc?.dot || '#94a3b8' }} />
-                        </div>
-                        <div className="flex-1 pt-0.5">
-                          <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                            <span className="text-xs font-black" style={{ color: sc?.color || '#64748b' }}>{sc?.label || h.new_status}</span>
-                            <span className="text-[10px] text-slate-400">{fmtFull(h.created_at)}</span>
-                          </div>
-                          {h.user && <p className="text-[10px] text-slate-400">par {h.user.first_name} {h.user.last_name} · <span className="font-bold">{h.user.role}</span></p>}
-                          {(h.raison || h.comment) && (
-                            <div className="mt-1.5 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 text-[10px] text-amber-700 italic">«{h.raison || h.comment}»</div>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {tab === 'comments' && (
-            <div className="absolute inset-0 flex flex-col">
-              <div className="flex-shrink-0 flex gap-2 p-4 border-b border-slate-100 flex-wrap">
-                {(['chef_agent', 'interdept'] as const).map(ch => {
-                  const cfg = CHANNEL_CFG[ch]
-                  const active = channel === ch
-                  const count = comments.filter(c => c.channel === ch || (!c.channel && ch === 'chef_agent')).length
-                  return (
-                    <button key={ch} onClick={() => setChannel(ch)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-[10px] font-black transition-all border" style={active ? { background: cfg.color, color: 'white', borderColor: cfg.color } : { background: 'transparent', color: '#94a3b8', borderColor: '#e2e8f0' }}>
-                      {cfg.label}
-                      {count > 0 && <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${active ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>{count}</span>}
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="flex-1 overflow-y-auto p-5 space-y-3 min-h-0">
-                {filteredComments.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center"><MessageSquare size={18} className="text-slate-300" /></div>
-                    <p className="text-xs font-bold text-slate-400">Aucun commentaire</p>
-                  </div>
-                ) : filteredComments.map((c: any, i: number) => {
-                  const isMe = c.user_id === me.id
-                  const name = c.user ? `${c.user.first_name} ${c.user.last_name}` : '?'
-                  const roleLabel = c.user?.role === 'president' ? 'Président' : c.user?.role === 'chef' ? 'Chef' : c.user?.role === 'agent' ? 'Agent' : c.user?.role || ''
-                  const cfg = CHANNEL_CFG[channel]
-                  return (
-                    <div key={c.id || i} className={`flex gap-2.5 ${isMe ? 'flex-row-reverse' : ''}`}>
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black text-white flex-shrink-0 shadow-sm" style={{ background: isMe ? cfg.color : c.user?.role === 'president' ? '#7c3aed' : '#94a3b8' }}>
-                        {isMe ? 'M' : name.split(' ').map((w: string) => w[0]).join('').slice(0, 2)}
-                      </div>
-                      <div className={`flex flex-col max-w-[72%] ${isMe ? 'items-end' : 'items-start'}`}>
-                        <div className={`flex items-center gap-1.5 mb-1 ${isMe ? 'flex-row-reverse' : ''}`}>
-                          <span className="text-[10px] font-black text-slate-700">{isMe ? 'Vous' : name}</span>
-                          {roleLabel && <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{roleLabel}</span>}
-                          <span className="text-[9px] text-slate-400">{fmtTime(c.created_at)}</span>
-                        </div>
-                        <div className={`px-4 py-2.5 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${isMe ? 'rounded-tr-sm text-white' : 'bg-slate-100 text-slate-800 rounded-tl-sm'}`} style={isMe ? { background: cfg.color } : {}}>
-                          {c.content}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-                <div ref={endRef} />
-              </div>
-              <div className="flex-shrink-0 p-5 border-t border-slate-100 bg-white">
-                <div className="flex gap-2.5">
-                  <input value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMsg()} placeholder={`Commentaire — ${CHANNEL_CFG[channel].label}…`} className="flex-1 text-xs px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-[#1557FF] font-medium text-slate-700 placeholder-slate-400" />
-                  <button onClick={sendMsg} disabled={sending || !msg.trim()} className="w-10 h-10 rounded-2xl text-white disabled:opacity-40 flex items-center justify-center flex-shrink-0" style={{ background: CHANNEL_CFG[channel].color }}>
-                    {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-      </div>
-
-      {showRefuse && <RefuseModal tacheId={tacheId} onClose={() => setShowRefuse(false)} onDone={() => { onRejected?.(); onClose(); }} />}
-      {showResolve && <ResolveModal tacheId={tacheId} onClose={() => setShowResolve(false)} onDone={() => { onAccepted?.(); fetchDetail(); }} />}
-
-      {lightbox && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/85 backdrop-blur-md" onClick={() => setLightbox(null)}>
-          <div className="relative max-w-[90vw] max-h-[90vh] flex flex-col items-center justify-center" onClick={e => e.stopPropagation()}>
-            <img src={lightbox} alt="Agrandie" className="max-w-[90vw] max-h-[85vh] object-contain rounded-2xl border border-white/10 shadow-2xl" />
-            <button onClick={() => setLightbox(null)} className="absolute -top-12 right-0 bg-white/15 text-white hover:bg-white/25 w-10 h-10 rounded-full flex items-center justify-center transition-all">
-              <X size={20} />
-            </button>
+            )}
           </div>
         </div>
-      )}
-    </>
-  )
+      </div>
+    </div>
+  );
 }

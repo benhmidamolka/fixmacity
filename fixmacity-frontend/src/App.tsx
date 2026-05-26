@@ -18,8 +18,9 @@ import ChefAgents            from './pages/Chef/ChefAgents'
 import ChefNotifications     from './pages/Chef/ChefNotifications'
 import ChefSettings          from './pages/Chef/ChefSettings'
 import ChefTasks             from './pages/Chef/ChefTasks'
-import AgentDashboard from './pages/Agent/AgentDashboard'
-
+import AgentDashboard         from './pages/Agent/AgentDashboard'
+import AgentDeclarations      from './pages/Agent/AgentDeclarations'
+import AgentKanbanBoard       from './pages/Agent/AgentKanbanBoard'
 // Public Pages
 import Landing         from './pages/Public/Landing'
 import Login           from './pages/Public/Login'
@@ -151,6 +152,12 @@ const App: React.FC = () => {
         <Route path="/agent" element={<Navigate to="/agent/dashboard" replace />} />
         <Route path="/agent/dashboard" element={
           <ProtectedRoute allowedRoles={['agent']}><AgentDashboard /></ProtectedRoute>
+        } />
+        <Route path="/agent/declarations" element={
+          <ProtectedRoute allowedRoles={['agent']}><AgentDeclarations /></ProtectedRoute>
+        } />
+        <Route path="/agent/board" element={
+          <ProtectedRoute allowedRoles={['agent']}><AgentKanbanBoard /></ProtectedRoute>
         } />
 
         {/* Fallback */}
