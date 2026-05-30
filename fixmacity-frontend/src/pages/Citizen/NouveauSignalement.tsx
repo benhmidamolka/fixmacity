@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useEffect, useRef } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker, useMapEvents, Rectangle } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -576,12 +576,13 @@ function SimilarModal({ data, onIgnore, onVote }: { data: any; onIgnore: () => v
 }
 
 // ─── STEP 3: Details with AI photo analysis ───────────────────────────────────
-function Step3({ data, onChange, onNext, onBack }: any) {
+function Step3({ data, onChange, onNext, onBack, autoFile }: any) {
   const [preview,   setPreview]   = useState<string | null>(null)
   const [dragging,  setDragging]  = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [aiDone,    setAiDone]    = useState(false)
   const [showSimilar, setShowSimilar] = useState(false)
+  const autoTriggered = useRef(false)
 
   const handleFile = async (file: File) => {
     onChange({ photo: file })
@@ -626,6 +627,14 @@ function Step3({ data, onChange, onNext, onBack }: any) {
       setAnalyzing(false)
     }
   }
+
+  // Fast-lane: if the map button provided a photo, auto-trigger AI analysis once
+  useEffect(() => {
+    if (autoFile && !autoTriggered.current) {
+      autoTriggered.current = true
+      handleFile(autoFile)
+    }
+  }, [autoFile])
 
   const handleNext = async () => {
     if (!data.title || !data.description) {
@@ -956,11 +965,16 @@ function SuccessScreen({ ref_citoyen, onNew }: { ref_citoyen: string; onNew: () 
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 const NouveauSignalement: React.FC = () => {
+  const [searchParams]               = useSearchParams()
+  const fromMap                      = searchParams.get('from') === 'map'
+
   const [step,       setStep]       = useState(1)
   const [loading,    setLoading]    = useState(false)
   const [refCitoyen, setRefCitoyen] = useState('')
   const [submitted,  setSubmitted]  = useState(false)
   const [delegations, setDelegations] = useState<any[]>([])
+  // Fast-lane: photo File reconstructed from sessionStorage
+  const [mapAutoFile, setMapAutoFile] = useState<File | null>(null)
 
   useEffect(() => {
     fetch(`${API}/public/delegations`)
@@ -968,6 +982,7 @@ const NouveauSignalement: React.FC = () => {
       .then(data => setDelegations(data.delegations || []))
       .catch(console.error)
   }, [])
+
   const [formData,   setFormData]   = useState({
     latitude: 0, longitude: 0, address: '', delegation_id: '',
     category: '', urgency: 'moyen', title: '', description: '',
@@ -980,6 +995,59 @@ const NouveauSignalement: React.FC = () => {
   })
 
   const update = (patch: Partial<typeof formData>) => setFormData(prev => ({ ...prev, ...patch }))
+
+  // ── Fast-lane bootstrap (only when ?from=map) ──────────────────────────────
+  useEffect(() => {
+    if (!fromMap) return
+
+    const b64  = sessionStorage.getItem('map_photo_b64')
+    const name = sessionStorage.getItem('map_photo_name') || 'photo.jpg'
+    const type = sessionStorage.getItem('map_photo_type') || 'image/jpeg'
+    const lat  = parseFloat(sessionStorage.getItem('map_photo_lat') || '0')
+    const lng  = parseFloat(sessionStorage.getItem('map_photo_lng') || '0')
+
+    // Clear so we don't re-use stale data on next visit
+    sessionStorage.removeItem('map_photo_b64')
+    sessionStorage.removeItem('map_photo_name')
+    sessionStorage.removeItem('map_photo_type')
+    sessionStorage.removeItem('map_photo_lat')
+    sessionStorage.removeItem('map_photo_lng')
+
+    if (!b64 || !lat || !lng) return
+
+    // Convert base64 → File
+    const byteString = atob(b64.split(',')[1])
+    const ab = new ArrayBuffer(byteString.length)
+    const ia = new Uint8Array(ab)
+    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i)
+    const file = new File([ab], name, { type })
+
+    // Reverse-geocode to get address, then jump straight to step 3
+    const bootstrap = async () => {
+      let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+      let delegation_id = ''
+      try {
+        const r = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=fr`
+        )
+        const d = await r.json()
+        address = d.display_name?.split(',').slice(0, 3).join(',') || address
+      } catch { /* keep coords as address */ }
+
+      // Try to detect delegation from coordinates
+      const delegationsRes = await fetch(`${API}/public/delegations`).then(r => r.json()).catch(() => ({ delegations: [] }))
+      const dels = delegationsRes.delegations || []
+      delegation_id = detectArrondissement(lat, lng, dels) || ''
+
+      update({ latitude: lat, longitude: lng, address, delegation_id })
+      setMapAutoFile(file)
+      setStep(3)   // jump directly to details/AI step
+
+      toast('📍 Localisation récupérée depuis la carte !', { icon: '🗺️' })
+    }
+
+    bootstrap()
+  }, [fromMap])
 
   const handleSubmit = async () => {
     setLoading(true)
@@ -1043,6 +1111,7 @@ const NouveauSignalement: React.FC = () => {
 
   const reset = () => {
     setSubmitted(false); setStep(1)
+    setMapAutoFile(null)
     setFormData({
       latitude:0, longitude:0, address:'', delegation_id:'',
       category:'', urgency:'moyen', title:'', description:'',
@@ -1068,7 +1137,7 @@ const NouveauSignalement: React.FC = () => {
           {submitted       ? <SuccessScreen ref_citoyen={refCitoyen} onNew={reset} />
           : step === 1     ? <Step1 data={formData} onChange={update} onNext={() => setStep(2)} delegations={delegations} />
           : step === 2     ? <Step2 data={formData} onChange={update} onNext={() => setStep(3)} onBack={() => setStep(1)} />
-          : step === 3     ? <Step3 data={formData} onChange={update} onNext={() => setStep(4)} onBack={() => setStep(2)} />
+          : step === 3     ? <Step3 data={formData} onChange={update} onNext={() => setStep(4)} onBack={() => fromMap ? setStep(1) : setStep(2)} autoFile={mapAutoFile} />
           : <Step4 data={formData} onSubmit={handleSubmit} onBack={() => setStep(3)} loading={loading} delegations={delegations} />}
         </div>
         {!submitted && step < 4 && (

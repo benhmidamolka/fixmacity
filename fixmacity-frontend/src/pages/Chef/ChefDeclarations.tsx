@@ -955,10 +955,9 @@ const ChefDeclarations: React.FC = () => {
             </div>
           </div>
 
-          {/* ── Column headers ── */}
           <div className="grid items-center gap-4 px-5 py-2.5 bg-slate-50/80 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800"
-            style={{ gridTemplateColumns: '1fr 120px 130px 130px 150px 130px 130px' }}>
-            {['Déclaration', 'Catégorie', 'Statut', 'Priorité', 'Agent assigné', 'Soumis le', 'Actions'].map(h => (
+            style={{ gridTemplateColumns: '1fr 130px 130px 150px 130px 130px' }}>
+            {['Déclaration', 'Statut', 'Priorité', 'Agent assigné', 'Soumis le', 'Actions'].map(h => (
               <p key={h} className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{h}</p>
             ))}
           </div>
@@ -968,9 +967,8 @@ const ChefDeclarations: React.FC = () => {
             <div className="divide-y divide-slate-50 dark:divide-slate-800/50">
               {[...Array(8)].map((_, i) => (
                 <div key={i} className="grid gap-4 px-5 py-4 items-center"
-                  style={{ gridTemplateColumns: '1fr 120px 130px 130px 150px 130px 130px' }}>
+                  style={{ gridTemplateColumns: '1fr 130px 130px 150px 130px 130px' }}>
                   <div className="space-y-1.5"><Sk h="h-4" w="w-40" /><Sk h="h-2.5" w="w-24" /></div>
-                  <Sk h="h-6" r="rounded-full" />
                   <Sk h="h-6" r="rounded-full" />
                   <Sk h="h-6" r="rounded-full" />
                   <Sk h="h-6" w="w-28" r="rounded-xl" />
@@ -997,7 +995,7 @@ const ChefDeclarations: React.FC = () => {
                   <div key={d.id}
                     onClick={() => setSelected(d)}
                     className={`grid gap-4 px-5 py-3.5 items-center cursor-pointer group hover:bg-slate-50/70 dark:hover:bg-slate-800/20 transition-colors ${i % 2 !== 0 ? 'bg-slate-50/30 dark:bg-slate-800/10' : ''}`}
-                    style={{ gridTemplateColumns: '1fr 120px 130px 130px 150px 130px 130px' }}>
+                    style={{ gridTemplateColumns: '1fr 130px 130px 150px 130px 130px' }}>
 
                     {/* Title + ref */}
                     <div className="min-w-0">
@@ -1013,13 +1011,6 @@ const ChefDeclarations: React.FC = () => {
                           </span>
                         </div>
                       )}
-                    </div>
-
-                    {/* Category */}
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg whitespace-nowrap">
-                        {d.category || '—'}
-                      </span>
                     </div>
 
                     {/* Status */}

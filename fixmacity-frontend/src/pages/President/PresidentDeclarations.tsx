@@ -1,5 +1,6 @@
 // src/pages/president/PresidentDeclarations.tsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import PresidentLayout from '../../layouts/PresidentLayout'
 import DeclarationDetailDrawer from './Declarationdetaildrawer'
 import { 
@@ -8,7 +9,7 @@ import {
   Filter, Calendar, Users, ArrowUpRight, BarChart3, Clock, LayoutGrid, FileText, Smartphone, Flame,
   Zap, Shield, School, Hospital, ArrowUpDown, ThumbsUp, Activity,
   Check, RotateCcw, ArrowLeft, Share2, Building2, Mail, Trash2,
-  ZoomIn, ZoomOut, LocateFixed
+  ZoomIn, ZoomOut, LocateFixed, Eye, UserPlus
 } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -288,6 +289,36 @@ const MapController = () => {
   )
 }
 
+const getPriorityBadgeConfig = (priority: string) => {
+  const p = (priority || '').toLowerCase()
+  if (['critical', 'urgent', 'critique'].includes(p)) {
+    return {
+      label: 'Critique',
+      classes: 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/30',
+      icon: '🔴'
+    }
+  }
+  if (['haute', 'high'].includes(p)) {
+    return {
+      label: 'Haute',
+      classes: 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-900/30',
+      icon: '🟠'
+    }
+  }
+  if (['normal', 'moyenne', 'medium'].includes(p)) {
+    return {
+      label: 'Moyenne',
+      classes: 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/30',
+      icon: '🟡'
+    }
+  }
+  return {
+    label: 'Faible',
+    classes: 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/30',
+    icon: '🟢'
+  }
+}
+
 const PresidentDeclarations: React.FC = () => {
   const [decls, setDecls]         = useState<Decl[]>([])
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([])
@@ -305,6 +336,20 @@ const PresidentDeclarations: React.FC = () => {
   const [mode, setMode] = useState<'all' | 'soumise' | 'refusee' | 'urgent'>('all')
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+
+  const location = useLocation()
+
+  // Auto-open declaration detail when navigated from a notification
+  useEffect(() => {
+    const state = location.state as { openDeclarationId?: string } | null
+    if (!state?.openDeclarationId || loading || decls.length === 0) return
+    const target = decls.find(d => d.id === state.openDeclarationId)
+    if (target) {
+      setSelectedDecl(target)
+      // Clear the state so re-renders don't re-open it
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state, decls, loading])
 
   const handleDelete = async (ids: string[]) => {
     if (!window.confirm(`Supprimer ${ids.length} signalement(s) ? Cette action est irréversible.`)) return
@@ -342,7 +387,7 @@ const PresidentDeclarations: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API}/president/declarations?limit=50`, {
+      const res = await fetch(`${API}/president/declarations?limit=200`, {
         headers: { Authorization: `Bearer ${token()}` }
       })
       if (res.ok) {
@@ -414,6 +459,18 @@ const PresidentDeclarations: React.FC = () => {
       setLoading(false)
     }
   }, [])
+
+  // Real-time: reload the board when a new citizen declaration is submitted
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      const notif = e.detail as { type?: string }
+      if (!notif || notif.type === 'NEW_DECLARATION' || notif.type === 'STATUS_CHANGE') {
+        load()
+      }
+    }
+    window.addEventListener('fmc:notification', handler as EventListener)
+    return () => window.removeEventListener('fmc:notification', handler as EventListener)
+  }, [load])
 
   useEffect(() => {
     const loadDepts = async () => {
@@ -544,7 +601,7 @@ const PresidentDeclarations: React.FC = () => {
             title={statusF.length === 0 ? "Tous les statuts" : "Statut"}
             icon={Activity}
             options={Object.entries(STATUS_CONFIG)
-              .filter(([k]) => ['soumise', 'assignee_chef', 'refusee_chef', 'resolue'].includes(k))
+              .filter(([k]) => ['soumise', 'assignee_chef', 'refusee_chef', 'en_cours', 'assignee_agent', 'resolue', 'cloturee', 'refusee_agent'].includes(k))
               .map(([k, v]) => ({ value: k, label: v.label, icon: Clock }))}
             selected={statusF}
             onChange={setStatusF}
@@ -647,179 +704,196 @@ const PresidentDeclarations: React.FC = () => {
         <div className="min-h-[600px]">
 
           {viewMode === 'list' ? (
-            <div className="bg-white dark:bg-slate-950 rounded-[3rem] border border-slate-200/60 dark:border-slate-800 shadow-sm overflow-hidden">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                    <th className="pl-10 pr-4 py-6 w-14">
+            <div className="bg-white dark:bg-slate-900 rounded-[1.75rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-x-auto">
+              
+              {/* Grid Header */}
+              <div className="grid items-center gap-3 px-5 py-4 bg-[#0A1628] dark:bg-slate-900 border-b border-slate-700 dark:border-slate-800"
+                style={{ gridTemplateColumns: '40px 80px minmax(120px,1.2fr) minmax(100px,1fr) minmax(90px,0.9fr) 95px 100px 80px 100px minmax(140px,auto)', minWidth: '900px' }}>
+                
+                {/* Checkbox column */}
+                <div className="pl-5">
+                  <div 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (selectedIds.length === filtered.length) setSelectedIds([])
+                      else setSelectedIds(filtered.map(f => f.id))
+                    }}
+                    className={cn(
+                      "w-5 h-5 rounded-md border flex items-center justify-center cursor-pointer transition-all",
+                      selectedIds.length === filtered.length && filtered.length > 0
+                        ? "bg-[#1557FF] border-[#1557FF]" 
+                        : "border-slate-400 bg-white/10 hover:border-white"
+                    )}
+                  >
+                    {selectedIds.length === filtered.length && filtered.length > 0 && <Check className="w-3.5 h-3.5 text-white" />}
+                  </div>
+                </div>
+
+                {/* Headers */}
+                {['ID', 'Titre', 'Citoyen', 'Service', 'Statut', 'Priorité', 'Date', 'Localisation', 'Action'].map((h, index) => (
+                  <p key={index} className="text-[10px] font-black uppercase tracking-wider text-white">
+                    {h}
+                  </p>
+                ))}
+              </div>
+
+              {/* Grid Rows */}
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/60 bg-white dark:bg-slate-950">
+                {filtered.length > 0 ? (
+                  filtered.map((d, index) => {
+                    const isRowSelected = selectedIds.includes(d.id)
+                    const dept = departments.find(dep => dep.id === d.department_id)
+                    
+                    return (
                       <div 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (selectedIds.length === filtered.length) setSelectedIds([])
-                          else setSelectedIds(filtered.map(f => f.id))
-                        }}
+                        key={d.id}
+                        onClick={() => setSelectedDecl(d)}
                         className={cn(
-                          "w-5 h-5 rounded-md border flex items-center justify-center cursor-pointer transition-all",
-                          selectedIds.length === filtered.length && filtered.length > 0
-                            ? "bg-[#1557FF] border-[#1557FF]" 
-                            : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600"
+                          "grid gap-3 px-5 py-4 items-center cursor-pointer transition-all hover:bg-slate-50/50 dark:hover:bg-slate-900/40",
+                          isRowSelected && "bg-blue-50/30 dark:bg-blue-950/20",
+                          index % 2 !== 0 ? "bg-slate-50/10 dark:bg-slate-900/10" : ""
                         )}
+                        style={{ gridTemplateColumns: '40px 80px minmax(120px,1.2fr) minmax(100px,1fr) minmax(90px,0.9fr) 95px 100px 80px 100px minmax(140px,auto)', minWidth: '900px' }}
                       >
-                        {selectedIds.length === filtered.length && filtered.length > 0 && <Check className="w-3.5 h-3.5 text-white" />}
-                      </div>
-                    </th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">ID</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Titre</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Citoyen</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Service</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Statut</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Priorité</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Date</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white">Assigné</th>
-                    <th className="px-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white text-center">Votes</th>
-                    <th className="pr-10 pl-4 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-[#0A1628] dark:text-white text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50/50 dark:divide-slate-800/50">
-                  {filtered.length > 0 ? (
-                    filtered.map(d => {
-                      const isRowSelected = selectedIds.includes(d.id);
-                      return (
-                        <tr 
-                          key={d.id} 
-                          onClick={() => setSelectedDecl(d)} 
-                          className={cn(
-                            "group cursor-pointer transition-all hover:bg-slate-50/40 dark:hover:bg-slate-800/40",
-                            isRowSelected && "bg-blue-50/30 dark:bg-blue-500/5"
-                          )}
-                        >
-                          <td className="pl-10 pr-4 py-6" onClick={(e) => e.stopPropagation()}>
-                            <div 
-                              onClick={() => {
-                                if (isRowSelected) setSelectedIds(selectedIds.filter(id => id !== d.id))
-                                else setSelectedIds([...selectedIds, d.id])
-                              }}
-                              className={cn(
-                                "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
-                                isRowSelected ? "bg-[#1557FF] border-[#1557FF]" : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 group-hover:border-slate-300 dark:group-hover:border-slate-600"
-                              )}
-                            >
-                              {isRowSelected && <Check className="w-3.5 h-3.5 text-white" />}
-                            </div>
-                          </td>
-                          <td className="px-4 py-6">
-                            <span className="text-[10px] font-black text-[#1557FF] uppercase tracking-widest">{d.ref_citoyen}</span>
-                          </td>
-                          <td className="px-4 py-6">
-                            <div className="flex flex-col gap-1">
-                              <span className="text-xs font-bold text-[#0A1628] dark:text-white truncate max-w-[200px]">{d.title}</span>
-                              <div className="flex items-center gap-1.5 opacity-50 text-slate-400">
-                                 <MapPin className="w-2.5 h-2.5"/>
-                                 <span className="text-[8px] font-bold uppercase tracking-tight">{d.arrondissement}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-6">
-                            <span className="text-[11px] font-black text-slate-600 dark:text-slate-300">{d.citizen_name}</span>
-                          </td>
-                          <td className="px-4 py-6">
-                            {(() => {
-                              const dept = departments.find(dep => dep.id === d.department_id)
-                              return dept ? (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-[#1557FF] border border-blue-100 dark:border-blue-900/30">
-                                  <Building2 className="w-3 h-3" />
-                                  {dept.name}
-                                </span>
-                              ) : (
-                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 italic">Non assigné</span>
-                              )
-                            })()}
-                          </td>
-                          <td className="px-4 py-6">
-                            <div className="flex items-center gap-2">
-                               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: STATUS_CONFIG[d.status]?.color }} />
-                               <span className="text-xs font-bold" style={{ color: STATUS_CONFIG[d.status]?.color }}>
-                                 {STATUS_CONFIG[d.status]?.label}
-                                </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-6">
-                            {(() => {
-                              const cp = COMPUTED_PRIORITY_CONFIG[d.computed_priority]
-                              const zoneLabel = d.sensitive_type === 'hospital' ? '🏥 Hôpital'
-                                : d.sensitive_type === 'school' ? '🏫 École' : null
-                              return (
-                                <div className="flex flex-col gap-1">
-                                  <span
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black border"
-                                    style={{ color: cp.color, background: cp.bg, borderColor: cp.border }}
-                                  >
-                                    <span className="text-[8px]">{cp.icon}</span>
-                                    {cp.label}
-                                    {d.ai_priority_confirmed && (
-                                      <span title="Confirmé par le Président">
-                                        <Shield className="w-2.5 h-2.5 ml-0.5" />
-                                      </span>
-                                    )}
-                                  </span>
-                                  {zoneLabel && (
-                                    <span className="text-[8px] font-bold text-indigo-500 dark:text-indigo-400 flex items-center gap-0.5">
-                                      {zoneLabel}
-                                    </span>
-                                  )}
-                                  {d.votes >= 3 && (
-                                    <span className="text-[8px] text-slate-400 font-bold flex items-center gap-0.5">
-                                      +{d.votes} votes
-                                    </span>
-                                  )}
-                                </div>
-                              )
-                            })()}
-                          </td>
-                          <td className="px-4 py-6">
-                            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-350">{d.date}</span>
-                          </td>
-                          <td className="px-4 py-6">
-                             {d.agent ? (
-                              <div className="flex items-center gap-2">
-                                 <div className="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-[9px] font-black text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20">
-                                   {d.agent.split(' ').map(n=>n[0]).join('')}
-                                 </div>
-                                 <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">{d.agent}</span>
-                              </div>
-                            ) : (
-                              <span className="text-[9px] font-bold text-slate-300 italic uppercase tracking-widest">En attente</span>
+                        {/* Checkbox */}
+                        <div className="pl-5" onClick={(e) => e.stopPropagation()}>
+                          <div 
+                            onClick={() => {
+                              if (isRowSelected) setSelectedIds(selectedIds.filter(id => id !== d.id))
+                              else setSelectedIds([...selectedIds, d.id])
+                            }}
+                            className={cn(
+                              "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
+                              isRowSelected 
+                                ? "bg-[#1557FF] border-[#1557FF]" 
+                                : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-600"
                             )}
-                          </td>
-                          <td className="px-4 py-6 text-center">
-                            <span className="text-[11px] font-black text-[#1557FF]">+{d.votes || 0}</span>
-                          </td>
-                          <td className="pr-10 pl-4 py-6 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                               <button 
-                                 onClick={(e) => { e.stopPropagation(); setSelectedDecl(d); }}
-                                 className="px-4 py-2 rounded-xl bg-[#1557FF]/5 text-[#1557FF] text-[10px] font-black uppercase tracking-widest hover:bg-[#1557FF] hover:text-white transition-all shadow-sm border border-[#1557FF]/10"
-                                >
-                                 Détails
-                               </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={12} className="py-32 text-center">
-                        <div className="w-20 h-20 rounded-[2rem] bg-slate-50 dark:bg-slate-800 flex items-center justify-center mx-auto mb-6 text-slate-200 dark:text-slate-700">
-                          <Smartphone className="w-10 h-10" />
+                          >
+                            {isRowSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                          </div>
                         </div>
-                        <h3 className="text-xl font-black text-[#0A1628] dark:text-white mb-2">Aucun résultat</h3>
-                        <p className="text-sm text-slate-400 dark:text-slate-500 font-medium italic">Essayez de modifier vos filtres.</p>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+
+                        {/* ID */}
+                        <div>
+                          <span className="text-[10px] font-black text-[#1557FF] uppercase tracking-widest">{d.ref_citoyen}</span>
+                        </div>
+
+                        {/* Titre */}
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold text-[#0A1628] dark:text-white truncate block" title={d.title}>
+                            {d.title}
+                          </span>
+                        </div>
+
+                        {/* Citoyen */}
+                        <div>
+                          <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 truncate block">
+                            {d.citizen_name}
+                          </span>
+                        </div>
+
+                        {/* Service */}
+                        <div>
+                          {dept ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black bg-blue-50 dark:bg-blue-950/40 text-[#1557FF] border border-blue-100 dark:border-blue-900/30 uppercase tracking-widest">
+                              <Building2 className="w-2.5 h-2.5" />
+                              {dept.name}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 italic">Non assigné</span>
+                          )}
+                        </div>
+
+                        {/* Statut */}
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: STATUS_CONFIG[d.status]?.color || '#94A3B8' }} />
+                            <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: STATUS_CONFIG[d.status]?.color || '#94A3B8' }}>
+                              {STATUS_CONFIG[d.status]?.label || d.status}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Priorité */}
+                        <div>
+                          {(() => {
+                            const badge = getPriorityBadgeConfig(d.computed_priority || d.priority || 'normal')
+                            return (
+                              <div className="flex flex-col gap-0.5">
+                                <span className={cn(
+                                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black border uppercase tracking-wider justify-center w-fit transition-all",
+                                  badge.classes
+                                )}>
+                                  <span className="text-[8px]">{badge.icon}</span>
+                                  {badge.label}
+                                  {d.ai_priority_confirmed && (
+                                    <span title="Confirmé par le Président">
+                                      <Shield className="w-2.5 h-2.5 ml-0.5 flex-shrink-0" />
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            )
+                          })()}
+                        </div>
+
+                        {/* Date */}
+                        <div>
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-350">{d.date}</span>
+                        </div>
+
+                        {/* Localisation */}
+                        <div>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[11px] font-black text-[#1557FF] uppercase tracking-widest truncate max-w-[90px]" title={d.arrondissement || '—'}>
+                              {d.arrondissement || '—'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Action */}
+                        <div className="flex items-center justify-start gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <button 
+                            onClick={() => setSelectedDecl(d)}
+                            title="Voir les détails"
+                            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-300 hover:bg-[#1557FF] hover:text-white dark:hover:bg-[#1557FF] dark:hover:text-white transition-all shadow-sm"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          
+                          {['soumise', 'soumis'].includes(d.status) && (
+                            <button 
+                              onClick={() => setSelectedDecl(d)}
+                              title="Affecter à un service"
+                              className="p-1.5 rounded-lg bg-[#1557FF]/10 text-[#1557FF] hover:bg-[#1557FF] hover:text-white transition-all shadow-sm"
+                            >
+                              <UserPlus className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          
+                          {['refusee_chef', 'refusee_agent', 'refusee'].includes(d.status) && (
+                            <button 
+                              onClick={() => setSelectedDecl(d)}
+                              title="Réassigner"
+                              className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white transition-all shadow-sm"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div className="py-32 text-center bg-white dark:bg-slate-950">
+                    <div className="w-20 h-20 rounded-[2rem] bg-slate-50 dark:bg-slate-900 flex items-center justify-center mx-auto mb-6 text-slate-200 dark:text-slate-700">
+                      <Smartphone className="w-10 h-10" />
+                    </div>
+                    <h3 className="text-xl font-black text-[#0A1628] dark:text-white mb-2">Aucun résultat</h3>
+                    <p className="text-sm text-slate-400 dark:text-slate-500 font-medium italic">Essayez de modifier vos filtres.</p>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="bg-white dark:bg-slate-950 rounded-[3rem] border border-slate-200/60 dark:border-slate-800 shadow-sm overflow-hidden h-[700px] relative">

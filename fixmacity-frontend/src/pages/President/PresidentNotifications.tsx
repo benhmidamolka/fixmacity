@@ -5,6 +5,7 @@
 // Backend required: see notifications.controller.js and notification.service.js patches
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import PresidentLayout from '../../layouts/PresidentLayout'
 import {
   Bell, CheckCheck, Trash2, Search, Filter,
@@ -76,13 +77,24 @@ const Sk = ({ w = 'w-full', h = 'h-4' }: { w?: string; h?: string }) => (
 )
 
 // ─── Detail drawer (right slide-in) ──────────────────────────────────────────
-const DetailDrawer = ({ notif, onClose, onDelete }: { notif: Notif; onClose: () => void; onDelete: (id: string) => void }) => {
+const DetailDrawer = ({
+  notif,
+  onClose,
+  onDelete,
+  onMarkRead,
+}: {
+  notif: Notif
+  onClose: () => void
+  onDelete: (id: string) => void
+  onMarkRead: (id: string) => void
+}) => {
   const [detail,   setDetail]   = useState<any>(null)
   const [photos,   setPhotos]   = useState<any[]>([])
   const [history,  setHistory]  = useState<any[]>([])
   const [comments, setComments] = useState<any[]>([])
   const [loading,  setLoading]  = useState(false)
   const [tab,      setTab]      = useState<'info' | 'history' | 'comments' | 'photos'>('info')
+  const navigate = useNavigate()
   const cfg = getTypeCfg(notif.type)
 
   useEffect(() => {
@@ -286,14 +298,34 @@ const DetailDrawer = ({ notif, onClose, onDelete }: { notif: Notif; onClose: () 
               {/* Actions Rapides */}
               <section className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
                 <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 mb-4">Actions rapides</h3>
-                <button className="w-full flex items-center justify-center gap-2 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-red-900/10 transition-all active:scale-[0.98]">
+                <button
+                  onClick={() => {
+                    if (notif.reference_id) {
+                      onClose()
+                      navigate('/president/declarations', { state: { openDeclarationId: notif.reference_id } })
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-red-900/10 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!notif.reference_id}
+                >
                   <AlertCircle className="w-4 h-4" /> Cas prioritaire
                 </button>
-                <button className="w-full flex items-center justify-center gap-2 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-sm font-bold transition-all">
+                <button
+                  onClick={() => {
+                    if (notif.reference_id) {
+                      onClose()
+                      navigate('/president/declarations', { state: { openDeclarationId: notif.reference_id } })
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!notif.reference_id}
+                >
                   <Eye className="w-4 h-4 text-slate-400 dark:text-slate-500" /> Voir la déclaration complète <span className="ml-2 text-slate-300 dark:text-slate-700">→ →</span>
                 </button>
-                <button onClick={onClose}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-sm font-bold transition-all">
+                <button
+                  onClick={() => { onMarkRead(notif.id); onClose() }}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-sm font-bold transition-all"
+                >
                   <CheckCheck className="w-4 h-4 text-slate-400 dark:text-slate-500" /> Marquer comme lue
                 </button>
               </section>
@@ -749,7 +781,7 @@ const PresidentNotifications: React.FC = () => {
       </div>
 
       {/* Detail drawer */}
-      {drawer && <DetailDrawer notif={drawer} onClose={() => setDrawer(null)} onDelete={deleteOne} />}
+      {drawer && <DetailDrawer notif={drawer} onClose={() => setDrawer(null)} onDelete={deleteOne} onMarkRead={markRead} />}
     </PresidentLayout>
   )
 }

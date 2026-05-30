@@ -744,115 +744,146 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
         `}</style>
 
         {/* ── TOP BAR ── */}
-        <div className="flex-shrink-0 flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-          <button onClick={onClose} className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
-            <ArrowLeft size={14}/> Fermer
+        <div className="flex-shrink-0 flex items-center justify-between px-5 py-4 border-b border-slate-150/10 dark:border-slate-800/80 bg-white/50 dark:bg-slate-950/50 backdrop-blur-md">
+          <button onClick={onClose} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-450 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+            <ArrowLeft size={13}/> Retour
           </button>
           <div className="flex items-center gap-2">
             {detail && !loading && (
               <>
-                <span className="font-mono text-[10px] font-bold text-slate-400 dark:text-slate-500">{detail.ref_citoyen}</span>
+                <span className="font-mono text-[9px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-widest">{detail.ref_citoyen}</span>
                 <StatusBadge status={detail.status}/>
               </>
             )}
             {loading && <Skel w="w-32" h="h-5"/>}
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={load} className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+            <button onClick={load} className="w-8 h-8 rounded-xl bg-slate-100/80 dark:bg-slate-900/80 flex items-center justify-center text-slate-400 hover:text-slate-650 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-all border border-slate-200/20 dark:border-slate-700/30">
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''}/>
             </button>
-            <button onClick={onClose} className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
+            <button onClick={onClose} className="w-8 h-8 rounded-xl bg-slate-100/80 dark:bg-slate-900/80 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all border border-slate-200/20 dark:border-slate-700/30">
               <X size={13}/>
             </button>
           </div>
         </div>
 
         {/* ── PHOTO STRIP ── */}
-        <div className="flex-shrink-0 h-36 bg-slate-100 dark:bg-slate-800/50 overflow-hidden">
-          {loading ? <div className="w-full h-full bg-slate-200 dark:bg-slate-800 animate-pulse"/>
-          : photosList.length > 0 ? (
-            <div className="flex h-full gap-px">
-              <div className="flex-1 relative cursor-pointer" onClick={() => beforePh && setImgExpanded(beforePh.url)}>
-                <img src={beforePh?.url} alt="Avant" className="w-full h-full object-cover"/>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"/>
-                <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-lg bg-red-500/90 text-white text-[9px] font-black uppercase tracking-wide">AVANT</span>
+        <div className="flex-shrink-0 px-5 pt-4 pb-2">
+          <div className="h-44 bg-slate-50 dark:bg-slate-900/30 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800/80 relative shadow-sm">
+            {loading ? (
+              <div className="w-full h-full bg-slate-200 dark:bg-slate-800 animate-pulse"/>
+            ) : photosList.length > 0 ? (
+              <div className="flex h-full gap-[2px]">
+                <div className="flex-1 relative overflow-hidden group cursor-pointer" onClick={() => beforePh && setImgExpanded(beforePh.url)}>
+                  <img src={beforePh?.url} alt="Avant" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"/>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"/>
+                  <span className="absolute bottom-3 left-3 px-2.5 py-1 rounded-xl bg-red-650/95 text-white text-[8px] font-black uppercase tracking-widest shadow-md">AVANT</span>
+                </div>
+                <div className={`flex-1 relative overflow-hidden group ${afterPh ? 'cursor-pointer' : ''}`} onClick={() => afterPh && setImgExpanded(afterPh.url)}>
+                  {afterPh ? (
+                    <>
+                      <img src={afterPh.url} alt="Après" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"/>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"/>
+                      <span className="absolute bottom-3 left-3 px-2.5 py-1 rounded-xl bg-emerald-650/95 text-white text-[8px] font-black uppercase tracking-widest shadow-md">APRÈS</span>
+                    </>
+                  ) : (
+                    <div className="w-full h-full bg-slate-100/60 dark:bg-slate-900/20 flex flex-col items-center justify-center gap-1.5 border-l border-slate-100/80 dark:border-slate-800/80">
+                      <div className="w-8 h-8 rounded-xl bg-slate-200/50 dark:bg-slate-800/80 flex items-center justify-center text-slate-400 dark:text-slate-500">
+                        <Camera size={14}/>
+                      </div>
+                      <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center px-4 leading-tight">En cours de traitement</p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className={`flex-1 relative ${afterPh ? 'cursor-pointer' : ''}`} onClick={() => afterPh && setImgExpanded(afterPh.url)}>
-                {afterPh ? (
-                  <>
-                    <img src={afterPh.url} alt="Après" className="w-full h-full object-cover"/>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"/>
-                    <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-lg bg-emerald-500/90 text-white text-[9px] font-black uppercase tracking-wide">APRÈS</span>
-                  </>
-                ) : (
-                  <div className="w-full h-full bg-slate-200 dark:bg-slate-800 flex flex-col items-center justify-center gap-2">
-                    <Camera size={20} className="text-slate-400"/>
-                    <p className="text-[10px] font-bold text-slate-400 text-center px-2 leading-tight">Photo après résolution</p>
-                  </div>
-                )}
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-400 dark:text-slate-500">
+                <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200/30 dark:border-slate-850">
+                  <ImageIcon size={16}/>
+                </div>
+                <p className="text-[9px] font-black uppercase tracking-widest">Aucun visuel disponible</p>
               </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-400">
-              <div className="w-10 h-10 rounded-2xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center">
-                <ImageIcon size={16} className="text-slate-400"/>
-              </div>
-              <p className="text-[10px] font-bold uppercase tracking-wider">Aucune photo jointe</p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* ── TITLE BLOCK ── */}
-        <div className="flex-shrink-0 px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-          {loading ? <div className="space-y-2"><Skel h="h-5" w="w-3/4"/><Skel h="h-3" w="w-1/2"/></div>
-          : detail && (
-            <div className="flex items-start gap-3">
-              <div className="flex-1 min-w-0">
-                <h2 className="text-base font-black text-slate-900 dark:text-slate-100 leading-tight">{detail.title}</h2>
-                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                  {detail.category && <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full"><Tag size={9}/> {detail.category}</span>}
-                  {detail.delegations?.name && <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400"><MapPin size={9}/> {detail.delegations.name}</span>}
-                  <span className="flex items-center gap-1 text-[10px] text-slate-400"><Calendar size={9}/> {fmtShort(detail.created_at)}</span>
-                  {(detail.votes_count ?? 0) > 0 && <span className="flex items-center gap-1 text-[10px] font-black text-blue-500"><ThumbsUp size={9}/> {detail.votes_count}</span>}
-                  {detail.is_sensitive && detail.sensitive_type && detail.sensitive_type !== 'none' && (
-                    <span className="flex items-center gap-1 text-[10px] font-black text-orange-500 bg-orange-50 dark:bg-orange-950/20 px-2 py-0.5 rounded-full">
-                      {detail.sensitive_type === 'hospital' ? <Hospital size={9}/> : <School size={9}/>}
-                      {detail.sensitive_type === 'hospital' ? 'Hôpital' : 'École'}
+        <div className="flex-shrink-0 px-5 py-2">
+          {loading ? (
+            <div className="space-y-2"><Skel h="h-6" w="w-3/4"/><Skel h="h-4" w="w-1/2"/></div>
+          ) : detail && (
+            <div className="space-y-3">
+              <h2 className="text-base font-black text-slate-900 dark:text-white leading-tight tracking-tight">{detail.title}</h2>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {detail.category && (
+                  <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl">
+                    <Tag size={9}/> {detail.category}
+                  </span>
+                )}
+                {detail.delegations?.name && (
+                  <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 px-2.5 py-1 rounded-xl">
+                    <MapPin size={9}/> {detail.delegations.name}
+                  </span>
+                )}
+                <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-slate-455 bg-slate-50 dark:bg-slate-900/50 border border-slate-100/60 dark:border-slate-800/40 px-2.5 py-1 rounded-xl">
+                  <Calendar size={9}/> {fmtShort(detail.created_at)}
+                </span>
+                {(detail.votes_count ?? 0) > 0 && (
+                  <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 border border-blue-100/50 dark:border-blue-900/30 px-2.5 py-1 rounded-xl">
+                    <ThumbsUp size={9}/> {detail.votes_count} vote{detail.votes_count > 1 ? 's' : ''}
+                  </span>
+                )}
+                {detail.is_sensitive && detail.sensitive_type && detail.sensitive_type !== 'none' && (
+                  <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/20 border border-orange-100/50 dark:border-orange-900/30 px-2.5 py-1 rounded-xl">
+                    {detail.sensitive_type === 'hospital' ? <Hospital size={9}/> : <School size={9}/>}
+                    {detail.sensitive_type === 'hospital' ? 'Hôpital' : 'École'}
+                  </span>
+                )}
+                {finalPriority && (() => {
+                  const cp = AI_LEVELS[finalPriority] || AI_LEVELS.normal;
+                  return (
+                    <span
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider border ml-auto"
+                      style={{ color: cp.color, background: cp.bg, borderColor: cp.border }}
+                    >
+                      <span className="text-[8px]">{cp.icon}</span>
+                      {cp.label}
+                      {detail.ai_priority_confirmed && (
+                        <span title="Confirmé par le Président">
+                          <Shield className="w-2.5 h-2.5 ml-0.5" />
+                        </span>
+                      )}
                     </span>
-                  )}
-                  {finalPriority && (() => {
-                    const cp = AI_LEVELS[finalPriority] || AI_LEVELS.normal;
-                    return (
-                      <span
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black border ml-auto"
-                        style={{ color: cp.color, background: cp.bg, borderColor: cp.border }}
-                      >
-                        <span className="text-[8px]">{cp.icon}</span>
-                        {cp.label}
-                        {detail.ai_priority_confirmed && (
-                          <span title="Confirmé par le Président">
-                            <Shield className="w-2.5 h-2.5 ml-0.5" />
-                          </span>
-                        )}
-                      </span>
-                    )
-                  })()}
-                </div>
+                  )
+                })()}
               </div>
             </div>
           )}
         </div>
 
         {/* ── TABS ── */}
-        <div className="flex-shrink-0 flex border-b border-slate-100 dark:border-slate-800">
-          {TABS.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key as any)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${tab===t.key ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
-              <t.Icon size={11}/>
-              {t.label}
-              {t.count > 0 && <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full ${tab===t.key ? 'bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>{t.count}</span>}
-            </button>
-          ))}
+        <div className="flex-shrink-0 px-5 py-3">
+          <div className="bg-slate-100/70 dark:bg-slate-900/60 p-1 rounded-2xl flex gap-1 border border-slate-200/20 dark:border-slate-800/40">
+            {TABS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key as any)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all duration-300 ${
+                  tab === t.key
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/10 dark:border-slate-700/30'
+                    : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-350'
+                }`}
+              >
+                <t.Icon size={12}/>
+                <span>{t.label}</span>
+                {t.count > 0 && (
+                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-lg ${tab === t.key ? 'bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'}`}>
+                    {t.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ── TAB CONTENT ── */}

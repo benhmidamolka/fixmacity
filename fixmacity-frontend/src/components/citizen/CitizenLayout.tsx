@@ -8,13 +8,15 @@ import {
 import Logo from '../Logo'
 import ChatbotWidget from './ChatbotWidget'
 import { useSocket } from '../../hooks/useSocket'
+import LanguageSwitcher from '../shared/LanguageSwitcher'
+import { useTranslation } from 'react-i18next'
 
 const NAV = [
-  { label: 'Accueil',          icon: LayoutDashboard, to: '/dashboard'       },
-  { label: 'Mes signalements', icon: List,            to: '/mes-signalements'},
-  { label: 'Propositions',     icon: Vote,            to: '/propositions'    },
-  { label: 'Carte',            icon: Map,             to: '/map'             },
-  { label: 'Travaux réalisés', icon: FileText,        to: '/travaux-realises'},
+  { labelKey: 'nav.home',         icon: LayoutDashboard, to: '/dashboard'       },
+  { labelKey: 'nav.reports',      icon: List,            to: '/mes-signalements'},
+  { labelKey: 'nav.proposals',    icon: Vote,            to: '/propositions'    },
+  { labelKey: 'nav.map',          icon: Map,             to: '/map'             },
+  { labelKey: 'nav.works',        icon: FileText,        to: '/travaux-realises'},
 ]
 
 // ─── Mock notifications ───────────────────────────────────────────────────────
@@ -215,6 +217,7 @@ const CitizenLayout: React.FC<CitizenLayoutProps> = ({ children }) => {
   const [open, setOpen] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('fmc_theme') === 'dark')
   const user = JSON.parse(localStorage.getItem('fmc_user') || '{}')
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (darkMode) {
@@ -254,7 +257,7 @@ const CitizenLayout: React.FC<CitizenLayoutProps> = ({ children }) => {
                     : darkMode ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100'
                 }`}>
                 <item.icon className="w-4 h-4" />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             )
           })}
@@ -276,6 +279,9 @@ const CitizenLayout: React.FC<CitizenLayoutProps> = ({ children }) => {
             }`}>
             {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
+
+          {/* Language Switcher */}
+          <LanguageSwitcher dark={darkMode} />
 
           {/* Notifications */}
           <NotificationBell />
@@ -325,7 +331,7 @@ const CitizenLayout: React.FC<CitizenLayoutProps> = ({ children }) => {
                       : darkMode ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100'
                   }`}>
                   <item.icon className="w-4 h-4" />
-                  {item.label}
+                  {t(item.labelKey)}
                 </Link>
               )
             })}

@@ -7,6 +7,7 @@ import {
   CheckSquare
 } from 'lucide-react'
 import { useSocket } from '../hooks/useSocket'
+import FixMaCityLogo from '../components/FixMaCityLogo'
 
 const NAV = [
   {
@@ -77,8 +78,21 @@ const ChefLayout: React.FC<Props> = ({ children, title = 'Mes Affectations' }) =
 
   const SidebarContent = () => (
     <div className={`flex flex-col h-full transition-all duration-300 ${isCollapsed ? 'items-center' : ''}`}>
+
+      {/* ── BRAND LOGO (iBanKo-style) ── */}
+      <div className={`px-5 pt-6 pb-5 flex items-center ${isCollapsed ? 'justify-center' : ''}`}>
+        <FixMaCityLogo
+          variant={darkMode ? 'light' : 'dark'}
+          size={isCollapsed ? 'sm' : 'md'}
+          iconOnly={isCollapsed}
+        />
+      </div>
+
+      {/* Divider */}
+      <div className={`mx-5 mb-4 h-px ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`} />
+
       {/* Mac Controls */}
-      <div className={`px-5 pt-5 pb-3 flex items-center gap-1.5 ${isCollapsed ? 'justify-center' : ''}`}>
+      <div className={`px-5 pb-3 flex items-center gap-1.5 ${isCollapsed ? 'justify-center' : ''}`}>
         <div className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" />
         <div className="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]" />
         <div className="w-2.5 h-2.5 rounded-full bg-[#28C840]" />

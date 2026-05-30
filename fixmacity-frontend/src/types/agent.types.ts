@@ -52,4 +52,29 @@ export interface Declaration {
   agents: AgentInfo[];
   history: HistoryEvent[];
   comments: Comment[];
+  // API compatibility fields
+  title?: string;
+  category?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+/** Raw shape returned directly from the backend API */
+export interface RawDeclaration {
+  id: string;
+  ref_citoyen?: string;
+  title?: string;
+  description?: string;
+  status: DeclarationStatus;
+  priority?: string;
+  category?: string;
+  address?: string;
+  assigned_at?: string;
+  created_at?: string;
+  latitude?: number;
+  longitude?: number;
+  department_id?: string;
+  other_assignments?: any[];
+  [key: string]: any;
 }

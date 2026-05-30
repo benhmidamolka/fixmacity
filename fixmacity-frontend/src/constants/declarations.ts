@@ -5,25 +5,25 @@ export const STATUS_CONFIG: Record<string, {
   dot: string;
 }> = {
   soumise: {
-    label: 'Soumise',
+    label: 'Non affecté',
     color: '#ea580c', // orange
     bg: '#ffedd5',
     dot: '#f97316',
   },
   soumis: {
-    label: 'Soumise',
+    label: 'Non affecté',
     color: '#ea580c', // orange
     bg: '#ffedd5',
     dot: '#f97316',
   },
   assignee_chef: {
-    label: 'Assignée (Chef)',
+    label: 'Chef assigné',
     color: '#7c3aed', // purple
     bg: '#ede9fe',
     dot: '#8b5cf6',
   },
   assignee_agent: {
-    label: 'Assignée (Agent)',
+    label: 'Agent assigné',
     color: '#7c3aed', // purple
     bg: '#ede9fe',
     dot: '#8b5cf6',

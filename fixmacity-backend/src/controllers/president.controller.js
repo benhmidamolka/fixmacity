@@ -1143,6 +1143,55 @@ exports.listDepartments = async (req, res) => {
         });
       }
     }
+
+    /* 4 ── Declaration counts per department — all status buckets in one query */
+    const declRes = await supabase.pool.query(`
+      SELECT
+        department_id,
+        COUNT(*)                                                                            AS total,
+        COUNT(*) FILTER (WHERE status NOT IN ('soumise','refusee_chef'))                   AS accepted,
+        COUNT(*) FILTER (WHERE status IN ('resolue','cloturee'))                           AS resolved,
+        COUNT(*) FILTER (WHERE status IN ('refusee_chef','refusee_agent'))                 AS rejected,
+        COUNT(*) FILTER (WHERE status = 'en_cours')                                        AS in_progress
+      FROM declarations
+      WHERE department_id IS NOT NULL
+        AND deleted_at IS NULL
+        AND COALESCE(is_deleted, false) = false
+      GROUP BY department_id
+    `);
+
+    const countsMap = {};
+    (declRes.rows || []).forEach(r => {
+      countsMap[r.department_id] = {
+        total: parseInt(r.total, 10),
+        accepted: parseInt(r.accepted, 10),
+        resolved: parseInt(r.resolved, 10),
+        rejected: parseInt(r.rejected, 10),
+        in_progress: parseInt(r.in_progress, 10),
+      };
+    });
+
+    /* 5 ── Build response */
+    const departments = (services || []).map(dept => {
+      const chef = chefMap[dept.id] || null;
+      const counts = countsMap[dept.id] || { total: 0, accepted: 0, resolved: 0, rejected: 0, in_progress: 0 };
+      return {
+        ...dept,
+        name: dept.name_fr,
+        chef_name: chef ? `${chef.first_name} ${chef.last_name}` : null,
+        chef_id: chef?.id || null,
+        agents_count: agentsCountMap[dept.id] || 0,
+        ...counts,
+      };
+    });
+
+    return res.status(200).json({ departments, success: true });
+  } catch (err) {
+    console.error('[President] ListDept error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
     /* ── POST /api/president/departments ── */
     exports.createDepartment = async (req, res) => {
       try {
@@ -1217,56 +1266,9 @@ exports.listDepartments = async (req, res) => {
           return res.status(500).json({ error: 'Erreur lors de la suppression.' });
         }
 
-        return res.status(200).json({ success: true });
-      } catch (err) {
-        console.error('[President] DeleteDept error:', err);
-        return res.status(500).json({ error: 'Erreur serveur.' });
-      }
-    };
-    /* 4 ── Declaration counts per department — all status buckets in one query */
-    const declRes = await supabase.pool.query(`
-      SELECT
-        department_id,
-        COUNT(*)                                                                            AS total,
-        COUNT(*) FILTER (WHERE status NOT IN ('soumise','refusee_chef'))                   AS accepted,
-        COUNT(*) FILTER (WHERE status IN ('resolue','cloturee'))                           AS resolved,
-        COUNT(*) FILTER (WHERE status IN ('refusee_chef','refusee_agent'))                 AS rejected,
-        COUNT(*) FILTER (WHERE status = 'en_cours')                                        AS in_progress
-      FROM declarations
-      WHERE department_id IS NOT NULL
-        AND deleted_at IS NULL
-        AND COALESCE(is_deleted, false) = false
-      GROUP BY department_id
-    `);
-
-    const countsMap = {};
-    (declRes.rows || []).forEach(r => {
-      countsMap[r.department_id] = {
-        total: parseInt(r.total, 10),
-        accepted: parseInt(r.accepted, 10),
-        resolved: parseInt(r.resolved, 10),
-        rejected: parseInt(r.rejected, 10),
-        in_progress: parseInt(r.in_progress, 10),
-      };
-    });
-
-    /* 5 ── Build response */
-    const departments = (services || []).map(dept => {
-      const chef = chefMap[dept.id] || null;
-      const counts = countsMap[dept.id] || { total: 0, accepted: 0, resolved: 0, rejected: 0, in_progress: 0 };
-      return {
-        ...dept,
-        name: dept.name_fr,
-        chef_name: chef ? `${chef.first_name} ${chef.last_name}` : null,
-        chef_id: chef?.id || null,
-        agents_count: agentsCountMap[dept.id] || 0,
-        ...counts,
-      };
-    });
-
-    return res.status(200).json({ departments, success: true });
+    return res.status(200).json({ success: true });
   } catch (err) {
-    console.error('[President] ListDept error:', err);
+    console.error('[President] DeleteDept error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };

@@ -21,6 +21,7 @@ interface AnalyzeOptions {
   latitude?: number | null
   longitude?: number | null
   category?: string | null
+  citizen_sensitive_type?: string | null
 }
 
 export async function analyzeDeclarationPhoto(
@@ -35,6 +36,7 @@ export async function analyzeDeclarationPhoto(
   if (options.latitude)  formData.append('latitude',  String(options.latitude))
   if (options.longitude) formData.append('longitude', String(options.longitude))
   if (options.category)  formData.append('category',  options.category)
+  if (options.citizen_sensitive_type) formData.append('citizen_sensitive_type', options.citizen_sensitive_type)
 
   const res = await fetch(`${API}/declarations/analyze-photo`, {
     method: 'POST',

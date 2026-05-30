@@ -1,19 +1,18 @@
 // src/pages/President/PresidentDashboard.tsx
-// Keeps ALL original sections and content — replaces the SVG heatmap in ZonesCritiques
-// with a proper ranked list + progress bars.  No new dependencies.
+// Clean dashboard matching Personnel / Services page design system.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
   XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Sector,
-  BarChart, Bar
+  ResponsiveContainer, PieChart, Pie, Cell,
+  BarChart, Bar, AreaChart, Area
 } from 'recharts'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   AlertTriangle, MapPin, Download, ChevronDown, RefreshCw,
   CheckCircle2, ChevronRight, X, ExternalLink, ThumbsUp,
-  Flame, TrendingDown, TrendingUp
+  Flame, TrendingDown, TrendingUp, ArrowUpRight
 } from 'lucide-react'
 import PresidentLayout from '../../layouts/PresidentLayout'
 import DeclarationDetailDrawer from './Declarationdetaildrawer'
@@ -108,7 +107,7 @@ const TopCritiques = ({ data, loading, onSelectDecl }: { data: any[]; loading: b
   const total = data.reduce((s, d) => s + (d.votes_count || 0), 0)
 
   return (
-    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800 p-5 hover:border-blue-400/50 dark:hover:border-blue-500/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500 flex flex-col h-full">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-5 hover:shadow-md transition-all flex flex-col h-full">
       <div className="flex items-center justify-between mb-4">
         <span className="text-[13px] font-bold text-gray-800 dark:text-white">1. Top 5 signalements critiques</span>
         <Link to="/president/declarations"
@@ -124,7 +123,7 @@ const TopCritiques = ({ data, loading, onSelectDecl }: { data: any[]; loading: b
             <div className="flex-1 space-y-1"><Sk w="w-3/4" h="h-2.5" /><Sk w="w-1/2" h="h-2" /></div>
             <Sk w="w-14" h="h-4" r="rounded-full" /><Sk w="w-8" h="h-3" />
           </div>
-        )) : data.map((item, i) => {
+        )) : data.slice(0, 5).map((item, i) => {
           const sev = getSeverity(item.votes_count || 0, item.priority_score || 0)
           return (
             <motion.div key={item.id || i}
@@ -164,52 +163,51 @@ const TopCritiques = ({ data, loading, onSelectDecl }: { data: any[]; loading: b
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SECTION 2 — Zones Critiques  (replaces the SVG heatmap)
+// SECTION 2 — Zones Critiques
 // ─────────────────────────────────────────────────────────────────────────────
+const ZONE_LABELS = ['Très élevé', 'Élevé', 'Moyen', 'Modéré', 'Faible']
+
 const ZonesCritiques = ({ zones, loading }: { zones: any[]; loading: boolean }) => {
   const maxCount = zones[0]?.count || 1
 
   return (
-    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800 p-5 hover:border-blue-400/50 dark:hover:border-blue-500/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500 flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-[13px] font-bold text-gray-800 dark:text-white">2. Lieux critiques à proximité</span>
+    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-5 hover:shadow-md transition-all flex flex-col h-full">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[13px] font-bold text-[#0A1628] dark:text-white flex items-center gap-2">
+          <MapPin className="w-3.5 h-3.5" /> Lieux critiques
+        </span>
         <Link to="/president/declarations"
-          className="text-[11px] font-bold text-green-600 hover:text-green-700 flex items-center gap-0.5 transition-colors">
-          Voir tout <ChevronRight className="w-3 h-3" />
+          className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-blue-700 dark:hover:text-blue-400 flex items-center gap-1 transition-colors">
+          Voir tout <ArrowUpRight className="w-3 h-3" />
         </Link>
       </div>
 
       {/* Ranked zone rows */}
-      <div className="space-y-3 flex-1">
+      <div className="space-y-2.5 flex-1">
         {loading
-          ? [...Array(4)].map((_, i) => (
-            <div key={i} className="space-y-1.5">
-              <div className="flex items-center gap-2"><Sk w="w-5" h="h-5" r="rounded-lg" /><Sk w="w-28" h="h-2.5" /><div className="flex-1" /><Sk w="w-8" h="h-2.5" /></div>
-              <Sk h="h-2" r="rounded-full" />
+          ? [...Array(5)].map((_, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Sk w="w-5" h="h-5" r="rounded" /><Sk w="w-28" h="h-2.5" /><div className="flex-1" /><Sk w="w-6" h="h-2.5" />
             </div>
           ))
-          : zones.slice(0, 4).map((z: any, i: number) => {
+          : zones.slice(0, 5).map((z: any, i: number) => {
             const pct = Math.round((z.count / maxCount) * 100)
             const heat = ZONE_HEAT[Math.min(i, ZONE_HEAT.length - 1)]
-            const prev = zones[i - 1]?.count
-            const trend = i === 0 ? null : prev && z.count > prev ? 'up' : 'down'
             return (
               <motion.div key={z.name || z.id || i}
                 initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.07 }}>
-                {/* Row header */}
-                <div className="flex items-center gap-2 mb-1.5">
-                  <div className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[9px] font-black flex-shrink-0"
+                transition={{ delay: i * 0.05 }}
+                className="group"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-5 h-5 rounded flex items-center justify-center text-white text-[9px] font-black flex-shrink-0"
                     style={{ background: heat }}>
                     {i + 1}
                   </div>
-                  <span className="text-[12px] font-bold text-gray-800 dark:text-slate-200 flex-1">{z.name}</span>
-                  {trend === 'up' && <TrendingUp className="w-3 h-3 text-red-400 flex-shrink-0" />}
-                  {trend === 'down' && <TrendingDown className="w-3 h-3 text-green-500 flex-shrink-0" />}
-                  <span className="text-[12px] font-black text-gray-700 dark:text-white flex-shrink-0">{z.count}</span>
+                  <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex-1 truncate">{z.name}</span>
+                  <span className="text-[12px] font-black text-[#0A1628] dark:text-white flex-shrink-0">{z.count}</span>
                 </div>
-                {/* Progress bar */}
-                <div className="w-full h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden ml-7">
                   <motion.div
                     className="h-full rounded-full"
                     style={{ background: heat }}
@@ -224,20 +222,16 @@ const ZonesCritiques = ({ zones, loading }: { zones: any[]; loading: boolean }) 
         }
       </div>
 
-      {/* Legend footer */}
-      {!loading && zones.length > 0 && (
-        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-slate-800">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Intensité</span>
-          </div>
-          <div className="flex items-center gap-1 h-2 rounded-full overflow-hidden">
-            {ZONE_HEAT.map((c, i) => (
-              <div key={i} className="flex-1 h-full" style={{ background: c }} />
+      {/* Color legend */}
+      {!loading && (
+        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2 flex-wrap">
+            {ZONE_HEAT.map((color, i) => (
+              <span key={i} className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: color }} />
+                <span className="text-[9px] font-bold text-slate-400">{ZONE_LABELS[i]}</span>
+              </span>
             ))}
-          </div>
-          <div className="flex justify-between mt-1">
-            <span className="text-[9px] text-gray-400 font-bold">Haute</span>
-            <span className="text-[9px] text-gray-400 font-bold">Basse</span>
           </div>
         </div>
       )}
@@ -266,10 +260,9 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
     : (depts.find(d => d.id === selDept)?.name_fr || depts.find(d => d.id === selDept)?.name || 'Tous')
 
   return (
-    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800 p-5 hover:border-blue-400/50 dark:hover:border-blue-500/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500 flex flex-col h-full">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-5 hover:shadow-md transition-all flex flex-col h-full">
       <span className="text-[13px] font-bold text-gray-800 dark:text-white mb-3">3. Nb de tâches vs résolues par mois</span>
 
-      {/* Dropdown */}
       <div className="flex items-center gap-2 mb-3">
         <span className="text-[11px] text-gray-400 font-medium">Département</span>
         <div className="relative flex-1" ref={ref}>
@@ -298,7 +291,6 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
         </div>
       </div>
 
-      {/* Bar chart */}
       <div className="flex-1" style={{ minHeight: 170 }}>
         {loading ? (
           <div className="flex items-end gap-2 h-full pb-6">
@@ -323,7 +315,6 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
         )}
       </div>
 
-      {/* Bottom KPIs */}
       <div className="grid grid-cols-3 gap-2 mt-2 pt-3 border-t border-gray-100 dark:border-slate-800">
         <div className="flex items-center gap-1.5">
           <div className="w-6 h-6 rounded-lg bg-green-50 dark:bg-green-500/10 flex items-center justify-center flex-shrink-0">
@@ -360,7 +351,7 @@ const DeptPerf = ({ depts, loading }: { depts: any[]; loading: boolean }) => {
   const totalRate = totals.t > 0 ? ((totals.r / totals.t) * 100).toFixed(1) : '0.0'
 
   return (
-    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800 p-5 hover:border-blue-400/50 dark:hover:border-blue-500/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-5 hover:shadow-md transition-all">
       <span className="text-[13px] font-bold text-gray-800 dark:text-white block mb-4">4. Performance par département</span>
       <table className="w-full">
         <thead>
@@ -431,41 +422,32 @@ const DeptPerf = ({ depts, loading }: { depts: any[]; loading: boolean }) => {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SECTION 5 — Status des signalements (donut)
+// SECTION 5 — Demandes par catégorie (donut)
 // ─────────────────────────────────────────────────────────────────────────────
-const PIE_DATA_TEMPLATE = [
-  { name: 'Soumis', key: 'soumise', color: C.blue },
-  { name: 'En cours', key: 'en_cours', color: C.amber },
-  { name: 'Assigné', key: '__assigned', color: C.purple },
-  { name: 'Résolu', key: '__resolved', color: C.green },
-]
-
-const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; loading: boolean }) => {
+const DemandesParCategorie = ({ depts, loading }: { depts: any[]; loading: boolean }) => {
   const [activeIdx, setActiveIdx] = useState<number | undefined>(undefined)
 
-  const pieData = PIE_DATA_TEMPLATE.map(t => ({
-    ...t,
-    value: t.key === '__assigned'
-      ? (byStatus.assignee_chef || 0) + (byStatus.assignee_agent || 0)
-      : t.key === '__resolved'
-        ? (byStatus.resolue || 0) + (byStatus.cloturee || 0)
-        : byStatus[t.key] || 0,
-  }))
+  const pieData = depts.map(d => ({
+    name: d.name || d.name_fr || d.code,
+    value: d.total || 0,
+    color: DEPT_COLORS[d.code] || '#64748b'
+  })).filter(d => d.value > 0)
+
   const total = pieData.reduce((s, d) => s + d.value, 0)
 
   return (
-    <div className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800 p-5 hover:border-blue-400/50 dark:hover:border-blue-500/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500">
-      <span className="text-[13px] font-bold text-gray-800 dark:text-white block mb-4">5. Les statuts des signalements</span>
-      <div className="flex items-center gap-6">
-        <div className="relative flex-shrink-0" style={{ width: 200, height: 200 }}>
+    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-6 hover:shadow-md transition-all flex flex-col h-[280px]">
+      <span className="text-[14px] font-black text-[#0A1628] dark:text-white tracking-tight mb-4">Demandes par catégorie</span>
+      <div className="flex items-center gap-6 flex-1 min-h-0">
+        <div className="relative flex-shrink-0" style={{ width: 140, height: 140 }}>
           {loading ? (
-            <div className="w-full h-full rounded-full bg-gray-100 dark:bg-slate-800 animate-pulse" />
+            <div className="w-full h-full rounded-full bg-gray-150 dark:bg-slate-800 animate-pulse" />
           ) : (
             <>
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                 <PieChart>
                   <Pie data={pieData} cx="50%" cy="50%"
-                    innerRadius={62} outerRadius={88}
+                    innerRadius={46} outerRadius={64}
                     dataKey="value" paddingAngle={2}
                     onMouseEnter={(_, idx) => setActiveIdx(idx)}
                     onMouseLeave={() => setActiveIdx(undefined)}>
@@ -474,12 +456,12 @@ const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; lo
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <p className="text-[22px] font-black text-gray-800 dark:text-white leading-none">
+                <p className="text-[18px] font-black text-gray-800 dark:text-white leading-none">
                   {activeIdx !== undefined
                     ? pieData[activeIdx].value.toLocaleString('fr-FR')
                     : total.toLocaleString('fr-FR')}
                 </p>
-                <p className="text-[11px] text-gray-400 font-bold mt-1">
+                <p className="text-[9px] text-gray-450 font-bold mt-1 max-w-[80px] truncate text-center">
                   {activeIdx !== undefined ? pieData[activeIdx].name : 'Total'}
                 </p>
               </div>
@@ -487,30 +469,33 @@ const StatusPie = ({ byStatus, loading }: { byStatus: Record<string, number>; lo
           )}
         </div>
 
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 overflow-y-auto pr-1 space-y-1.5 max-h-[160px] scrollbar-thin scrollbar-thumb-slate-200">
           {loading ? [...Array(4)].map((_, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <Sk w="w-3" h="h-3" r="rounded-full" /><Sk w="w-16" h="h-2.5" />
-              <div className="flex-1" /><Sk w="w-10" h="h-2.5" /><Sk w="w-10" h="h-2.5" />
+            <div key={i} className="flex items-center gap-2">
+              <Sk w="w-2.5" h="h-2.5" r="rounded-full" /><Sk w="w-20" h="h-2" />
+              <div className="flex-1" /><Sk w="w-8" h="h-2" />
             </div>
           )) : pieData.map((item, i) => {
-            const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0.0'
+            const pct = total > 0 ? ((item.value / total) * 100).toFixed(0) : '0'
             return (
-              <motion.div key={item.name}
-                initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.07 }}
-                className={`flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-xl cursor-pointer transition-colors ${activeIdx === i ? 'bg-gray-50 dark:bg-slate-800' : 'hover:bg-gray-50 dark:hover:bg-slate-800'}`}
+              <div key={item.name}
+                className={`flex items-center gap-2 py-0.5 px-1.5 rounded-lg transition-colors cursor-pointer ${activeIdx === i ? 'bg-slate-50 dark:bg-slate-800' : ''}`}
                 onMouseEnter={() => setActiveIdx(i)}
                 onMouseLeave={() => setActiveIdx(undefined)}>
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: item.color }} />
-                <span className="text-[12px] font-bold text-gray-700 dark:text-slate-300 flex-1">{item.name}</span>
-                <span className="text-[12px] font-black text-gray-800 dark:text-white">{item.value.toLocaleString('fr-FR')}</span>
-                <span className="text-[11px] font-bold text-gray-400 w-12 text-right">{pct}%</span>
-              </motion.div>
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: item.color }} />
+                <span className="text-[11px] font-bold text-slate-650 dark:text-slate-350 flex-1 truncate">{item.name}</span>
+                <span className="text-[11px] font-black text-slate-800 dark:text-white">{item.value}</span>
+                <span className="text-[10px] font-bold text-slate-400 w-8 text-right">({pct}%)</span>
+              </div>
             )
           })}
         </div>
       </div>
+      {!loading && (
+        <div className="mt-2 text-center text-[11px] font-bold text-slate-450 border-t border-slate-105 dark:border-slate-800/60 pt-2">
+          Total : <span className="text-slate-800 dark:text-white font-black">{total.toLocaleString('fr-FR')} demandes</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -594,8 +579,8 @@ const PresidentDashboard: React.FC = () => {
   }
 
   return (
-    <PresidentLayout title="">
-      <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/50 -m-6 p-6 transition-colors duration-500 backdrop-blur-sm">
+    <PresidentLayout title="Tableau de bord">
+      <div className="space-y-6" style={{ animation: 'fadeIn .4s ease' }}>
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
@@ -635,8 +620,8 @@ const PresidentDashboard: React.FC = () => {
           { label: 'Tâches résolues', value: stats.resolvedCount, sub: 'Interventions terminées', icon: <CheckCircle2 className="w-6 h-6" />, bg: 'bg-green-600' },
           { label: 'Satisfaction élevée', value: stats.highSatisfactionCount, sub: 'Notes 4–5 étoiles', icon: <ThumbsUp className="w-6 h-6" />, bg: 'bg-blue-500' },
         ].map(s => (
-          <div key={s.label} className="bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] p-6 border border-slate-200/60 dark:border-slate-800 hover:border-blue-400/50 dark:hover:border-blue-500/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.04)] transition-all duration-500 group relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50/50 dark:bg-slate-800/10 rounded-bl-[4rem] -mr-8 -mt-8 group-hover:bg-blue-50/50 dark:group-hover:bg-blue-500/5 transition-colors duration-500" />
+          <div key={s.label} className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+            <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full opacity-10" style={{ background: s.bg === 'bg-red-500' ? '#ef4444' : s.bg === 'bg-green-600' ? '#16a34a' : '#3b82f6' }} />
             <div className="relative flex items-center gap-4">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${s.bg} group-hover:scale-110 transition-transform`}>
                 {s.icon}
@@ -663,9 +648,10 @@ const PresidentDashboard: React.FC = () => {
       {/* ── Row 2: 2 columns ─────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-10">
         <DeptPerf depts={depts} loading={loading} />
-        <StatusPie byStatus={byStatus} loading={loading} />
+        <DemandesParCategorie depts={depts} loading={loading} />
       </div>
       </div>
+      <style>{`@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }`}</style>
 
       <DeclarationDetailDrawer
         declarationId={selectedDeclId}

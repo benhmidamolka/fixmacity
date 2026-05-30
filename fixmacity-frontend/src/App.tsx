@@ -18,9 +18,11 @@ import ChefAgents            from './pages/Chef/ChefAgents'
 import ChefNotifications     from './pages/Chef/ChefNotifications'
 import ChefSettings          from './pages/Chef/ChefSettings'
 import ChefTasks             from './pages/Chef/ChefTasks'
-import AgentDashboard         from './pages/Agent/AgentDashboard'
 import AgentDeclarations      from './pages/Agent/AgentDeclarations'
 import AgentKanbanBoard       from './pages/Agent/AgentKanbanBoard'
+import AgentNotifications     from './pages/Agent/AgentNotifications'
+import AgentSettings          from './pages/Agent/AgentSettings'
+import AgentArchives          from './pages/Agent/AgentArchives'
 // Public Pages
 import Landing         from './pages/Public/Landing'
 import Login           from './pages/Public/Login'
@@ -149,15 +151,21 @@ const App: React.FC = () => {
         } />
 
         {/* Agent Routes */}
-        <Route path="/agent" element={<Navigate to="/agent/dashboard" replace />} />
-        <Route path="/agent/dashboard" element={
-          <ProtectedRoute allowedRoles={['agent']}><AgentDashboard /></ProtectedRoute>
-        } />
+        <Route path="/agent" element={<Navigate to="/agent/declarations" replace />} />
         <Route path="/agent/declarations" element={
           <ProtectedRoute allowedRoles={['agent']}><AgentDeclarations /></ProtectedRoute>
         } />
         <Route path="/agent/board" element={
           <ProtectedRoute allowedRoles={['agent']}><AgentKanbanBoard /></ProtectedRoute>
+        } />
+        <Route path="/agent/notifications" element={
+          <ProtectedRoute allowedRoles={['agent']}><AgentNotifications /></ProtectedRoute>
+        } />
+        <Route path="/agent/settings" element={
+          <ProtectedRoute allowedRoles={['agent']}><AgentSettings /></ProtectedRoute>
+        } />
+        <Route path="/agent/archives" element={
+          <ProtectedRoute allowedRoles={['agent']}><AgentArchives /></ProtectedRoute>
         } />
 
         {/* Fallback */}

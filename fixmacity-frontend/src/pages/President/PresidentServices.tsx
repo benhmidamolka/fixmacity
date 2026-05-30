@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import ReactDOM from 'react-dom'
 import PresidentLayout from '../../layouts/PresidentLayout'
+import DetailDrawer from './DetailsDrawer'
 import {
   Plus, X, Search, Pencil, Trash2, Eye, EyeOff, AlertTriangle,
   Check, Loader2, ChevronRight, Building2, Users, CheckCircle,
@@ -68,11 +70,6 @@ const apiFetch = (path: string, opts?: RequestInit) =>
       ...(opts?.headers ?? {}),
     },
   }).then(r => r.json())
-
-function pct(n: number, d: number) {
-  if (!d) return 0
-  return Math.round((n / d) * 100)
-}
 
 const initials = (name: string | null) => {
   if (!name) return '?'
@@ -261,341 +258,6 @@ const ServiceModal: React.FC<{
   )
 }
 
-// ─── STATUS badge config ──────────────────────────────────────────────────────
-const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  soumise:        { label: 'Soumise',     color: '#64748B', bg: '#F8FAFC' },
-  assignee_chef:  { label: 'Assignée',    color: '#F59E0B', bg: '#FFFBEB' },
-  assignee_agent: { label: 'En équipe',   color: '#3B82F6', bg: '#EFF6FF' },
-  en_cours:       { label: 'En cours',    color: '#8B5CF6', bg: '#F5F3FF' },
-  resolue:        { label: 'Résolue',     color: '#10B981', bg: '#ECFDF5' },
-  cloturee:       { label: 'Clôturée',    color: '#059669', bg: '#D1FAE5' },
-  refusee_chef:   { label: 'Ref. chef',   color: '#EF4444', bg: '#FEF2F2' },
-  refusee_agent:  { label: 'Ref. agent',  color: '#EF4444', bg: '#FEF2F2' },
-}
-
-// ─── Detail Drawer ────────────────────────────────────────────────────────────
-const DetailDrawer: React.FC<{
-  dept: Department
-  onClose: () => void
-  onEdit: () => void
-  onToggle: () => void
-  onDelete: () => void
-}> = ({ dept, onClose, onEdit, onToggle, onDelete }) => {
-  const color = dynamicColor(dept.code, dept.id)
-  const icon  = getIcon(dept.code)
-
-  const [agents,  setAgents]  = useState<Agent[]>([])
-  const [decls,   setDecls]   = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [dTab,    setDTab]    = useState<'agents' | 'decls'>('agents')
-  const [declsPage, setDeclsPage] = useState(0)
-  const PAGE = 10
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true)
-      try {
-        const [aRes, dRes] = await Promise.all([
-          // include inactive agents too — no is_active filter
-          apiFetch(`/president/users?role=agent&department_id=${dept.id}&limit=100`),
-          apiFetch(`/president/declarations?department_id=${dept.id}&limit=100`),
-        ])
-        if (aRes.users)        setAgents(aRes.users)
-        if (dRes.declarations) setDecls(dRes.declarations)
-      } catch {}
-      setLoading(false)
-    }
-    load()
-  }, [dept.id])
-
-  const activeAgents   = agents.filter(a => a.is_active)
-  const inactiveAgents = agents.filter(a => !a.is_active)
-
-  const pagedDecls = decls.slice(declsPage * PAGE, declsPage * PAGE + PAGE)
-  const totalPages = Math.ceil(decls.length / PAGE)
-
-  return (
-    <div className="fixed inset-0 z-[100] flex">
-      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose}/>
-      <div className="relative ml-auto h-full w-full max-w-[520px] bg-slate-950/95 backdrop-blur-3xl shadow-2xl flex flex-col overflow-hidden border-l border-slate-800/50"
-        style={{ animation: 'slideInRight .4s cubic-bezier(.22,1,.36,1) forwards' }}>
-
-        {/* ── Header ── */}
-        <div className="flex-shrink-0 border-b border-slate-800/50 px-6 pt-6 pb-5 bg-slate-900/40">
-          <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0"
-              style={{ background: `${color}20` }}>{icon}</div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <h2 className="font-black text-white text-base leading-tight truncate">{dept.name_fr}</h2>
-                <span className="text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest flex-shrink-0 text-white"
-                  style={{ background: color }}>{dept.code}</span>
-              </div>
-              {dept.name_ar && <p className="text-xs text-slate-400 font-semibold" dir="rtl">{dept.name_ar}</p>}
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className={`flex items-center gap-1 text-[10px] font-bold ${dept.is_active ? 'text-emerald-400' : 'text-slate-500'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${dept.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}`}/>
-                  {dept.is_active ? 'Actif' : 'Inactif'}
-                </span>
-                {dept.description && <span className="text-[10px] text-slate-500 truncate">· {dept.description}</span>}
-              </div>
-            </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center hover:bg-slate-700 transition-colors flex-shrink-0">
-              <X className="w-4 h-4 text-slate-400"/>
-            </button>
-          </div>
-        </div>
-
-        {/* ── Chef de service ── */}
-        <div className="flex-shrink-0 px-6 py-3.5 border-b border-slate-800/50 flex items-center gap-3 bg-slate-900/30">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-black flex-shrink-0"
-            style={{ background: color }}>{initials(dept.chef_name)}</div>
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Chef de Service</p>
-            <p className="text-sm font-black text-white">{dept.chef_name ?? 'Non assigné'}</p>
-          </div>
-          <Shield className="w-4 h-4 text-slate-700 ml-auto"/>
-        </div>
-
-        {/* ── Stats grid — NO taux de résolution ── */}
-        <div className="flex-shrink-0 px-6 py-5 border-b border-slate-800/50">
-          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 mb-3">Statistiques</p>
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { label: 'Total',      val: dept.total,       color: '#94A3B8', bg: 'bg-slate-800/40',    border: 'border-slate-700/50' },
-              { label: 'En cours',   val: dept.in_progress, color: '#3B82F6', bg: 'bg-blue-500/10',     border: 'border-blue-500/20'  },
-              { label: 'Résolues',   val: dept.resolved,    color: '#10B981', bg: 'bg-emerald-500/10',  border: 'border-emerald-500/20'},
-              { label: 'Refusées',   val: dept.rejected,    color: '#EF4444', bg: 'bg-red-500/10',      border: 'border-red-500/20'   },
-            ].map(s => (
-              <div key={s.label} className={`${s.bg} rounded-2xl p-3 text-center border ${s.border}`}>
-                <p className="text-xl font-black" style={{ color: s.color }}>{s.val}</p>
-                <p className="text-[8px] font-black uppercase tracking-widest text-slate-500 mt-0.5">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Tabs ── */}
-        <div className="flex-shrink-0 flex border-b border-slate-800/50 px-6 bg-slate-900/40">
-          <button onClick={() => setDTab('agents')}
-            className={`flex-1 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 transition-all flex items-center justify-center gap-2
-              ${dTab === 'agents' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
-            <Users className="w-3.5 h-3.5"/>
-            Agents
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ${dTab === 'agents' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-800 text-slate-500'}`}>
-              {agents.length}
-            </span>
-          </button>
-          <button onClick={() => setDTab('decls')}
-            className={`flex-1 py-3.5 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 transition-all flex items-center justify-center gap-2
-              ${dTab === 'decls' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
-            <FileText className="w-3.5 h-3.5"/>
-            Déclarations
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ${dTab === 'decls' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-800 text-slate-500'}`}>
-              {decls.length}
-            </span>
-          </button>
-        </div>
-
-        {/* ── Tab content ── */}
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="flex items-center justify-center h-32">
-              <Loader2 className="w-6 h-6 text-[#1557FF] animate-spin"/>
-            </div>
-          ) : dTab === 'agents' ? (
-
-            /* ── AGENTS TAB ── */
-            agents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-slate-600">
-                <Users className="w-10 h-10 mb-3 opacity-30"/>
-                <p className="text-xs font-bold">Aucun agent dans ce département</p>
-              </div>
-            ) : (
-              <div className="px-6 py-4 space-y-5">
-
-                {/* Active agents */}
-                {activeAgents.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <UserCheck className="w-3.5 h-3.5 text-emerald-400"/>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-emerald-400">
-                        Actifs — {activeAgents.length}
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      {activeAgents.map(a => (
-                        <div key={a.id}
-                          className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900/50 border border-slate-800/60 hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all">
-                          {/* Avatar */}
-                          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-black flex-shrink-0"
-                            style={{ background: dynamicColor('', a.id) }}>
-                            {initials(`${a.first_name} ${a.last_name}`)}
-                          </div>
-                          {/* Name + email */}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-black text-white leading-tight">
-                              {a.first_name} {a.last_name}
-                            </p>
-                            <p className="text-[10px] text-slate-500 truncate mt-0.5">{a.email}</p>
-                          </div>
-                          {/* Active badge */}
-                          <span className="flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex-shrink-0">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>
-                            Actif
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Inactive agents */}
-                {inactiveAgents.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <UserX className="w-3.5 h-3.5 text-slate-500"/>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-                        Inactifs — {inactiveAgents.length}
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      {inactiveAgents.map(a => (
-                        <div key={a.id}
-                          className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900/30 border border-slate-800/40 opacity-60">
-                          {/* Avatar greyed */}
-                          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-black flex-shrink-0 grayscale"
-                            style={{ background: dynamicColor('', a.id) }}>
-                            {initials(`${a.first_name} ${a.last_name}`)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-black text-slate-400 leading-tight">
-                              {a.first_name} {a.last_name}
-                            </p>
-                            <p className="text-[10px] text-slate-600 truncate mt-0.5">{a.email}</p>
-                          </div>
-                          <span className="flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-lg bg-slate-800 text-slate-500 border border-slate-700 flex-shrink-0">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-600"/>
-                            Inactif
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )
-
-          ) : (
-
-            /* ── DECLARATIONS TAB ── */
-            decls.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-slate-600">
-                <FileText className="w-10 h-10 mb-3 opacity-30"/>
-                <p className="text-xs font-bold">Aucune déclaration dans ce département</p>
-              </div>
-            ) : (
-              <div className="px-6 py-4">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-3">
-                  {decls.length} déclaration{decls.length > 1 ? 's' : ''} au total
-                </p>
-                <div className="space-y-2">
-                  {pagedDecls.map((d: any) => {
-                    const meta = STATUS_META[d.status] ?? { label: d.status, color: '#64748B', bg: '#F8FAFC' }
-                    return (
-                      <div key={d.id}
-                        className="flex items-start gap-3 px-4 py-3.5 rounded-2xl bg-slate-900/50 border border-slate-800/60 hover:border-slate-700 transition-all">
-                        {/* Dept icon */}
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base flex-shrink-0 mt-0.5"
-                          style={{ background: `${color}20` }}>{icon}</div>
-
-                        <div className="flex-1 min-w-0">
-                          {/* Title */}
-                          <p className="text-xs font-black text-white leading-tight line-clamp-2 mb-1.5">
-                            {d.title}
-                          </p>
-                          {/* Meta row */}
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                            {/* Ref */}
-                            <span className="flex items-center gap-1 text-[10px] font-mono text-[#1557FF] font-bold">
-                              <Hash className="w-2.5 h-2.5"/>
-                              {d.ref_citoyen || d.id?.slice(0,8)}
-                            </span>
-                            {/* Date */}
-                            <span className="flex items-center gap-1 text-[10px] text-slate-500 font-semibold">
-                              <Calendar className="w-2.5 h-2.5"/>
-                              {d.created_at ? new Date(d.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                            </span>
-                            {/* Address if present */}
-                            {d.address && (
-                              <span className="flex items-center gap-1 text-[10px] text-slate-500 font-semibold truncate max-w-[120px]">
-                                <MapPin className="w-2.5 h-2.5 flex-shrink-0"/>
-                                {d.address}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Status badge */}
-                        <span className="text-[9px] font-black px-2 py-1 rounded-lg flex-shrink-0 mt-0.5"
-                          style={{ color: meta.color, background: `${meta.color}18`, border: `1px solid ${meta.color}30` }}>
-                          {meta.label}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-800">
-                    <button
-                      disabled={declsPage === 0}
-                      onClick={() => setDeclsPage(p => p - 1)}
-                      className="text-[10px] font-black uppercase tracking-widest text-slate-500 disabled:opacity-30 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-800 disabled:hover:bg-transparent">
-                      ← Précédent
-                    </button>
-                    <span className="text-[10px] font-black text-slate-500">
-                      {declsPage + 1} / {totalPages}
-                    </span>
-                    <button
-                      disabled={declsPage >= totalPages - 1}
-                      onClick={() => setDeclsPage(p => p + 1)}
-                      className="text-[10px] font-black uppercase tracking-widest text-slate-500 disabled:opacity-30 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-800 disabled:hover:bg-transparent">
-                      Suivant →
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          )}
-        </div>
-
-        {/* ── Actions ── */}
-        <div className="flex-shrink-0 border-t border-slate-800/50 px-6 py-5 space-y-3 bg-slate-900/60">
-          <button onClick={onEdit}
-            className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl bg-[#1557FF] text-white text-[11px] font-black uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-xl shadow-blue-500/20">
-            <Pencil className="w-4 h-4"/> Modifier le service
-          </button>
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={onToggle}
-              className={`flex items-center justify-center gap-2 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border transition-all
-                ${dept.is_active
-                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
-                  : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'}`}>
-              {dept.is_active ? <><EyeOff className="w-4 h-4"/> Désactiver</> : <><Eye className="w-4 h-4"/> Réactiver</>}
-            </button>
-            <button onClick={onDelete}
-              className="flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all text-[10px] font-black uppercase tracking-[0.2em]">
-              <Trash2 className="w-4 h-4"/> Supprimer
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Service Card ─────────────────────────────────────────────────────────────
 const ServiceCard: React.FC<{
   dept: Department
@@ -625,7 +287,12 @@ const ServiceCard: React.FC<{
           <div className="flex-1 min-w-0 pt-0.5">
             <h3 className="font-black text-[#0A1628] dark:text-white text-sm leading-tight truncate group-hover:text-blue-600 transition-colors">{dept.name_fr}</h3>
             {dept.name_ar && <p className="text-[10px] text-slate-400 truncate mt-0.5" dir="rtl">{dept.name_ar}</p>}
-            <span className="inline-block mt-1 text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest text-white" style={{ background: color }}>{dept.code}</span>
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <span className="text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest text-white" style={{ background: color }}>{dept.code}</span>
+              <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
+                <Hash className="w-2.5 h-2.5 inline"/>{dept.id.slice(0, 8)}…
+              </span>
+            </div>
           </div>
           <button onClick={onEdit} className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-500 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0" title="Modifier">
             <Pencil className="w-3.5 h-3.5"/>
@@ -814,14 +481,6 @@ const PresidentServices: React.FC = () => {
               {search && <button onClick={() => setSearch('')} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"><X className="w-4 h-4 text-slate-400"/></button>}
             </div>
 
-            <div className="flex bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl p-1.5 shadow-sm">
-              {([['all','Tous'],['active','Actifs'],['inactive','Inactifs']] as const).map(([v,l]) => (
-                <button key={v} onClick={() => setStatus(v)}
-                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${statusFilter === v ? 'bg-slate-900 dark:bg-[#1557FF] text-white shadow-lg' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
-                  {l}
-                </button>
-              ))}
-            </div>
 
             <button onClick={() => { setEditTarget(null); setShowForm(true) }}
               className="flex items-center gap-3 px-8 h-[56px] rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white bg-[#1557FF] shadow-2xl shadow-blue-500/30 hover:bg-blue-600 hover:-translate-y-0.5 transition-all ml-auto">
@@ -863,15 +522,16 @@ const PresidentServices: React.FC = () => {
           />
         )}
 
-        {showForm && (
+        {showForm && ReactDOM.createPortal(
           <ServiceModal dept={editTarget}
             onClose={() => { setShowForm(false); setEditTarget(null) }}
             onSaved={msg => { setShowForm(false); setEditTarget(null); setDrawer(null); flash(msg); load() }}
-          />
+          />,
+          document.body
         )}
 
-        {confirm && <Confirm msg={confirm.msg} sub={confirm.sub} onYes={confirm.onYes} onNo={() => setConfirm(null)}/>}
-        {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)}/>}
+        {confirm && ReactDOM.createPortal(<Confirm msg={confirm.msg} sub={confirm.sub} onYes={confirm.onYes} onNo={() => setConfirm(null)}/>, document.body)}
+        {toast && ReactDOM.createPortal(<Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)}/>, document.body)}
       </div>
     </PresidentLayout>
   )

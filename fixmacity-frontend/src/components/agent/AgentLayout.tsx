@@ -15,6 +15,7 @@ const NAV = [
     section: 'Travail',
     items: [
       { label: 'Tableau de bord', icon: LayoutDashboard, to: '/agent/dashboard'     },
+      { label: 'Notifications', icon: Bell, to: '/agent/notifications' },
     ]
   }
 ]

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './context/AuthContext'
+import './i18n'          // ← init i18next (must be before App)
 import './index.css'
 import './utils/interceptors'
 
