@@ -10,15 +10,12 @@ interface FixMaCityLogoProps {
 }
 
 const CONFIG = {
-  sm: { iconSize: 30, fontSize: 15, gap: 8 },
-  md: { iconSize: 40, fontSize: 20, gap: 11 },
+  sm: { iconSize: 32, fontSize: 16, gap: 8 },
+  md: { iconSize: 42, fontSize: 20, gap: 10 },
   lg: { iconSize: 56, fontSize: 27, gap: 14 },
 }
 
-/** Exact recreation of the uploaded FixMaCity logo as inline SVG.
- *  Hexagonal frame · city skyline · location pin · wrench · leaves.
- *  Fully transparent background — clean SaaS sidebar style.
- */
+/** Precise inline SVG recreation of the official Sousse municipal pin + wrench + skyline logo. */
 const FixMaCityLogo: React.FC<FixMaCityLogoProps> = ({
   variant = 'dark',
   size = 'md',
@@ -28,10 +25,18 @@ const FixMaCityLogo: React.FC<FixMaCityLogoProps> = ({
 }) => {
   const { iconSize, fontSize, gap } = CONFIG[size]
   const isLight = variant === 'light'
-  const textColor = isLight ? '#FFFFFF' : '#0A1628'
-  const accentColor = '#1557FF'
+  
+  // Color configuration matching the uploaded design
+  const pinColor = isLight ? '#FFFFFF' : '#03182E' // Dark blue or White
+  const skylineColor = '#00A3E0' // Bright azure/sky blue from the logo
+  const textColor = isLight ? '#FFFFFF' : '#03182E'
+  const accentColor = '#00A3E0' // Azure brand accent to match the skyline
 
-  // SVG viewBox is 100x110 to give room for the full icon
+  // Generate unique IDs for SVG mask/clipPath to prevent rendering collisions when multiple logos are active
+  const uniqueId = React.useId().replace(/:/g, '')
+  const maskId = `pinMask-${uniqueId}`
+  const clipId = `skylineClip-${uniqueId}`
+
   const svgIcon = (
     <svg
       width={iconSize}
@@ -43,135 +48,53 @@ const FixMaCityLogo: React.FC<FixMaCityLogoProps> = ({
       style={{ flexShrink: 0 }}
     >
       <defs>
-        {/* Main blue gradient matching the image */}
-        <linearGradient id="blueGrad" x1="20" y1="10" x2="80" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#4A90D9" />
-          <stop offset="50%" stopColor="#2563EB" />
-          <stop offset="100%" stopColor="#1E3A8A" />
-        </linearGradient>
-        {/* Lighter blue for building highlights */}
-        <linearGradient id="buildGrad" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
-          <stop offset="0%" stopColor="#60A5FA" />
-          <stop offset="100%" stopColor="#2563EB" />
-        </linearGradient>
-        {/* Accent gradient for pin */}
-        <linearGradient id="pinGrad" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
-          <stop offset="0%" stopColor="#93C5FD" />
-          <stop offset="100%" stopColor="#3B82F6" />
-        </linearGradient>
-        {/* Drop shadow filter */}
-        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="1.5" result="blur" />
-          <feComposite in="SourceGraphic" in2="blur" operator="over" />
-        </filter>
+        {/* Clip skyline to the inner circle */}
+        <clipPath id={clipId}>
+          <circle cx="50" cy="48" r="26" />
+        </clipPath>
+
+        {/* Mask to cut out the inner circle and the wrench jaw */}
+        <mask id={maskId}>
+          {/* Keep everything by default */}
+          <rect x="0" y="0" width="100" height="110" fill="#FFFFFF" />
+          {/* Cut out the inner circle */}
+          <circle cx="50" cy="48" r="26" fill="#000000" />
+          {/* Cut out the wrench jaw slot (angled at -40 degrees) */}
+          <g transform="translate(68, 30) rotate(-40)">
+            <rect x="-4" y="-18" width="8" height="18" rx="2.5" fill="#000000" />
+            <circle cx="0" cy="0" r="4.5" fill="#000000" />
+          </g>
+        </mask>
       </defs>
 
-      {/* ── HEXAGONAL OUTER FRAME ────────────────────────────── */}
-      {/* Hexagon points for a flat-top hex centered at 50,54, r=46 */}
-      <polygon
-        points="50,8 91,31 91,77 50,100 9,77 9,31"
-        fill="url(#blueGrad)"
-        opacity="0.15"
-      />
-      <polygon
-        points="50,8 91,31 91,77 50,100 9,77 9,31"
-        fill="none"
-        stroke="url(#blueGrad)"
-        strokeWidth="3.5"
-        strokeLinejoin="round"
-      />
-      {/* Inner hex ring */}
-      <polygon
-        points="50,13 87,33.5 87,74.5 50,95 13,74.5 13,33.5"
-        fill="none"
-        stroke="#3B82F6"
-        strokeWidth="1"
-        opacity="0.3"
-      />
-
-      {/* ── CITY BUILDINGS ──────────────────────────────────── */}
-      {/* Left short building */}
-      <rect x="18" y="57" width="12" height="22" rx="1.5" fill="url(#blueGrad)" opacity="0.9" />
-      <rect x="20" y="60" width="3" height="3" rx="0.5" fill="#93C5FD" opacity="0.8" />
-      <rect x="25" y="60" width="3" height="3" rx="0.5" fill="#93C5FD" opacity="0.8" />
-      <rect x="20" y="65" width="3" height="3" rx="0.5" fill="#93C5FD" opacity="0.8" />
-      <rect x="25" y="65" width="3" height="3" rx="0.5" fill="#93C5FD" opacity="0.8" />
-      <rect x="20" y="70" width="3" height="3" rx="0.5" fill="#93C5FD" opacity="0.8" />
-
-      {/* Center-left building */}
-      <rect x="31" y="48" width="13" height="31" rx="1.5" fill="url(#blueGrad)" />
-      <rect x="33" y="51" width="4" height="4" rx="0.5" fill="#BFDBFE" opacity="0.9" />
-      <rect x="38" y="51" width="4" height="4" rx="0.5" fill="#BFDBFE" opacity="0.9" />
-      <rect x="33" y="57" width="4" height="4" rx="0.5" fill="#BFDBFE" opacity="0.9" />
-      <rect x="38" y="57" width="4" height="4" rx="0.5" fill="#BFDBFE" opacity="0.9" />
-      <rect x="33" y="63" width="4" height="4" rx="0.5" fill="#BFDBFE" opacity="0.9" />
-      <rect x="38" y="63" width="4" height="4" rx="0.5" fill="#BFDBFE" opacity="0.9" />
-
-      {/* Center tall building (flagship) */}
-      <rect x="45" y="38" width="15" height="41" rx="1.5" fill="url(#blueGrad)" />
-      {/* Antenna */}
-      <rect x="51.5" y="30" width="2" height="9" rx="1" fill="#60A5FA" />
-      {/* Windows on center building */}
-      <rect x="47" y="42" width="4" height="4" rx="0.5" fill="#BFDBFE" opacity="0.95" />
-      <rect x="53" y="42" width="4" height="4" rx="0.5" fill="#BFDBFE" opacity="0.95" />
-      <rect x="47" y="49" width="4" height="4" rx="0.5" fill="#BFDBFE" opacity="0.95" />
-      <rect x="53" y="49" width="4" height="4" rx="0.5" fill="#BFDBFE" opacity="0.95" />
-      <rect x="47" y="56" width="4" height="4" rx="0.5" fill="#BFDBFE" opacity="0.95" />
-      <rect x="53" y="56" width="4" height="4" rx="0.5" fill="#BFDBFE" opacity="0.95" />
-      <rect x="47" y="63" width="4" height="4" rx="0.5" fill="#BFDBFE" opacity="0.95" />
-      <rect x="53" y="63" width="4" height="4" rx="0.5" fill="#BFDBFE" opacity="0.95" />
-
-      {/* Right-center building */}
-      <rect x="61" y="52" width="12" height="27" rx="1.5" fill="url(#blueGrad)" opacity="0.9" />
-      <rect x="63" y="55" width="3.5" height="3.5" rx="0.5" fill="#BFDBFE" opacity="0.85" />
-      <rect x="68" y="55" width="3.5" height="3.5" rx="0.5" fill="#BFDBFE" opacity="0.85" />
-      <rect x="63" y="61" width="3.5" height="3.5" rx="0.5" fill="#BFDBFE" opacity="0.85" />
-      <rect x="68" y="61" width="3.5" height="3.5" rx="0.5" fill="#BFDBFE" opacity="0.85" />
-      <rect x="63" y="67" width="3.5" height="3.5" rx="0.5" fill="#BFDBFE" opacity="0.85" />
-
-      {/* Right short building */}
-      <rect x="74" y="62" width="9" height="17" rx="1.5" fill="url(#blueGrad)" opacity="0.8" />
-      <rect x="76" y="65" width="2.5" height="2.5" rx="0.5" fill="#93C5FD" opacity="0.7" />
-
-      {/* Ground */}
-      <rect x="15" y="78" width="70" height="1.5" rx="0.75" fill="#3B82F6" opacity="0.4" />
-
-      {/* ── LOCATION PIN (on top of center building) ─────── */}
-      {/* Pin body (teardrop) */}
-      <path
-        d="M52 14 C52 14 44 22 44 27 C44 31.4 47.6 35 52 35 C56.4 35 60 31.4 60 27 C60 22 52 14 52 14 Z"
-        fill="url(#pinGrad)"
-        filter="url(#glow)"
-      />
-      {/* Pin inner circle */}
-      <circle cx="52" cy="27" r="4" fill="#1E3A8A" />
-      <circle cx="52" cy="27" r="2" fill="#BFDBFE" opacity="0.8" />
-
-      {/* ── LEAVES (bottom-left) ──────────────────────────── */}
-      <path
-        d="M14 82 C14 82 12 75 18 72 C22 70 26 72 26 72 C26 72 22 78 18 80 C16 81 14 82 14 82Z"
-        fill="#22C55E"
-        opacity="0.85"
-      />
-      <path
-        d="M17 83 C17 83 13 78 16 72 C18 68 22 67 22 67 C22 67 21 74 19 78 C18 80 17 83 17 83Z"
-        fill="#16A34A"
-        opacity="0.75"
-      />
-
-      {/* ── WRENCH (bottom-right) ─────────────────────────── */}
-      <g transform="translate(62, 75) rotate(-35)">
-        {/* Wrench handle */}
-        <rect x="2" y="0" width="5" height="16" rx="2.5" fill="#60A5FA" />
-        {/* Wrench head open-end */}
+      {/* ── Outer Pin & Wrench head ── */}
+      <g mask={`url(#${maskId})`}>
+        {/* Teardrop Pin body */}
         <path
-          d="M0 -2 C0 -5 8 -5 8 -2 L8 2 C8 2 6 4 4 4 C2 4 0 2 0 2 Z"
-          fill="#93C5FD"
+          d="M 50 92 C 24 78 14 63 14 48 A 36 36 0 1 1 86 48 C 86 63 76 78 50 92 Z"
+          fill={pinColor}
         />
+        {/* Wrench head circle outer layer */}
+        <circle cx="68" cy="30" r="13.5" fill={pinColor} />
+      </g>
+
+      {/* ── Inner City Skyline (Clipped) ── */}
+      <g clipPath={`url(#${clipId})`}>
+        {/* Sousse Ribat, Tower and Skyline Path */}
         <path
-          d="M1.5 -1.5 C1.5 -1.5 6.5 -1.5 6.5 -1.5 L6.5 1 C6.5 1 4.5 2.5 3.5 2.5 C2.5 2.5 1.5 1 1.5 1 Z"
-          fill="#1E3A8A"
+          d="
+            M 15 75 
+            L 15 56 L 24 56 L 24 51 L 28 51 L 28 56 L 32 56 L 32 51 L 36 51 L 36 56 L 40 56 L 40 51 L 44 51 L 44 56 
+            L 47 56 L 47 32 A 3 3 0 0 1 53 32 L 53 56 
+            L 56 56 L 56 50 L 62 50 L 62 56 
+            L 64 56 L 64 44 L 69 44 L 69 56 
+            L 71 56 L 71 52 L 76 52 L 76 75 
+            Z
+          "
+          fill={skylineColor}
         />
+        {/* Spire on clock tower */}
+        <line x1="50" y1="29" x2="50" y2="20" stroke={skylineColor} strokeWidth="1.5" />
       </g>
     </svg>
   )

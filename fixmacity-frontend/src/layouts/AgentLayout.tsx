@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { useSocket } from '../hooks/useSocket'
 import LanguageSwitcher from '../components/shared/LanguageSwitcher'
-import FixMaCityLogo from '../components/FixMaCityLogo'
+import Logo from '../components/Logo'
 
 const NAV = [
   {
@@ -92,11 +92,7 @@ const AgentLayout: React.FC<Props> = ({ children, title = 'Tableau de bord' }) =
 
       {/* ── BRAND LOGO (iBanKo-style) ── */}
       <div className={`px-5 pt-6 pb-5 flex items-center ${isCollapsed ? 'justify-center' : ''}`}>
-        <FixMaCityLogo
-          variant={darkMode ? 'light' : 'dark'}
-          size={isCollapsed ? 'sm' : 'md'}
-          iconOnly={isCollapsed}
-        />
+        <Logo size={isCollapsed ? 'xs' : 'md'} iconOnly={isCollapsed} variant={darkMode ? 'light' : 'dark'} to="/" />
       </div>
 
       {/* Divider */}
