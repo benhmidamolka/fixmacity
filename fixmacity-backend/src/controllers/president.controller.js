@@ -1283,6 +1283,21 @@ exports.createProposition = async (req, res) => {
     const { title, description, start_date, end_date, category, status = 'active' } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: 'Titre requis.' });
 
+    let publicUrl = null;
+    let imagePath = null;
+    if (req.file) {
+      const path = require('path');
+      const fs = require('fs');
+      const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
+      if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+      const ext = path.extname(req.file.originalname) || '.jpg';
+      const filename = `project_${req.user.id}_${Date.now()}${ext}`;
+      imagePath = path.join(UPLOAD_DIR, filename);
+      fs.writeFileSync(imagePath, req.file.buffer);
+      const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5005}`;
+      publicUrl = `${baseUrl}/uploads/${filename}`;
+    }
+
     const { data: prop, error } = await supabase
       .from('propositions')
       .insert({
@@ -1293,6 +1308,7 @@ exports.createProposition = async (req, res) => {
         end_date: end_date || null,
         created_by: req.user.id,
         status,
+        image_url: publicUrl,
       })
       .select('*').single();
 
@@ -1317,6 +1333,22 @@ exports.updateProposition = async (req, res) => {
     if (start_date !== undefined) updates.start_date = start_date || null;
     if (end_date !== undefined) updates.end_date = end_date || null;
     if (status) updates.status = status;
+
+    let publicUrl = null;
+    let imagePath = null;
+    if (req.file) {
+      const path = require('path');
+      const fs = require('fs');
+      const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
+      if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+      const ext = path.extname(req.file.originalname) || '.jpg';
+      const filename = `project_${req.user.id}_${Date.now()}${ext}`;
+      imagePath = path.join(UPLOAD_DIR, filename);
+      fs.writeFileSync(imagePath, req.file.buffer);
+      const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5005}`;
+      publicUrl = `${baseUrl}/uploads/${filename}`;
+      updates.image_url = publicUrl;
+    }
 
     const { data, error } = await supabase
       .from('propositions').update(updates).eq('id', id).select('*').single();

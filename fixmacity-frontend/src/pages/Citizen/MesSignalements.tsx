@@ -1,6 +1,7 @@
 // src/pages/Citizen/MesSignalements.tsx
 // ── Fixed: infinite scroll modal, score field, dark mode, full functionality ──
 import React, { useEffect, useState, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Search, Filter, Plus, ChevronDown, X, MapPin, Clock,
   ThumbsUp, AlertCircle, Pencil, Trash2, Save, Star,
@@ -45,7 +46,7 @@ function getCategoryEmoji(cat?: string) {
 }
 
 const Sk = ({ w='w-full', h='h-3', r='rounded-lg' }:{ w?:string; h?:string; r?:string }) => (
-  <div className={`${w} ${h} ${r} bg-slate-100 animate-pulse`} />
+  <div className={`${w} ${h} ${r} bg-slate-100 dark:bg-white/10 animate-pulse`} />
 )
 
 // ── Status badge ─────────────────────────────────────────────────────────────
@@ -65,7 +66,7 @@ function Timeline({ status, history }: { status: string; history?: any[] }) {
   const active = stepIdx(status)
   return (
     <div className="relative space-y-0">
-      <div className="absolute left-3 top-4 bottom-4 w-0.5 bg-slate-100" />
+      <div className="absolute left-3 top-4 bottom-4 w-0.5 bg-slate-100 dark:bg-white/10" />
       {STEPS.map((step, i) => {
         const done    = i < active
         const current = i === active
@@ -79,16 +80,16 @@ function Timeline({ status, history }: { status: string; history?: any[] }) {
           <div key={step} className="flex items-start gap-3 relative pb-3 last:pb-0">
             <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 z-10 border-2 ${
               done    ? 'bg-blue-600 border-blue-600' :
-              current ? 'bg-white border-blue-500 ring-3 ring-blue-50' :
-                        'bg-white border-slate-200'
+              current ? 'bg-white dark:bg-[#0D1117] border-blue-500 ring-3 ring-blue-50' :
+                        'bg-white dark:bg-[#0D1117] border-slate-200 dark:border-white/10'
             }`}>
               {done    && <CheckCircle2 size={11} className="text-white" />}
               {current && <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
             </div>
             <div className="pt-0.5 flex-1 min-w-0">
-              <p className={`text-xs font-bold ${done || current ? 'text-slate-800' : 'text-slate-300'}`}>{step}</p>
+              <p className={`text-xs font-bold ${done || current ? 'text-slate-800 dark:text-slate-200' : 'text-slate-300 dark:text-slate-600'}`}>{step}</p>
               {h?.created_at && (
-                <p className="text-[10px] text-slate-400 mt-0.5">
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
                   {new Date(h.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})}
                 </p>
               )}
@@ -150,11 +151,11 @@ function InlineComments({ declarationId, canWrite }: { declarationId: string; ca
       {/* KEY FIX: max-h-44 overflow-y-auto prevents infinite growth */}
       <div className="max-h-44 overflow-y-auto space-y-2">
         {loading ? (
-          <div className="flex justify-center py-6"><Loader2 size={16} className="animate-spin text-slate-300" /></div>
+          <div className="flex justify-center py-6"><Loader2 size={16} className="animate-spin text-slate-300 dark:text-slate-600" /></div>
         ) : comments.length === 0 ? (
-          <div className="py-5 text-center border-2 border-dashed border-slate-100 rounded-xl">
+          <div className="py-5 text-center border-2 border-dashed border-slate-100 dark:border-white/5 rounded-xl">
             <MessageSquare size={16} className="mx-auto mb-1 text-slate-200" />
-            <p className="text-[10px] font-bold text-slate-400">Aucun message</p>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500">Aucun message</p>
           </div>
         ) : comments.map(c => {
           const isMe = c.user_id === me.id
@@ -164,10 +165,10 @@ function InlineComments({ declarationId, canWrite }: { declarationId: string; ca
                 {ini(c.user)}
               </div>
               <div className={`flex-1 min-w-0 flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                <span className="text-[9px] text-slate-400 mb-0.5">
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 mb-0.5">
                   {isMe ? 'Vous' : (c.user ? `${c.user.first_name} ${c.user.last_name}` : '?')}
                 </span>
-                <div className={`px-2.5 py-1.5 rounded-xl text-xs leading-relaxed max-w-[85%] ${isMe ? 'bg-blue-50 border border-blue-100' : 'bg-white border border-slate-100'}`}>
+                <div className={`px-2.5 py-1.5 rounded-xl text-xs leading-relaxed max-w-[85%] ${isMe ? 'bg-blue-50 border border-blue-100' : 'bg-white dark:bg-[#0D1117] border border-slate-100 dark:border-white/5'}`}>
                   {c.content}
                 </div>
               </div>
@@ -178,11 +179,11 @@ function InlineComments({ declarationId, canWrite }: { declarationId: string; ca
       </div>
 
       {canWrite && (
-        <div className="flex gap-2 pt-1 border-t border-slate-100">
+        <div className="flex gap-2 pt-1 border-t border-slate-100 dark:border-white/5">
           <input value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
             placeholder="Message à l'agent…"
-            className="flex-1 px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-400 focus:bg-white transition-all" />
+            className="flex-1 px-3 py-1.5 text-xs bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-blue-400 focus:bg-white dark:bg-[#0D1117] transition-all" />
           <button onClick={send} disabled={!input.trim() || sending}
             className="w-7 h-7 flex-shrink-0 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl flex items-center justify-center transition-all">
             {sending ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
@@ -219,41 +220,41 @@ function DetailModal({ decl, onClose, onVote, onRate }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6"
-      style={{ background: 'rgba(10,22,40,0.6)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}>
       {/*
         ROOT FIX: The modal shell is flex-col with a fixed maxHeight.
         overflow-hidden on the shell, each panel gets overflow-y-auto.
         This is the ONLY correct pattern — no overflow on the outer div.
       */}
-      <div className="bg-white rounded-3xl w-full shadow-2xl flex flex-col overflow-hidden"
+      <div className="bg-white dark:bg-[#0D1117] rounded-3xl w-full shadow-2xl flex flex-col overflow-hidden"
         style={{ maxWidth: 740, maxHeight: 'calc(100dvh - 40px)' }}
         onClick={e => e.stopPropagation()}>
 
         {/* Header — flex-shrink-0, never scrolls */}
-        <div className="flex-shrink-0 flex items-start justify-between gap-4 px-6 py-4 border-b border-slate-100">
+        <div className="flex-shrink-0 flex items-start justify-between gap-4 px-6 py-4 border-b border-slate-100 dark:border-white/5">
           <div className="flex items-start gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center flex-shrink-0 text-lg">
+            <div className="w-10 h-10 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 flex items-center justify-center flex-shrink-0 text-lg">
               {getCategoryEmoji(decl.category)}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <StatusBadge status={decl.citizen_status || 'SOUMISE'} />
                 {decl.category && (
-                  <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded-full">
                     {decl.category}
                   </span>
                 )}
               </div>
-              <h2 className="text-base font-bold text-slate-900 leading-tight">{decl.title}</h2>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight">{decl.title}</h2>
               <div className="flex items-center gap-3 mt-1 flex-wrap">
                 {decl.ref_citoyen && (
-                  <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                  <span className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500">
                     <Hash size={9} /><span className="font-mono font-bold text-blue-600">{decl.ref_citoyen}</span>
                   </span>
                 )}
                 {decl.created_at && (
-                  <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                  <span className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500">
                     <Calendar size={9} />
                     {new Date(decl.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'})}
                   </span>
@@ -262,7 +263,7 @@ function DetailModal({ decl, onClose, onVote, onRate }: {
             </div>
           </div>
           <button onClick={onClose}
-            className="flex-shrink-0 w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
+            className="flex-shrink-0 w-8 h-8 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:bg-white/20 flex items-center justify-center text-slate-500 dark:text-slate-400 dark:text-slate-500 transition-colors">
             <X size={14} />
           </button>
         </div>
@@ -271,31 +272,31 @@ function DetailModal({ decl, onClose, onVote, onRate }: {
         <div className="flex-1 min-h-0 flex flex-col sm:flex-row overflow-hidden">
 
           {/* LEFT column */}
-          <div className="sm:w-[48%] flex-shrink-0 overflow-y-auto p-5 space-y-4 border-b sm:border-b-0 sm:border-r border-slate-100">
+          <div className="sm:w-[48%] flex-shrink-0 overflow-y-auto p-5 space-y-4 border-b sm:border-b-0 sm:border-r border-slate-100 dark:border-white/5">
             <div>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+              <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
                 <FileText size={9} /> Description
               </p>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                {decl.description || <span className="italic text-slate-400">Aucune description.</span>}
+              <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-500 leading-relaxed">
+                {decl.description || <span className="italic text-slate-400 dark:text-slate-500">Aucune description.</span>}
               </p>
             </div>
 
             <div>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+              <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
                 <MapPin size={9} /> Localisation
               </p>
-              <div className="flex items-start gap-2 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2">
+              <div className="flex items-start gap-2 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 rounded-xl px-3 py-2">
                 <MapPin size={12} className="text-blue-500 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-slate-700 font-medium">{decl.address || 'Sousse, Tunisie'}</p>
+                <p className="text-xs text-slate-700 dark:text-slate-300 dark:text-slate-600 font-medium">{decl.address || 'Sousse, Tunisie'}</p>
               </div>
             </div>
 
             {(decl.photo_avant || decl.photo_url) && (
               <div>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Photo</p>
+                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Photo</p>
                 <img src={decl.photo_avant || decl.photo_url} alt="Signalement"
-                  className="w-full h-32 object-cover rounded-2xl border border-slate-100 cursor-pointer"
+                  className="w-full h-32 object-cover rounded-2xl border border-slate-100 dark:border-white/5 cursor-pointer"
                   onClick={() => window.open(decl.photo_avant || decl.photo_url, '_blank')} />
               </div>
             )}
@@ -303,11 +304,11 @@ function DetailModal({ decl, onClose, onVote, onRate }: {
             <button onClick={() => { if (!voted) { setVoted(true); onVote(decl.id) } }}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full justify-center border ${
                 voted ? 'bg-blue-50 text-blue-600 border-blue-200'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
+                      : 'bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 dark:text-slate-500 border-slate-200 dark:border-white/10 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
               }`}>
               <ThumbsUp size={12} />
               {voted ? 'Soutenu !' : 'Soutenir ce signalement'}
-              <span className="ml-auto font-mono text-[10px] bg-white rounded px-1.5 py-0.5 border border-current/20">
+              <span className="ml-auto font-mono text-[10px] bg-white dark:bg-[#0D1117] rounded px-1.5 py-0.5 border border-current/20">
                 {(decl.votes_count || 0) + (voted ? 1 : 0)}
               </span>
             </button>
@@ -326,10 +327,10 @@ function DetailModal({ decl, onClose, onVote, onRate }: {
           {/* RIGHT column */}
           <div className="sm:flex-1 overflow-y-auto p-5 space-y-4">
             <div>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+              <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1">
                 <Clock size={9} /> Suivi d'intervention
               </p>
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+              <div className="bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 rounded-2xl p-4">
                 <Timeline status={decl.citizen_status || decl.status} history={decl.history} />
               </div>
             </div>
@@ -361,30 +362,21 @@ function DetailModal({ decl, onClose, onVote, onRate }: {
                         </button>
                       ))}
                     </div>
-                    <p className="text-[10px] text-slate-400">Cliquez pour noter</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">Cliquez pour noter</p>
                   </div>
                 )}
               </div>
             )}
-
-            <div>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
-                <MessageSquare size={9} /> Messages
-              </p>
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3">
-                <InlineComments declarationId={decl.id} canWrite={canWrite} />
-              </div>
-            </div>
           </div>
         </div>
 
         {/* Footer — flex-shrink-0 */}
-        <div className="flex-shrink-0 px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
-          <p className="text-[10px] text-slate-400 font-mono">
+        <div className="flex-shrink-0 px-6 py-3 border-t border-slate-100 dark:border-white/5 bg-slate-50/50 flex items-center justify-between">
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
             {decl.ref_service ? `Réf: ${decl.ref_service}` : ''}
           </p>
           <button onClick={onClose}
-            className="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 bg-slate-100 transition-all">
+            className="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 dark:text-slate-500 hover:bg-slate-200 dark:bg-white/20 bg-slate-100 dark:bg-white/10 transition-all">
             Fermer
           </button>
         </div>
@@ -412,32 +404,32 @@ function EditModal({ decl, onClose, onSave }:{ decl:any; onClose:()=>void; onSav
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background:'rgba(10,22,40,0.6)', backdropFilter:'blur(4px)' }} onClick={onClose}>
-      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+      <div className="bg-white dark:bg-[#0D1117] rounded-3xl w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 dark:border-white/5">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
               <Pencil size={16} className="text-blue-600" />
             </div>
-            <h3 className="text-base font-bold text-slate-900">Modifier le signalement</h3>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Modifier le signalement</h3>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500">
+          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:bg-white/20 flex items-center justify-center text-slate-500 dark:text-slate-400 dark:text-slate-500">
             <X size={14} />
           </button>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1.5">Titre <span className="text-red-400">*</span></label>
+            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 dark:text-slate-600 mb-1.5">Titre <span className="text-red-400">*</span></label>
             <input value={title} onChange={e => setTitle(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white transition-all" />
+              className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white dark:bg-[#0D1117] transition-all" />
           </div>
           <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1.5">Description</label>
+            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 dark:text-slate-600 mb-1.5">Description</label>
             <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={4}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white transition-all resize-none" />
+              className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 focus:bg-white dark:bg-[#0D1117] transition-all resize-none" />
           </div>
         </div>
         <div className="px-6 pb-6 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">Annuler</button>
+          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 dark:text-slate-500 font-semibold text-sm hover:bg-slate-50 dark:bg-white/5">Annuler</button>
           <button onClick={save} disabled={loading || !title.trim()}
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm disabled:opacity-50">
             {loading ? <Loader2 size={15} className="animate-spin" /> : <><Save size={15} /> Enregistrer</>}
@@ -462,15 +454,15 @@ function DeleteModal({ decl, onClose, onConfirm }:{ decl:any; onClose:()=>void; 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background:'rgba(10,22,40,0.6)', backdropFilter:'blur(4px)' }} onClick={onClose}>
-      <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-6 text-center" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#0D1117] rounded-3xl w-full max-w-sm shadow-2xl p-6 text-center" onClick={e => e.stopPropagation()}>
         <div className="w-14 h-14 rounded-full bg-red-50 border-4 border-red-100 flex items-center justify-center mx-auto mb-4">
           <Trash2 size={22} className="text-red-500" />
         </div>
-        <h3 className="text-base font-bold text-slate-900 mb-2">Supprimer ce signalement ?</h3>
-        <div className="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 my-4 text-sm font-semibold text-slate-800">"{decl.title}"</div>
-        <p className="text-xs text-slate-400 mb-6">Cette action est irréversible.</p>
+        <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">Supprimer ce signalement ?</h3>
+        <div className="bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 rounded-2xl px-4 py-3 my-4 text-sm font-semibold text-slate-800 dark:text-slate-200">"{decl.title}"</div>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mb-6">Cette action est irréversible.</p>
         <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50">Garder</button>
+          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 dark:text-slate-500 font-semibold text-sm hover:bg-slate-50 dark:bg-white/5">Garder</button>
           <button onClick={go} disabled={loading}
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-sm disabled:opacity-50">
             {loading ? <Loader2 size={15} className="animate-spin" /> : <><Trash2 size={15} /> Supprimer</>}
@@ -487,10 +479,10 @@ function DeclCard({ decl, onClick, onEdit, onDelete }:{
 }) {
   const canEditDel = decl.status === 'soumise' || decl.citizen_status === 'SOUMISE'
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 hover:border-slate-200 hover:shadow-md p-5 transition-all cursor-pointer group"
+    <div className="bg-white dark:bg-[#0D1117] rounded-2xl border border-slate-100 dark:border-white/5 hover:border-slate-200 dark:border-white/10 hover:shadow-md p-5 transition-all cursor-pointer group"
       onClick={onClick}>
       <div className="flex items-start gap-3">
-        <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center flex-shrink-0 overflow-hidden text-xl">
+        <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 flex items-center justify-center flex-shrink-0 overflow-hidden text-xl">
           {(decl.photo_avant || decl.photo_url)
             ? <img src={decl.photo_avant || decl.photo_url} alt="" className="w-full h-full object-cover" />
             : getCategoryEmoji(decl.category)
@@ -498,31 +490,31 @@ function DeclCard({ decl, onClick, onEdit, onDelete }:{
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-1">
-            <h3 className="text-sm font-bold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors line-clamp-1">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 leading-tight group-hover:text-blue-600 transition-colors line-clamp-1">
               {decl.title}
             </h3>
             <StatusBadge status={decl.citizen_status || 'SOUMISE'} />
           </div>
-          <p className="text-xs text-slate-500 line-clamp-1 mb-2">{decl.description}</p>
-          <div className="flex items-center gap-2 text-[10px] text-slate-400 flex-wrap">
-            {decl.category && <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-medium">{decl.category}</span>}
+          <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 line-clamp-1 mb-2">{decl.description}</p>
+          <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 flex-wrap">
+            {decl.category && <span className="bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400 dark:text-slate-500 px-2 py-0.5 rounded-full font-medium">{decl.category}</span>}
             {decl.ref_citoyen && <span className="font-mono text-blue-600 font-bold">{decl.ref_citoyen}</span>}
             {decl.created_at && <span className="flex items-center gap-1"><Clock size={9} />{new Date(decl.created_at).toLocaleDateString('fr-FR')}</span>}
             {(decl.votes_count || 0) > 0 && <span className="flex items-center gap-1 text-blue-500 font-bold"><ThumbsUp size={9} />{decl.votes_count}</span>}
           </div>
         </div>
-        <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-400 flex-shrink-0 mt-1" />
+        <ChevronRight size={14} className="text-slate-300 dark:text-slate-600 group-hover:text-slate-400 dark:text-slate-500 flex-shrink-0 mt-1" />
       </div>
 
       {canEditDel && (
-        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
-          <span className="text-[10px] text-slate-400 flex-1">Modifiable tant que non assigné</span>
+        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-white/5">
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 flex-1">Modifiable tant que non assigné</span>
           <button onClick={e => { e.stopPropagation(); onEdit(decl) }}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 text-[10px] font-bold transition-all">
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-blue-50 text-slate-600 dark:text-slate-400 dark:text-slate-500 hover:text-blue-600 text-[10px] font-bold transition-all">
             <Pencil size={10} /> Modifier
           </button>
           <button onClick={e => { e.stopPropagation(); onDelete(decl) }}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-500 text-[10px] font-bold transition-all">
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-red-50 text-slate-600 dark:text-slate-400 dark:text-slate-500 hover:text-red-500 text-[10px] font-bold transition-all">
             <Trash2 size={10} /> Annuler
           </button>
         </div>
@@ -533,6 +525,7 @@ function DeclCard({ decl, onClick, onEdit, onDelete }:{
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 const MesSignalements: React.FC = () => {
+  const { t } = useTranslation()
   const [declarations, setDeclarations] = useState<any[]>([])
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState(false)
@@ -540,7 +533,7 @@ const MesSignalements: React.FC = () => {
   const [editTarget,   setEditTarget]   = useState<any>(null)
   const [deleteTarget, setDeleteTarget] = useState<any>(null)
   const [search,       setSearch]       = useState('')
-  const [statusFilter, setStatusFilter] = useState('Tous')
+  const [statusFilterIndex, setStatusFilterIndex] = useState(0)
   const [showFilter,   setShowFilter]   = useState(false)
 
   const fetchDecls = useCallback(async () => {
@@ -591,8 +584,16 @@ const MesSignalements: React.FC = () => {
 
   const filtered = declarations.filter(d => {
     const ms = !search || d.title?.toLowerCase().includes(search.toLowerCase())
-    const mf = statusFilter === 'Tous'
-      || (STATUS_CFG[d.citizen_status]?.label || '').toLowerCase() === statusFilter.toLowerCase()
+    if (statusFilterIndex === 0) return ms
+    
+    const FRENCH_LABELS = ['Tous', 'Soumise', 'En cours', 'Résolue', 'Clôturée']
+    const targetLabel = FRENCH_LABELS[statusFilterIndex]?.toLowerCase()
+    const declLabel = (STATUS_CFG[d.citizen_status]?.label || '').toLowerCase()
+    
+    const mf = (declLabel === targetLabel) || 
+               (statusFilterIndex === 3 && declLabel === 'évalué') ||
+               (statusFilterIndex === 4 && declLabel === 'clôturé')
+               
     return ms && mf
   })
 
@@ -609,45 +610,51 @@ const MesSignalements: React.FC = () => {
 
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Mes signalements</h1>
-            <p className="text-slate-500 text-sm mt-1">{counts.total} signalement{counts.total !== 1 ? 's' : ''} au total</p>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('myReports.pageTitle')}</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+              {counts.total === 1 ? t('myReports.totalCount_one', { count: 1 }) : t('myReports.totalCount_other', { count: counts.total })}
+            </p>
           </div>
           <Link to="/nouveau-signalement"
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all shadow-sm">
-            <Plus size={15} /> Nouveau
+            <Plus size={15} /> {t('myReports.newReport')}
           </Link>
         </div>
 
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label:'En attente', count:counts.attente, color:'#d97706' },
-            { label:'En cours',   count:counts.cours,   color:'#1d4ed8' },
-            { label:'Terminés',   count:counts.termine, color:'#15803d' },
+            { label: t('myReports.waiting'), count: counts.attente, color: '#d97706' },
+            { label: t('myReports.inProgress'), count: counts.cours, color: '#1d4ed8' },
+            { label: t('myReports.done'), count: counts.termine, color: '#15803d' },
           ].map(s => (
-            <div key={s.label} className="bg-white rounded-2xl border border-slate-100 p-4 text-center">
-              <p className="text-2xl font-extrabold mb-1" style={{ color:s.color }}>{s.count}</p>
-              <p className="text-xs text-slate-500 font-medium">{s.label}</p>
+            <div key={s.label} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-4 text-center">
+              <p className="text-2xl font-extrabold mb-1" style={{ color: s.color }}>{s.count}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{s.label}</p>
             </div>
           ))}
         </div>
 
         <div className="flex gap-3 mb-6">
           <div className="relative flex-1">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
             <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher…"
-              className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 transition-all" />
+              placeholder={t('myReports.searchPlaceholder')}
+              className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-200 dark:placeholder-slate-500 rounded-xl text-sm outline-none focus:border-blue-500 transition-all" />
           </div>
           <div className="relative">
             <button onClick={() => setShowFilter(!showFilter)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:border-blue-500 transition-all">
-              <Filter size={13} /> {statusFilter} <ChevronDown size={13} />
+              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 hover:border-blue-500 transition-all">
+              <Filter size={13} /> {(t('myReports.filterStatuses', { returnObjects: true }) as string[])[statusFilterIndex] || ''} <ChevronDown size={13} />
             </button>
             {showFilter && (
-              <div className="absolute top-full mt-1 right-0 bg-white border border-slate-200 rounded-xl shadow-lg z-20 min-w-36 py-1">
-                {['Tous','Soumise','En cours','Résolue','Clôturée'].map(s => (
-                  <button key={s} onClick={() => { setStatusFilter(s); setShowFilter(false) }}
-                    className={`w-full text-left px-4 py-2 text-sm transition-colors ${statusFilter===s?'text-blue-600 font-bold bg-blue-50':'text-slate-700 hover:bg-slate-50'}`}>
+              <div className="absolute top-full mt-1 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-20 min-w-36 py-1">
+                {(t('myReports.filterStatuses', { returnObjects: true }) as string[]).map((s, idx) => (
+                  <button key={idx} onClick={() => { setStatusFilterIndex(idx); setShowFilter(false) }}
+                    className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                      statusFilterIndex === idx
+                        ? 'text-blue-600 font-bold bg-blue-50 dark:bg-blue-950/30'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                    }`}>
                     {s}
                   </button>
                 ))}
@@ -657,11 +664,11 @@ const MesSignalements: React.FC = () => {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-100 rounded-2xl p-4 mb-6 flex items-center gap-3">
+          <div className="bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900 rounded-2xl p-4 mb-6 flex items-center gap-3">
             <AlertCircle size={15} className="text-red-500 flex-shrink-0" />
-            <p className="text-sm font-bold text-red-700 flex-1">Erreur de chargement.</p>
+            <p className="text-sm font-bold text-red-700 dark:text-red-400 flex-1">{t('myReports.loadError')}</p>
             <button onClick={fetchDecls} className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600">
-              Réessayer
+              {t('myReports.retry')}
             </button>
           </div>
         )}
@@ -669,18 +676,18 @@ const MesSignalements: React.FC = () => {
         {loading ? (
           <div className="space-y-3">
             {[1,2,3].map(i => (
-              <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5 space-y-2 animate-pulse">
+              <div key={i} className="bg-white dark:bg-[#0D1117] rounded-2xl border border-slate-100 dark:border-white/5 p-5 space-y-2 animate-pulse">
                 <div className="flex gap-3"><Sk w="w-11" h="h-11" r="rounded-xl" /><div className="flex-1 space-y-2"><Sk h="h-4" w="w-3/4" /><Sk h="h-3" /><Sk h="h-2" w="w-1/2" /></div></div>
               </div>
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 p-12 text-center">
             <p className="text-4xl mb-3">📭</p>
-            <p className="text-slate-500 font-medium mb-4">{search ? 'Aucun résultat.' : "Vous n'avez pas encore de signalement."}</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium mb-4">{search ? t('myReports.noResults') : t('myReports.noReports')}</p>
             <Link to="/nouveau-signalement"
               className="inline-flex items-center gap-2 bg-blue-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-blue-700">
-              <Plus size={14} /> Créer mon premier signalement
+              <Plus size={14} /> {t('myReports.createFirst')}
             </Link>
           </div>
         ) : (

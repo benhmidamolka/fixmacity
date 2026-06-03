@@ -1,4 +1,4 @@
-// src/components/president/DeclarationDetailDrawer.tsx
+// src/pages/President/Declarationdetaildrawer.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -434,49 +434,82 @@ const PriorityScoreCard: React.FC<{
   )
 }
 
-// ─── Timeline ─────────────────────────────────────────────────────────────────
+// ─── Timeline (Compact Ribbon) ────────────────────────────────────────────────
 const Timeline: React.FC<{ status: string; history: HistEntry[] }> = ({ status, history }) => {
   const active = Math.max(0, WORKFLOW_STEPS.findIndex(s => s.key === status))
+
   return (
-    <div className="relative">
-      <div className="absolute left-[15px] top-6 bottom-6 w-0.5 bg-slate-100 dark:bg-slate-800"/>
-      <div className="space-y-0">
+    <div className="space-y-4">
+
+      {/* ── Horizontal progress ribbon ── */}
+      <div className="relative flex items-center">
+        {/* connecting line behind pills */}
+        <div className="absolute left-4 right-4 top-1/2 -translate-y-1/2 h-0.5 bg-slate-100 dark:bg-slate-800 z-0" />
+
         {WORKFLOW_STEPS.map(({ key, label, Icon }, idx) => {
           const done    = idx < active
           const current = idx === active
-          const entry   = history.find(h => h.new_status === key)
           return (
-            <div key={key} className="flex gap-3 pb-5 last:pb-0 relative">
-              <div className={`w-[30px] h-[30px] rounded-full flex items-center justify-center flex-shrink-0 z-10 border-2 transition-all
-                ${done ? 'bg-emerald-500 border-emerald-500' :
-                  current ? 'bg-white dark:bg-slate-900 border-blue-500 ring-4 ring-blue-50 dark:ring-blue-950/30' :
-                            'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'}`}>
-                {done ? <CheckCircle2 size={13} className="text-white"/> :
-                 current ? <Icon size={13} className="text-blue-500"/> :
-                           <Icon size={13} className="text-slate-300 dark:text-slate-600"/>}
+            <div key={key} className="flex-1 flex flex-col items-center gap-1.5 relative z-10">
+              {/* Dot */}
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all
+                ${done    ? 'bg-emerald-500 border-emerald-500 shadow-sm shadow-emerald-200 dark:shadow-emerald-900/40'
+                : current ? 'bg-white dark:bg-slate-900 border-blue-500 ring-3 ring-blue-50 dark:ring-blue-950/40'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'}`}>
+                {done    && <CheckCircle2 size={12} className="text-white" />}
+                {current && <Icon size={12} className="text-blue-500 dark:text-blue-400" />}
+                {!done && !current && <Icon size={12} className="text-slate-300 dark:text-slate-600" />}
               </div>
-              <div className="flex-1 pt-1 min-w-0">
-                <p className={`text-xs font-bold ${done ? 'text-emerald-700 dark:text-emerald-400' : current ? 'text-blue-700 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`}>
-                  {label}
-                </p>
-                {entry && (
-                  <div className="mt-1 space-y-0.5">
-                    <p className="text-[10px] text-slate-500 font-medium">{fmtShort(entry.created_at)}</p>
-                    {entry.user && <p className="text-[10px] text-slate-400">par <span className="font-bold">{entry.user.first_name} {entry.user.last_name}</span> <span className="opacity-60">({entry.user.role})</span></p>}
-                    {entry.raison && (
-                      <div className="mt-1 px-2.5 py-1.5 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 rounded-xl">
-                        <p className="text-[10px] text-red-600 dark:text-red-400 italic">«{entry.raison}»</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {!entry && current && <p className="text-[10px] text-blue-500 mt-0.5 font-semibold">En cours…</p>}
-                {!entry && !done && !current && <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-0.5">En attente</p>}
-              </div>
+              {/* Label */}
+              <span className={`text-[8px] font-black uppercase tracking-wide text-center leading-tight px-0.5
+                ${done    ? 'text-emerald-600 dark:text-emerald-400'
+                : current ? 'text-blue-600 dark:text-blue-400'
+                          : 'text-slate-300 dark:text-slate-600'}`}>
+                {label}
+              </span>
             </div>
           )
         })}
       </div>
+
+      {/* ── Condensed history log ── */}
+      {history.length > 0 && (
+        <div className="space-y-1.5">
+          {[...history]
+            .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+            .map(h => {
+              const isRefusal = h.new_status?.startsWith('refusee')
+              return (
+                <div key={h.id} className={`flex items-start gap-2.5 px-3 py-2 rounded-xl border transition-colors
+                  ${isRefusal
+                    ? 'bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/30'
+                    : 'bg-white dark:bg-slate-900/40 border-slate-100 dark:border-slate-800'}`}>
+                  {/* dot */}
+                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0
+                    ${isRefusal ? 'bg-red-400' : 'bg-emerald-400'}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[10px] font-black ${isRefusal ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                        {STATUS[h.new_status]?.label ?? h.new_status}
+                      </span>
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500">{fmtShort(h.created_at)}</span>
+                      {h.user && (
+                        <span className="text-[9px] text-slate-400 dark:text-slate-500">
+                          · {h.user.first_name} {h.user.last_name}
+                        </span>
+                      )}
+                    </div>
+                    {h.raison && (
+                      <p className="text-[10px] text-red-600 dark:text-red-400 italic mt-0.5 leading-snug">
+                        «{h.raison}»
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+        </div>
+      )}
     </div>
   )
 }
@@ -734,13 +767,25 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
       )}
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 bottom-0 z-[101] w-full max-w-[580px] bg-white/98 dark:bg-slate-950/98 backdrop-blur-md shadow-2xl flex flex-col border-l border-slate-100 dark:border-slate-800 overflow-hidden"
+      <div className="pres-drawer fixed right-0 top-0 bottom-0 z-[101] w-full max-w-[580px] bg-white/98 dark:bg-slate-950/98 backdrop-blur-md shadow-2xl flex flex-col border-l border-slate-100 dark:border-slate-800 overflow-hidden"
         style={{ animation:'slideInRight .25s cubic-bezier(.22,1,.36,1)' }}>
 
         <style>{`
           @keyframes fadeIn       {from{opacity:0}                              to{opacity:1}}
           @keyframes fadeInDown   {from{opacity:0;transform:translate(-50%,-10px)} to{opacity:1;transform:translate(-50%,0)}}
           @keyframes slideInRight {from{transform:translateX(100%)}             to{transform:translateX(0)}}
+
+          /* ── Minimalist dark scrollbar ─────────────────────────────── */
+          .pres-drawer ::-webkit-scrollbar        { width: 4px; height: 4px; }
+          .pres-drawer ::-webkit-scrollbar-track  { background: transparent; }
+          .pres-drawer ::-webkit-scrollbar-thumb  {
+            background: rgba(148,163,184,0.25);
+            border-radius: 99px;
+            transition: background .2s;
+          }
+          .pres-drawer ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.55); }
+          /* Firefox */
+          .pres-drawer * { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.25) transparent; }
         `}</style>
 
         {/* ── TOP BAR ── */}
@@ -768,8 +813,8 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
         </div>
 
         {/* ── PHOTO STRIP ── */}
-        <div className="flex-shrink-0 px-5 pt-4 pb-2">
-          <div className="h-44 bg-slate-50 dark:bg-slate-900/30 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800/80 relative shadow-sm">
+        <div className="flex-shrink-0 px-5 pt-3 pb-1">
+          <div className="h-28 bg-slate-50 dark:bg-slate-900/30 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800/80 relative shadow-sm">
             {loading ? (
               <div className="w-full h-full bg-slate-200 dark:bg-slate-800 animate-pulse"/>
             ) : photosList.length > 0 ? (
@@ -808,12 +853,12 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
         </div>
 
         {/* ── TITLE BLOCK ── */}
-        <div className="flex-shrink-0 px-5 py-2">
+        <div className="flex-shrink-0 px-5 pt-1 pb-2">
           {loading ? (
-            <div className="space-y-2"><Skel h="h-6" w="w-3/4"/><Skel h="h-4" w="w-1/2"/></div>
+            <div className="space-y-2"><Skel h="h-5" w="w-3/4"/><Skel h="h-3" w="w-1/2"/></div>
           ) : detail && (
-            <div className="space-y-3">
-              <h2 className="text-base font-black text-slate-900 dark:text-white leading-tight tracking-tight">{detail.title}</h2>
+            <div className="space-y-2">
+              <h2 className="text-sm font-black text-slate-900 dark:text-white leading-tight tracking-tight line-clamp-2">{detail.title}</h2>
               <div className="flex flex-wrap items-center gap-1.5">
                 {detail.category && (
                   <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-xl">
@@ -862,13 +907,13 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
         </div>
 
         {/* ── TABS ── */}
-        <div className="flex-shrink-0 px-5 py-3">
-          <div className="bg-slate-100/70 dark:bg-slate-900/60 p-1 rounded-2xl flex gap-1 border border-slate-200/20 dark:border-slate-800/40">
+        <div className="flex-shrink-0 px-5 py-2">
+          <div className="bg-slate-100/70 dark:bg-slate-900/60 p-1 rounded-xl flex gap-1 border border-slate-200/20 dark:border-slate-800/40">
             {TABS.map(t => (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key as any)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all duration-300 ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all duration-300 ${
                   tab === t.key
                     ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/10 dark:border-slate-700/30'
                     : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-350'
@@ -891,15 +936,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
 
           {/* INFO */}
           {tab === 'info' && (
-            <div className="absolute inset-0 overflow-y-auto px-5 py-5 space-y-5">
-              {detail?.description && (
-                <div className="bg-blue-50/60 dark:bg-blue-900/20 rounded-2xl p-4 border border-blue-100/60 dark:border-blue-900/30">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-500 dark:text-blue-300 mb-2">Description du citoyen</p>
-                  <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-medium">{detail.description}</p>
-                </div>
-              )}
-              
-
+            <div className="absolute inset-0 overflow-y-auto px-5 py-3 space-y-3">
               {loading ? (
                 <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 space-y-3">
                   {[...Array(4)].map((_,i) => <div key={i} className="flex gap-3"><Skel w="w-8" h="h-8"/><div className="flex-1 space-y-1"><Skel h="h-2" w="w-16"/><Skel h="h-4"/></div></div>)}
@@ -907,14 +944,15 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
               ) : detail && (
                 <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800 px-4 py-1">
                   {[
+                    ...(detail.description ? [{ Icon: FileText, label: 'Description', content: <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{detail.description}</p> }] : []),
                     { Icon:Hash,     label:'Références',    content: <div className="flex gap-3 flex-wrap"><span className="font-mono text-xs font-bold text-blue-600">{detail.ref_citoyen}</span>{detail.ref_service && <span className="font-mono text-xs text-slate-500">{detail.ref_service}</span>}</div> },
-                    { Icon:Calendar, label:'Soumise le',    content: <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{fmt(detail.created_at)}</p> },
-                    { Icon:User,     label:'Citoyen',       content: detail.citizen ? <div className="flex items-center gap-2.5 mt-0.5"><Avatar name={`${detail.citizen.first_name} ${detail.citizen.last_name}`} role="citizen"/><div><p className="text-sm font-bold text-slate-800 dark:text-slate-100">{detail.citizen.first_name} {detail.citizen.last_name}</p><p className="text-[10px] text-slate-400">{detail.citizen.email}</p>{detail.citizen.phone && <p className="text-[10px] text-slate-400">{detail.citizen.phone}</p>}</div></div> : <p className="text-sm text-slate-400 italic">—</p> },
-                    { Icon:MapPin,   label:'Localisation',  content: <><p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{detail.address || detail.delegations?.name || '—'}</p>{detail.latitude && detail.longitude && <p className="text-[10px] font-mono text-slate-400 mt-0.5">{detail.latitude.toFixed(5)}, {detail.longitude.toFixed(5)}</p>}</> },
+                    { Icon:Calendar, label:'Soumise le',    content: <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{fmt(detail.created_at)}</p> },
+                    { Icon:User,     label:'Citoyen',       content: detail.citizen ? <div className="flex items-center gap-2.5 mt-0.5"><Avatar name={`${detail.citizen.first_name} ${detail.citizen.last_name}`} role="citizen"/><div><p className="text-xs font-bold text-slate-800 dark:text-slate-100">{detail.citizen.first_name} {detail.citizen.last_name}</p><p className="text-[10px] text-slate-400">{detail.citizen.email}</p></div></div> : <p className="text-xs text-slate-400 italic">—</p> },
+                    { Icon:MapPin,   label:'Localisation',  content: <><p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{detail.address || detail.delegations?.name || '—'}</p>{detail.latitude && detail.longitude && <p className="text-[10px] font-mono text-slate-400 mt-0.5">{detail.latitude.toFixed(5)}, {detail.longitude.toFixed(5)}</p>}</> },
                   ].map(row => (
-                    <div key={row.label} className="flex items-start gap-3 py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
-                      <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <row.Icon size={14} className="text-slate-500 dark:text-slate-400"/>
+                    <div key={row.label} className="flex items-start gap-3 py-2.5 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                      <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <row.Icon size={13} className="text-slate-500 dark:text-slate-400"/>
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">{row.label}</p>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import {
   X, Pencil, Users, Eye, EyeOff, Trash2, Loader2,
   UserCheck, UserX, FileText, Hash, Calendar, MapPin,
@@ -130,9 +131,9 @@ const DetailDrawer: React.FC<DetailsDrawerProps> = ({ dept, onClose, onEdit, onT
   const pctResolved = totalStats > 0 ? ((dept.resolved || 0) / totalStats) * 100 : 0
   const pctRejected = totalStats > 0 ? ((dept.rejected || 0) / totalStats) * 100 : 0
 
-  return (
-    <div className="fixed inset-0 z-[100] flex">
-      {/* Backdrop with premium glassmorphism */}
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-end">
+      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-slate-950/40 backdrop-blur-md transition-opacity duration-300" 
         onClick={onClose} 
@@ -147,11 +148,22 @@ const DetailDrawer: React.FC<DetailsDrawerProps> = ({ dept, onClose, onEdit, onT
         .animate-slide-in {
           animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
+
+        /* ── Minimalist dark scrollbar ─────────────────────────────── */
+        .svc-drawer ::-webkit-scrollbar        { width: 4px; height: 4px; }
+        .svc-drawer ::-webkit-scrollbar-track  { background: transparent; }
+        .svc-drawer ::-webkit-scrollbar-thumb  {
+          background: rgba(148,163,184,0.25);
+          border-radius: 99px;
+          transition: background .2s;
+        }
+        .svc-drawer ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.55); }
+        .svc-drawer * { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.25) transparent; }
       `}</style>
 
-      {/* Panel */}
+      {/* Panel — content-fitted, max 90vh, always shows footer */}
       <div
-        className="relative ml-auto h-full w-full max-w-[490px] bg-slate-50 dark:bg-slate-950 flex flex-col shadow-[0_0_80px_-10px_rgba(0,0,0,0.4)] border-l border-slate-200 dark:border-slate-800/80 animate-slide-in overflow-hidden"
+        className="svc-drawer relative h-full w-full max-w-[490px] bg-slate-50 dark:bg-slate-950 flex flex-col shadow-[0_0_80px_-10px_rgba(0,0,0,0.4)] border-l border-slate-200 dark:border-slate-800/80 animate-slide-in overflow-hidden"
       >
         {/* Decorative dynamic ambient glow */}
         <div 
@@ -212,7 +224,7 @@ const DetailDrawer: React.FC<DetailsDrawerProps> = ({ dept, onClose, onEdit, onT
         </div>
 
         {/* ── SCROLLABLE BODY ── */}
-        <div className="flex-1 overflow-y-auto min-h-0 space-y-5 py-5 relative z-10">
+        <div className="flex-1 overflow-y-auto min-h-0 py-5 relative z-10 space-y-5">
 
           {/* SECTION 1: SYSTEM INFO */}
           <section className="px-6">
@@ -347,7 +359,7 @@ const DetailDrawer: React.FC<DetailsDrawerProps> = ({ dept, onClose, onEdit, onT
           )}
 
           {/* SECTION 5: TAB NAVIGATION (AGENTS / DECLS) */}
-          <section className="flex flex-col min-h-[300px]">
+          <section className="flex flex-col">
             {/* Tab buttons */}
             <div className="flex border-b border-slate-200 dark:border-slate-900 px-6">
               {[
@@ -383,7 +395,7 @@ const DetailDrawer: React.FC<DetailsDrawerProps> = ({ dept, onClose, onEdit, onT
             </div>
 
             {/* Tab panel contents */}
-            <div className="flex-1 p-6">
+            <div className="p-6">
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
@@ -598,7 +610,8 @@ const DetailDrawer: React.FC<DetailsDrawerProps> = ({ dept, onClose, onEdit, onT
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import toast from 'react-hot-toast'
 import {
   Plus, Search, ThumbsUp, ThumbsDown, Users, Edit2, Trash2,
   Calendar, CheckCircle2, X, Star, Tag, Activity, BarChart3,
   Clock, ChevronRight, Sparkles, AlertTriangle, RefreshCw,
-  TrendingUp, MessageSquare, Filter
+  TrendingUp, MessageSquare, Filter, Upload, Award
 } from 'lucide-react'
 import PresidentLayout from '../../layouts/PresidentLayout'
 
@@ -13,13 +14,16 @@ const tok = () => localStorage.getItem('fmc_token') || ''
 
 // ─── API helper ──────────────────────────────────────────────────────────────
 const apiFetch = async (path: string, opts: RequestInit & { headers?: any } = {}) => {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${tok()}`,
+    ...opts.headers,
+  }
+  if (!(opts.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json'
+  }
   const r = await fetch(`${API}${path}`, {
     ...opts,
-    headers: {
-      Authorization: `Bearer ${tok()}`,
-      'Content-Type': 'application/json',
-      ...opts.headers,
-    },
+    headers,
   })
   if (!r.ok) {
     const err = await r.text()
@@ -46,6 +50,7 @@ interface Prop {
   citizen_role?: string
   created_at: string
   president_response?: string
+  image_url?: string
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -107,14 +112,39 @@ const StatusBadge = ({ status }: { status: string }) => {
 }
 
 // ─── Overlay Modal ────────────────────────────────────────────────────────────
-const Overlay = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => (
-  <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-    <div className="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
-    <div className="relative bg-white dark:bg-slate-900/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-white dark:border-slate-800/50">
-      {children}
+const Overlay = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => {
+  const modal = (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+    >
+      <div
+        className="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-md"
+        onClick={onClose}
+        style={{ position: 'absolute', inset: 0 }}
+      />
+      <div
+        className="relative bg-white dark:bg-slate-900/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl w-full max-w-lg border border-white dark:border-slate-800/50"
+        style={{ maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}
+      >
+        {children}
+      </div>
     </div>
-  </div>
-)
+  )
+  return createPortal(modal, document.body)
+}
+
+const DrawerOverlay = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => {
+  const drawer = (
+    <div className="fixed inset-0 z-[9999] flex justify-end" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+      <div className="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-md" onClick={onClose} style={{ position: 'absolute', inset: 0 }} />
+      <div className="relative w-full max-w-xl bg-white dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl h-full border-l border-slate-200 dark:border-slate-800/50 overflow-y-auto">
+        {children}
+      </div>
+    </div>
+  )
+  return createPortal(drawer, document.body)
+}
 
 // ─── Confirm Delete ───────────────────────────────────────────────────────────
 const ConfirmDelete = ({ title, onConfirm, onCancel }: { title: string; onConfirm: () => void; onCancel: () => void }) => (
@@ -148,9 +178,23 @@ const PropForm = ({ initial, onSave, onClose }: { initial?: Prop | null; onSave:
     end_date: initial?.end_date?.slice(0, 10) || '',
     status: initial?.status || 'active',
   })
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    initial?.image_url
+      ? (initial.image_url.startsWith('http') ? initial.image_url : `${API.replace('/api', '')}${initial.image_url}`)
+      : null
+  )
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
   const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setPhoto(file)
+      setPreviewUrl(URL.createObjectURL(file))
+    }
+  }
 
   const submit = async () => {
     if (!form.title.trim()) { setErr('Le titre est requis.'); return }
@@ -159,7 +203,20 @@ const PropForm = ({ initial, onSave, onClose }: { initial?: Prop | null; onSave:
       setErr('La date de clôture doit être après le début.'); return
     }
     setLoading(true); setErr('')
-    try { await onSave(form); onClose() }
+    try {
+      const formData = new FormData()
+      formData.append('title', form.title)
+      formData.append('description', form.description)
+      formData.append('category', form.category)
+      if (form.start_date) formData.append('start_date', form.start_date)
+      if (form.end_date) formData.append('end_date', form.end_date)
+      formData.append('status', form.status)
+      if (photo) {
+        formData.append('photo', photo)
+      }
+      await onSave(formData)
+      onClose()
+    }
     catch (e: any) { setErr(e.message || 'Erreur lors de l\'enregistrement.') }
     finally { setLoading(false) }
   }
@@ -174,7 +231,7 @@ const PropForm = ({ initial, onSave, onClose }: { initial?: Prop | null; onSave:
   const inputCls = "w-full border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-[#0A1628] dark:text-white bg-slate-50 dark:bg-slate-800/50 focus:outline-none focus:ring-2 focus:ring-[#1557FF]/20 focus:border-[#1557FF] transition-all"
 
   return (
-    <Overlay onClose={onClose}>
+    <DrawerOverlay onClose={onClose}>
       <div className="p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -216,6 +273,33 @@ const PropForm = ({ initial, onSave, onClose }: { initial?: Prop | null; onSave:
               rows={4} className={`${inputCls} resize-none`} placeholder="Description détaillée..." />
           </Field>
 
+          <Field label="Image du Projet">
+            <div className="flex flex-col gap-3">
+              {previewUrl && (
+                <div className="relative h-44 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                  <img src={previewUrl} alt="Aperçu du projet" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhoto(null)
+                      setPreviewUrl(null)
+                    }}
+                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-slate-950/60 hover:bg-slate-950/80 backdrop-blur-sm text-white flex items-center justify-center transition-all"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+              <label className="flex items-center justify-center gap-2 px-4 py-3 bg-white dark:bg-slate-850 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl cursor-pointer hover:border-[#1557FF] dark:hover:border-blue-500 hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-all">
+                <Upload className="w-4.5 h-4.5 text-slate-400" />
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                  {photo ? photo.name : (initial?.image_url ? 'Changer la photo' : 'Choisir une photo')}
+                </span>
+                <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+              </label>
+            </div>
+          </Field>
+
           <div className="grid grid-cols-2 gap-3">
             <Field label="Date de début">
               <input type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} className={inputCls} />
@@ -244,7 +328,7 @@ const PropForm = ({ initial, onSave, onClose }: { initial?: Prop | null; onSave:
           </button>
         </div>
       </div>
-    </Overlay>
+    </DrawerOverlay>
   )
 }
 
@@ -264,7 +348,7 @@ const CitizenDecisionModal = ({ prop, onDecide, onClose }: { prop: Prop; onDecid
   }
 
   return (
-    <Overlay onClose={onClose}>
+    <DrawerOverlay onClose={onClose}>
       <div className="p-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-base font-black text-[#0A1628] dark:text-white">📋 Proposition citoyenne</h2>
@@ -345,7 +429,7 @@ const CitizenDecisionModal = ({ prop, onDecide, onClose }: { prop: Prop; onDecid
           </div>
         )}
       </div>
-    </Overlay>
+    </DrawerOverlay>
   )
 }
 
@@ -355,11 +439,20 @@ const PresCard = ({ prop, onEdit, onDelete }: { prop: Prop; onEdit: (p: Prop) =>
   const isExpiring = remaining !== null && remaining <= 7 && remaining > 0
   const isExpired = prop.end_date && new Date(prop.end_date) < new Date()
   const pourPct = prop.total > 0 ? Math.round((prop.votes_pour / prop.total) * 100) : 0
+  const resolvedImg = prop.image_url ? (prop.image_url.startsWith('http') ? prop.image_url : `${API.replace('/api', '')}${prop.image_url}`) : null
 
   return (
     <div className="group bg-white dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 p-7 hover:shadow-2xl hover:shadow-slate-200/50 dark:hover:shadow-none hover:-translate-y-1 transition-all duration-300 flex flex-col relative overflow-hidden">
       {/* Urgency stripe */}
       {isExpiring && <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-400 rounded-t-3xl" />}
+
+      {/* Image if exists */}
+      {resolvedImg && (
+        <div className="relative h-44 -mx-7 -mt-7 mb-5 overflow-hidden rounded-t-[2.5rem]">
+          <img src={resolvedImg} alt={prop.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+        </div>
+      )}
 
       {/* Category chip */}
       <div className="flex items-center justify-between mb-5">
@@ -430,6 +523,7 @@ const PresCard = ({ prop, onEdit, onDelete }: { prop: Prop; onEdit: (p: Prop) =>
 const CitiCard = ({ prop, onOpen }: { prop: Prop; onOpen: (p: Prop) => void }) => {
   const displayStatus = CITIZEN_STATUS_MAP[prop.status] || prop.status
   const isPending = displayStatus === 'en_attente'
+  const resolvedImg = prop.image_url ? (prop.image_url.startsWith('http') ? prop.image_url : `${API.replace('/api', '')}${prop.image_url}`) : null
 
   return (
     <div className="group bg-white dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 p-7 hover:shadow-2xl hover:shadow-slate-200/50 dark:hover:shadow-none hover:-translate-y-1 transition-all duration-300 flex flex-col relative overflow-hidden cursor-pointer"
@@ -437,6 +531,14 @@ const CitiCard = ({ prop, onOpen }: { prop: Prop; onOpen: (p: Prop) => void }) =
 
       {isPending && (
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-t-3xl" />
+      )}
+
+      {/* Image if exists */}
+      {resolvedImg && (
+        <div className="relative h-44 -mx-7 -mt-7 mb-5 overflow-hidden rounded-t-[2.5rem]">
+          <img src={resolvedImg} alt={prop.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+        </div>
       )}
 
       {/* Header */}
@@ -555,22 +657,12 @@ export default function PresidentPropositions() {
   useEffect(() => { fetchAll() }, [fetchAll])
 
   // ── CRUD president ─────────────────────────────────────────────────────────
-  const saveProp = async (form: any) => {
-    // Validate dates
-    if (form.end_date && form.start_date && form.end_date <= form.start_date) {
-      setError('La date de fin doit être après la date de début.')
-      return
-    }
-    if (form.end_date && new Date(form.end_date) < new Date()) {
-      setError('La date de fin ne peut pas être dans le passé.')
-      return
-    }
-    
+  const saveProp = async (formData: FormData) => {
     if (editProp) {
-      await apiFetch(`/president/propositions/${editProp.id}`, { method: 'PUT', body: JSON.stringify(form) })
+      await apiFetch(`/president/propositions/${editProp.id}`, { method: 'PUT', body: formData })
       toast.success('Proposition mise à jour ✓')
     } else {
-      await apiFetch('/president/propositions', { method: 'POST', body: JSON.stringify(form) })
+      await apiFetch('/president/propositions', { method: 'POST', body: formData })
       toast.success('Proposition publiée ✓')
     }
     setEditProp(null)

@@ -469,7 +469,7 @@ const ChefDashboard: React.FC = () => {
                 Chef de Service · {user.department_name || 'Mon Département'}
               </p>
               <h1 className="text-2xl font-black text-white leading-tight">
-                Bonjour, {user.first_name || 'Chef'} 👋
+                Bonjour, {user.first_name || 'Chef'}
               </h1>
               <p className="text-blue-200 text-sm font-medium mt-1.5">
                 {urgentCount > 0

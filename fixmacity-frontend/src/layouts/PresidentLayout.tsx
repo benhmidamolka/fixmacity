@@ -140,9 +140,6 @@ const PresidentLayout: React.FC<Props> = ({ children, title = 'Dashboard' }) => 
             style={{ background: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)' }}>
             {initials}
           </div>
-          <div className={`absolute -top-1 -right-1 w-4 h-4 ${darkMode ? 'bg-slate-800' : 'bg-white'} rounded-full flex items-center justify-center shadow-sm`}>
-            <span className="text-[8px]">👋</span>
-          </div>
         </div>
         {!isCollapsed && (
           <div className="min-w-0">

@@ -11,11 +11,11 @@ import {
 import { Toaster, toast } from 'react-hot-toast'
 import ChefLayout from '../../layouts/ChefLayout'
 
-const API   = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
-const tok   = () => localStorage.getItem('fmc_token') || ''
-const hdr   = () => ({ Authorization: `Bearer ${tok()}` })
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
+const tok = () => localStorage.getItem('fmc_token') || ''
+const hdr = () => ({ Authorization: `Bearer ${tok()}` })
 const jsonH = () => ({ 'Content-Type': 'application/json', ...hdr() })
-const ROWS  = 15
+const ROWS = 15
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -59,27 +59,27 @@ interface DetailFull extends Decl {
 // ── Config ────────────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  soumise:        { label: 'Soumise',       color: '#D97706', bg: '#FFFBEB', dot: '#F59E0B' },
-  assignee_chef:  { label: 'À traiter',     color: '#7C3AED', bg: '#EDE9FE', dot: '#8B5CF6' },
-  assignee_agent: { label: 'Assignée',      color: '#1D4ED8', bg: '#DBEAFE', dot: '#3B82F6' },
-  en_cours:       { label: 'En cours',      color: '#C2410C', bg: '#FFEDD5', dot: '#F97316' },
-  resolue:        { label: 'Résolue',       color: '#15803D', bg: '#DCFCE7', dot: '#22C55E' },
-  cloturee:       { label: 'Clôturée',      color: '#475569', bg: '#F1F5F9', dot: '#94A3B8' },
-  refusee_chef:   { label: 'Refusée',       color: '#DC2626', bg: '#FEE2E2', dot: '#EF4444' },
-  refusee_agent:  { label: 'Renvoyée',      color: '#B91C1C', bg: '#FEE2E2', dot: '#EF4444' },
+  soumise: { label: 'Soumise', color: '#D97706', bg: '#FFFBEB', dot: '#F59E0B' },
+  assignee_chef: { label: 'À traiter', color: '#7C3AED', bg: '#EDE9FE', dot: '#8B5CF6' },
+  assignee_agent: { label: 'Assignée', color: '#1D4ED8', bg: '#DBEAFE', dot: '#3B82F6' },
+  en_cours: { label: 'En cours', color: '#C2410C', bg: '#FFEDD5', dot: '#F97316' },
+  resolue: { label: 'Résolue', color: '#15803D', bg: '#DCFCE7', dot: '#22C55E' },
+  cloturee: { label: 'Clôturée', color: '#475569', bg: '#F1F5F9', dot: '#94A3B8' },
+  refusee_chef: { label: 'Refusée', color: '#DC2626', bg: '#FEE2E2', dot: '#EF4444' },
+  refusee_agent: { label: 'Renvoyée', color: '#B91C1C', bg: '#FEE2E2', dot: '#EF4444' },
 }
 
 const PRIORITY_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  haute:   { label: 'Urgent', color: '#DC2626', bg: '#FEF2F2' },
+  haute: { label: 'Urgent', color: '#DC2626', bg: '#FEF2F2' },
   urgente: { label: 'Urgent', color: '#DC2626', bg: '#FEF2F2' },
-  high:    { label: 'Urgent', color: '#DC2626', bg: '#FEF2F2' },
+  high: { label: 'Urgent', color: '#DC2626', bg: '#FEF2F2' },
   moyenne: { label: 'Normal', color: '#D97706', bg: '#FFFBEB' },
-  medium:  { label: 'Normal', color: '#D97706', bg: '#FFFBEB' },
-  basse:   { label: 'Faible', color: '#059669', bg: '#F0FDF4' },
-  low:     { label: 'Faible', color: '#059669', bg: '#F0FDF4' },
+  medium: { label: 'Normal', color: '#D97706', bg: '#FFFBEB' },
+  basse: { label: 'Faible', color: '#059669', bg: '#F0FDF4' },
+  low: { label: 'Faible', color: '#059669', bg: '#F0FDF4' },
 }
 
-const AGENT_COLORS = ['#1557FF','#10B981','#F59E0B','#8B5CF6','#EC4899','#0891B2','#EF4444','#14B8A6']
+const AGENT_COLORS = ['#1557FF', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#0891B2', '#EF4444', '#14B8A6']
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -88,7 +88,7 @@ function fmtFull(iso: string) {
   return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 function getCatEmoji(c?: string) {
-  const m: Record<string,string> = { 'Voirie':'🛣️','Éclairage Public':'💡','Propreté':'🗑️','Espaces Verts':'🌿','Réseaux':'💧','Signalisation':'🚦','Administratif':'🏢','Suggestions':'💬' }
+  const m: Record<string, string> = { 'Voirie': '🛣️', 'Éclairage Public': '💡', 'Propreté': '🗑️', 'Espaces Verts': '🌿', 'Réseaux': '💧', 'Signalisation': '🚦', 'Administratif': '🏢', 'Suggestions': '💬' }
   return c ? (m[c] || '📌') : '📌'
 }
 
@@ -105,13 +105,13 @@ function FilterDropdown({ label, icon: Icon, value, options, onChange, multi = f
 
   let activeLabel = label
   const isAll = multi ? value.length === 0 : value === 'all'
-  
+
   if (!isAll) {
     if (multi) {
-      if (value.length === 1) activeLabel = options.find((o:any) => o.value === value[0])?.label || label
+      if (value.length === 1) activeLabel = options.find((o: any) => o.value === value[0])?.label || label
       else activeLabel = `${value.length} sélectionnés`
     } else {
-      activeLabel = options.find((o:any) => o.value === value)?.label || label
+      activeLabel = options.find((o: any) => o.value === value)?.label || label
     }
   }
 
@@ -150,7 +150,7 @@ function FilterDropdown({ label, icon: Icon, value, options, onChange, multi = f
               {value.length === 0 && <CheckCircle2 className="w-3.5 h-3.5 text-[#1557FF]" />}
             </button>
           )}
-          {options.map((o:any) => {
+          {options.map((o: any) => {
             if (multi && o.value === 'all') return null
             const isSelected = multi ? value.includes(o.value) : value === o.value
             return (
@@ -171,7 +171,7 @@ function FilterDropdown({ label, icon: Icon, value, options, onChange, multi = f
   )
 }
 
-const Sk = ({ w='w-full', h='h-4', r='rounded-lg' }: { w?:string; h?:string; r?:string }) => (
+const Sk = ({ w = 'w-full', h = 'h-4', r = 'rounded-lg' }: { w?: string; h?: string; r?: string }) => (
   <div className={`${w} ${h} ${r} bg-slate-100 dark:bg-slate-800 animate-pulse`} />
 )
 
@@ -202,12 +202,12 @@ function AssignModal({ decl, agents, onClose, onDone }: {
   decl: Decl; agents: Agent[]; onClose: () => void; onDone: () => void
 }) {
   const [selected, setSelected] = useState<string[]>([])
-  const [loading,  setLoading]  = useState(false)
-  
+  const [loading, setLoading] = useState(false)
+
   // Find all selected agents to check if any are overloaded
   const selectedAgents = agents.filter(a => selected.includes(a.id))
   const overloaded = selectedAgents.some(a => a.workload >= 5)
-  const active   = agents.filter(a => a.is_active)
+  const active = agents.filter(a => a.is_active)
 
   const submit = async () => {
     if (selected.length === 0) return toast.error('Choisissez au moins un agent')
@@ -272,16 +272,15 @@ function AssignModal({ decl, agents, onClose, onDone }: {
             </div>
           ) : active.map((a, idx) => {
             const isSel = selected.includes(a.id)
-            const pct   = Math.min((a.workload / 5) * 100, 100)
-            const bCol  = a.workload >= 5 ? '#EF4444' : a.workload >= 3 ? '#F59E0B' : '#10B981'
+            const pct = Math.min((a.workload / 5) * 100, 100)
+            const bCol = a.workload >= 5 ? '#EF4444' : a.workload >= 3 ? '#F59E0B' : '#10B981'
             const stLabel = a.workload >= 5 ? 'Surchargé' : a.workload >= 3 ? 'En mission' : 'Disponible'
             return (
               <button key={a.id} onClick={() => setSelected(p => p.includes(a.id) ? p.filter(x => x !== a.id) : [...p, a.id])}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
-                  isSel
+                className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${isSel
                     ? 'border-[#1557FF] bg-blue-50 dark:bg-blue-500/10'
                     : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 bg-slate-50 dark:bg-slate-800/30'
-                }`}>
+                  }`}>
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black flex-shrink-0"
                   style={{ background: AGENT_COLORS[idx % AGENT_COLORS.length] }}>
                   {a.first_name[0]}{a.last_name[0]}
@@ -325,7 +324,7 @@ function AssignModal({ decl, agents, onClose, onDone }: {
 function RefuseModal({ decl, onClose, onDone }: {
   decl: Decl; onClose: () => void; onDone: () => void
 }) {
-  const [reason,  setReason]  = useState('')
+  const [reason, setReason] = useState('')
   const [loading, setLoading] = useState(false)
   const REASONS = ['Hors périmètre technique', 'Informations insuffisantes', 'Doublon détecté', 'Matériel non disponible', 'Autre']
 
@@ -361,11 +360,10 @@ function RefuseModal({ decl, onClose, onDone }: {
           <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Motif du refus *</p>
           {REASONS.map(r => (
             <button key={r} onClick={() => setReason(r)}
-              className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
-                reason === r
+              className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${reason === r
                   ? 'border-red-400 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
                   : 'border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-200'
-              }`}>
+                }`}>
               {r}
             </button>
           ))}
@@ -393,12 +391,12 @@ function RefuseModal({ decl, onClose, onDone }: {
 function DetailDrawer({ decl, agents, onClose, onRefreshed }: {
   decl: Decl; agents: Agent[]; onClose: () => void; onRefreshed: () => void
 }) {
-  const [detail,     setDetail]     = useState<DetailFull | null>(null)
-  const [loading,    setLoading]    = useState(true)
-  const [tab,        setTab]        = useState<'info' | 'history' | 'messages'>('info')
-  const [msg,        setMsg]        = useState('')
-  const [channel,    setChannel]    = useState<'president_chef' | 'chef_agent' | 'chef_chef'>('president_chef')
-  const [sending,    setSending]    = useState(false)
+  const [detail, setDetail] = useState<DetailFull | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<'info' | 'history' | 'messages'>('info')
+  const [msg, setMsg] = useState('')
+  const [channel, setChannel] = useState<'president_chef' | 'chef_agent' | 'chef_chef'>('president_chef')
+  const [sending, setSending] = useState(false)
   const [showAssign, setShowAssign] = useState(false)
   const [showRefuse, setShowRefuse] = useState(false)
 
@@ -407,8 +405,8 @@ function DetailDrawer({ decl, agents, onClose, onRefreshed }: {
 
   const CHAN_CFG: Record<string, any> = {
     president_chef: { label: 'Président ↔ Chef', color: '#7C3AED' },
-    chef_agent:     { label: 'Chef ↔ Agent',     color: '#1D4ED8' },
-    chef_chef:      { label: 'Espace Projet (Chefs)', color: '#059669' },
+    chef_agent: { label: 'Chef ↔ Agent', color: '#1D4ED8' },
+    chef_chef: { label: 'Espace Projet (Chefs)', color: '#059669' },
   }
   const endRef = useRef<HTMLDivElement>(null)
   const me = JSON.parse(localStorage.getItem('fmc_user') || '{}')
@@ -440,13 +438,13 @@ function DetailDrawer({ decl, agents, onClose, onRefreshed }: {
         body: JSON.stringify({ content: msg.trim(), channel })
       })
       if (r.ok) { const d = await r.json(); setDetail(p => p ? { ...p, comments: [...p.comments, d.comment] } : p); setMsg('') }
-    } catch {} finally { setSending(false) }
+    } catch { } finally { setSending(false) }
   }
 
-  const d       = detail || decl
-  const photos  = detail?.photos  || []
+  const d = detail || decl
+  const photos = detail?.photos || []
   const history = detail?.history || []
-  const comments= detail?.comments || []
+  const comments = detail?.comments || []
   const filteredComments = comments.filter((c: any) => !c.channel || c.channel === channel)
 
   return (
@@ -508,34 +506,33 @@ function DetailDrawer({ decl, agents, onClose, onRefreshed }: {
           {loading
             ? <div className="space-y-2"><Sk h="h-5" w="w-3/4" /><Sk h="h-3" w="w-1/2" /></div>
             : <>
-                <h2 className="text-base font-black text-[#0A1628] dark:text-white leading-snug">{d.title}</h2>
-                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                  {d.category && <span className="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{getCatEmoji(d.category)} {d.category}</span>}
-                  <PriorityPill priority={d.priority} />
-                  {(d.votes_count || 0) > 0 && (
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-blue-500">
-                      <ThumbsUp className="w-3 h-3" /> {d.votes_count}
-                    </span>
-                  )}
-                  <span className="text-[10px] text-slate-400 font-bold">{fmtDate(decl.created_at)}</span>
-                </div>
-              </>
+              <h2 className="text-base font-black text-[#0A1628] dark:text-white leading-snug">{d.title}</h2>
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                {d.category && <span className="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{getCatEmoji(d.category)} {d.category}</span>}
+                <PriorityPill priority={d.priority} />
+                {(d.votes_count || 0) > 0 && (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-blue-500">
+                    <ThumbsUp className="w-3 h-3" /> {d.votes_count}
+                  </span>
+                )}
+                <span className="text-[10px] text-slate-400 font-bold">{fmtDate(decl.created_at)}</span>
+              </div>
+            </>
           }
         </div>
 
         {/* Tabs */}
         <div className="flex-shrink-0 flex border-b border-slate-100 dark:border-slate-800">
           {([
-            { key: 'info',     label: 'Informations', icon: FileText     },
-            { key: 'history',  label: 'Historique',   icon: History      },
-            { key: 'messages', label: 'Messages',      icon: MessageSquare, badge: filteredComments.length },
+            { key: 'info', label: 'Informations', icon: FileText },
+            { key: 'history', label: 'Historique', icon: History },
+            { key: 'messages', label: 'Messages', icon: MessageSquare, badge: filteredComments.length },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setTab(t.key as any)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black border-b-2 transition-all ${
-                tab === t.key
+              className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-[10px] font-black border-b-2 transition-all ${tab === t.key
                   ? 'border-[#1557FF] text-[#1557FF] dark:text-blue-400'
                   : 'border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600'
-              }`}>
+                }`}>
               <t.icon className="w-3.5 h-3.5" />
               {t.label}
               {'badge' in t && t.badge > 0 && (
@@ -687,7 +684,7 @@ function DetailDrawer({ decl, agents, onClose, onRefreshed }: {
                   const isProject = decl.category === 'Projet' || (decl.shared_departments && decl.shared_departments.length > 0);
                   const channels: Array<'president_chef' | 'chef_agent' | 'chef_chef'> = ['president_chef', 'chef_agent'];
                   if (isProject) channels.push('chef_chef');
-                  
+
                   return channels.map(ch => {
                     const cfg = CHAN_CFG[ch]
                     const active = channel === ch
@@ -716,7 +713,7 @@ function DetailDrawer({ decl, agents, onClose, onRefreshed }: {
                 ) : filteredComments.map((c: any) => {
                   const isMe = c.user?.role === 'chef' || c.user_id === me.id
                   const name = c.user ? `${c.user.first_name?.[0] || ''}${c.user.last_name?.[0] || ''}` : '?'
-                  const cfg  = CHAN_CFG[channel]
+                  const cfg = CHAN_CFG[channel]
                   return (
                     <div key={c.id} className={`flex gap-2.5 ${isMe ? 'flex-row-reverse' : ''}`}>
                       <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white flex-shrink-0"
@@ -726,7 +723,7 @@ function DetailDrawer({ decl, agents, onClose, onRefreshed }: {
                       <div className={`flex flex-col max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
                         <div className={`flex items-center gap-1.5 mb-1 ${isMe ? 'flex-row-reverse' : ''}`}>
                           <span className="text-[10px] font-black text-slate-700 dark:text-slate-300">{isMe ? 'Vous' : c.user ? `${c.user.first_name} ${c.user.last_name}` : '—'}</span>
-                          <span className="text-[9px] text-slate-400">{new Date(c.created_at).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' })}</span>
+                          <span className="text-[9px] text-slate-400">{new Date(c.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         <div className={`px-4 py-2.5 rounded-2xl text-xs font-medium leading-relaxed shadow-sm ${isMe ? 'rounded-tr-sm text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-sm'}`}
                           style={isMe ? { background: cfg.color } : {}}>
@@ -780,25 +777,25 @@ function DetailDrawer({ decl, agents, onClose, onRefreshed }: {
 
 const ChefDeclarations: React.FC = () => {
   const [declarations, setDeclarations] = useState<Decl[]>([])
-  const [agents,       setAgents]       = useState<Agent[]>([])
-  const [loading,      setLoading]      = useState(true)
-  const [refreshing,   setRefreshing]   = useState(false)
-  const [search,       setSearch]       = useState('')
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string[]>([])
-  const [prioFilter,   setPrioFilter]   = useState<string[]>([])
-  const [agentFilter,  setAgentFilter]  = useState<string[]>([])
-  const [dateFilter,   setDateFilter]   = useState('all')
-  const [page,         setPage]         = useState(1)
-  const [selected,     setSelected]     = useState<Decl | null>(null)
-  const [assigning,    setAssigning]    = useState<Decl | null>(null)
-  const [refusing,     setRefusing]     = useState<Decl | null>(null)
+  const [prioFilter, setPrioFilter] = useState<string[]>([])
+  const [agentFilter, setAgentFilter] = useState<string[]>([])
+  const [dateFilter, setDateFilter] = useState('all')
+  const [page, setPage] = useState(1)
+  const [selected, setSelected] = useState<Decl | null>(null)
+  const [assigning, setAssigning] = useState<Decl | null>(null)
+  const [refusing, setRefusing] = useState<Decl | null>(null)
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true); else setRefreshing(true)
     try {
       const [dRes, aRes] = await Promise.all([
         fetch(`${API}/chef/declarations?limit=500`, { headers: hdr() }),
-        fetch(`${API}/chef/agents`,                  { headers: hdr() }),
+        fetch(`${API}/chef/agents`, { headers: hdr() }),
       ])
       if (dRes.ok) { const d = await dRes.json(); setDeclarations(Array.isArray(d) ? d : d.declarations || []) }
       if (aRes.ok) { const d = await aRes.json(); setAgents(d.agents || []) }
@@ -819,9 +816,9 @@ const ChefDeclarations: React.FC = () => {
     // Statut
     if (statusFilter.length > 0) {
       const matches = statusFilter.some(sf => {
-        if (sf === 'refused') return ['refusee_chef','refusee_agent'].includes(d.status)
-        if (sf === 'en_cours') return ['assignee_agent','en_cours'].includes(d.status)
-        if (sf === 'resolue') return ['resolue','cloturee'].includes(d.status)
+        if (sf === 'refused') return ['refusee_chef', 'refusee_agent'].includes(d.status)
+        if (sf === 'en_cours') return ['assignee_agent', 'en_cours'].includes(d.status)
+        if (sf === 'resolue') return ['resolue', 'cloturee'].includes(d.status)
         return d.status === sf
       })
       if (!matches) return false
@@ -831,9 +828,9 @@ const ChefDeclarations: React.FC = () => {
     if (prioFilter.length > 0) {
       const lo = d.priority?.toLowerCase() || ''
       const matches = prioFilter.some(pf => {
-        if (pf === 'haute') return ['haute','high','urgent','urgente'].includes(lo)
-        if (pf === 'moyenne') return ['moyenne','medium'].includes(lo)
-        if (pf === 'basse') return ['basse','low'].includes(lo)
+        if (pf === 'haute') return ['haute', 'high', 'urgent', 'urgente'].includes(lo)
+        if (pf === 'moyenne') return ['moyenne', 'medium'].includes(lo)
+        if (pf === 'basse') return ['basse', 'low'].includes(lo)
         return false
       })
       if (!matches) return false
@@ -853,37 +850,37 @@ const ChefDeclarations: React.FC = () => {
       const dDate = new Date(d.created_at)
       const now = new Date()
       if (dateFilter === 'today' && dDate.toDateString() !== now.toDateString()) return false
-      if (dateFilter === 'week' && (now.getTime() - dDate.getTime()) > 7*24*3600*1000) return false
-      if (dateFilter === 'month' && (now.getTime() - dDate.getTime()) > 30*24*3600*1000) return false
+      if (dateFilter === 'week' && (now.getTime() - dDate.getTime()) > 7 * 24 * 3600 * 1000) return false
+      if (dateFilter === 'month' && (now.getTime() - dDate.getTime()) > 30 * 24 * 3600 * 1000) return false
     }
 
     if (search) {
       const q = search.toLowerCase()
       return d.title.toLowerCase().includes(q)
-          || d.ref_citoyen.toLowerCase().includes(q)
-          || (d.category || '').toLowerCase().includes(q)
+        || d.ref_citoyen.toLowerCase().includes(q)
+        || (d.category || '').toLowerCase().includes(q)
     }
     return true
   })
 
   // Counts for tab bar
   const counts = {
-    all:           declarations.length,
+    all: declarations.length,
     assignee_chef: declarations.filter(d => d.status === 'assignee_chef').length,
-    en_cours:      declarations.filter(d => ['assignee_agent','en_cours'].includes(d.status)).length,
-    resolue:       declarations.filter(d => ['resolue','cloturee'].includes(d.status)).length,
-    refused:       declarations.filter(d => ['refusee_chef','refusee_agent'].includes(d.status)).length,
+    en_cours: declarations.filter(d => ['assignee_agent', 'en_cours'].includes(d.status)).length,
+    resolue: declarations.filter(d => ['resolue', 'cloturee'].includes(d.status)).length,
+    refused: declarations.filter(d => ['refusee_chef', 'refusee_agent'].includes(d.status)).length,
   }
 
   const totalPages = Math.ceil(filtered.length / ROWS)
-  const rows       = filtered.slice((page - 1) * ROWS, page * ROWS)
+  const rows = filtered.slice((page - 1) * ROWS, page * ROWS)
 
   const STATUS_TABS = [
-    { key: 'all',           label: 'Toutes',       count: counts.all           },
-    { key: 'assignee_chef', label: 'À traiter',    count: counts.assignee_chef },
-    { key: 'en_cours',      label: 'En cours',     count: counts.en_cours      },
-    { key: 'resolue',       label: 'Terminées',    count: counts.resolue       },
-    { key: 'refused',       label: 'Refusées',     count: counts.refused       },
+    { key: 'all', label: 'Toutes', count: counts.all },
+    { key: 'assignee_chef', label: 'À traiter', count: counts.assignee_chef },
+    { key: 'en_cours', label: 'En cours', count: counts.en_cours },
+    { key: 'resolue', label: 'Terminées', count: counts.resolue },
+    { key: 'refused', label: 'Refusées', count: counts.refused },
   ]
 
   return (
@@ -908,7 +905,7 @@ const ChefDeclarations: React.FC = () => {
             <button onClick={() => {
               fetch(`${API}/chef/export`, { headers: hdr() })
                 .then(r => r.ok ? r.blob() : null)
-                .then(b => { if (!b) return; const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href=u; a.download=`declarations-${new Date().toISOString().slice(0,10)}.csv`; a.click() })
+                .then(b => { if (!b) return; const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `declarations-${new Date().toISOString().slice(0, 10)}.csv`; a.click() })
             }}
               className="flex items-center gap-2 px-4 py-2.5 bg-[#1557FF] text-white rounded-xl text-xs font-black shadow-sm shadow-blue-100 hover:bg-blue-600 transition-all">
               <Download className="w-3.5 h-3.5" /> CSV
@@ -923,22 +920,22 @@ const ChefDeclarations: React.FC = () => {
           <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
             {/* Filters */}
             <div className="flex items-center gap-2 flex-wrap">
-              <FilterDropdown multi label="Statuts" icon={Activity} value={statusFilter} onChange={(v:any) => { setStatusFilter(v); setPage(1) }} options={[
+              <FilterDropdown multi label="Statuts" icon={Activity} value={statusFilter} onChange={(v: any) => { setStatusFilter(v); setPage(1) }} options={[
                 { value: 'assignee_chef', label: 'À traiter', dot: '#F59E0B' },
                 { value: 'en_cours', label: 'En cours', dot: '#1557FF' },
                 { value: 'resolue', label: 'Résolue', dot: '#10B981' },
                 { value: 'refused', label: 'Refusée', dot: '#EF4444' },
               ]} />
-              <FilterDropdown multi label="Priorités" icon={Zap} value={prioFilter} onChange={(v:any) => { setPrioFilter(v); setPage(1) }} options={[
+              <FilterDropdown multi label="Priorités" icon={Zap} value={prioFilter} onChange={(v: any) => { setPrioFilter(v); setPage(1) }} options={[
                 { value: 'haute', label: 'Haute', dot: '#EF4444' },
                 { value: 'moyenne', label: 'Moyenne', dot: '#F59E0B' },
                 { value: 'basse', label: 'Basse', dot: '#10B981' },
               ]} />
-              <FilterDropdown multi label="Agents" icon={User} value={agentFilter} onChange={(v:any) => { setAgentFilter(v); setPage(1) }} options={[
+              <FilterDropdown multi label="Agents" icon={User} value={agentFilter} onChange={(v: any) => { setAgentFilter(v); setPage(1) }} options={[
                 { value: 'unassigned', label: 'Non assigné' },
                 ...agents.map(a => ({ value: a.id, label: `${a.first_name} ${a.last_name}` }))
               ]} />
-              <FilterDropdown label="Date" icon={Calendar} value={dateFilter} onChange={(v:any) => { setDateFilter(v); setPage(1) }} options={[
+              <FilterDropdown label="Date" icon={Calendar} value={dateFilter} onChange={(v: any) => { setDateFilter(v); setPage(1) }} options={[
                 { value: 'all', label: 'Toutes les dates' },
                 { value: 'today', label: "Aujourd'hui" },
                 { value: 'week', label: '7 derniers jours' },
@@ -987,9 +984,9 @@ const ChefDeclarations: React.FC = () => {
           ) : (
             <div className="divide-y divide-slate-50 dark:divide-slate-800/30">
               {rows.map((d, i) => {
-                const agent     = agentOf(d)
+                const agent = agentOf(d)
                 const canAction = d.status === 'assignee_chef'
-                const imgSrc    = d.photo_avant || d.image_url
+                const imgSrc = d.photo_avant || d.image_url
 
                 return (
                   <div key={d.id}
@@ -1081,28 +1078,27 @@ const ChefDeclarations: React.FC = () => {
           {!loading && filtered.length > ROWS && (
             <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
               <p className="text-[10px] font-black text-slate-400 dark:text-slate-500">
-                {(page-1)*ROWS+1}–{Math.min(page*ROWS, filtered.length)} sur {filtered.length}
+                {(page - 1) * ROWS + 1}–{Math.min(page * ROWS, filtered.length)} sur {filtered.length}
               </p>
               <div className="flex items-center gap-1">
-                <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1}
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
                   className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                  const p = Math.max(1, Math.min(page-2, totalPages-4)) + i
+                  const p = Math.max(1, Math.min(page - 2, totalPages - 4)) + i
                   if (p < 1 || p > totalPages) return null
                   return (
                     <button key={p} onClick={() => setPage(p)}
-                      className={`w-8 h-8 rounded-lg border text-[11px] font-black transition-all ${
-                        p === page
+                      className={`w-8 h-8 rounded-lg border text-[11px] font-black transition-all ${p === page
                           ? 'bg-[#1557FF] text-white border-[#1557FF] shadow-sm'
                           : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      }`}>
+                        }`}>
                       {p}
                     </button>
                   )
                 })}
-                <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page >= totalPages}
+                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
                   className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -1113,9 +1109,9 @@ const ChefDeclarations: React.FC = () => {
       </div>
 
       {/* Modals / drawer */}
-      {selected  && <DetailDrawer decl={selected} agents={agents} onClose={() => setSelected(null)} onRefreshed={() => { load(true); setSelected(null) }} />}
-      {assigning && <AssignModal  decl={assigning} agents={agents} onClose={() => setAssigning(null)} onDone={() => load(true)} />}
-      {refusing  && <RefuseModal  decl={refusing}  onClose={() => setRefusing(null)} onDone={() => load(true)} />}
+      {selected && <DetailDrawer decl={selected} agents={agents} onClose={() => setSelected(null)} onRefreshed={() => { load(true); setSelected(null) }} />}
+      {assigning && <AssignModal decl={assigning} agents={agents} onClose={() => setAssigning(null)} onDone={() => load(true)} />}
+      {refusing && <RefuseModal decl={refusing} onClose={() => setRefusing(null)} onDone={() => load(true)} />}
     </ChefLayout>
   )
 }

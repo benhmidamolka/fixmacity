@@ -140,8 +140,8 @@ const ChatbotWidget: React.FC = () => {
 
       {/* ── Chat window ── */}
       {open && (
-        <div className="fixed bottom-6 right-6 z-[2000] flex flex-col rounded-3xl shadow-2xl overflow-hidden"
-          style={{ width:'360px', height: minimized ? '64px' : '540px', background:'white', border:'1px solid #e2e8f0' }}>
+        <div className="fixed bottom-6 right-6 z-[2000] flex flex-col rounded-3xl shadow-2xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+          style={{ width:'360px', height: minimized ? '64px' : '540px' }}>
 
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0" style={{ background:'#1557FF' }}>
@@ -170,7 +170,7 @@ const ChatbotWidget: React.FC = () => {
           {!minimized && (
             <>
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 dark:bg-slate-900">
                 {messages.map((msg, i) => (
                   <div key={i} className={`flex gap-2 items-end ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                     {msg.role === 'assistant' && (
@@ -186,7 +186,7 @@ const ChatbotWidget: React.FC = () => {
                       <div className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
                         msg.role === 'user'
                           ? 'rounded-br-none text-white'
-                          : 'bg-white text-slate-700 rounded-bl-none shadow-sm border border-slate-100'
+                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-bl-none shadow-sm border border-slate-100 dark:border-slate-700'
                       }`} style={msg.role === 'user' ? { background:'#1557FF' } : {}}>
                         {msg.content}
                         <p className={`text-[10px] mt-1 ${msg.role === 'user' ? 'text-white/60 text-right' : 'text-slate-400'}`}>
@@ -200,10 +200,10 @@ const ChatbotWidget: React.FC = () => {
                 {/* Typing indicator */}
                 {loading && (
                   <div className="flex gap-2 items-end">
-                    <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-slate-200">
+                    <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-slate-200 dark:bg-slate-700">
                       <img src={chatbotImg} alt="Baladia" className="w-full h-full object-cover" />
                     </div>
-                    <div className="bg-white border border-slate-100 rounded-2xl rounded-bl-none px-4 py-3 shadow-sm">
+                    <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl rounded-bl-none px-4 py-3 shadow-sm">
                       <div className="flex gap-1 items-center">
                         {[0,1,2].map(i => (
                           <div key={i} className="w-2 h-2 rounded-full bg-slate-300 animate-bounce"
@@ -218,10 +218,10 @@ const ChatbotWidget: React.FC = () => {
 
               {/* Suggestions */}
               {messages.length === 1 && (
-                <div className="px-3 py-2 bg-slate-50 border-t border-slate-100 flex gap-2 overflow-x-auto">
+                <div className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex gap-2 overflow-x-auto">
                   {SUGGESTIONS.map(s => (
                     <button key={s} onClick={() => sendMessage(s)}
-                      className="flex-shrink-0 bg-white border border-slate-200 text-slate-600 text-[11px] font-semibold px-3 py-1.5 rounded-full hover:border-[#1557FF] hover:text-[#1557FF] transition-all whitespace-nowrap">
+                      className="flex-shrink-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[11px] font-semibold px-3 py-1.5 rounded-full hover:border-[#1557FF] dark:hover:border-[#1557FF] hover:text-[#1557FF] transition-all whitespace-nowrap">
                       {s}
                     </button>
                   ))}
@@ -229,7 +229,7 @@ const ChatbotWidget: React.FC = () => {
               )}
 
               {/* AI photo hint */}
-              <div className="px-4 py-1.5 bg-blue-50 border-t border-blue-100 flex items-center gap-2">
+              <div className="px-4 py-1.5 bg-blue-50 dark:bg-blue-900/20 border-t border-blue-100 dark:border-blue-900/30 flex items-center gap-2">
                 <Camera className="w-3.5 h-3.5 text-[#1557FF] flex-shrink-0" />
                 <p className="text-[11px] text-[#1557FF] font-medium">
                   Envoyez une photo — l'IA identifie le problème automatiquement
@@ -237,14 +237,14 @@ const ChatbotWidget: React.FC = () => {
               </div>
 
               {/* Input bar */}
-              <div className="flex items-center gap-2 px-3 py-3 bg-white border-t border-slate-100">
+              <div className="flex items-center gap-2 px-3 py-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
                 {/* Hidden file input */}
                 <input ref={fileRef} type="file" accept="image/*" className="hidden"
                   onChange={e => e.target.files?.[0] && handlePhoto(e.target.files[0])} />
 
                 {/* Camera button */}
                 <button onClick={() => fileRef.current?.click()} disabled={loading}
-                  className="p-2.5 text-slate-400 hover:text-[#1557FF] hover:bg-blue-50 rounded-xl transition-all flex-shrink-0 disabled:opacity-40"
+                  className="p-2.5 text-slate-400 dark:text-slate-500 hover:text-[#1557FF] dark:hover:text-[#1557FF] hover:bg-blue-50 dark:hover:bg-slate-800 rounded-xl transition-all flex-shrink-0 disabled:opacity-40"
                   title="Envoyer une photo">
                   <Camera className="w-5 h-5" />
                 </button>
@@ -254,7 +254,7 @@ const ChatbotWidget: React.FC = () => {
                   onKeyDown={handleKeyDown}
                   placeholder="Écrire un message..."
                   disabled={loading}
-                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-[#1557FF] transition-all disabled:opacity-50"
+                  className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-[#1557FF] transition-all disabled:opacity-50"
                 />
 
                 <button onClick={() => sendMessage(input)}

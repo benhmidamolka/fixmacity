@@ -89,13 +89,13 @@ function OutOfBoundsModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       style={{ background: 'rgba(10,22,40,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}>
-      <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-6 text-center"
+      <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm shadow-2xl p-6 text-center"
         onClick={e => e.stopPropagation()}>
         <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
           <MapPin className="w-7 h-7 text-red-500" />
         </div>
-        <h3 className="text-lg font-bold text-[#0A1628] mb-2">Localisation non valide</h3>
-        <p className="text-slate-600 text-sm mb-6 leading-relaxed">
+        <h3 className="text-lg font-bold text-[#0A1628] dark:text-white mb-2">Localisation non valide</h3>
+        <p className="text-slate-600 dark:text-slate-300 text-sm mb-6 leading-relaxed">
           Cette localisation n'appartient pas aux arrondissements de la <strong>Municipalité de Sousse</strong>. 
           Veuillez sélectionner un emplacement valide (Sousse Médina, Riadh, Jawhara, ou Sidi Abdelhamid).
         </p>
@@ -245,9 +245,9 @@ function Step1({ data, onChange, onNext, delegations }: any) {
   return (
     <div className="flex flex-col gap-0">
 
-      <div className="bg-white px-4 py-3 border-b border-slate-100">
+      <div className="bg-white dark:bg-slate-900 px-4 py-3 border-b border-slate-50 dark:border-slate-800 border-slate-100 dark:border-slate-800">
         <p className="text-xs text-slate-400 font-medium">Étape 1 sur 4 · Localisation</p>
-        <p className="text-sm font-semibold text-[#0A1628] mt-0.5">Où se trouve le problème ?</p>
+        <p className="text-sm font-semibold text-[#0A1628] dark:text-white mt-0.5">Où se trouve le problème ?</p>
 
         {/* Search Bar */}
         <div className="relative mt-3">
@@ -259,34 +259,34 @@ function Step1({ data, onChange, onNext, delegations }: any) {
               onChange={e => handleSearch(e.target.value)}
               onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
               placeholder="Ex: rue Ibn Khaldoun, Bourguiba, Medina..."
-              className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1557FF] transition-all"
+              className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm outline-none focus:border-[#1557FF] transition-all"
             />
             {loading && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="w-4 h-4 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-b border-slate-50 dark:border-slate-800lue-500/20 border-t-blue-500 rounded-full animate-spin" />
               </div>
             )}
           </div>
 
           {showSuggestions && (
-            <div className="absolute top-full left-0 right-0 z-[1001] mt-1 bg-white border border-slate-100 shadow-xl rounded-xl overflow-hidden">
+            <div className="absolute top-full left-0 right-0 z-[1001] mt-1 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl rounded-xl overflow-hidden">
               {suggestions.length > 0 ? (
                 suggestions.map((s, i) => (
                   <button
                     key={i}
                     onClick={() => selectSuggestion(s)}
-                    className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 border-b border-slate-50 last:border-0 flex items-start gap-3 transition-colors"
+                    className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 border-b border-slate-50 dark:border-slate-800 last:border-0 flex items-start gap-3 transition-colors"
                   >
                     <MapPin className="w-4 h-4 text-[#1557FF] mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="truncate font-medium text-[#0A1628]">{s.display_name.split(',').slice(0,2).join(',')}</p>
+                      <p className="truncate font-medium text-[#0A1628] dark:text-white">{s.display_name.split(',').slice(0,2).join(',')}</p>
                       <p className="text-[11px] text-slate-400 truncate">{s.display_name.split(',').slice(2,4).join(',')}</p>
                     </div>
                   </button>
                 ))
               ) : (
                 <div className="px-4 py-4 text-center">
-                  <p className="text-sm text-slate-500">Aucun résultat dans les arrondissements de Sousse.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Aucun résultat dans les arrondissements de Sousse.</p>
                   <p className="text-xs text-slate-400 mt-1">Essayez : avenue, rue, quartier, place...</p>
                 </div>
               )}
@@ -341,12 +341,12 @@ function Step1({ data, onChange, onNext, delegations }: any) {
         </MapContainer>
 
         <button onClick={useMyLocation}
-          className="absolute top-3 left-3 z-[999] flex items-center gap-2 bg-white/95 text-[#1557FF] font-bold text-[11px] px-3 py-2 rounded-full shadow-md border border-white hover:bg-blue-50 transition-all">
+          className="absolute top-3 left-3 z-[999] flex items-center gap-2 bg-white dark:bg-slate-900/95 text-[#1557FF] font-bold text-[11px] px-3 py-2 rounded-full shadow-md border border-white hover:bg-blue-50 transition-all">
           <Crosshair className="w-3 h-3" /> Ma position
         </button>
 
         {!data.latitude && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[999] bg-white/90 backdrop-blur-sm text-slate-600 text-xs font-medium px-4 py-2 rounded-full shadow-md border border-slate-100">
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[999] bg-white dark:bg-slate-900/90 backdrop-blur-sm text-slate-600 dark:text-slate-300 text-xs font-medium px-4 py-2 rounded-full shadow-md border border-slate-100 dark:border-slate-800">
             🗺️ Cliquez sur la carte ou recherchez une adresse
           </div>
         )}
@@ -356,15 +356,15 @@ function Step1({ data, onChange, onNext, delegations }: any) {
         )}
       </div>
 
-      <div className="bg-white px-4 py-4 space-y-3">
+      <div className="bg-white dark:bg-slate-900 px-4 py-4 space-y-3">
         {data.address && (
-          <div className="flex items-center gap-3 bg-blue-50/60 rounded-xl px-3 py-3 border border-blue-100/60">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+          <div className="flex items-center gap-3 bg-blue-50/60 rounded-xl px-3 py-3 border border-b border-slate-50 dark:border-slate-800lue-100/60">
+            <div className="w-8 h-8 bg-white dark:bg-slate-900 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
               <MapPin className="w-4 h-4 text-[#1557FF]" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Lieu sélectionné</p>
-              <p className="text-sm font-semibold text-[#0A1628] truncate">{data.address}</p>
+              <p className="text-sm font-semibold text-[#0A1628] dark:text-white truncate">{data.address}</p>
               {detectedName && (
                 <p className="text-[11px] text-green-600 font-semibold mt-0.5">
                   ✓ {detectedName}
@@ -377,7 +377,7 @@ function Step1({ data, onChange, onNext, delegations }: any) {
         {/* If arrondissement not auto-detected, show manual selector */}
         {!detectedName && (
           <select value={data.delegation_id || ''} onChange={e => onChange({ delegation_id: e.target.value })}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm text-[#0A1628] outline-none focus:border-[#1557FF] transition-all appearance-none cursor-pointer">
+            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3.5 text-sm text-[#0A1628] dark:text-white outline-none focus:border-[#1557FF] transition-all appearance-none cursor-pointer">
             <option value="" disabled>Sélectionner l'arrondissement concerné *</option>
             {delegations.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
@@ -455,8 +455,8 @@ function Step2({ data, onChange, onNext, onBack }: any) {
     <div className="p-6">
       {showDuplicates && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 relative flex flex-col max-h-[80vh]">
-            <button onClick={() => setShowDuplicates(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md shadow-2xl p-6 relative flex flex-col max-h-[80vh]">
+            <button onClick={() => setShowDuplicates(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:text-slate-300">
               <X className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-3 mb-4">
@@ -464,27 +464,27 @@ function Step2({ data, onChange, onNext, onBack }: any) {
                 <AlertCircle className="w-5 h-5 text-amber-500" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-[#0A1628]">Ce problème a déjà été signalé</h3>
-                <p className="text-xs text-slate-500">Un problème identique existe déjà à cet emplacement exact. Souhaitez-vous le soutenir pour augmenter sa priorité ?</p>
+                <h3 className="text-lg font-bold text-[#0A1628] dark:text-white">Ce problème a déjà été signalé</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Un problème identique existe déjà à cet emplacement exact. Souhaitez-vous le soutenir pour augmenter sa priorité ?</p>
               </div>
             </div>
             
             <div className="overflow-y-auto pr-1 mb-4 space-y-3">
               {duplicates.map(d => (
-                <div key={d.id} className="border border-slate-200 rounded-xl p-3 bg-slate-50">
+                <div key={d.id} className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-800">
                   <div className="flex justify-between items-start mb-2">
                     <p className="text-sm font-bold text-slate-800">{d.title}</p>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-100 text-blue-700">{d.category}</span>
                   </div>
                   <button onClick={() => handleSupport(d.id)}
-                    className="w-full py-2 bg-white border border-[#1557FF] text-[#1557FF] text-xs font-bold rounded-lg hover:bg-blue-50 transition-all">
+                    className="w-full py-2 bg-white dark:bg-slate-900 border border-[#1557FF] text-[#1557FF] text-xs font-bold rounded-lg hover:bg-blue-50 transition-all">
                     👍 Soutenir cette déclaration
                   </button>
                 </div>
               ))}
             </div>
 
-            <div className="border-t border-slate-100 pt-4 mt-auto">
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-4 mt-auto">
               <button onClick={() => { setShowDuplicates(false); onNext(); }}
                 className="w-full py-3 bg-[#0A1628] text-white text-sm font-bold rounded-xl hover:bg-[#152a4d] transition-all">
                 Non, créer une nouvelle déclaration
@@ -494,15 +494,15 @@ function Step2({ data, onChange, onNext, onBack }: any) {
         </div>
       )}
 
-      <h2 className="text-2xl font-bold text-[#0A1628] mb-1">De quel type de problème s'agit-il ?</h2>
-      <p className="text-slate-500 text-sm mb-6">Choisissez la catégorie la plus proche</p>
+      <h2 className="text-2xl font-bold text-[#0A1628] dark:text-white mb-1">De quel type de problème s'agit-il ?</h2>
+      <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">Choisissez la catégorie la plus proche</p>
       <div className="grid grid-cols-3 gap-3 mb-6">
         {CATEGORIES.map(cat => (
           <button key={cat.id} type="button" onClick={() => onChange({ category: cat.id })}
             className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all ${
               data.category === cat.id
                 ? 'border-[#1557FF] bg-blue-50 text-[#1557FF]'
-                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-slate-300'
             }`}>
             <span className="text-2xl">{cat.emoji}</span>
             <span className="text-xs font-bold leading-tight text-center">{cat.label}</span>
@@ -511,14 +511,14 @@ function Step2({ data, onChange, onNext, onBack }: any) {
         ))}
       </div>
       <div className="mb-6">
-        <p className="text-sm font-bold text-[#0A1628] mb-3">Niveau d'urgence</p>
+        <p className="text-sm font-bold text-[#0A1628] dark:text-white mb-3">Niveau d'urgence</p>
         <div className="flex gap-2">
           {URGENCY.map(u => (
             <button key={u.id} type="button" onClick={() => onChange({ urgency: u.id })}
               className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
                 data.urgency === u.id
                   ? 'border-[#F59E0B] bg-amber-50 text-amber-600'
-                  : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                  : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300'
               }`}>
               {u.label}
             </button>
@@ -527,7 +527,7 @@ function Step2({ data, onChange, onNext, onBack }: any) {
       </div>
       <div className="flex gap-3">
         <button onClick={onBack} disabled={loading}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all disabled:opacity-50">
+          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all disabled:opacity-50">
           <ArrowLeft className="w-4 h-4" /> Précédent
         </button>
         <button onClick={handleNext} disabled={loading}
@@ -546,22 +546,22 @@ function SimilarModal({ data, onIgnore, onVote }: { data: any; onIgnore: () => v
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       style={{ background: 'rgba(10,22,40,0.6)', backdropFilter: 'blur(4px)' }}>
-      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-6 text-center">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md shadow-2xl p-6 text-center">
         <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
           <Copy className="w-7 h-7 text-[#1557FF]" />
         </div>
-        <h3 className="text-lg font-bold text-[#0A1628] mb-2">Signalements similaires trouvés</h3>
-        <p className="text-slate-600 text-sm mb-4">
+        <h3 className="text-lg font-bold text-[#0A1628] dark:text-white mb-2">Signalements similaires trouvés</h3>
+        <p className="text-slate-600 dark:text-slate-300 text-sm mb-4">
           Un signalement très similaire a déjà été soumis récemment à proximité. Pour une prise en charge plus rapide, vous pouvez simplement voter pour celui-ci.
         </p>
-        <div className="bg-slate-50 rounded-xl p-4 text-left border border-slate-100 mb-6">
+        <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 text-left border border-slate-100 dark:border-slate-800 mb-6">
           <p className="text-xs font-bold text-[#1557FF] mb-1">{data.category || 'Catégorie'}</p>
-          <p className="text-sm font-semibold text-[#0A1628] mb-1">{data.title || 'Problème signalé'}</p>
-          <p className="text-xs text-slate-500 line-clamp-1">{data.address || 'Adresse proche'}</p>
+          <p className="text-sm font-semibold text-[#0A1628] dark:text-white mb-1">{data.title || 'Problème signalé'}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{data.address || 'Adresse proche'}</p>
         </div>
         <div className="flex gap-3">
           <button onClick={onIgnore}
-            className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all">
+            className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
             Créer quand même
           </button>
           <button onClick={() => { onVote(); navigate('/mes-signalements') }}
@@ -668,13 +668,13 @@ function Step3({ data, onChange, onNext, onBack, autoFile }: any) {
     <div className="p-6">
       {showSimilar && <SimilarModal data={data} onIgnore={() => { setShowSimilar(false); onNext(); }} onVote={() => { toast.success("Vote enregistré !"); }} />}
       
-      <h2 className="text-2xl font-bold text-[#0A1628] mb-1">Décrivez le problème</h2>
-      <p className="text-slate-500 text-sm mb-6">Ajoutez une photo (optionnel) pour que l'IA remplisse automatiquement les champs.</p>
+      <h2 className="text-2xl font-bold text-[#0A1628] dark:text-white mb-1">Décrivez le problème</h2>
+      <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">Ajoutez une photo (optionnel) pour que l'IA remplisse automatiquement les champs.</p>
 
       <div className="space-y-5">
         {/* Photo upload — first so AI fills fields below */}
         <div>
-          <label className="text-sm font-bold text-[#0A1628] block mb-2">
+          <label className="text-sm font-bold text-[#0A1628] dark:text-white block mb-2">
             Photo du problème <span className="text-slate-400 font-normal text-xs">(Optionnel)</span>
             <span className="ml-2 text-[#1557FF] text-xs font-semibold">✨ Analyse IA automatique</span>
           </label>
@@ -703,7 +703,7 @@ function Step3({ data, onChange, onNext, onBack, autoFile }: any) {
           ) : (
             <label
               className={`flex flex-col items-center justify-center h-40 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
-                dragging ? 'border-[#1557FF] bg-blue-50' : 'border-slate-200 bg-slate-50 hover:border-[#1557FF] hover:bg-blue-50'
+                dragging ? 'border-[#1557FF] bg-blue-50' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:border-[#1557FF] hover:bg-blue-50'
               }`}
               onDragOver={e => { e.preventDefault(); setDragging(true) }}
               onDragLeave={() => setDragging(false)}
@@ -713,7 +713,7 @@ function Step3({ data, onChange, onNext, onBack, autoFile }: any) {
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3">
                 <Camera className="w-5 h-5 text-[#1557FF]" />
               </div>
-              <p className="text-sm font-semibold text-slate-600">Glissez une photo ici</p>
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Glissez une photo ici</p>
               <p className="text-xs text-slate-400 mt-0.5">ou cliquez pour parcourir</p>
               <p className="text-xs text-[#1557FF] font-semibold mt-2">✨ L'IA remplira les champs automatiquement</p>
             </label>
@@ -723,7 +723,7 @@ function Step3({ data, onChange, onNext, onBack, autoFile }: any) {
         {/* Title */}
         <div>
           <div className="flex justify-between mb-1.5">
-            <label className="text-sm font-bold text-[#0A1628]">
+            <label className="text-sm font-bold text-[#0A1628] dark:text-white">
               Titre du signalement *
               {aiDone && <span className="ml-2 text-[10px] text-[#1557FF] font-bold bg-blue-50 px-1.5 py-0.5 rounded-full">IA</span>}
             </label>
@@ -732,13 +732,13 @@ function Step3({ data, onChange, onNext, onBack, autoFile }: any) {
           <input value={data.title || ''} onChange={e => onChange({ title: e.target.value.slice(0, 100) })}
             placeholder={analyzing ? 'Analyse en cours...' : 'Ex: Nid de poule profond avenue Habib Bourguiba'}
             disabled={analyzing}
-            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-[#0A1628] placeholder-slate-400 outline-none focus:border-[#1557FF] transition-all disabled:opacity-50" />
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-[#0A1628] dark:text-white placeholder-slate-400 outline-none focus:border-[#1557FF] transition-all disabled:opacity-50" />
         </div>
 
         {/* Description */}
         <div>
           <div className="flex justify-between mb-1.5">
-            <label className="text-sm font-bold text-[#0A1628]">
+            <label className="text-sm font-bold text-[#0A1628] dark:text-white">
               Description *
               {aiDone && <span className="ml-2 text-[10px] text-[#1557FF] font-bold bg-blue-50 px-1.5 py-0.5 rounded-full">IA</span>}
             </label>
@@ -747,7 +747,7 @@ function Step3({ data, onChange, onNext, onBack, autoFile }: any) {
           <textarea value={data.description || ''} onChange={e => onChange({ description: e.target.value.slice(0, 500) })}
             placeholder={analyzing ? 'Analyse en cours...' : "Donnez plus de détails sur l'urgence ou la situation..."}
             rows={4} disabled={analyzing}
-            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-[#0A1628] placeholder-slate-400 outline-none focus:border-[#1557FF] transition-all resize-none disabled:opacity-50" />
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-[#0A1628] dark:text-white placeholder-slate-400 outline-none focus:border-[#1557FF] transition-all resize-none disabled:opacity-50" />
           <p className="text-xs text-[#1557FF] mt-1 flex items-center gap-1">
             <span>📍</span> Conseil : mentionnez si c'est dangereux
           </p>
@@ -755,25 +755,25 @@ function Step3({ data, onChange, onNext, onBack, autoFile }: any) {
 
         {/* Critical Infrastructure Checkbox */}
         <div>
-          <label className="flex items-start gap-3 p-4 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-all">
+          <label className="flex items-start gap-3 p-4 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
             <div className="pt-0.5">
               <input type="checkbox" className="w-4 h-4 rounded text-[#1557FF] focus:ring-[#1557FF]" 
                 checked={data.has_critical_infrastructure || false}
                 onChange={e => onChange({ has_critical_infrastructure: e.target.checked, sensitive_type: e.target.checked ? 'ecole' : '' })} />
             </div>
             <div>
-              <p className="text-sm font-bold text-[#0A1628]">Lieu sensible à proximité ?</p>
-              <p className="text-xs text-slate-500 mt-0.5">Cochez cette case si le problème se trouve près d'une école, d'un hôpital, d'une clinique ou d'une mosquée.</p>
+              <p className="text-sm font-bold text-[#0A1628] dark:text-white">Lieu sensible à proximité ?</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Cochez cette case si le problème se trouve près d'une école, d'un hôpital, d'une clinique ou d'une mosquée.</p>
             </div>
           </label>
           
           {data.has_critical_infrastructure && (
             <div className="mt-3 ml-11">
-              <label className="text-sm font-bold text-[#0A1628] block mb-1.5">Précisez le type de lieu :</label>
+              <label className="text-sm font-bold text-[#0A1628] dark:text-white block mb-1.5">Précisez le type de lieu :</label>
               <select 
                 value={data.sensitive_type || 'ecole'} 
                 onChange={e => onChange({ sensitive_type: e.target.value })}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-[#0A1628] outline-none focus:border-[#1557FF] transition-all"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-[#0A1628] dark:text-white outline-none focus:border-[#1557FF] transition-all"
               >
                 <option value="ecole">École / Lycée / Université</option>
                 <option value="hopital">Hôpital / Clinique / Centre de santé</option>
@@ -798,7 +798,7 @@ function Step3({ data, onChange, onNext, onBack, autoFile }: any) {
 
         {/* Sensitive area detected by AI */}
         {data.near_sensitive_area && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-3">
+          <div className="bg-blue-50 border border-b border-slate-50 dark:border-slate-800lue-200 rounded-xl p-3 flex items-start gap-3">
             <span className="text-blue-500 text-lg flex-shrink-0">🏥</span>
             <div>
               <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-0.5">Zone sensible détectée</p>
@@ -819,7 +819,7 @@ function Step3({ data, onChange, onNext, onBack, autoFile }: any) {
 
       <div className="flex gap-3 mt-6">
         <button onClick={onBack}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all">
+          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
           <ArrowLeft className="w-4 h-4" /> Précédent
         </button>
         <button onClick={handleNext} disabled={analyzing}
@@ -849,20 +849,20 @@ function Step4({ data, onSubmit, onBack, loading, delegations }: any) {
     <div className="p-6">
       <ProgressBar step={4} total={4} />
       <p className="text-right text-xs text-slate-400 mt-1 mb-4">Étape 4 sur 4</p>
-      <h2 className="text-2xl font-bold text-[#0A1628] mb-1">Vérifiez votre signalement</h2>
-      <p className="text-slate-500 text-sm mb-6">Assurez-vous que toutes les informations sont correctes avant l'envoi.</p>
+      <h2 className="text-2xl font-bold text-[#0A1628] dark:text-white mb-1">Vérifiez votre signalement</h2>
+      <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">Assurez-vous que toutes les informations sont correctes avant l'envoi.</p>
       <div className="space-y-3 mb-6">
-        <div className="bg-white border border-slate-100 rounded-2xl p-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4">
           <p className="text-[10px] font-bold text-[#1557FF] uppercase tracking-wider flex items-center gap-1 mb-2">
             <MapPin className="w-3 h-3" /> Localisation
           </p>
-          <p className="text-sm font-semibold text-[#0A1628]">{data.address}</p>
+          <p className="text-sm font-semibold text-[#0A1628] dark:text-white">{data.address}</p>
           <p className="text-xs text-slate-400 mt-0.5">{delegations.find((d: any) => d.id === data.delegation_id)?.name}</p>
         </div>
-        <div className="bg-white border border-slate-100 rounded-2xl p-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4">
           <p className="text-[10px] font-bold text-[#1557FF] uppercase tracking-wider mb-2">Catégorie & urgence</p>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="bg-slate-100 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-full">
+            <span className="bg-slate-100 dark:bg-slate-700 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-full">
               {catInfo?.emoji} {catInfo?.label}
             </span>
             {data.urgency && (
@@ -877,13 +877,13 @@ function Step4({ data, onSubmit, onBack, loading, delegations }: any) {
             )}
           </div>
         </div>
-        <div className="bg-white border border-slate-100 rounded-2xl p-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4">
           <p className="text-[10px] font-bold text-[#1557FF] uppercase tracking-wider mb-2">Description</p>
-          <p className="text-sm font-semibold text-[#0A1628] mb-1">{data.title}</p>
-          <p className="text-sm text-slate-500 line-clamp-3">{data.description}</p>
+          <p className="text-sm font-semibold text-[#0A1628] dark:text-white mb-1">{data.title}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-3">{data.description}</p>
         </div>
         {data.photo && (
-          <div className="bg-white border border-slate-100 rounded-2xl p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4">
             <p className="text-[10px] font-bold text-[#1557FF] uppercase tracking-wider mb-2">
               <Camera className="w-3 h-3 inline mr-1" /> Photo
             </p>
@@ -898,7 +898,7 @@ function Step4({ data, onSubmit, onBack, loading, delegations }: any) {
       </div>
       <div className="flex gap-3">
         <button onClick={onBack}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-all">
+          className="flex items-center gap-2 px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
           <ArrowLeft className="w-4 h-4" /> Modifier
         </button>
         <button onClick={handleFinalSubmit} disabled={loading}
@@ -923,11 +923,11 @@ function SuccessScreen({ ref_citoyen, onNew }: { ref_citoyen: string; onNew: () 
       <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mb-6">
         <CheckCircle className="w-10 h-10 text-[#1557FF]" />
       </div>
-      <h2 className="text-2xl font-bold text-[#0A1628] mb-2">Signalement envoyé ! 🎉</h2>
-      <p className="text-slate-500 text-sm mb-8 max-w-xs">
+      <h2 className="text-2xl font-bold text-[#0A1628] dark:text-white mb-2">Signalement envoyé ! 🎉</h2>
+      <p className="text-slate-500 dark:text-slate-400 text-sm mb-8 max-w-xs">
         Merci pour votre contribution à Sousse ! Votre signalement a été transmis aux services techniques municipaux.
       </p>
-      <div className="w-full max-w-sm bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-4">
+      <div className="w-full max-w-sm bg-blue-50 border border-b border-slate-50 dark:border-slate-800lue-100 rounded-2xl p-5 mb-4">
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Référence du ticket</p>
         <p className="text-2xl font-extrabold text-[#1557FF] font-mono mb-3">{ref_citoyen}</p>
         <button onClick={copy} className="flex items-center gap-2 mx-auto text-sm font-semibold text-[#1557FF] hover:text-blue-800 transition-colors">
@@ -937,7 +937,7 @@ function SuccessScreen({ ref_citoyen, onNew }: { ref_citoyen: string; onNew: () 
       <div className="w-full max-w-sm flex items-center justify-between px-4 mb-8">
         {['Soumis', 'En traitement', 'Résolu'].map((step, i) => (
           <div key={step} className="flex flex-col items-center gap-1.5">
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 ${i === 0 ? 'bg-[#1557FF] border-[#1557FF]' : 'bg-white border-slate-200'}`}>
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 ${i === 0 ? 'bg-[#1557FF] border-[#1557FF]' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'}`}>
               {i === 0 ? <CheckCircle className="w-4 h-4 text-white" /> : <div className="w-3 h-3 rounded-full border border-slate-300" />}
             </div>
             <p className={`text-[11px] font-semibold ${i === 0 ? 'text-[#1557FF]' : 'text-slate-400'}`}>{step}</p>
@@ -955,7 +955,7 @@ function SuccessScreen({ ref_citoyen, onNew }: { ref_citoyen: string; onNew: () 
           Suivre mon signalement
         </button>
         <button onClick={onNew}
-          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
+          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
           + Soumettre un autre
         </button>
       </div>
@@ -1133,7 +1133,7 @@ const NouveauSignalement: React.FC = () => {
             </div>
           </div>
         )}
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
           {submitted       ? <SuccessScreen ref_citoyen={refCitoyen} onNew={reset} />
           : step === 1     ? <Step1 data={formData} onChange={update} onNext={() => setStep(2)} delegations={delegations} />
           : step === 2     ? <Step2 data={formData} onChange={update} onNext={() => setStep(3)} onBack={() => setStep(1)} />
@@ -1142,21 +1142,21 @@ const NouveauSignalement: React.FC = () => {
         </div>
         {!submitted && step < 4 && (
           <div className="grid grid-cols-2 gap-3 mt-4">
-            <div className="bg-white rounded-xl border border-slate-100 p-3 flex items-center gap-3">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-3 flex items-center gap-3">
               <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-sm">🛡️</span>
               </div>
               <div>
-                <p className="text-xs font-bold text-[#0A1628]">Données sécurisées</p>
+                <p className="text-xs font-bold text-[#0A1628] dark:text-white">Données sécurisées</p>
                 <p className="text-[10px] text-slate-400">Anonymat garanti</p>
               </div>
             </div>
-            <div className="bg-white rounded-xl border border-slate-100 p-3 flex items-center gap-3">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-3 flex items-center gap-3">
               <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-sm">⏱️</span>
               </div>
               <div>
-                <p className="text-xs font-bold text-[#0A1628]">Suivi 24h/24</p>
+                <p className="text-xs font-bold text-[#0A1628] dark:text-white">Suivi 24h/24</p>
                 <p className="text-[10px] text-slate-400">Réponse sous 48h</p>
               </div>
             </div>

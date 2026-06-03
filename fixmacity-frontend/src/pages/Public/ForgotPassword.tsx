@@ -1,11 +1,12 @@
 // src/pages/Public/ForgotPassword.tsx
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Mail, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { Mail, ArrowLeft, CheckCircle, AlertCircle, Loader2, MapPin, ClipboardCheck } from 'lucide-react'
 import Logo from '../../components/Logo'
+import LanguageSwitcher from '../../components/shared/LanguageSwitcher'
 
 const API  = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
-const PHOTO = '/sousse-premium.png'
+// Image removed for CSS-only design
 
 const ForgotPassword: React.FC = () => {
   const [email,   setEmail]   = useState('')
@@ -34,13 +35,13 @@ const ForgotPassword: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
+    <div className="flex h-screen w-full overflow-hidden bg-white">
 
       {/* ── Left: form ── */}
       <div className="flex-1 flex flex-col justify-between px-8 sm:px-14 py-10 bg-white overflow-y-auto">
         <Logo variant="dark" size="md" />
 
-        <div className="max-w-sm w-full mx-auto">
+        <div className="max-w-sm w-full mx-auto my-auto py-6">
 
           {sent ? (
             /* ── Success state ── */
@@ -49,7 +50,7 @@ const ForgotPassword: React.FC = () => {
                 <CheckCircle className="w-10 h-10 text-emerald-500" />
               </div>
               <div>
-                <h1 className="text-2xl font-extrabold text-[#0A1628] mb-2">Email envoyé !</h1>
+                <h1 className="text-2xl font-extrabold text-[#0A1628] mb-2 tracking-tight">Email envoyé !</h1>
                 <p className="text-slate-500 text-sm leading-relaxed">
                   Un lien de réinitialisation a été envoyé à{' '}
                   <span className="font-bold text-[#0A1628]">{email}</span>.
@@ -66,7 +67,7 @@ const ForgotPassword: React.FC = () => {
                 </ul>
               </div>
               <button onClick={() => { setSent(false); setEmail('') }}
-                className="text-sm text-[#1557FF] font-semibold hover:underline">
+                className="text-sm text-[#1557FF] font-semibold hover:underline mt-2">
                 Renvoyer l'email
               </button>
             </div>
@@ -78,7 +79,7 @@ const ForgotPassword: React.FC = () => {
                   className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-[#1557FF] transition-colors mb-6">
                   <ArrowLeft className="w-4 h-4" /> Retour à la connexion
                 </Link>
-                <h1 className="text-4xl font-extrabold text-[#0A1628] leading-tight mb-2">
+                <h1 className="text-4xl font-extrabold text-[#0A1628] leading-tight mb-2 tracking-tight">
                   Mot de passe<br />oublié ?
                 </h1>
                 <p className="text-slate-500 text-sm">
@@ -87,7 +88,7 @@ const ForgotPassword: React.FC = () => {
               </div>
 
               {error && (
-                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl mb-5">
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl mb-5 animate-shake">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
                 </div>
               )}
@@ -104,7 +105,7 @@ const ForgotPassword: React.FC = () => {
                 </div>
 
                 <button type="submit" disabled={loading || !email}
-                  className="w-full py-3.5 rounded-xl text-white font-bold text-sm transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-xl text-white font-bold text-sm transition-all hover:bg-blue-700 active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
                   style={{ background: '#1557FF' }}>
                   {loading
                     ? <Loader2 className="w-5 h-5 animate-spin" />
@@ -125,21 +126,70 @@ const ForgotPassword: React.FC = () => {
 
         <div className="flex items-center justify-between">
           <p className="text-xs text-slate-400">© 2026 FixMaCity — Municipalité de Sousse</p>
+          <LanguageSwitcher variant="compact" />
         </div>
       </div>
 
-      {/* ── Right: Sousse photo ── */}
-      <div className="hidden lg:block w-[45%] relative overflow-hidden">
-        <img src={PHOTO} alt="Sousse" className="absolute inset-0 w-full h-full object-cover"
-          style={{ borderRadius: '60% 0 0 60% / 50% 0 0 50%' }} />
-        <div className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(135deg, rgba(21,87,255,0.15) 0%, transparent 60%)',
-            borderRadius: '60% 0 0 60% / 50% 0 0 50%',
-          }} />
+      {/* ── Right Panel: CSS-only Abstract & Interactive ── */}
+      <div className="hidden lg:flex w-[45%] bg-[#060b19] relative overflow-hidden flex-col justify-between p-16 text-white border-l border-slate-900 select-none">
+        {/* Glow Effects */}
+        <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-[-20%] right-[-20%] w-[80%] h-[80%] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
+        
+        {/* Decorative Grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-30" />
+
+        {/* Top brand accent */}
+        <div className="relative z-10 flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">Plateforme Municipale</span>
+        </div>
+
+        {/* Mid section: Catchphrase & Glassmorphic stats */}
+        <div className="relative z-10 space-y-8 my-auto">
+          <div className="space-y-4">
+            <h2 className="text-4xl font-extrabold tracking-tight leading-tight">
+              Rapprocher les citoyens de leur municipalité.
+            </h2>
+            <p className="text-slate-400 text-base max-w-md">
+              Signalez les incidents, suivez les interventions en temps réel et participez activement à l'amélioration de votre cadre de vie.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {/* Glass Card 1 */}
+            <div className="backdrop-blur-md bg-white/[0.02] border border-white/[0.06] p-5 rounded-2xl flex items-center gap-4 transition-all duration-300 hover:bg-white/[0.04] hover:border-white/[0.1] group">
+              <div className="p-3 rounded-xl bg-blue-500/10 text-[#1557FF] group-hover:scale-110 transition-transform">
+                <MapPin className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Signalements Localisés</p>
+                <p className="text-sm font-bold text-slate-200 mt-0.5">Géolocalisation précise des incidents pour intervention rapide.</p>
+              </div>
+            </div>
+
+            {/* Glass Card 2 */}
+            <div className="backdrop-blur-md bg-white/[0.02] border border-white/[0.06] p-5 rounded-2xl flex items-center gap-4 transition-all duration-300 hover:bg-white/[0.04] hover:border-white/[0.1] group">
+              <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-400 group-hover:scale-110 transition-transform">
+                <ClipboardCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Suivi en Temps Réel</p>
+                <p className="text-sm font-bold text-slate-200 mt-0.5">Restez informé à chaque étape, de la soumission à la résolution.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer brand info */}
+        <div className="relative z-10 flex items-center justify-between border-t border-slate-900/60 pt-6">
+          <span className="text-xs text-slate-500">Ville de Sousse — Tunisie</span>
+          <span className="text-xs text-[#1557FF] font-semibold tracking-wider uppercase">FixMaCity 2026</span>
+        </div>
       </div>
     </div>
   )
 }
 
 export default ForgotPassword
+

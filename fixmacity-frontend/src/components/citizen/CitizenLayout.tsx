@@ -47,7 +47,7 @@ const INIT_NOTIFS = [
   },
   {
     id: '5', type: 'systeme', read: true,
-    title: 'Bienvenue sur FixMaCity 👋',
+    title: 'Bienvenue sur FixMaCity',
     body: 'Votre compte citoyen est prêt. Commencez par faire votre premier signalement.',
     time: '5 j',
   },

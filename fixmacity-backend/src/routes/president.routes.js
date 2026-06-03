@@ -62,18 +62,38 @@ router.patch('/departments/:id', [
   body('description').optional().trim(),
 ], ctrl.updateDepartment);
 
+const multer = require('multer');
+
+// Memory-based multer for photo upload
+const memUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Type de fichier non autorisé.'));
+  },
+});
+
 // ── Propositions ──
 router.get('/propositions', ctrl.listPropositions);
-router.post('/propositions', [
-  body('title').notEmpty().trim().withMessage('Titre requis.'),
-  body('description').optional().isString(),
-  body('start_date').optional().isISO8601(),
-  body('end_date').optional().isISO8601(),
-  body('category').optional().isString(),
-  body('status').optional().isIn(['active', 'closed', 'draft']),
-], ctrl.createProposition);
+router.post('/propositions',
+  memUpload.single('photo'),
+  [
+    body('title').notEmpty().trim().withMessage('Titre requis.'),
+    body('description').optional().isString(),
+    body('start_date').optional().isISO8601(),
+    body('end_date').optional().isISO8601(),
+    body('category').optional().isString(),
+    body('status').optional().isIn(['active', 'closed', 'draft']),
+  ],
+  ctrl.createProposition
+);
 // NEW ↓
-router.put('/propositions/:id', ctrl.updateProposition);
+router.put('/propositions/:id',
+  memUpload.single('photo'),
+  ctrl.updateProposition
+);
 router.delete('/propositions/:id', ctrl.deleteProposition);
 // existing ↓
 router.post('/propositions/:id/confirmer', ctrl.confirmProposition);
