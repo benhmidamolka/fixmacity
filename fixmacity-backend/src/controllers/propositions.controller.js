@@ -43,7 +43,8 @@ exports.listPropositions = async (req, res) => {
     }
 
     let { data: propositions, error } = await query
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(50);
 
     if (error) {
       console.error('[Propositions] List error:', error);

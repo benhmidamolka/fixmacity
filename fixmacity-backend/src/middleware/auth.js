@@ -2,7 +2,10 @@ const jwt = require('jsonwebtoken');
 const supabase = require('../config/db');
 const rbac = require('./rbac');
 
-const JWT_SECRET = process.env.JWT_SECRET || '';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
 
 // Verify JWT and attach user to request
 async function authenticate(req, res, next) {

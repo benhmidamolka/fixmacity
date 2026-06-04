@@ -4,7 +4,8 @@ const ctrl = require('../controllers/chatbot.controller');
 const authenticate = require('../middleware/auth');
 const { chatbotLimiter } = require('../middleware/rateLimit');
 
-router.use(authenticate);
+const rbac = require('../middleware/rbac');
+router.use(authenticate, rbac('citizen'));
 
 router.post('/message', 
   chatbotLimiter,

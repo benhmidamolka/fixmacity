@@ -221,54 +221,6 @@ function PropCard({ prop, onClick }: { prop: any; onClick: () => void }) {
             <button
               onClick={e => { e.stopPropagation(); onClick() }}
               className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white font-bold text-sm transition-all hover:opacity-90"
-  const isPresident = user?.role === 'president'
-
-  return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden hover:shadow-lg transition-all cursor-pointer group relative flex flex-col h-full"
-      onClick={onClick}>
-
-      <div className="relative h-44 overflow-hidden">
-        <img src={prop.img} alt={prop.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-        <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
-          style={{ background: c.bg, color: c.text }}>
-          <div className="w-1.5 h-1.5 rounded-full" style={{ background: c.dot }} />
-          {prop.category}
-        </span>
-      </div>
-
-      <div className="p-5 flex-1 flex flex-col">
-        <h3 className="font-bold text-[#0A1628] dark:text-white text-base leading-tight mb-2 group-hover:text-[#1557FF] transition-colors">{prop.title}</h3>
-
-        {/* Countdown */}
-        <div className="flex">
-          <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full mb-4 ${
-            urgent ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
-          }`}>
-            ⏳ {t('propositions.daysLeft', { days: prop.days_left })}
-          </div>
-        </div>
-
-        {/* Progress & Votes container */}
-        <div className="mt-auto flex flex-col justify-end">
-          {isPresident && (
-            <div className="mb-4">
-              <div className="flex justify-between text-xs font-bold mb-1.5">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">{t('propositions.citizenSupport')}</span>
-                <span style={{ color: '#16a34a' }}>{prop.pour_pct}%</span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
-                <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${prop.pour_pct}%` }} />
-              </div>
-            </div>
-          )}
-
-          {/* Vote buttons */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={e => { e.stopPropagation(); onClick() }}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white font-bold text-sm transition-all hover:opacity-90"
               style={{ background: '#16a34a' }}>
               <ThumbsUp className="w-3.5 h-3.5" /> Pour
             </button>
@@ -318,6 +270,49 @@ const enrichPropositions = (arr: any[], mockProps: any[]) => {
 // ─── Propositions Page ────────────────────────────────────────────────────────
 const Propositions: React.FC = () => {
   const { t } = useTranslation();
+  const TABS = [t("propositions.tabs.all"), t("propositions.tabs.municipal"), t("propositions.tabs.voted")];
+  const [props, setProps]       = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState(0)
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [selected, setSelected]   = useState<any>(null)
+  const [toast, setToast]         = useState<{ message: string; type: 'error' | 'success' } | null>(null)
+  const token = localStorage.getItem('fmc_token')
+  const propsFromAPI = React.useRef(false);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    const fetchProps = async () => {
+      try {
+        const res = await fetch(`${API}/propositions`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.propositions && data.propositions.length > 0) {
+          propsFromAPI.current = true;
+          setProps(enrichPropositions(data.propositions, getMockProps(t)));
+        } else if (!propsFromAPI.current) {
+          setProps(enrichPropositions(getMockProps(t), getMockProps(t)));
+        }
+      } catch {
+        if (!propsFromAPI.current) {
+          setProps(enrichPropositions(getMockProps(t), getMockProps(t)));
+        }
+      }
+    };
+    fetchProps();
+  }, [t, token]);
+
+  const handleVote = async (id: string, vote: 'pour' | 'contre') => {
+    try {
+      const res = await fetch(`${API}/propositions/${id}/vote`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body:    JSON.stringify({ vote }),
       })
       const data = await res.json();

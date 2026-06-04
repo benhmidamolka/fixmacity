@@ -28,6 +28,7 @@ const getMockProjects = (t: any) => [
 
 function daysAgo(dateStr: string, t: any) {
   const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
+  
   if (days === 0) return t('works.daysAgo.today', "Aujourd'hui")
   if (days === 1) return t('works.daysAgo.one', 'Il y a 1 jour')
   if (days < 30) return t('works.daysAgo.days', 'Il y a {{count}} jours', { count: days })

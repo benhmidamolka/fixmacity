@@ -10,8 +10,13 @@ const sanitize = (req, _res, next) => {
     const clean = (obj) => {
       for (const key of Object.keys(obj)) {
         if (typeof obj[key] === 'string') {
-          // Strip HTML tags
-          obj[key] = obj[key].replace(/<[^>]*>/g, '').trim();
+          // Strip HTML tags and dangerous protocols
+          obj[key] = obj[key]
+            .replace(/<[^>]*>/g, '')               // Remove HTML tags
+            .replace(/javascript\s*:/gi, '')       // Remove JS events
+            .replace(/data:\s*/gi, '')             // Remove data URLs
+            .replace(/file:\s*/gi, '')             // Remove file URLs
+            .trim();
         } else if (typeof obj[key] === 'object' && obj[key] !== null) {
           clean(obj[key]);
         }
