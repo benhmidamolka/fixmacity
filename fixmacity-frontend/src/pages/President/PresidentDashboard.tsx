@@ -39,6 +39,8 @@ const DEPT_ICONS: Record<string, string> = {
   VR: '🛣️', EP: '💡', EV: '🌿', PD: '🗑️', BP: '🏢', EA: '💧', ST: '🚦', SG: '💬',
 }
 
+const PieComponent = Pie as any;
+
 function getSeverity(votes: number, priority: number) {
   if (priority >= 15 || votes > 50) return 'Très critique'
   if (priority >= 8 || votes > 30) return 'Critique'
@@ -71,16 +73,44 @@ const SevBadge = ({ label }: { label: string }) => {
   )
 }
 
-const DatePill = () => (
-  <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-300 select-none">
-    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="1.5" />
-      <path d="M16 2v4M8 2v4M3 10h18" strokeWidth="1.5" />
-    </svg>
-    <span>{new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
-    <ChevronDown className="w-4 h-4 text-gray-400" />
-  </div>
-)
+const DatePill = () => {
+  const [open, setOpen] = useState(false)
+  const [range, setRange] = useState('Ce mois-ci')
+  const ranges = ['Aujourd\'hui', '7 derniers jours', 'Ce mois-ci', 'Cette année', 'Toute la période']
+
+  return (
+    <div className="relative">
+      <button 
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-[13px] font-medium text-gray-700 dark:text-slate-300 select-none hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+      >
+        <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="1.5" />
+          <path d="M16 2v4M8 2v4M3 10h18" strokeWidth="1.5" />
+        </svg>
+        <span>{range}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-2 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+            {ranges.map(r => (
+              <button 
+                key={r}
+                onClick={() => { setRange(r); setOpen(false); }}
+                className={`w-full text-left px-4 py-2 text-[12px] font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${range === r ? 'text-primary dark:text-blue-400 bg-slate-50/50 dark:bg-slate-800/50' : 'text-slate-600 dark:text-slate-300'}`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 const BarTip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
@@ -207,14 +237,16 @@ const ZonesCritiques = ({ zones, loading }: { zones: any[]; loading: boolean }) 
                   <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex-1 truncate">{z.name}</span>
                   <span className="text-[12px] font-black text-[#0A1628] dark:text-white flex-shrink-0">{z.count}</span>
                 </div>
-                <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden ml-7">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ background: heat }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.8, delay: i * 0.1, ease: 'easeOut' }}
-                  />
+                <div className="pl-7 pr-2">
+                  <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ background: heat }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{ duration: 0.8, delay: i * 0.1, ease: 'easeOut' }}
+                    />
+                  </div>
                 </div>
               </motion.div>
             )
@@ -307,7 +339,7 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-              <Tooltip content={<BarTip />} cursor={{ fill: '#f8fafc' }} />
+              <Tooltip content={<BarTip />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
               <Bar dataKey="reports" name="reports" fill={C.green} radius={[3, 3, 0, 0]} maxBarSize={18} />
               <Bar dataKey="resolved" name="resolved" fill={C.blue} radius={[3, 3, 0, 0]} maxBarSize={18} />
             </BarChart>
@@ -436,32 +468,43 @@ const DemandesParCategorie = ({ depts, loading }: { depts: any[]; loading: boole
   const total = pieData.reduce((s, d) => s + d.value, 0)
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-6 hover:shadow-md transition-all flex flex-col h-[280px]">
-      <span className="text-[14px] font-black text-[#0A1628] dark:text-white tracking-tight mb-4">Demandes par catégorie</span>
-      <div className="flex items-center gap-6 flex-1 min-h-0">
-        <div className="relative flex-shrink-0" style={{ width: 140, height: 140 }}>
+    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-5 hover:shadow-md transition-all flex flex-col">
+      <span className="text-[13px] font-bold text-[#0A1628] dark:text-white mb-3">Demandes par catégorie</span>
+      <div className="flex items-center gap-5 flex-1 min-h-0">
+        <div className="relative flex-shrink-0" style={{ width: 120, height: 120 }}>
           {loading ? (
-            <div className="w-full h-full rounded-full bg-gray-150 dark:bg-slate-800 animate-pulse" />
+            <div className="w-full h-full rounded-full bg-gray-100 dark:bg-slate-800 animate-pulse" />
           ) : (
             <>
               <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                 <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%"
-                    innerRadius={46} outerRadius={64}
+                  <PieComponent data={pieData} cx="50%" cy="50%"
+                    innerRadius={38} outerRadius={54}
                     dataKey="value" paddingAngle={2}
-                    onMouseEnter={(_, idx) => setActiveIdx(idx)}
+                    strokeWidth={0}
+                    activeIndex={activeIdx}
+                    activeShape={(props: any) => {
+                      const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props
+                      return (
+                        <g>
+                          <path d={`M ${cx} ${cy}`} />
+                          <circle cx={cx} cy={cy} r={outerRadius + 3} fill="none" stroke={fill} strokeWidth={2} strokeDasharray={`${(endAngle - startAngle) * (outerRadius + 3) * Math.PI / 180} 9999`} strokeDashoffset={0} />
+                        </g>
+                      )
+                    }}
+                    onMouseEnter={(_: any, idx: number) => setActiveIdx(idx)}
                     onMouseLeave={() => setActiveIdx(undefined)}>
-                    {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
-                  </Pie>
+                    {pieData.map((e, i) => <Cell key={i} fill={e.color} strokeWidth={0} />)}
+                  </PieComponent>
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <p className="text-[18px] font-black text-gray-800 dark:text-white leading-none">
+                <p className="text-[16px] font-black text-gray-800 dark:text-white leading-none">
                   {activeIdx !== undefined
                     ? pieData[activeIdx].value.toLocaleString('fr-FR')
                     : total.toLocaleString('fr-FR')}
                 </p>
-                <p className="text-[9px] text-gray-450 font-bold mt-1 max-w-[80px] truncate text-center">
+                <p className="text-[9px] text-gray-400 font-bold mt-0.5 max-w-[72px] truncate text-center">
                   {activeIdx !== undefined ? pieData[activeIdx].name : 'Total'}
                 </p>
               </div>
@@ -469,10 +512,10 @@ const DemandesParCategorie = ({ depts, loading }: { depts: any[]; loading: boole
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto pr-1 space-y-1.5 max-h-[160px] scrollbar-thin scrollbar-thumb-slate-200">
+        <div className="flex-1 overflow-y-auto space-y-1 max-h-[130px] scrollbar-thin scrollbar-thumb-slate-200 pr-1">
           {loading ? [...Array(4)].map((_, i) => (
             <div key={i} className="flex items-center gap-2">
-              <Sk w="w-2.5" h="h-2.5" r="rounded-full" /><Sk w="w-20" h="h-2" />
+              <Sk w="w-2" h="h-2" r="rounded-full" /><Sk w="w-20" h="h-2" />
               <div className="flex-1" /><Sk w="w-8" h="h-2" />
             </div>
           )) : pieData.map((item, i) => {
@@ -483,7 +526,7 @@ const DemandesParCategorie = ({ depts, loading }: { depts: any[]; loading: boole
                 onMouseEnter={() => setActiveIdx(i)}
                 onMouseLeave={() => setActiveIdx(undefined)}>
                 <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: item.color }} />
-                <span className="text-[11px] font-bold text-slate-650 dark:text-slate-350 flex-1 truncate">{item.name}</span>
+                <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 flex-1 truncate">{item.name}</span>
                 <span className="text-[11px] font-black text-slate-800 dark:text-white">{item.value}</span>
                 <span className="text-[10px] font-bold text-slate-400 w-8 text-right">({pct}%)</span>
               </div>
@@ -492,7 +535,7 @@ const DemandesParCategorie = ({ depts, loading }: { depts: any[]; loading: boole
         </div>
       </div>
       {!loading && (
-        <div className="mt-2 text-center text-[11px] font-bold text-slate-450 border-t border-slate-105 dark:border-slate-800/60 pt-2">
+        <div className="mt-2 pt-2 text-center text-[11px] font-bold text-slate-400 border-t border-slate-100 dark:border-slate-800">
           Total : <span className="text-slate-800 dark:text-white font-black">{total.toLocaleString('fr-FR')} demandes</span>
         </div>
       )}
@@ -580,58 +623,58 @@ const PresidentDashboard: React.FC = () => {
 
   return (
     <PresidentLayout title="Tableau de bord">
-      <div className="space-y-6" style={{ animation: 'fadeIn .4s ease' }}>
+      <style>{`@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }`}</style>
+      <div className="space-y-3" style={{ animation: 'fadeIn .4s ease' }}>
+
       {/* ── Header ─────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-[22px] font-black text-gray-900 dark:text-white tracking-tight">Tableau de bord</h1>
-          <p className="text-[13px] text-gray-400 dark:text-slate-500 mt-1">
+          <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Tableau de bord</h1>
+          <p className="text-[12px] text-gray-400 dark:text-slate-500 mt-0.5">
             Bonjour Président, voici un aperçu global de la situation actuelle.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <DatePill />
           <button onClick={handleExport}
-            className="flex items-center gap-2 px-5 py-2 bg-green-600 text-white text-[13px] font-bold rounded-xl hover:bg-green-700 transition-colors shadow-sm">
-            <Download className="w-4 h-4" /> Exporter le rapport
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-[12px] font-bold rounded-xl hover:bg-green-700 transition-colors shadow-sm">
+            <Download className="w-3.5 h-3.5" /> Exporter
           </button>
           <button onClick={load}
             className="p-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600 text-gray-400 hover:text-gray-600 transition-colors">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
       {/* Error banner */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-2xl p-4 mb-5 flex items-center gap-3">
+        <div className="bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-2xl p-3 flex items-center gap-3">
           <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
           <p className="text-sm font-bold text-red-700 dark:text-red-400 flex-1">Erreur de chargement.</p>
-          <button onClick={load} className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 transition-colors">
-            Réessayer
-          </button>
+          <button onClick={load} className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 transition-colors">Réessayer</button>
         </div>
       )}
 
       {/* ── KPI Row ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Signalements urgents', value: stats.criticalCount, sub: 'Cas critiques à traiter', icon: <AlertTriangle className="w-6 h-6" />, bg: 'bg-red-500' },
-          { label: 'Tâches résolues', value: stats.resolvedCount, sub: 'Interventions terminées', icon: <CheckCircle2 className="w-6 h-6" />, bg: 'bg-green-600' },
-          { label: 'Satisfaction élevée', value: stats.highSatisfactionCount, sub: 'Notes 4–5 étoiles', icon: <ThumbsUp className="w-6 h-6" />, bg: 'bg-blue-500' },
+          { label: 'Signalements urgents', value: stats.criticalCount, sub: 'Cas critiques', icon: <AlertTriangle className="w-5 h-5" />, color: '#ef4444', bg: 'bg-red-500' },
+          { label: 'Tâches résolues', value: stats.resolvedCount, sub: 'Interventions terminées', icon: <CheckCircle2 className="w-5 h-5" />, color: '#16a34a', bg: 'bg-green-600' },
+          { label: 'Satisfaction élevée', value: stats.highSatisfactionCount, sub: 'Notes 4–5 étoiles', icon: <ThumbsUp className="w-5 h-5" />, color: '#3b82f6', bg: 'bg-blue-500' },
         ].map(s => (
-          <div key={s.label} className="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-            <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full opacity-10" style={{ background: s.bg === 'bg-red-500' ? '#ef4444' : s.bg === 'bg-green-600' ? '#16a34a' : '#3b82f6' }} />
-            <div className="relative flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg ${s.bg} group-hover:scale-110 transition-transform`}>
+          <div key={s.label} className="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+            <div className="absolute -top-3 -right-3 w-12 h-12 rounded-full opacity-10" style={{ background: s.color }} />
+            <div className="relative flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-md ${s.bg} group-hover:scale-110 transition-transform flex-shrink-0`}>
                 {s.icon}
               </div>
-              <div>
-                <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">{s.label}</p>
-                <p className="text-2xl font-black text-gray-900 dark:text-white mt-0.5">
-                  {loading ? <span className="inline-block w-10 h-6 bg-gray-100 dark:bg-slate-800 rounded animate-pulse" /> : s.value}
+              <div className="min-w-0">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest truncate">{s.label}</p>
+                <p className="text-xl font-black text-gray-900 dark:text-white">
+                  {loading ? <span className="inline-block w-8 h-5 bg-gray-100 dark:bg-slate-800 rounded animate-pulse" /> : s.value}
                 </p>
-                <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5 font-medium">{s.sub}</p>
+                <p className="text-[10px] text-gray-400 dark:text-slate-500 font-medium truncate">{s.sub}</p>
               </div>
             </div>
           </div>
@@ -639,19 +682,19 @@ const PresidentDashboard: React.FC = () => {
       </div>
 
       {/* ── Row 1: 3 equal columns ───────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <TopCritiques data={crucials} loading={loading} onSelectDecl={setSelectedDeclId} />
         <ZonesCritiques zones={zones} loading={loading} />
         <TachesChart trend={trend} depts={deptsRaw} loading={loading} />
       </div>
 
       {/* ── Row 2: 2 columns ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-10">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <DeptPerf depts={depts} loading={loading} />
         <DemandesParCategorie depts={depts} loading={loading} />
       </div>
+
       </div>
-      <style>{`@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }`}</style>
 
       <DeclarationDetailDrawer
         declarationId={selectedDeclId}

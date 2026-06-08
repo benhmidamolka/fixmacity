@@ -197,7 +197,19 @@ async function computePriorityScore(decl) {
   const photoUrl = decl.photo_avant || decl.photo_url;
   let aiResult   = null;
 
-  if (photoUrl && process.env.GEMINI_API_KEY) {
+  const existingDangerScore = decl.ai_danger_score !== undefined 
+    ? decl.ai_danger_score 
+    : (decl.priority_meta?.factors?.ai_danger_score);
+
+  if (decl.used_ai_vision && existingDangerScore !== undefined) {
+    // If the frontend already processed the photo with Gemini and sent the results
+    aiResult = {
+      danger_score: existingDangerScore,
+      danger_level: decl.ai_severity_label || decl.priority_label || 'FAIBLE',
+      description: decl.ai_reasoning || decl.priority_meta?.ai_description || '',
+      immediate_risk: decl.hazard || false,
+    };
+  } else if (photoUrl && process.env.GEMINI_API_KEY) {
     try {
       let imageData = null;
 

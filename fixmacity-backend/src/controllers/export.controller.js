@@ -9,7 +9,7 @@ exports.exportDeclaration = async (req, res) => {
 
     const { data: decl, error } = await supabase
       .from('declarations')
-      .select('*, users!citizen_id(first_name, last_name, email), services!department_id(name_fr)')
+      .select('*, users!citizen_id(first_name, last_name, email), services!service_id(name_fr)')
       .eq('id', id)
       .single();
 

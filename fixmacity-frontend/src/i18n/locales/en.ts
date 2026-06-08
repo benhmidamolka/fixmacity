@@ -55,8 +55,15 @@ const en = {
     forgotPassword:  'Forgot your password?',
     noAccount:       'Don\'t have an account?',
     signUp:          'Sign Up',
-    loginTitle:      'Welcome to FixMaCity',
-    loginSubtitle:   'Sign in to access your citizen dashboard',
+    loginTitle:      'Welcome back',
+    loginSubtitle:   'Enter your credentials to access your account',
+    signUpTitle:     'Join us',
+    signUpSubtitle:  'Create your account to start improving your city',
+    firstName:       'First name',
+    lastName:        'Last name',
+    delegation:      'District',
+    langPref:        'Preferred language',
+    haveAccount:     'Already have an account?',
   },
 
   declarations: {

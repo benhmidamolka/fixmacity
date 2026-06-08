@@ -9,7 +9,7 @@ const COLS = [
     links: [
       { label: 'Accueil',              to: '/'         },
       { label: 'Tous les services',    to: '#services' },
-      { label: 'Signaler un problème', to: '/register' },
+      { label: 'Signaler un problème', to: '/login' },
       { label: 'Carte interactive',    to: '#map'      },
     ],
   },

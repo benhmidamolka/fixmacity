@@ -204,8 +204,13 @@ function DetailModal({ decl, onClose, onVote, onRate }: {
   const [hover, setHover]   = useState(0)
   const [stars, setStars]   = useState(0)
   const [rated, setRated]   = useState(false)
+  const [isVoting, setIsVoting] = useState(false)
   const canRate  = ['ÉVALUÉ','CLÔTURÉ','RESOLUE','CLOTUREE','resolue','cloturee'].includes(decl.citizen_status || decl.status || '')
   const canWrite = !['CLÔTURÉ','CLOTUREE','cloturee'].includes(decl.citizen_status || decl.status || '')
+  
+  const storedUser = localStorage.getItem('fmc_user')
+  const user = storedUser ? JSON.parse(storedUser) : null
+  const isOwn = user?.id && decl.citizen_id && String(user.id) === String(decl.citizen_id)
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -302,14 +307,16 @@ function DetailModal({ decl, onClose, onVote, onRate }: {
             )}
 
             <button onClick={() => { if (!voted) { setVoted(true); onVote(decl.id) } }}
+              disabled={voted || isOwn}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full justify-center border ${
-                voted ? 'bg-blue-50 text-blue-600 border-blue-200'
+                voted ? 'bg-blue-50 text-blue-600 border-blue-200 cursor-not-allowed opacity-50'
+                      : isOwn ? 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 cursor-not-allowed opacity-50'
                       : 'bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 dark:text-slate-500 border-slate-200 dark:border-white/10 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
               }`}>
               <ThumbsUp size={12} />
-              {voted ? 'Soutenu !' : 'Soutenir ce signalement'}
+              {isOwn ? 'Votre signalement' : voted ? 'Soutenu !' : 'Soutenir ce signalement'}
               <span className="ml-auto font-mono text-[10px] bg-white dark:bg-[#0D1117] rounded px-1.5 py-0.5 border border-current/20">
-                {(decl.votes_count || 0) + (voted ? 1 : 0)}
+                {(decl.votes_count || 0) + (voted && !isOwn ? 1 : 0)}
               </span>
             </button>
 

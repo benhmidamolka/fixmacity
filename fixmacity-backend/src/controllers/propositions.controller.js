@@ -62,9 +62,21 @@ exports.listPropositions = async (req, res) => {
         usersData.forEach(u => userMap[u.id] = { first_name: u.first_name, last_name: u.last_name, email: u.email, role: u.role });
       }
       
+      let userVotesMap = {};
+      if (req.user && req.user.id) {
+        const { data: userVotes } = await supabase.from('proposition_votes')
+          .select('proposition_id, vote')
+          .eq('citizen_id', req.user.id)
+          .in('proposition_id', propositions.map(p => p.id));
+        if (userVotes) {
+          userVotes.forEach(v => userVotesMap[v.proposition_id] = v.vote);
+        }
+      }
+
       propositions = propositions.map(p => ({
         ...p,
-        users: userMap[p.created_by] || null
+        users: userMap[p.created_by] || null,
+        user_vote: userVotesMap[p.id] || null
       }));
     }
 
@@ -86,12 +98,17 @@ exports.voteProposition = async (req, res) => {
     }
 
     const { data: proposition } = await supabase.from('propositions')
-      .select('status, start_date, end_date')
+      .select('status, start_date, end_date, created_by')
       .eq('id', id)
       .single();
 
     if (!proposition) return res.status(404).json({ error: 'Proposition introuvable.' });
     if (proposition.status !== 'active') return res.status(400).json({ error: 'Cette proposition est clôturée.' });
+
+    // ── Self-vote guard ──────────────────────────────────────────────────────
+    if (proposition.created_by === req.user.id) {
+      return res.status(403).json({ error: 'Vous ne pouvez pas voter sur votre propre proposition.' });
+    }
 
     const now = new Date();
     const startDate = proposition.start_date ? new Date(proposition.start_date) : null;
@@ -103,6 +120,7 @@ exports.voteProposition = async (req, res) => {
     if (endDate && now > endDate) {
       return res.status(400).json({ error: 'La période de vote est terminée.' });
     }
+
 
     // Upsert equivalent: check if exists, then update or insert
     const { data: existing } = await supabase.from('proposition_votes')

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Declaration, DeclarationStatus, Comment, HistoryEvent, AgentInfo } from '../../types/agent.types';
 import { PriorityBadge, StatusPill, TypeBadge, Avatar, Btn, SectionDivider } from '../ui';
-import { ROLE_CFG } from '../../styles/tokens';
 import { toast } from 'react-hot-toast';
 import {
   Loader2, X, Upload, MessageSquare,
@@ -25,17 +24,24 @@ interface DetailPageProps {
 
 type Tab = 'info' | 'comments' | 'actions';
 
-// ─── Status progression config (Dark theme optimized) ────────────────────────
+// ─── Status progression config ────────────────────────────────────────────────
 const STATUS_STEPS = [
-  { key: 'soumise', label: 'Soumise', color: '#F59E0B', bg: '#F59E0B20' },
-  { key: 'assignee_chef', label: 'Chef assigné', color: '#8B5CF6', bg: '#8B5CF620' },
-  { key: 'assignee_agent', label: 'Assignée', color: '#3B82F6', bg: '#3B82F620' },
-  { key: 'en_cours', label: 'En cours', color: '#F97316', bg: '#F9731620' },
-  { key: 'resolue', label: 'Évaluée', color: '#10B981', bg: '#10B98120' },
-  { key: 'cloturee', label: 'Clôturée', color: '#64748B', bg: '#64748B20' },
+  { key: 'soumise', label: 'Soumise' },
+  { key: 'assignee_chef', label: 'Chef assigné' },
+  { key: 'assignee_agent', label: 'Assignée' },
+  { key: 'en_cours', label: 'En cours' },
+  { key: 'resolue', label: 'Évaluée' },
+  { key: 'cloturee', label: 'Clôturée' },
 ];
 
 const REFUSED_STATUSES = ['refusee_chef', 'refusee_agent'];
+
+const ROLE_BADGE: Record<string, string> = {
+  agent: 'bg-blue-100 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400',
+  chef: 'bg-purple-100 dark:bg-purple-950/20 text-purple-700 dark:text-purple-400',
+  president: 'bg-yellow-100 dark:bg-yellow-950/20 text-yellow-800 dark:text-yellow-450',
+  citizen: 'bg-slate-100 dark:bg-slate-950 text-slate-500 dark:text-slate-400',
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function mapComments(raw: any[]): Comment[] {
@@ -94,18 +100,18 @@ function mapAgents(data: any): AgentInfo[] {
   return list;
 }
 
-// ─── Status stepper (Dark theme optimized) ───────────────────────────────────
+// ─── Status stepper ──────────────────────────────────────────────────────────
 function StatusStepper({ current }: { current: string }) {
   const isRefused = REFUSED_STATUSES.includes(current);
   const activeIdx = STATUS_STEPS.findIndex(s => s.key === current);
 
   if (isRefused) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 12 }}>
-        <AlertCircle size={18} color="#EF4444" style={{ flexShrink: 0 }} />
+      <div className="flex items-center gap-2.5 p-3.5 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/20 rounded-xl">
+        <AlertCircle size={18} className="text-red-500 flex-shrink-0" />
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#EF4444' }}>Mission refusée</div>
-          <div style={{ fontSize: 11, color: '#F87171', marginTop: 2 }}>
+          <div className="text-xs font-bold text-red-600 dark:text-red-400">Mission refusée</div>
+          <div className="text-[11px] text-red-500 dark:text-red-400/80 mt-0.5">
             {current === 'refusee_agent' ? 'Refus transmis au Chef de Service.' : 'Refus validé par le Chef de Service.'}
           </div>
         </div>
@@ -113,31 +119,84 @@ function StatusStepper({ current }: { current: string }) {
     );
   }
 
+  const STEP_COLORS: Record<string, { bgActive: string; borderActive: string; dotActive: string; textActive: string }> = {
+    soumise: {
+      bgActive: 'bg-amber-50 dark:bg-amber-950/20',
+      borderActive: 'border-amber-500',
+      dotActive: 'bg-amber-500',
+      textActive: 'text-amber-600 dark:text-amber-400',
+    },
+    assignee_chef: {
+      bgActive: 'bg-violet-50 dark:bg-violet-950/20',
+      borderActive: 'border-violet-500',
+      dotActive: 'bg-violet-500',
+      textActive: 'text-violet-600 dark:text-violet-400',
+    },
+    assignee_agent: {
+      bgActive: 'bg-blue-50 dark:bg-blue-950/20',
+      borderActive: 'border-blue-500',
+      dotActive: 'bg-blue-500',
+      textActive: 'text-blue-600 dark:text-blue-400',
+    },
+    en_cours: {
+      bgActive: 'bg-orange-50 dark:bg-orange-950/20',
+      borderActive: 'border-orange-500',
+      dotActive: 'bg-orange-500',
+      textActive: 'text-orange-600 dark:text-orange-400',
+    },
+    resolue: {
+      bgActive: 'bg-emerald-50 dark:bg-emerald-950/20',
+      borderActive: 'border-emerald-500',
+      dotActive: 'bg-emerald-500',
+      textActive: 'text-emerald-600 dark:text-emerald-400',
+    },
+    cloturee: {
+      bgActive: 'bg-slate-100 dark:bg-slate-800',
+      borderActive: 'border-slate-500',
+      dotActive: 'bg-slate-500',
+      textActive: 'text-slate-600 dark:text-slate-400',
+    },
+  };
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 0, overflowX: 'auto', paddingBottom: 4 }}>
+    <div className="flex items-center gap-0 overflow-x-auto pb-1 scrollbar-none">
       {STATUS_STEPS.map((step, i) => {
         const done = i < activeIdx;
         const active = i === activeIdx;
+        const colorCfg = STEP_COLORS[step.key] ?? STEP_COLORS.cloturee;
+        
         return (
           <React.Fragment key={step.key}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, minWidth: 64 }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                background: done ? '#10B981' : active ? step.bg : '#090d16',
-                border: `2px solid ${done ? '#10B981' : active ? step.color : '#1e293b'}`,
-                transition: 'all 0.2s',
-              }}>
-                {done
-                  ? <CheckCircle2 size={14} color="#fff" />
-                  : <span style={{ width: 8, height: 8, borderRadius: '50%', background: active ? step.color : '#475569', display: 'block' }} />
-                }
+            <div className="flex flex-col items-center gap-1.5 min-w-[64px]">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 border-2 ${
+                done 
+                  ? 'bg-emerald-500 border-emerald-500' 
+                  : active 
+                    ? `${colorCfg.bgActive} ${colorCfg.borderActive}` 
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+              }`}>
+                {done ? (
+                  <CheckCircle2 size={14} className="text-white" />
+                ) : (
+                  <span className={`w-2 h-2 rounded-full block ${
+                    active ? colorCfg.dotActive : 'bg-slate-300 dark:bg-slate-700'
+                  }`} />
+                )}
               </div>
-              <span style={{ fontSize: 9, fontWeight: active ? 700 : 500, color: done ? '#10B981' : active ? '#f8fafc' : '#64748B', textAlign: 'center', lineHeight: 1.3, maxWidth: 56 }}>
+              <span className={`text-[9px] text-center leading-tight max-w-[56px] ${
+                done 
+                  ? 'text-emerald-600 dark:text-emerald-450 font-bold' 
+                  : active 
+                    ? `${colorCfg.textActive} font-bold` 
+                    : 'text-slate-450 dark:text-slate-500 font-medium'
+              }`}>
                 {step.label}
               </span>
             </div>
             {i < STATUS_STEPS.length - 1 && (
-              <div style={{ flex: 1, height: 2, background: done ? '#10B981' : '#1e293b', marginBottom: 14, transition: 'background 0.2s', minWidth: 8 }} />
+              <div className={`flex-grow h-0.5 mb-3.5 transition-all duration-200 min-w-[8px] ${
+                done ? 'bg-emerald-500' : 'bg-slate-100 dark:bg-slate-800'
+              }`} />
             )}
           </React.Fragment>
         );
@@ -149,12 +208,12 @@ function StatusStepper({ current }: { current: string }) {
 // ─── Locked placeholder ───────────────────────────────────────────────────────
 function LockedPane({ message }: { message: string }) {
   return (
-    <div style={{ textAlign: 'center', padding: '52px 24px', color: '#94A3B8' }}>
-      <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#090d16', border: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-        <Lock size={20} color="#475569" />
+    <div className="text-center py-12 px-6 text-slate-400 dark:text-slate-500">
+      <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 flex items-center justify-center mx-auto mb-3.5 shadow-sm">
+        <Lock size={20} className="text-slate-400 dark:text-slate-550" />
       </div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#f8fafc', marginBottom: 6 }}>Canal verrouillé</div>
-      <div style={{ fontSize: 12, fontWeight: 500, maxWidth: 320, margin: '0 auto', lineHeight: 1.65, color: '#94a3b8' }}>{message}</div>
+      <div className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-1.5">Canal verrouillé</div>
+      <div className="text-xs font-semibold max-w-xs mx-auto leading-relaxed text-slate-500 dark:text-slate-400">{message}</div>
     </div>
   );
 }
@@ -256,12 +315,16 @@ export default function AgentDeclarationDetail({
   }, [tacheId]);
 
   if (loading) return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(2,6,23,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: '#090d16', border: '1px solid #1e293b', padding: 40, borderRadius: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.5)' }}>
-        <Loader2 className="animate-spin text-emerald-500" size={36} style={{ marginBottom: 16 }} />
-        <p style={{ fontWeight: 700, color: '#f8fafc', fontSize: 15 }}>Chargement de la mission...</p>
+    <>
+      {/* Drawer backdrop while loading */}
+      <div className="fixed inset-0 z-[900] bg-slate-950/50 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="fixed top-0 right-0 bottom-0 z-[901] w-[680px] max-w-full bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-slate-400">
+          <Loader2 className="animate-spin text-emerald-500" size={36} />
+          <p className="font-bold text-sm text-slate-600 dark:text-slate-300">Chargement de la mission...</p>
+        </div>
       </div>
-    </div>
+    </>
   );
 
   if (!decl) return null;
@@ -383,88 +446,109 @@ export default function AgentDeclarationDetail({
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(2, 6, 23, 0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}
-      onClick={onClose}
-    >
+    <>
+      {/* Backdrop */}
       <div
-        style={{ background: '#090d16', width: '100%', maxWidth: 940, borderRadius: 20, position: 'relative', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', border: '1px solid #1e293b', margin: 'auto' }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Close */}
-        <button onClick={onClose} style={{ position: 'absolute', top: 18, right: 18, width: 34, height: 34, borderRadius: '50%', background: '#131c31', border: '1px solid #1e293b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, boxShadow: '0 2px 8px rgb(0 0 0 / 0.3)' }}>
-          <X size={16} color="#94a3b8" />
-        </button>
+        className="fixed inset-0 z-[900] bg-slate-950/40 backdrop-blur-[2px] transition-opacity"
+        onClick={onClose}
+      />
 
-        <div style={{ padding: '26px 28px', maxHeight: '90vh', overflowY: 'auto' }}>
+      {/* Drawer panel */}
+      <div className="fixed top-0 right-0 bottom-0 z-[901] w-[700px] max-w-full bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800 shadow-2xl flex flex-col">
+
+        {/* Drawer top-bar: ref + close */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <code className="text-[10px] font-mono bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-700 text-slate-500 dark:text-slate-400">{decl.ref_citoyen}</code>
+            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">· Assigné le {decl.dateAssignation}</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:border-slate-700 transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin p-6">
 
           {/* ── Header ── */}
-          <div style={{ background: '#101726', borderRadius: 16, border: '1px solid #1e293b', padding: '20px 24px', marginBottom: 18, boxShadow: '0 2px 6px rgb(0 0 0 / 0.2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                  <code style={{ fontSize: 11, color: '#94A3B8', background: '#090d16', padding: '2px 8px', borderRadius: 5, border: '1px solid #1e293b' }}>{decl.ref_citoyen}</code>
-                  <span style={{ fontSize: 11, color: '#94A3B8' }}>· Assigné le {decl.dateAssignation}</span>
+          <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-150 dark:border-slate-855 p-5 mb-4 shadow-sm">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight mb-3 leading-tight">{decl.titre}</h1>
+                  <div className="flex gap-2 flex-wrap items-center">
+                    <PriorityBadge p={decl.priorite} />
+                    <TypeBadge t={decl.type} />
+                    <StatusPill s={decl.statut} />
+                  </div>
                 </div>
-                <h1 style={{ fontSize: 20, fontWeight: 900, color: '#f8fafc', letterSpacing: '-0.3px', marginBottom: 10, lineHeight: 1.3 }}>{decl.titre}</h1>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <PriorityBadge p={decl.priorite} />
-                  <TypeBadge t={decl.type} />
-                  <StatusPill s={decl.statut} />
-                </div>
+                {isPending && (
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Btn variant="danger" onClick={() => { setShowMotifForm(true); setActiveTab('actions'); }}>✕ Refuser</Btn>
+                    <Btn variant="primary" onClick={handleAccept} disabled={accepting}>{accepting ? '...' : '✓ Accepter'}</Btn>
+                  </div>
+                )}
               </div>
-              {isPending && (
-                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                  <Btn variant="danger" onClick={() => { setShowMotifForm(true); setActiveTab('actions'); }}>✕ Refuser</Btn>
-                  <Btn variant="primary" onClick={handleAccept} disabled={accepting}>{accepting ? '...' : '✓ Accepter'}</Btn>
-                </div>
-              )}
-            </div>
 
             {/* ── STATUS STEPPER (current state, always visible) ── */}
-            <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid #1e293b' }}>
-              <div style={{ fontSize: 10, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 12 }}>
+            <div className="mt-4 pt-4 border-t border-slate-150 dark:border-slate-850">
+              <div className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-wider mb-3">
                 Progression de la mission
               </div>
               <StatusStepper current={decl.statut} />
             </div>
+            </div>{/* end flex-col gap-3 */}
           </div>
 
           {/* ── Tabs strip ── */}
-          <div style={{ background: '#101726', borderRadius: '14px 14px 0 0', border: '1px solid #1e293b', borderBottom: 'none' }}>
-            <div style={{ display: 'flex', padding: '0 6px', overflowX: 'auto' }}>
+          <div className="bg-slate-50 dark:bg-slate-950 rounded-t-2xl border border-slate-150 dark:border-slate-855 border-b-0">
+            <div className="flex px-1.5 overflow-x-auto scrollbar-none">
               {TABS.map(t => (
-                <button key={t.key} onClick={() => { if (!t.locked) setActiveTab(t.key); }} title={t.locked ? 'Acceptez la mission pour déverrouiller' : undefined}
-                  style={{ padding: '13px 16px', fontSize: 13, cursor: t.locked ? 'not-allowed' : 'pointer', border: 'none', background: 'none', fontFamily: 'inherit', color: t.locked ? '#475569' : activeTab === t.key ? '#34d399' : '#94a3b8', fontWeight: activeTab === t.key ? 700 : 500, borderBottom: activeTab === t.key ? '3px solid #34d399' : '3px solid transparent', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 7, opacity: t.locked ? 0.5 : 1, whiteSpace: 'nowrap' }}>
-                  {t.icon}{t.label}
+                <button 
+                  key={t.key} 
+                  onClick={() => { if (!t.locked) setActiveTab(t.key); }} 
+                  title={t.locked ? 'Acceptez la mission pour déverrouiller' : undefined}
+                  className={`px-4 py-3.5 text-xs font-bold transition-all duration-155 flex items-center gap-1.5 border-b-2 whitespace-nowrap cursor-pointer ${
+                    t.locked 
+                      ? 'text-slate-300 dark:text-slate-700 cursor-not-allowed opacity-50 border-transparent' 
+                      : activeTab === t.key 
+                        ? 'text-emerald-500 dark:text-emerald-450 border-emerald-500' 
+                        : 'text-slate-450 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 border-transparent'
+                  }`}
+                >
+                  {t.icon}
+                  {t.label}
                 </button>
               ))}
             </div>
           </div>
 
           {/* ── Tab content ── */}
-          <div style={{ background: '#101726', border: '1px solid #1e293b', borderRadius: '0 0 14px 14px', padding: '24px 26px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}>
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-855 rounded-b-2xl p-5 md:p-6 shadow-sm">
 
             {/* ═══ INFO TAB — now shows CURRENT STATE, not just static details ═══ */}
             {activeTab === 'info' && (
               <div>
                 {/* Photo pair */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 22 }}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
                   <div>
-                    <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>📷 Photo du signalement (citoyen)</div>
+                    <div className="text-[10px] text-slate-400 dark:text-slate-505 font-black uppercase tracking-wider mb-2">📷 Photo du signalement (citoyen)</div>
                     {photoAvantUrl
-                      ? <div style={{ width: '100%', height: 170, borderRadius: 10, overflow: 'hidden', border: '1px solid #1e293b' }}><img src={photoAvantUrl} alt="Signalement" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
-                      : <div style={{ width: '100%', height: 170, borderRadius: 10, background: '#090d16', border: '1.5px dashed #334155', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 12, gap: 8 }}><span style={{ fontSize: 26 }}>📷</span>Aucune photo du citoyen</div>
+                      ? <div className="w-full h-[170px] rounded-xl overflow-hidden border border-slate-150 dark:border-slate-800"><img src={photoAvantUrl} alt="Signalement" className="w-full h-full object-cover" /></div>
+                      : <div className="w-full h-[170px] rounded-xl bg-slate-50 dark:bg-slate-950 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 text-xs gap-2"><span className="text-2xl">📷</span>Aucune photo du citoyen</div>
                     }
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                    <div className="text-[10px] text-slate-400 dark:text-slate-505 font-black uppercase tracking-wider mb-2">
                       🔍 Preuve d'intervention{isLocked ? ' 🔒' : ''}
                     </div>
                     {photoApresUrl
-                      ? <div style={{ width: '100%', height: 170, borderRadius: 10, overflow: 'hidden', border: '1.5px solid #10B981' }}><img src={photoApresUrl} alt="Preuve" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>
-                      : <div style={{ width: '100%', height: 170, borderRadius: 10, background: '#090d16', border: `1.5px dashed #334155`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 12, gap: 6 }}>
-                        {isLocked ? <Lock size={22} color="#475569" /> : <span style={{ fontSize: 26 }}>☁</span>}
+                      ? <div className="w-full h-[170px] rounded-xl overflow-hidden border border-emerald-500/40"><img src={photoApresUrl} alt="Preuve" className="w-full h-full object-cover" /></div>
+                      : <div className="w-full h-[170px] rounded-xl bg-slate-50 dark:bg-slate-950 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-slate-450 dark:text-slate-500 text-xs gap-1.5">
+                        {isLocked ? <Lock size={20} className="text-slate-400 dark:text-slate-550" /> : <span className="text-2xl">☁</span>}
                         {isLocked ? 'Disponible après acceptation' : 'Pas encore de photo de preuve'}
                       </div>
                     }
@@ -472,42 +556,42 @@ export default function AgentDeclarationDetail({
                 </div>
 
                 {/* Current status info-cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
-                  <div style={{ background: '#090d16', border: '1px solid #1e293b', borderRadius: 10, padding: '12px 14px' }}>
-                    <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 mb-5">
+                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-xl p-3">
+                    <div className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1.5 font-black">
                       <MapPin size={10} /> Arrondissement
                     </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1' }}>{decl.arrondissement}</div>
+                    <div className="text-xs font-bold text-slate-700 dark:text-slate-300">{decl.arrondissement}</div>
                   </div>
-                  <div style={{ background: '#090d16', border: '1px solid #1e293b', borderRadius: 10, padding: '12px 14px' }}>
-                    <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-xl p-3">
+                    <div className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1.5 font-black">
                       <Calendar size={10} /> Soumis le
                     </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1' }}>{decl.dateSubmission}</div>
+                    <div className="text-xs font-bold text-slate-700 dark:text-slate-300">{decl.dateSubmission}</div>
                   </div>
-                  <div style={{ background: '#090d16', border: '1px solid #1e293b', borderRadius: 10, padding: '12px 14px' }}>
-                    <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-xl p-3">
+                    <div className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1.5 font-black">
                       <Calendar size={10} /> Assigné le
                     </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1' }}>{decl.dateAssignation}</div>
+                    <div className="text-xs font-bold text-slate-700 dark:text-slate-300">{decl.dateAssignation}</div>
                   </div>
-                  <div style={{ gridColumn: '1 / -1', background: '#090d16', border: '1px solid #1e293b', borderRadius: 10, padding: '12px 14px' }}>
-                    <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 4 }}>📍 GPS</div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', fontFamily: 'monospace' }}>{decl.gps}</div>
+                  <div className="md:col-span-3 bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-xl p-3">
+                    <div className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 font-black">📍 GPS</div>
+                    <div className="text-xs font-bold text-slate-700 dark:text-slate-300 font-mono">{decl.gps}</div>
                   </div>
-                  <div style={{ gridColumn: '1 / -1', background: '#090d16', border: '1px solid #1e293b', borderRadius: 10, padding: '14px' }}>
-                    <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 6 }}>📝 Description</div>
-                    <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.65, fontWeight: 500 }}>{decl.description || 'Aucune description fournie.'}</div>
+                  <div className="md:col-span-3 bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 rounded-xl p-4">
+                    <div className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5 font-black">📝 Description</div>
+                    <div className="text-xs text-slate-650 dark:text-slate-300 leading-relaxed font-semibold">{decl.description || 'Aucune description fournie.'}</div>
                   </div>
                 </div>
 
                 {/* Citizen */}
                 <SectionDivider label="Citoyen déclarant" />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#090d16', borderRadius: 12, padding: '14px 18px', marginBottom: 20, border: '1px solid #1e293b' }}>
+                <div className="flex items-center gap-3.5 bg-slate-50 dark:bg-slate-950 rounded-xl p-4 mb-5 border border-slate-150 dark:border-slate-850">
                   <Avatar initiales={decl.citoyen.initiales} role="citizen" size={42} />
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#f8fafc' }}>{decl.citoyen.nom}</div>
-                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4, display: 'flex', gap: 14, flexWrap: 'wrap', fontWeight: 500 }}>
+                    <div className="text-sm font-bold text-slate-800 dark:text-slate-100">{decl.citoyen.nom}</div>
+                    <div className="text-xs text-slate-450 dark:text-slate-400 mt-1 flex gap-3.5 flex-wrap font-semibold">
                       <span>✉ {decl.citoyen.email}</span>
                       <span>📞 {decl.citoyen.phone}</span>
                     </div>
@@ -516,10 +600,12 @@ export default function AgentDeclarationDetail({
 
                 {/* Agents */}
                 <SectionDivider label="Agents affectés" />
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div className="flex flex-wrap gap-2">
                   {localAgents.map((a, i) => (
-                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 10, fontSize: 12, fontWeight: 600, background: 'rgba(6, 95, 70, 0.2)', border: '1px solid rgba(6, 95, 70, 0.8)', color: '#34D399' }}>
-                      <Users size={12} />{a.nom}<span style={{ opacity: 0.6, fontSize: 10 }}>({a.dept})</span>
+                    <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-450">
+                      <Users size={12} className="flex-shrink-0" />
+                      {a.nom}
+                      <span className="opacity-60 text-[10px]">({a.dept})</span>
                     </span>
                   ))}
                 </div>
@@ -532,121 +618,165 @@ export default function AgentDeclarationDetail({
                 ? <LockedPane message="Acceptez la mission pour débloquer la messagerie interne avec votre Chef de Service, le Président et les autres agents co-assignés." />
                 : (
                   <>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 18, maxHeight: 360, overflowY: 'auto' }}>
+                    <div className="flex flex-col gap-3 mb-4.5 max-h-[360px] overflow-y-auto pr-1 scrollbar-thin">
                       {localComments.length === 0 && (
-                        <div style={{ textAlign: 'center', padding: '36px 0', color: '#64748b', fontSize: 13 }}>Aucun commentaire pour l'instant. Commencez la discussion.</div>
+                        <div className="text-center py-9 text-slate-400 dark:text-slate-550 text-xs font-semibold">Aucun commentaire pour l'instant. Commencez la discussion.</div>
                       )}
                       {localComments.map((c, i) => {
-                        const rc = ROLE_CFG[c.role] ?? ROLE_CFG.agent;
+                        const badgeCls = ROLE_BADGE[c.role] ?? ROLE_BADGE.agent;
+                        const isMe = c.role === 'agent';
                         return (
-                          <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                          <div key={i} className="flex gap-2.5 items-start">
                             <Avatar initiales={c.initiales} role={c.role} size={32} />
-                            <div style={{ flex: 1, background: c.role === 'agent' ? 'rgba(6, 95, 70, 0.15)' : '#090d16', borderRadius: '0 10px 10px 10px', padding: '10px 14px', border: c.role === 'agent' ? '1px solid rgba(6, 95, 70, 0.6)' : '1px solid #1e293b' }}>
-                              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 5, flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>{c.auteur}</span>
-                                <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 5, background: rc.bg, color: rc.color, fontWeight: 700, textTransform: 'uppercase' }}>{c.role}</span>
-                                <span style={{ fontSize: 11, color: '#64748b' }}>{c.heure}</span>
+                            <div className={`flex-grow rounded-r-xl rounded-bl-xl p-3 border ${
+                              isMe 
+                                ? 'bg-emerald-50/40 dark:bg-emerald-950/10 border-emerald-100/70 dark:border-emerald-900/20' 
+                                : 'bg-slate-50 dark:bg-slate-950 border-slate-150 dark:border-slate-850'
+                            }`}>
+                              <div className="flex gap-2 items-center mb-1.5 flex-wrap">
+                                <span className="text-xs font-black text-slate-800 dark:text-slate-200">{c.auteur}</span>
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider ${badgeCls}`}>{c.role}</span>
+                                <span className="text-[10px] text-slate-400 dark:text-slate-550 font-semibold">{c.heure}</span>
                               </div>
-                              <div style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.55 }}>{c.text}</div>
+                              <div className="text-xs text-slate-650 dark:text-slate-300 leading-relaxed font-medium">{c.text}</div>
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', borderTop: '1px solid #1e293b', paddingTop: 16 }}>
+                    <div className="flex gap-2.5 items-end border-t border-slate-100 dark:border-slate-850 pt-4">
                       <Avatar initiales="AM" role="agent" size={32} />
-                      <textarea value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment(); } }} placeholder="Message au Chef ou aux agents co-assignés... (Entrée pour envoyer)" rows={2}
-                        style={{ flex: 1, border: '1px solid #1e293b', borderRadius: 10, padding: '10px 14px', fontSize: 13, fontFamily: 'inherit', color: '#f8fafc', resize: 'none', outline: 'none', background: '#090d16' }} />
-                      <Btn variant="primary" onClick={handleAddComment} style={{ height: 42, padding: '0 16px', borderRadius: 10 }}>➤</Btn>
+                      <textarea 
+                        value={newComment} 
+                        onChange={e => setNewComment(e.target.value)} 
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment(); } }} 
+                        placeholder="Message au Chef ou aux agents co-assignés... (Entrée pour envoyer)" 
+                        rows={2}
+                        className="flex-grow border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-550 resize-none outline-none bg-slate-50 dark:bg-slate-950 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 font-medium"
+                      />
+                      <Btn variant="primary" onClick={handleAddComment} className="h-[38px] px-4 rounded-xl">➤</Btn>
                     </div>
                   </>
                 )
             )}
 
-
             {/* ═══ ACTIONS — PENDING ═══ */}
             {activeTab === 'actions' && isPending && (
-              <div style={{ maxWidth: 560 }}>
-                <div style={{ background: 'rgba(217, 119, 6, 0.1)', border: '1px solid rgba(217, 119, 6, 0.3)', borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 20, flexShrink: 0 }}>⚡</span>
+              <div className="max-w-[560px]">
+                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-250 dark:border-amber-900/30 rounded-xl p-4 mb-5 flex gap-3 items-start">
+                  <span className="text-xl flex-shrink-0">⚡</span>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: '#FBBF24', marginBottom: 3 }}>Mission en attente de votre décision</div>
-                    <div style={{ fontSize: 12, color: '#F59E0B', lineHeight: 1.6 }}>Acceptez pour démarrer — la messagerie et l'upload photo seront débloqués. Un refus exige un motif détaillé.</div>
+                    <div className="text-xs font-bold text-amber-600 dark:text-amber-400 mb-1">Mission en attente de votre décision</div>
+                    <div className="text-xs text-amber-500 dark:text-amber-400/80 leading-relaxed font-medium">Acceptez pour démarrer — la messagerie et l'upload photo seront débloqués. Un refus exige un motif détaillé.</div>
                   </div>
                 </div>
-                <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, padding: '18px 20px', marginBottom: 14 }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#34D399', marginBottom: 4 }}>✅ Accepter la mission</div>
-                  <div style={{ fontSize: 12, color: '#a7f3d0', marginBottom: 14, lineHeight: 1.6 }}>La mission passe en "En cours" et apparaît sur le Kanban. Messagerie et photo de preuve débloquées.</div>
-                  <Btn variant="primary" onClick={handleAccept} disabled={accepting} style={{ width: '100%', justifyContent: 'center', padding: '12px', borderRadius: 10 }}>
+                <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/20 rounded-xl p-5 mb-3.5">
+                  <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 mb-1">✅ Accepter la mission</div>
+                  <div className="text-xs text-emerald-500 dark:text-emerald-450/80 mb-3.5 leading-relaxed font-semibold">La mission passe en "En cours" et apparaît sur le Kanban. Messagerie et photo de preuve débloquées.</div>
+                  <Btn variant="primary" onClick={handleAccept} disabled={accepting} className="w-full justify-center py-3 rounded-xl">
                     {accepting ? '⏳ Acceptation...' : '✓ Accepter et démarrer l\'intervention'}
                   </Btn>
                 </div>
-                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 12, padding: '18px 20px' }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#fca5a5', marginBottom: 4 }}>✕ Refuser la mission</div>
-                  <div style={{ fontSize: 12, color: '#fca5a5', marginBottom: 14, lineHeight: 1.6 }}>Le refus sera transmis au Chef de Service. Un motif complet est obligatoire (min. 10 caractères).</div>
-                  {!showMotifForm
-                    ? <Btn variant="danger" style={{ width: '100%', justifyContent: 'center', padding: '12px', borderRadius: 10 }} onClick={() => setShowMotifForm(true)}>✕ Déclarer un refus</Btn>
-                    : <>
-                      <textarea value={motif} onChange={e => { setMotif(e.target.value); setMotifError(''); }} placeholder="Raison précise du refus (ex: zone inaccessible, matériel insuffisant...)" style={{ width: '100%', border: `1px solid ${motifError ? '#EF4444' : '#1e293b'}`, borderRadius: 10, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', minHeight: 90, marginBottom: 8, color: '#f8fafc', outline: 'none', background: '#090d16', boxSizing: 'border-box', lineHeight: 1.6 }} />
-                      {motifError && <div style={{ marginBottom: 10, fontSize: 12, color: '#F87171', fontWeight: 600, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '7px 12px', borderRadius: 8 }}>{motifError}</div>}
-                      <div style={{ display: 'flex', gap: 10 }}>
-                        <button onClick={() => { setShowMotifForm(false); setMotif(''); setMotifError(''); }} style={{ flex: 1, padding: '10px', border: '1px solid #1e293b', borderRadius: 10, background: '#090d16', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#94a3b8', fontFamily: 'inherit' }}>Annuler</button>
-                        <Btn variant="danger" style={{ flex: 1, justifyContent: 'center', padding: '10px', borderRadius: 10 }} disabled={refusing} onClick={handleRefuse}>
+                <div className="bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/20 rounded-xl p-5">
+                  <div className="text-xs font-black text-red-655 dark:text-red-400 mb-1">✕ Refuser la mission</div>
+                  <div className="text-xs text-red-500 dark:text-red-400/80 mb-3.5 leading-relaxed font-semibold">Le refus sera transmis au Chef de Service. Un motif complet est obligatoire (min. 10 caractères).</div>
+                  {!showMotifForm ? (
+                    <Btn variant="danger" className="w-full justify-center py-3 rounded-xl" onClick={() => setShowMotifForm(true)}>✕ Déclarer un refus</Btn>
+                  ) : (
+                    <>
+                      <textarea 
+                        value={motif} 
+                        onChange={e => { setMotif(e.target.value); setMotifError(''); }} 
+                        placeholder="Raison précise du refus (ex: zone inaccessible, matériel insuffisant...)" 
+                        className={`w-full border ${motifError ? 'border-red-500 focus:ring-red-500/20' : 'border-slate-200 dark:border-slate-800'} rounded-xl p-3 text-xs resize-y min-h-[90px] mb-2 text-slate-800 dark:text-slate-100 outline-none bg-slate-50 dark:bg-slate-950 focus:ring-1 focus:ring-emerald-500/20 box-border leading-relaxed font-semibold`}
+                      />
+                      {motifError && (
+                        <div className="mb-2.5 text-xs text-red-550 dark:text-red-400 font-bold bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/30 p-2.5 rounded-lg">
+                          {motifError}
+                        </div>
+                      )}
+                      <div className="flex gap-2.5">
+                        <button 
+                          onClick={() => { setShowMotifForm(false); setMotif(''); setMotifError(''); }} 
+                          className="flex-1 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 text-xs font-bold cursor-pointer text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850 hover:text-slate-700 dark:hover:text-slate-250 transition-colors"
+                        >
+                          Annuler
+                        </button>
+                        <Btn variant="danger" className="flex-1 justify-center py-2.5 rounded-xl" disabled={refusing} onClick={handleRefuse}>
                           {refusing ? '⏳...' : 'Confirmer le refus'}
                         </Btn>
                       </div>
                     </>
-                  }
+                  )}
                 </div>
               </div>
             )}
 
             {/* ═══ ACTIONS — ACCEPTED ═══ */}
             {activeTab === 'actions' && !isPending && (
-              <div style={{ maxWidth: 560 }}>
+              <div className="max-w-[560px]">
                 {!isClosed && (
-                  <div style={{ marginBottom: 24 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Changer le statut</div>
-                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <select value={statusSel} onChange={e => setStatusSel(e.target.value as DeclarationStatus)} style={{ padding: '9px 14px', border: '1px solid #1e293b', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', color: '#f8fafc', background: '#090d16', outline: 'none', fontWeight: 600, cursor: 'pointer' }}>
+                  <div className="mb-6">
+                    <div className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-wider mb-2.5">Changer le statut</div>
+                    <div className="flex gap-2.5 flex-wrap items-center">
+                      <select 
+                        value={statusSel} 
+                        onChange={e => setStatusSel(e.target.value as DeclarationStatus)} 
+                        className="px-3.5 py-2 border border-slate-200 dark:border-slate-850 rounded-xl text-xs text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-950 outline-none font-bold cursor-pointer focus:ring-1 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      >
                         <option value="en_cours">En cours d'intervention</option>
                         <option value="resolue">{`Évaluée${!photoUploaded ? ' (photo preuve requise)' : ''}`}</option>
                       </select>
                       <Btn variant="primary" onClick={handleStatusChange}>Mettre à jour</Btn>
                     </div>
-                    {statusFeedback && <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: statusFeedback.startsWith('⚠') ? '#F87171' : '#34D399', padding: '10px 14px', borderRadius: 10, background: statusFeedback.startsWith('⚠') ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', border: statusFeedback.startsWith('⚠') ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)' }}>{statusFeedback}</div>}
-                    <div style={{ marginTop: 8, fontSize: 11, color: '#94A3B8' }}>ℹ "Évaluée" exige une photo de preuve.</div>
+                    {statusFeedback && (
+                      <div className={`mt-3 text-xs font-bold p-3 rounded-xl border ${
+                        statusFeedback.startsWith('⚠') 
+                          ? 'text-red-550 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/20' 
+                          : 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/20'
+                      }`}>
+                        {statusFeedback}
+                      </div>
+                    )}
+                    <div className="mt-2.5 text-[10px] text-slate-400 dark:text-slate-500 font-semibold">ℹ "Évaluée" exige une photo de preuve.</div>
                   </div>
                 )}
 
                 {isClosed && (
-                  <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, padding: '14px 18px', marginBottom: 24, fontSize: 13, fontWeight: 600, color: '#34D399' }}>
+                  <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/20 rounded-xl p-3.5 mb-6 text-xs font-black text-emerald-600 dark:text-emerald-450">
                     ✅ Mission {decl.statut === 'cloturee' ? 'clôturée' : 'évaluée'}.
                   </div>
                 )}
 
                 <SectionDivider label="Photo preuve d'intervention" />
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
 
                 {photoUploaded ? (
                   <div>
-                    <div style={{ padding: '11px 15px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 10, color: '#34D399', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>✅ Photo de preuve validée.</div>
-                    {photoApresUrl && <div style={{ width: '100%', maxWidth: 300, height: 170, borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(16, 185, 129, 0.5)' }}><img src={photoApresUrl} alt="Preuve" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>}
-                    {!isClosed && <button onClick={() => fileInputRef.current?.click()} style={{ marginTop: 10, fontSize: 12, color: '#94a3b8', background: 'none', border: '1px solid #1e293b', padding: '5px 12px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit' }}>Remplacer la photo</button>}
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/20 rounded-xl text-emerald-600 dark:text-emerald-400 text-xs font-black mb-3">✅ Photo de preuve validée.</div>
+                    {photoApresUrl && <div className="w-full max-w-[300px] h-[170px] rounded-xl overflow-hidden border border-emerald-500/30"><img src={photoApresUrl} alt="Preuve" className="w-full h-full object-cover" /></div>}
+                    {!isClosed && (
+                      <button 
+                        onClick={() => fileInputRef.current?.click()} 
+                        className="mt-2.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-205 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-850 border border-slate-205 dark:border-slate-800 px-3 py-1.5 rounded-lg cursor-pointer font-bold transition-all"
+                      >
+                        Remplacer la photo
+                      </button>
+                    )}
                   </div>
                 ) : uploading ? (
-                  <div style={{ border: '2px dashed rgba(16, 185, 129, 0.5)', borderRadius: 12, padding: 32, textAlign: 'center', background: 'rgba(16, 185, 129, 0.1)' }}>
-                    <Loader2 className="animate-spin" size={26} style={{ margin: '0 auto 8px', color: '#10B981', display: 'block' }} />
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#34D399' }}>Téléversement...</div>
+                  <div className="border-2 border-dashed border-emerald-500/40 rounded-xl p-8 text-center bg-emerald-50/10 dark:bg-emerald-950/10">
+                    <Loader2 className="animate-spin mx-auto mb-2 text-emerald-500 block" size={26} />
+                    <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Téléversement...</div>
                   </div>
                 ) : (
-                  <label style={{ border: '2px dashed #334155', borderRadius: 12, padding: 32, textAlign: 'center', cursor: 'pointer', color: '#cbd5e1', fontSize: 13, display: 'block', background: '#090d16', transition: 'all 0.2s' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#10B981'; e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#334155'; e.currentTarget.style.background = '#090d16'; }}>
-                    <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
-                    <div style={{ fontSize: 30, marginBottom: 8 }}>☁</div>
-                    <div style={{ fontWeight: 700, color: '#f8fafc' }}>Importer une photo de preuve</div>
-                    <div style={{ fontSize: 11, marginTop: 5, color: '#64748b' }}>JPEG / PNG / WebP — Max. 10 Mo</div>
+                  <label 
+                    className="border-2 border-dashed border-slate-205 hover:border-emerald-500 dark:border-slate-800 dark:hover:border-emerald-500 rounded-xl p-8 text-center cursor-pointer text-slate-450 dark:text-slate-400 text-xs block bg-slate-50 dark:bg-slate-950 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/15 transition-all duration-200"
+                  >
+                    <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+                    <div className="text-3xl mb-2">☁</div>
+                    <div className="font-black text-slate-800 dark:text-slate-100">Importer une photo de preuve</div>
+                    <div className="text-[10px] mt-1 text-slate-400 dark:text-slate-500 font-semibold">JPEG / PNG / WebP — Max. 10 Mo</div>
                   </label>
                 )}
               </div>
@@ -655,6 +785,6 @@ export default function AgentDeclarationDetail({
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

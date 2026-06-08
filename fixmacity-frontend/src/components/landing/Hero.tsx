@@ -66,7 +66,7 @@ const Hero: React.FC = () => {
 
           {/* CTAs */}
           <div ref={ctaRef} className="flex flex-col sm:flex-row gap-4 mb-16">
-            <Link to="/register"
+            <Link to="/login"
               className="bg-[#1557FF] hover:bg-blue-600 hover:-translate-y-0.5 active:translate-y-0 text-white font-bold px-8 py-4 rounded-xl text-base transition-all shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2 group">
               Soumettre un signalement
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

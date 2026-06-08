@@ -8,10 +8,36 @@ const { getNextGenAI } = require('../services/gemini.rotation');
 
 const SALT_ROUNDS = 12;
 
+// FIX #1: Add missing getPriorityDetail endpoint
+exports.getPriorityDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from('declarations')
+      .select(`
+        id, title, ref_citoyen, status,
+        ai_priority, ai_priority_score, ai_confidence,
+        ai_reasoning, ai_visible_issues, ai_severity_label,
+        computed_priority, computed_score, final_priority,
+        president_override, president_override_note,
+        priority_approved, priority_approved_at, votes_count,
+        is_sensitive, sensitive_type, sensitive_distance_m
+      `)
+      .eq('id', id)
+      .is('deleted_at', null)
+      .single();
+    if (error || !data) return res.status(404).json({ success: false, error: 'Déclaration introuvable' });
+    return res.json({ success: true, data });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 /* ──────────── GET /api/president/declarations ──────────── */
 exports.listDeclarations = async (req, res) => {
   try {
     const { status, delegation_id, department_id, service_id, page = 1, limit = 20 } = req.query;
+    const effectiveServiceId = service_id || department_id;
     const offset = (page - 1) * limit;
 
     let query = supabase
@@ -25,14 +51,12 @@ exports.listDeclarations = async (req, res) => {
 
     if (status) query = query.eq('status', status);
     if (delegation_id) query = query.eq('delegation_id', delegation_id);
-    if (department_id) query = query.eq('department_id', department_id);
-    if (service_id) query = query.eq('service_id', service_id);
-
+    if (effectiveServiceId) query = query.eq('service_id', effectiveServiceId);
     let { data, error, count } = await query;
 
     if (data && data.length > 0) {
       const userIds = [...new Set(data.map(d => d.user_id || d.citizen_id).filter(Boolean))];
-      const agentIds = [...new Set(data.map(d => d.agent_id).filter(Boolean))];
+      const agentIds = []; // agent is now in declaration_services, not on declaration directly
       const allUserIds = [...new Set([...userIds, ...agentIds])];
 
       const delegIds = [...new Set(data.map(d => d.delegation_id).filter(Boolean))];
@@ -52,7 +76,7 @@ exports.listDeclarations = async (req, res) => {
       }
 
       data = data.map(d => {
-        const agent = d.agent_id ? userMap[d.agent_id] : null;
+const agent = null; // agent lookup moved to declaration_services
         return {
           ...d,
           // Ensure priority fields are always present
@@ -116,35 +140,40 @@ exports.getDeclarationDetail = async (req, res) => {
         .maybeSingle();
       citizen = data || null;
     }
- 
-    // ── 3. Department / service ────────────────────────────────────────────
+// ── 3. Department / service ────────────────────────────────────────────
     let department = null;
-    if (decl.department_id) {
+    if (decl.service_id) {
       const { data } = await supabase
         .from('services')
         .select('id, name_fr, name_ar, name_en, code')
-        .eq('id', decl.department_id)
+        .eq('id', decl.service_id)
         .maybeSingle();
       if (data) department = { ...data, name: data.name_fr || data.name_en || data.code };
     }
- 
+
     // ── 4. Chef de service ─────────────────────────────────────────────────
     let chef = null;
-    if (decl.department_id) {
+    if (decl.service_id) {
       const { data } = await supabase
         .from('users')
         .select('id, first_name, last_name, email')
         .eq('role', 'chef')
-        .eq('department_id', decl.department_id)
+        .eq('department_id', decl.service_id)
         .eq('is_active', true)
         .limit(1)
         .maybeSingle();
       chef = data || null;
     }
- 
-    // ── 5. Agent ───────────────────────────────────────────────────────────
+
+    // ── 5. Agent (primary from declaration_services) ───────────────────────
     let agent = null;
-    const agentId = decl.agent_id || decl.assigned_agent_id;
+    const { data: dsRow } = await supabase
+      .from('declaration_services')
+      .select('agent_id')
+      .eq('declaration_id', id)
+      .eq('service_id', decl.service_id)
+      .maybeSingle();
+    const agentId = dsRow?.agent_id;
     if (agentId) {
       const { data } = await supabase
         .from('users')
@@ -153,7 +182,6 @@ exports.getDeclarationDetail = async (req, res) => {
         .maybeSingle();
       agent = data || null;
     }
- 
     // ── 6. Photos ──────────────────────────────────────────────────────────
     const { data: photos } = await supabase
       .from('declaration_photos')
@@ -246,22 +274,29 @@ exports.getDeclarationDetail = async (req, res) => {
 exports.analyzeDeclarationImage = async (req, res) => {
   try {
     const { id } = req.params;
- 
+
     const { data: decl, error } = await supabase
       .from('declarations')
       .select('id, title, category, description, photo_avant, image_url, is_sensitive, sensitive_type, votes_count, latitude, longitude')
       .eq('id', id)
       .is('deleted_at', null)
       .single();
- 
+
     if (error || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
- 
+
     // Resolve image URL — try photo_avant first, then image_url, then first photo record
     let imageUrl = decl.photo_avant || decl.image_url;
     if (!imageUrl) {
       const { data: firstPhoto } = await supabase
         .from('declaration_photos').select('url').eq('declaration_id', id).limit(1).maybeSingle();
       imageUrl = firstPhoto?.url || null;
+    }
+
+    if (!imageUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'Aucune image attachée à cette déclaration'
+      });
     }
  
     // Build score from non-AI signals regardless of whether we have an image
@@ -279,10 +314,12 @@ exports.analyzeDeclarationImage = async (req, res) => {
         if (!imageRes.ok) throw new Error('Image fetch failed');
         const imageBuffer = await imageRes.arrayBuffer();
         const base64Image = Buffer.from(imageBuffer).toString('base64');
-        let mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
-        if (mimeType === 'application/octet-stream' || !mimeType.startsWith('image/')) {
-          const ext = imageUrl.split('.').pop().split('?')[0].toLowerCase();
-          mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+        const mimeType = imageRes.headers.get('content-type') || '';
+        if (!mimeType.startsWith('image/')) {
+          return res.status(400).json({
+            success: false,
+            error: 'Le fichier attaché n\'est pas une image valide'
+          });
         }
 
         const contextParts = [
@@ -389,48 +426,53 @@ Réponds UNIQUEMENT avec ce JSON (sans markdown):
 /* ──────────── PATCH /api/president/declarations/:id/priority ──────────── */
 exports.overridePriority = async (req, res) => {
   try {
+    // FIX #5: Role guard
+    if (req.user?.role !== 'president') {
+      return res.status(403).json({ success: false, error: 'Accès réservé au Président Municipal' });
+    }
+
     const { id } = req.params;
     const { priority, ai_confirmed, president_override, president_override_note, president_id } = req.body;
 
+    // FIX #3: Replace broken validation with proper priority validation
+    const VALID_PRIORITIES = ['faible', 'normal', 'urgent'];
+    const priorityRaw = priority || president_override;
+
+    if (!priorityRaw) {
+      return res.status(400).json({ success: false, error: 'Priorité requise' });
+    }
+
+    const priorityMapped = priorityRaw.toLowerCase().trim();
+
+    // Map UI labels to DB values
+    const LABEL_MAP = {
+      'haute': 'urgent', 'high': 'urgent', 'critique': 'urgent',
+      'moyenne': 'normal', 'medium': 'normal',
+      'basse': 'faible', 'low': 'faible'
+    };
+    const dbPriority = LABEL_MAP[priorityMapped] || priorityMapped;
+
+    if (!VALID_PRIORITIES.includes(dbPriority)) {
+      return res.status(400).json({
+        success: false,
+        error: `Priorité invalide. Valeurs acceptées: ${VALID_PRIORITIES.join(', ')}`
+      });
+    }
+
+    // Only write president_override (single field, not both)
     const updateData = {
-      updated_at: new Date().toISOString(),
+      president_override: dbPriority,
+      president_override_note: req.body.note || president_override_note || null,
+      final_priority: dbPriority,
       priority_approved: true,
+      priority_approved_by: req.user.id,
       priority_approved_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    // Map any priority string to DB values
-    const levelToDb = (level) => {
-      const v = (level || '').toLowerCase();
-      if (['urgent', 'critique', 'critical', 'haute', 'high'].includes(v)) return { priority: 'haute', priority_score: 90 };
-      if (['faible', 'low', 'basse'].includes(v)) return { priority: 'basse', priority_score: 15 };
-      return { priority: 'moyenne', priority_score: 50 };
-    };
-
-    // Handle AIPriorityPanel format: president_override field
-    if (president_override !== undefined) {
-      updateData.president_override = president_override;
-      updateData.president_override_note = president_override_note ?? null;
-      if (president_override) {
-        const mapped = levelToDb(president_override);
-        updateData.priority = mapped.priority;
-        updateData.priority_score = mapped.priority_score;
-      }
-    }
-
-    // Handle all priority formats: critical/normal/low (dashboard) OR urgent/normal/faible (drawer)
-    if (priority) {
-      const VALID = ['critical', 'normal', 'low', 'urgent', 'faible',
-                     'haute', 'high', 'moyenne', 'medium', 'basse', 'critique'];
-      if (!VALID.includes(priority.toLowerCase())) {
-        return res.status(400).json({ error: 'Priorité invalide.' });
-      }
-      const mapped = levelToDb(priority);
-      updateData.priority = mapped.priority;
-      updateData.priority_score = mapped.priority_score;
-      updateData.ai_priority_confirmed = ai_confirmed ?? true;
-      // Always persist as president_override so both views read the same source
-      updateData.president_override = priority.toLowerCase();
-    }
+    // Map to DB priority column
+    const DB_LABEL_MAP = { urgent: 'haute', normal: 'moyenne', faible: 'basse' };
+    updateData.priority = DB_LABEL_MAP[dbPriority];
 
     const { data: updated, error } = await supabase
       .from('declarations')
@@ -470,56 +512,52 @@ exports.overridePriority = async (req, res) => {
 };
 /* ──────────── POST /api/president/declarations/:id/assign ──────────── */
 exports.assignDeclaration = async (req, res) => {
+  // FIX #5: Role guard
+  if (req.user?.role !== 'president') {
+    return res.status(403).json({ success: false, error: 'Accès réservé au Président Municipal' });
+  }
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     const { id } = req.params;
-    const { department_id, additional_department_ids, priority, planned_start, planned_end } = req.body;
-
-    let priority_score = 4;
-    if (priority === 'High') priority_score = 8;
-    if (priority === 'Low') priority_score = 1;
+    const { service_ids, priority_score, planned_start, planned_end } = req.body;
 
     // Fetch declaration
     const { data: decl, error: fetchErr } = await supabase
       .from('declarations')
-      .select('*')
+      .select('id, status, citizen_id, ref_citoyen, title, category, delegation_id')
       .eq('id', id)
       .is('deleted_at', null)
       .single();
 
-    if (fetchErr || !decl) {
-      return res.status(404).json({ error: 'Déclaration introuvable.' });
+    if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
+    if (!['soumise', 'refusee_chef', 'refusee_agent'].includes(decl.status)) {
+      return res.status(400).json({ error: `Statut "${decl.status}" ne peut pas être assigné.` });
     }
 
-    if (decl.status !== 'soumise') {
-      return res.status(400).json({ error: 'Seules les déclarations au statut soumise peuvent être affectées.' });
-    }
-
-    // Look up service code for ref_service generation
-    const { data: service } = await supabase
+    // Validate all service_ids exist
+    const { data: services, error: svcErr } = await supabase
       .from('services')
-      .select('id, code')
-      .eq('id', department_id)
-      .single();
+      .select('id, code, name_fr, chef_id')
+      .in('id', service_ids);
 
-    if (!service || !service.code) {
-      return res.status(400).json({ error: 'Département/service invalide.' });
+    if (svcErr || !services || services.length !== service_ids.length) {
+      return res.status(400).json({ error: 'Un ou plusieurs services introuvables.' });
     }
 
-    const refService = await generateRefService(service.code);
+    // Generate ref_service for the primary service (first one)
+    const primaryService = services[0];
+    const refService = await generateRefService(primaryService.code);
 
+    // Update declaration with primary service + status
     const { data: updated, error: updateErr } = await supabase
       .from('declarations')
       .update({
         status: 'assignee_chef',
-        department_id,
-        service_id: department_id,
+        service_id: primaryService.id,
         ref_service: refService,
-        priority_score: priority_score,
+        priority_score: priority_score || decl.priority_score || 0,
         planned_start: planned_start || null,
         planned_end: planned_end || null,
         assigned_at: new Date().toISOString(),
@@ -530,116 +568,42 @@ exports.assignDeclaration = async (req, res) => {
       .single();
 
     if (updateErr) {
-      console.error('[President] Assign error:', updateErr.message);
+      console.error('[President] Assign update error:', updateErr.message);
       return res.status(500).json({ error: 'Erreur lors de l\'affectation.' });
     }
 
-    await logStatusChange(id, 'soumise', 'assignee_chef', req.user.id);
-    await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_chef');
+    // Insert declaration_services rows (upsert to avoid duplicates on reassign)
+    const dsRows = service_ids.map(svcId => ({
+      declaration_id: id,
+      service_id: svcId,
+      chef_id: services.find(s => s.id === svcId)?.chef_id || null,
+      status: 'assignee_chef',
+      assigned_at: new Date().toISOString(),
+    }));
 
-    const { data: chef } = await supabase
-      .from('users')
-      .select('id')
-      .eq('role', 'chef')
-      .eq('department_id', department_id)
-      .eq('is_active', true)
-      .limit(1)
-      .maybeSingle();
+    const { error: dsErr } = await supabase
+      .from('declaration_services')
+      .upsert(dsRows, { onConflict: 'declaration_id,service_id' });
 
-    if (chef) {
-      await notifyChefAssigned(req.app, updated, chef.id);
+    if (dsErr) {
+      console.error('[President] declaration_services insert error:', dsErr.message);
     }
 
-    // Process additional departments by duplicating the declaration and its photos
-    const extraDepts = Array.isArray(additional_department_ids)
-      ? additional_department_ids.filter(dId => dId && dId !== department_id)
-      : [];
+    // Log + notify
+    await logStatusChange(id, decl.status, 'assignee_chef', req.user.id, `Assigné à ${services.map(s => s.name_fr).join(', ')}`);
+    await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_chef');
 
-    if (extraDepts.length > 0) {
-      // Fetch photos of the original declaration
-      const { data: photos } = await supabase
-        .from('declaration_photos')
-        .select('*')
-        .eq('declaration_id', id);
-
-      for (const addDeptId of extraDepts) {
-        const { data: serviceAdd } = await supabase
-          .from('services')
-          .select('id, code')
-          .eq('id', addDeptId)
-          .single();
-
-        if (!serviceAdd || !serviceAdd.code) {
-          continue;
-        }
-
-        const refServiceSub = await generateRefService(serviceAdd.code);
-
-        const subDeclData = {
-          title: decl.title,
-          description: decl.description,
-          category: decl.category || null,
-          delegation_id: decl.delegation_id,
-          citizen_id: decl.citizen_id,
-          user_id: decl.user_id,
-          ref_citoyen: decl.ref_citoyen,
-          status: 'assignee_chef',
-          department_id: addDeptId,
-          service_id: addDeptId,
-          ref_service: refServiceSub,
-          priority_score: priority_score,
-          planned_start: planned_start || null,
-          planned_end: planned_end || null,
-          assigned_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          latitude: decl.latitude || null,
-          longitude: decl.longitude || null,
-          address: decl.address || null,
-          priority: decl.priority || 'moyenne',
-          photo_avant: decl.photo_avant || null,
-          is_deleted: false,
-        };
-
-        const { data: subDecl, error: subDeclErr } = await supabase
-          .from('declarations')
-          .insert(subDeclData)
-          .select('*')
-          .single();
-
-        if (subDeclErr) {
-          console.error('[President] Sub-assign error:', subDeclErr.message);
-          continue;
-        }
-
-        if (photos && photos.length > 0) {
-          const subPhotos = photos.map(ph => ({
-            declaration_id: subDecl.id,
-            url: ph.url,
-            uploaded_by: ph.uploaded_by,
-            photo_type: ph.photo_type || 'photo_avant'
-          }));
-          await supabase.from('declaration_photos').insert(subPhotos);
-        }
-
-        await logStatusChange(subDecl.id, 'soumise', 'assignee_chef', req.user.id);
-        await notifyStatusChange(req.app, subDecl, subDecl.citizen_id, 'assignee_chef');
-
-        const { data: subChef } = await supabase
-          .from('users')
-          .select('id')
-          .eq('role', 'chef')
-          .eq('department_id', addDeptId)
-          .eq('is_active', true)
-          .limit(1)
-          .maybeSingle();
-
-        if (subChef) {
-          await notifyChefAssigned(req.app, subDecl, subChef.id);
-        }
+    // Notify each chef
+    for (const svc of services) {
+      if (svc.chef_id) {
+        await notifyChefAssigned(req.app, updated, svc.chef_id);
       }
     }
 
-    return res.status(200).json({ declaration: updated });
+    return res.status(200).json({
+      declaration: updated,
+      services_assigned: services.map(s => ({ id: s.id, name: s.name_fr })),
+    });
   } catch (err) {
     console.error('[President] Assign error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
@@ -648,56 +612,49 @@ exports.assignDeclaration = async (req, res) => {
 
 /* ──────────── POST /api/president/declarations/:id/reassign ──────────── */
 exports.reassignDeclaration = async (req, res) => {
+  // FIX #5: Role guard
+  if (req.user?.role !== 'president') {
+    return res.status(403).json({ success: false, error: 'Accès réservé au Président Municipal' });
+  }
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     const { id } = req.params;
-    const { department_id, additional_department_ids, priority, planned_start, planned_end } = req.body;
-
-    let priority_score = 4;
-    if (priority === 'High') priority_score = 8;
-    if (priority === 'Low') priority_score = 1;
+    const { service_ids, priority_score, planned_start, planned_end } = req.body;
 
     const { data: decl, error: fetchErr } = await supabase
       .from('declarations')
-      .select('*')
+      .select('id, status, citizen_id, ref_citoyen, title, category, delegation_id')
       .eq('id', id)
       .is('deleted_at', null)
       .single();
 
-    if (fetchErr || !decl) {
-      return res.status(404).json({ error: 'Déclaration introuvable.' });
-    }
-
+    if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
     if (!['refusee_chef', 'refusee_agent', 'assignee_chef', 'assignee_agent', 'en_cours'].includes(decl.status)) {
-      return res.status(400).json({ error: 'Seules les déclarations non résolues ou refusées peuvent être réaffectées.' });
+      return res.status(400).json({ error: 'Seules les déclarations actives ou refusées peuvent être réaffectées.' });
     }
 
-    const { data: service } = await supabase
+    const { data: services, error: svcErr } = await supabase
       .from('services')
-      .select('id, code')
-      .eq('id', department_id)
-      .single();
+      .select('id, code, name_fr, chef_id')
+      .in('id', service_ids);
 
-    if (!service || !service.code) {
-      return res.status(400).json({ error: 'Département/service invalide.' });
+    if (svcErr || !services || services.length !== service_ids.length) {
+      return res.status(400).json({ error: 'Un ou plusieurs services introuvables.' });
     }
 
-    const refService = await generateRefService(service.code);
+    const primaryService = services[0];
+    const refService = await generateRefService(primaryService.code);
     const oldStatus = decl.status;
 
     const { data: updated, error: updateErr } = await supabase
       .from('declarations')
       .update({
         status: 'assignee_chef',
-        department_id,
-        service_id: department_id,
-        agent_id: null,
+        service_id: primaryService.id,
         ref_service: refService,
-        priority_score: priority_score,
+        priority_score: priority_score || decl.priority_score || 0,
         planned_start: planned_start || null,
         planned_end: planned_end || null,
         assigned_at: new Date().toISOString(),
@@ -708,116 +665,43 @@ exports.reassignDeclaration = async (req, res) => {
       .single();
 
     if (updateErr) {
-      console.error('[President] Reassign error:', updateErr.message);
+      console.error('[President] Reassign update error:', updateErr.message);
       return res.status(500).json({ error: 'Erreur lors de la réaffectation.' });
     }
 
-    await logStatusChange(id, oldStatus, 'assignee_chef', req.user.id, 'Réaffectation par le président');
-    await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_chef');
+    // Delete old service assignments and insert new ones
+    await supabase.from('declaration_services').delete().eq('declaration_id', id);
 
-    const { data: chef } = await supabase
-      .from('users')
-      .select('id')
-      .eq('role', 'chef')
-      .eq('department_id', department_id)
-      .eq('is_active', true)
-      .limit(1)
-      .maybeSingle();
+    const dsRows = service_ids.map(svcId => ({
+      declaration_id: id,
+      service_id: svcId,
+      chef_id: services.find(s => s.id === svcId)?.chef_id || null,
+      status: 'assignee_chef',
+      assigned_at: new Date().toISOString(),
+    }));
 
-    if (chef) {
-      await notifyChefAssigned(req.app, updated, chef.id);
+    const { error: dsErr } = await supabase
+      .from('declaration_services')
+      .insert(dsRows);
+
+    if (dsErr) {
+      console.error('[President] declaration_services reassign error:', dsErr.message);
     }
 
-    // Process additional departments by duplicating the declaration and its photos
-    const extraDepts = Array.isArray(additional_department_ids)
-      ? additional_department_ids.filter(dId => dId && dId !== department_id)
-      : [];
+    await logStatusChange(id, oldStatus, 'assignee_chef', req.user.id,
+      `Réaffectation par le président → ${services.map(s => s.name_fr).join(', ')}`);
+    await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_chef');
 
-    if (extraDepts.length > 0) {
-      // Fetch photos of the original declaration
-      const { data: photos } = await supabase
-        .from('declaration_photos')
-        .select('*')
-        .eq('declaration_id', id);
-
-      for (const addDeptId of extraDepts) {
-        const { data: serviceAdd } = await supabase
-          .from('services')
-          .select('id, code')
-          .eq('id', addDeptId)
-          .single();
-
-        if (!serviceAdd || !serviceAdd.code) {
-          continue;
-        }
-
-        const refServiceSub = await generateRefService(serviceAdd.code);
-
-        const subDeclData = {
-          title: decl.title,
-          description: decl.description,
-          category: decl.category || null,
-          delegation_id: decl.delegation_id,
-          citizen_id: decl.citizen_id,
-          user_id: decl.user_id,
-          ref_citoyen: decl.ref_citoyen,
-          status: 'assignee_chef',
-          department_id: addDeptId,
-          service_id: addDeptId,
-          ref_service: refServiceSub,
-          priority_score: priority_score,
-          planned_start: planned_start || null,
-          planned_end: planned_end || null,
-          assigned_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          latitude: decl.latitude || null,
-          longitude: decl.longitude || null,
-          address: decl.address || null,
-          priority: decl.priority || 'moyenne',
-          photo_avant: decl.photo_avant || null,
-          is_deleted: false,
-        };
-
-        const { data: subDecl, error: subDeclErr } = await supabase
-          .from('declarations')
-          .insert(subDeclData)
-          .select('*')
-          .single();
-
-        if (subDeclErr) {
-          console.error('[President] Sub-reassign error:', subDeclErr.message);
-          continue;
-        }
-
-        if (photos && photos.length > 0) {
-          const subPhotos = photos.map(ph => ({
-            declaration_id: subDecl.id,
-            url: ph.url,
-            uploaded_by: ph.uploaded_by,
-            photo_type: ph.photo_type || 'photo_avant'
-          }));
-          await supabase.from('declaration_photos').insert(subPhotos);
-        }
-
-        await logStatusChange(subDecl.id, oldStatus, 'assignee_chef', req.user.id, 'Réaffectation par le président (département additionnel)');
-        await notifyStatusChange(req.app, subDecl, subDecl.citizen_id, 'assignee_chef');
-
-        const { data: subChef } = await supabase
-          .from('users')
-          .select('id')
-          .eq('role', 'chef')
-          .eq('department_id', addDeptId)
-          .eq('is_active', true)
-          .limit(1)
-          .maybeSingle();
-
-        if (subChef) {
-          await notifyChefAssigned(req.app, subDecl, subChef.id);
-        }
+    for (const svc of services) {
+      if (svc.chef_id) {
+        await notifyChefAssigned(req.app, updated, svc.chef_id);
       }
     }
 
-    return res.status(200).json({ declaration: updated });
+    return res.status(200).json({
+      declaration: updated,
+      services_assigned: services.map(s => ({ id: s.id, name: s.name_fr })),
+    });
   } catch (err) {
     console.error('[President] Reassign error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
@@ -935,6 +819,10 @@ exports.listUsers = async (req, res) => {
 
 /* ──────────── POST /api/president/users ──────────── */
 exports.createUser = async (req, res) => {
+  // FIX #5: Role guard
+  if (req.user?.role !== 'president') {
+    return res.status(403).json({ success: false, error: 'Accès réservé au Président Municipal' });
+  }
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -1053,6 +941,10 @@ exports.updateUser = async (req, res) => {
 };
 /* ──────────── DELETE /api/president/users/:id ──────────── */
 exports.deleteUser = async (req, res) => {
+  // FIX #5: Role guard
+  if (req.user?.role !== 'president') {
+    return res.status(403).json({ success: false, error: 'Accès réservé au Président Municipal' });
+  }
   try {
     const { id } = req.params;
 
@@ -1462,10 +1354,10 @@ exports.dashboard = async (req, res) => {
         sqlFilter += ` AND d.status = '${status}'`;
       }
     }
-    if (department_id && department_id !== 'all') {
-      baseQuery = baseQuery.eq('department_id', department_id);
+  if (department_id && department_id !== 'all') {
+      baseQuery = baseQuery.eq('service_id', department_id);
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(department_id)) {
-        sqlFilter += ` AND d.department_id = '${department_id}'`;
+        sqlFilter += ` AND d.service_id = '${department_id}'`;
       }
     }
     if (delegation_id && delegation_id !== 'all') {
@@ -1545,6 +1437,7 @@ exports.dashboard = async (req, res) => {
     }));
 
     // ── Department Performance ──
+    // NOTE: declarations use service_id directly (no declaration_services join table)
     let byDepartment = [];
     try {
       const deptRes = await supabase.pool.query(`
@@ -1555,8 +1448,7 @@ exports.dashboard = async (req, res) => {
           COUNT(d.id)                                                      AS total,
           COUNT(d.id) FILTER (WHERE d.status IN ('resolue','cloturee'))   AS resolved
         FROM services s
-        LEFT JOIN declarations d
-          ON d.department_id = s.id
+        LEFT JOIN declarations d ON d.service_id = s.id
           AND d.deleted_at IS NULL
           AND COALESCE(d.is_deleted, false) = false
         GROUP BY s.id, s.name_fr, s.code
@@ -1574,14 +1466,15 @@ exports.dashboard = async (req, res) => {
         highSatisfactionCount: 0,   // computed separately below
       }));
 
-      // Satisfaction counts in a separate, isolated query to avoid JOIN explosion
+      // Satisfaction counts — use service_id directly on declarations
       if (byDepartment.length > 0) {
         const satRes = await supabase.pool.query(`
-          SELECT d.department_id, COUNT(DISTINCT d.id) AS sat_count
+          SELECT d.service_id AS department_id, COUNT(DISTINCT d.id) AS sat_count
           FROM declarations d
           INNER JOIN ratings rt ON rt.declaration_id = d.id AND rt.score > 3
           WHERE d.deleted_at IS NULL AND COALESCE(d.is_deleted, false) = false
-          GROUP BY d.department_id
+            AND d.service_id IS NOT NULL
+          GROUP BY d.service_id
         `);
         const satMap = {};
         (satRes.rows || []).forEach(r => { satMap[r.department_id] = parseInt(r.sat_count, 10); });
@@ -1657,8 +1550,8 @@ exports.dashboard = async (req, res) => {
       crucialQuery = crucialQuery.eq('status', status);
     }
     if (department_id && department_id !== 'all') {
-      recentQuery = recentQuery.eq('department_id', department_id);
-      crucialQuery = crucialQuery.eq('department_id', department_id);
+      recentQuery = recentQuery.eq('service_id', department_id);
+      crucialQuery = crucialQuery.eq('service_id', department_id);
     }
     if (delegation_id && delegation_id !== 'all') {
       recentQuery = recentQuery.eq('delegation_id', delegation_id);
@@ -1760,7 +1653,7 @@ exports.analytics = async (req, res) => {
       filter += ` AND d.created_at >= NOW() - INTERVAL '${parseInt(period, 10)} days'`;
     }
     if (department_id && /^[0-9a-f-]{36}$/i.test(department_id)) {
-      filter += ` AND d.department_id = '${department_id}'`;
+      filter += ` AND d.service_id = '${department_id}'`;
     }
     if (delegation_id && /^[0-9a-f-]{36}$/i.test(delegation_id)) {
       filter += ` AND d.delegation_id = '${delegation_id}'`;
@@ -1779,7 +1672,7 @@ exports.analytics = async (req, res) => {
       ORDER BY count DESC
     `);
 
-    // Agent workload
+    // Agent workload — use agent_id directly on declarations
     const agentRes = await supabase.pool.query(`
       SELECT
         u.id, u.first_name, u.last_name,

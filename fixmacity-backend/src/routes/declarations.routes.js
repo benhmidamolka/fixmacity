@@ -26,7 +26,7 @@ router.post('/analyze-photo',
 
 // 1. Named static routes FIRST
 router.get('/mine',   authenticate, rbac('citizen'), ctrl.mine);
-router.get('/map',    authenticate, rbac('citizen'), ctrl.map);
+router.get('/map',    ctrl.map);
 router.get('/nearby', authenticate, ctrl.nearby);
 
 // 2. Wildcard AFTER named routes

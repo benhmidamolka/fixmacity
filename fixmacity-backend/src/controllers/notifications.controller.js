@@ -19,19 +19,51 @@ exports.listNotifications = async (req, res) => {
     }
 
     const { data: notifications, count, error } = await q;
-
     if (error) return res.status(500).json({ error: 'Erreur lors du chargement des notifications.' });
 
-    // Also get unread count
-    const { count: unreadCount, error: unreadError } = await supabase.from('notifications')
+    // Enrich notifications with declaration title when reference_id is set
+    const enriched = await Promise.all((notifications || []).map(async (n) => {
+      let declarationTitle = null;
+      if (n.reference_id) {
+        const { data: decl } = await supabase
+          .from('declarations')
+          .select('title, ref_citoyen')
+          .eq('id', n.reference_id)
+          .maybeSingle();
+        if (decl) declarationTitle = decl.title || decl.ref_citoyen;
+      }
+
+      // Map internal type to citizen-facing display type
+      const typeMap = {
+        STATUS_CHANGE: 'en_cours',
+        DECLARATION_RESOLVED: 'resolue',
+        DECLARATION_REJECTED: 'refusee',
+        NEW_PROPOSITION: 'proposition',
+        ASSIGNED_CHEF: 'en_cours',
+        ASSIGNED_AGENT: 'en_cours',
+        NEW_DECLARATION: 'systeme',
+      };
+
+      return {
+        ...n,
+        // If the notification title is generic, replace with declaration title
+        title: (declarationTitle && (n.title === 'Mise à jour de votre déclaration' || !n.title))
+          ? `« ${declarationTitle} »`
+          : n.title,
+        message: n.body,
+        display_type: typeMap[n.type] || 'systeme',
+        declaration_title: declarationTitle,
+      };
+    }));
+
+    // Unread count
+    const { count: unreadCount } = await supabase.from('notifications')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', req.user.id)
       .eq('is_read', false);
-
-    if (unreadError) console.error('[Notifications] Unread count error:', unreadError);
     
     return res.status(200).json({ 
-      notifications, 
+      notifications: enriched, 
       total: count, 
       unreadCount: unreadCount || 0,
       page: +page, 
@@ -42,6 +74,7 @@ exports.listNotifications = async (req, res) => {
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
+
 
 /* ──────────── PUT /api/notifications/:id/read ──────────── */
 exports.markAsRead = async (req, res) => {

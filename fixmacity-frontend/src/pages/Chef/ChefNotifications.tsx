@@ -147,7 +147,7 @@ const PriPill = ({ priority, score }: { priority: string; score: number }) => {
     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black whitespace-nowrap"
       style={{ color, background: bg }}>
       <Icon size={10} />
-      {label} · {score}
+      {label}
     </span>
   )
 }
@@ -390,10 +390,7 @@ const DetailDrawer = ({
   const photosApres = photos.filter(p => p.photo_type === 'photo_apres')
   const allPhotos   = photos.length > 0 ? photos : [photoAvant].filter(Boolean)
 
-  const score      = decl?.priority_score || 0
-  const scoreColor = score >= 15 ? '#dc2626' : score >= 8 ? '#d97706' : '#059669'
-  const scoreBg    = score >= 15 ? '#fee2e2' : score >= 8 ? '#fef3c7' : '#f0fdf4'
-  const levelLabel = score >= 15 ? 'Critique' : score >= 8 ? 'Élevée' : score >= 4 ? 'Normale' : 'Faible'
+
 
   const filteredComments = comments.filter(c => !c.channel || c.channel === channel)
   const stepIdx = STEPS.indexOf(decl?.status || 'soumise')
@@ -401,7 +398,6 @@ const DetailDrawer = ({
   const TABS = [
     { key: 'info',     label: 'Infos',      icon: Info        },
     { key: 'photos',   label: 'Médias',     icon: Camera      },
-    { key: 'priority', label: 'Priorité',   icon: Shield      },
     { key: 'history',  label: 'Progression', icon: Activity   },
     { key: 'messages', label: 'Messages',   icon: MessageSquare, badge: comments.length },
   ]
@@ -461,7 +457,7 @@ const DetailDrawer = ({
                     {decl.category && <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{decl.category}</span>}
                     <span className="text-[10px] text-slate-300 dark:text-slate-600">·</span>
                     <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-0.5"><Calendar size={9} /> {fmtDate(decl.created_at)}</span>
-                    <PriPill priority={decl.priority} score={decl.priority_score} />
+                    <PriPill priority={decl.priority} />
                   </div>
                 </div>
               </div>
@@ -679,80 +675,6 @@ const DetailDrawer = ({
             </div>
           )}
 
-          {/* ══ PRIORITY TAB ══ */}
-          {tab === 'priority' && (
-            <div className="absolute inset-0 overflow-y-auto p-6 space-y-5">
-              {loading ? (
-                <div className="space-y-3">{[...Array(4)].map((_, i) => <Sk key={i} h="h-20" r="rounded-2xl" />)}</div>
-              ) : decl ? (
-                <>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[.18em]">Priorité attribuée par le Président</p>
-
-                  {/* Score card */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-5">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Niveau de priorité</p>
-                        <span className="text-lg font-black px-4 py-1.5 rounded-full"
-                          style={{ color: scoreColor, background: scoreBg }}>
-                          ● {levelLabel}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Score de priorité</p>
-                        <p className="text-3xl font-black" style={{ color: scoreColor }}>
-                          {score} <span className="text-base text-slate-400">/ 100</span>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${Math.min((score / 100) * 100, 100)}%`, background: scoreColor }} />
-                    </div>
-                  </div>
-
-                  {/* Raisons */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-5">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-[.18em] mb-4">Raisons du score</p>
-                    <div className="space-y-3">
-                      {[
-                        { label: 'Votes citoyens',       icon: ThumbsUp,  active: (decl.votes_count || 0) > 0, value: `+${decl.votes_count * 2} pts (${decl.votes_count} vote${(decl.votes_count || 0) !== 1 ? 's' : ''})`, color: '#1557FF' },
-                        { label: 'Photo IA analysée',    icon: Brain,     active: !!decl.used_ai_vision,         value: decl.used_ai_vision ? '+AI pts' : '—',      color: '#7c3aed' },
-                        { label: 'Zone sensible proche', icon: MapPin,    active: !!decl.is_sensitive,            value: decl.is_sensitive ? `+${decl.sensitive_type === 'hospital' ? '4' : '3'} pts (${decl.sensitive_type || 'zone'})` : '—', color: '#dc2626' },
-                        { label: 'Priorité catégorie',   icon: Activity,  active: true,                           value: `${decl.priority || 'moyenne'}`, color: '#d97706' },
-                      ].map(item => {
-                        const Icon = item.icon
-                        return (
-                          <div key={item.label}
-                            className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all ${item.active ? 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50' : 'border-slate-100 dark:border-slate-800/50 opacity-40'}`}>
-                            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                              style={{ background: `${item.color}15`, color: item.color }}>
-                              <Icon size={15} />
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-xs font-black text-slate-700 dark:text-slate-300">{item.label}</p>
-                              <p className="text-[10px] font-bold mt-0.5" style={{ color: item.active ? item.color : '#94a3b8' }}>{item.value}</p>
-                            </div>
-                            {item.active && <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: item.color }} />}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  {/* AI reasoning */}
-                  {decl.ai_reasoning && (
-                    <div className="bg-violet-50 dark:bg-violet-500/10 border border-violet-100 dark:border-violet-500/20 rounded-2xl p-5">
-                      <p className="text-[9px] font-black text-violet-600 dark:text-violet-400 uppercase tracking-[.18em] mb-2 flex items-center gap-1.5">
-                        <Brain size={10} /> Analyse IA
-                      </p>
-                      <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed">{decl.ai_reasoning}</p>
-                    </div>
-                  )}
-                </>
-              ) : null}
-            </div>
-          )}
 
           {/* ══ HISTORY TAB ══ */}
           {tab === 'history' && (
@@ -898,11 +820,6 @@ const DetailDrawer = ({
         {!loading && decl && (
           <div className="flex-shrink-0 px-6 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
             <span className="font-mono text-[10px] text-slate-400 dark:text-slate-500">{decl.ref_service || decl.ref_citoyen}</span>
-            {decl.priority_score > 0 && (
-              <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                Score: <span className="font-black text-slate-600 dark:text-slate-300">{decl.priority_score}</span>
-              </span>
-            )}
           </div>
         )}
       </div>

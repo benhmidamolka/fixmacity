@@ -60,13 +60,15 @@ function PropositionModal({
 }) {
   const { t } = useTranslation();
   const c = CATEGORY_COLORS[prop.category] || CATEGORY_COLORS['Général']
-  const [voted, setVoted] = useState<'pour' | 'contre' | null>(null)
+  const [voted, setVoted] = useState<'pour' | 'contre' | null>(prop.user_vote || null)
 
   const storedUser = localStorage.getItem('fmc_user')
   const user = storedUser ? JSON.parse(storedUser) : null
   const isPresident = user?.role === 'president'
+  const isOwnProposal = user?.id && prop.created_by && String(user.id) === String(prop.created_by)
 
   const handleVote = (v: 'pour' | 'contre') => {
+    if (isOwnProposal) return
     setVoted(v)
     onVote(prop.id, v)
   }
@@ -136,9 +138,16 @@ function PropositionModal({
               </div>
             )}
 
-            {voted ? (
+            {/* Self-authored proposal */}
+            {isOwnProposal ? (
+              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/40 rounded-2xl p-4 text-center">
+                <p className="text-blue-700 dark:text-blue-300 font-bold text-sm">🏛️ Votre proposition</p>
+                <p className="text-blue-600 dark:text-blue-400 text-xs mt-1">Vous ne pouvez pas voter sur vos propres propositions.</p>
+              </div>
+            ) : voted ? (
               <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
                 <p className="text-green-700 font-bold">{t('propositions.actionSaved')}</p>
+                <p className="text-green-600 text-sm mt-1">Vous avez voté <strong>{voted === 'pour' ? 'Pour' : 'Contre'}</strong>.</p>
               </div>
             ) : prop.days_left === 0 ? (
               <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-center">
@@ -174,6 +183,7 @@ function PropCard({ prop, onClick }: { prop: any; onClick: () => void }) {
   const storedUser = localStorage.getItem('fmc_user')
   const user = storedUser ? JSON.parse(storedUser) : null
   const isPresident = user?.role === 'president'
+  const isOwnProposal = user?.id && prop.created_by && String(user.id) === String(prop.created_by)
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden hover:shadow-lg transition-all cursor-pointer group relative flex flex-col h-full"
@@ -188,6 +198,12 @@ function PropCard({ prop, onClick }: { prop: any; onClick: () => void }) {
           <div className="w-1.5 h-1.5 rounded-full" style={{ background: c.dot }} />
           {prop.category}
         </span>
+        {/* Own proposal badge */}
+        {isOwnProposal && (
+          <span className="absolute top-3 right-3 bg-blue-600 text-white text-[10px] font-black px-2 py-1 rounded-full">
+            Ma proposition
+          </span>
+        )}
       </div>
 
       <div className="p-5 flex-1 flex flex-col">
@@ -216,21 +232,27 @@ function PropCard({ prop, onClick }: { prop: any; onClick: () => void }) {
             </div>
           )}
 
-          {/* Vote buttons */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={e => { e.stopPropagation(); onClick() }}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white font-bold text-sm transition-all hover:opacity-90"
-              style={{ background: '#16a34a' }}>
-              <ThumbsUp className="w-3.5 h-3.5" /> Pour
-            </button>
-            <button
-              onClick={e => { e.stopPropagation(); onClick() }}
-              className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-sm transition-all border hover:bg-red-50"
-              style={{ borderColor: '#fca5a5', color: '#e11d48', background: '#fff1f2' }}>
-              <ThumbsDown className="w-3.5 h-3.5" /> Contre
-            </button>
-          </div>
+          {/* Own proposal: show view details instead of vote buttons */}
+          {isOwnProposal ? (
+            <div className="bg-blue-50 dark:bg-blue-950/20 rounded-xl p-3 text-center">
+              <p className="text-blue-600 dark:text-blue-400 text-xs font-bold">Voir les détails →</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={e => { e.stopPropagation(); onClick() }}
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white font-bold text-sm transition-all hover:opacity-90"
+                style={{ background: '#16a34a' }}>
+                <ThumbsUp className="w-3.5 h-3.5" /> Pour
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); onClick() }}
+                className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-sm transition-all border hover:bg-red-50"
+                style={{ borderColor: '#fca5a5', color: '#e11d48', background: '#fff1f2' }}>
+                <ThumbsDown className="w-3.5 h-3.5" /> Contre
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -317,22 +339,24 @@ const Propositions: React.FC = () => {
       })
       const data = await res.json();
       if (!res.ok) {
-        setToast({ message: data.error || 'Erreur lors du vote', type: 'error' });
+        if (res.status === 403) {
+          // Own proposal — should not happen (UI blocked), but handle gracefully
+          setToast({ message: 'Vous ne pouvez pas voter sur votre propre proposition.', type: 'error' });
+        } else if (data.error?.includes('déjà voté')) {
+          setToast({ message: data.error, type: 'error' });
+          setProps(prev => prev.map(p => p.id === id ? { ...p, user_vote: vote } : p));
+        } else {
+          setToast({ message: data.error || 'Erreur lors du vote', type: 'error' });
+        }
       } else {
         setToast({ message: 'Votre vote a été enregistré avec succès !', type: 'success' });
-        // For mock voting, update the state manually instead of fetching
         setProps(prev =>
           prev.map(p => {
             if (p.id === id) {
-              const votedIds = JSON.parse(localStorage.getItem('fmc_voted_props') || '[]');
-              if (!votedIds.includes(String(id))) {
-                localStorage.setItem('fmc_voted_props', JSON.stringify([...votedIds, String(id)]));
-              }
               const incrementPour = vote === 'pour' ? 1 : 0;
-              const incrementContre = vote === 'contre' ? 1 : 0;
               const newTotal = (p.total_votes || 0) + 1;
               const newPour = Math.round(((p.total_votes * (p.pour_pct / 100)) + incrementPour) / newTotal * 100);
-              return { ...p, pour_pct: newPour, total_votes: newTotal };
+              return { ...p, pour_pct: newPour, total_votes: newTotal, user_vote: vote };
             }
             return p;
           })

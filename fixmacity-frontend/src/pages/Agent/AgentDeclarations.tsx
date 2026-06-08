@@ -3,9 +3,9 @@ import AgentLayout from '../../layouts/AgentLayout';
 import AgentDeclarationDetail from './AgentDeclarationDetail';
 import type { Declaration, RawDeclaration } from '../../types/agent.types';
 import {
-  ListFilter, Search, Clock, CheckCircle2,
-  AlertTriangle, Filter, Loader2, Eye, RefreshCw,
-  Calendar, Star
+  Search, Clock, CheckCircle2,
+  AlertTriangle, Eye, RefreshCw,
+  Calendar
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -166,292 +166,307 @@ export default function AgentDeclarations() {
     done:     safeDeclarations.filter(d => ['resolue', 'cloturee'].includes(d.status)).length,
   };
 
-  return (
-    <AgentLayout>
-      <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-200 text-white">
+  const ROWS_PER_PAGE = 15;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(sortedTable.length / ROWS_PER_PAGE);
+  const pagedRows = sortedTable.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
 
-        {/* ── Header ── */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-sm">
-              <ListFilter size={20} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-white tracking-tight">Toutes Mes Missions</h1>
-              <p className="text-xs font-semibold text-slate-400 mt-0.5">
-                Visualisez, filtrez et gérez la liste complète de vos tâches municipales.
-              </p>
-            </div>
+  return (
+    <AgentLayout title="Toutes les Missions">
+      <div className="space-y-5">
+
+        {/* ── Page header ── */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-2xl font-black text-[#0A1628] dark:text-white">Toutes les Missions</h1>
+            <p className="text-sm text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+              {safeDeclarations.length} mission{safeDeclarations.length !== 1 ? 's' : ''} dans votre portefeuille
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={fetchDecls}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black hover:border-slate-300 transition-all">
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Actualiser
+            </button>
           </div>
         </div>
 
         {/* ── Stat cards ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total reçues',  value: stats.total,   sub: 'ce mois' },
-            { label: 'En attente',    value: stats.pending, sub: 'nouvelles assignations', accent: stats.pending > 0 },
-            { label: 'En cours',      value: stats.active,  sub: 'missions actives' },
-            { label: 'Terminées',     value: stats.done,    sub: 'ce mois' },
-          ].map(({ label, value, sub, accent }) => (
-            <div
-              key={label}
-              className={`rounded-2xl p-5 border ${accent ? 'bg-blue-500/10 border-blue-500/20' : 'bg-slate-900 border-slate-800/80'} shadow-sm`}
-            >
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{label}</div>
-              <div className={`text-3xl font-black mb-1 ${accent ? 'text-blue-400' : 'text-slate-100'}`}>{value}</div>
-              <div className="text-xs text-slate-400 font-medium">{sub}</div>
+            { label: 'Total',      value: stats.total,   dot: '#94A3B8' },
+            { label: 'En attente', value: stats.pending, dot: '#3B82F6' },
+            { label: 'En cours',   value: stats.active,  dot: '#F97316' },
+            { label: 'Terminées',  value: stats.done,    dot: '#10B981' },
+          ].map(({ label, value, dot }) => (
+            <div key={label} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dot }} />
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{label}</p>
+              </div>
+              <p className="text-2xl font-black text-[#0A1628] dark:text-white">{value}</p>
             </div>
           ))}
         </div>
 
-        {/* ── Search & Filters ── */}
-        <div className="bg-slate-900 rounded-3xl p-5 border border-slate-800/80 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="text"
-              placeholder="Titre, Réf, Adresse..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-2xl text-sm outline-none focus:border-emerald-500 focus:bg-slate-900 focus:ring-2 focus:ring-emerald-500/10 transition-all font-medium text-slate-200 placeholder-slate-500"
-            />
-          </div>
+        {/* ── Table card ── */}
+        <div className="bg-white dark:bg-slate-900 rounded-[1.75rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
 
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <div className="flex items-center gap-2 bg-slate-950 px-3 py-2 rounded-2xl border border-slate-800">
-              <Filter size={14} className="text-slate-400" />
-              <span className="text-xs font-bold text-slate-500">Statut:</span>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-transparent text-xs font-black text-slate-200 outline-none cursor-pointer"
-              >
-                <option value="all">Tous</option>
-                <option value="assignee_agent">À Accepter</option>
-                <option value="en_cours">En cours</option>
-                <option value="resolue">Résolue</option>
-                <option value="cloturee">Clôturée</option>
-                <option value="refusee_agent">Refusée</option>
-              </select>
-            </div>
+          {/* Toolbar */}
+          <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
 
-            <div className="flex items-center gap-2 bg-slate-950 px-3 py-2 rounded-2xl border border-slate-800">
-              <AlertTriangle size={14} className="text-slate-400" />
-              <span className="text-xs font-bold text-slate-500">Priorité:</span>
+              {/* Status filter */}
+              <div className="relative" ref={null}>
+                <select
+                  value={statusFilter}
+                  onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-full border text-[11px] font-bold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 outline-none cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+                >
+                  <option value="all">Tous les statuts</option>
+                  <option value="assignee_agent">À Accepter</option>
+                  <option value="en_cours">En cours</option>
+                  <option value="resolue">Résolue</option>
+                  <option value="cloturee">Clôturée</option>
+                  <option value="refusee_agent">Refusée</option>
+                </select>
+              </div>
+
+              {/* Priority filter */}
               <select
                 value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
-                className="bg-transparent text-xs font-black text-slate-200 outline-none cursor-pointer"
+                onChange={e => { setPriorityFilter(e.target.value); setPage(1); }}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-full border text-[11px] font-bold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 outline-none cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
               >
-                <option value="all">Toutes</option>
+                <option value="all">Toutes priorités</option>
                 <option value="critique">Critique</option>
-                <option value="elevee">Élevée</option>
                 <option value="haute">Haute</option>
                 <option value="moyenne">Moyenne</option>
                 <option value="basse">Basse</option>
-                <option value="faible">Faible</option>
               </select>
-            </div>
 
-            <div className="flex items-center gap-2 bg-slate-950 px-3 py-2 rounded-2xl border border-slate-800">
-              <Calendar size={14} className="text-slate-400" />
-              <span className="text-xs font-bold text-slate-500">Tri:</span>
+              {/* Sort */}
               <select
                 value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-                className="bg-transparent text-xs font-black text-slate-200 outline-none cursor-pointer"
+                onChange={e => { setSortOrder(e.target.value as 'newest' | 'oldest'); setPage(1); }}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-full border text-[11px] font-bold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 outline-none cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
               >
                 <option value="newest">Plus récent</option>
                 <option value="oldest">Plus ancien</option>
               </select>
-            </div>
 
-            <div className="flex items-center gap-2 bg-slate-950 px-3 py-2 rounded-2xl border border-slate-800">
-              <Star size={14} className="text-slate-400" />
-              <span className="text-xs font-bold text-slate-500">Évaluées:</span>
+              {/* Evaluated filter */}
               <select
                 value={evaluatedOnly ? 'yes' : 'no'}
-                onChange={(e) => setEvaluatedOnly(e.target.value === 'yes')}
-                className="bg-transparent text-xs font-black text-slate-200 outline-none cursor-pointer"
+                onChange={e => { setEvaluatedOnly(e.target.value === 'yes'); setPage(1); }}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-full border text-[11px] font-bold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 outline-none cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
               >
                 <option value="no">Toutes</option>
-                <option value="yes">Uniquement</option>
+                <option value="yes">Évaluées seulement</option>
               </select>
-            </div>
 
-            <div className="flex items-center gap-2 bg-slate-950 px-3 py-2 rounded-2xl border border-slate-800">
-              <Calendar size={14} className="text-slate-400" />
-              <input
-                type="date"
-                value={startDate}
-                onChange={handleStartDateChange}
-                className="bg-transparent text-xs font-black text-slate-200 outline-none cursor-pointer [color-scheme:dark]"
-              />
-              <span className="text-slate-500 text-xs font-black">-</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={handleEndDateChange}
-                className="bg-transparent text-xs font-black text-slate-200 outline-none cursor-pointer [color-scheme:dark]"
-              />
-            </div>
-
-            <button
-              onClick={fetchDecls}
-              className="p-2.5 rounded-xl border border-slate-800 hover:bg-slate-850 text-slate-400 transition-colors"
-              title="Rafraîchir"
-            >
-              <RefreshCw size={16} />
-            </button>
-          </div>
-        </div>
-
-        {/* ── Redesigned Modern Spaced Table ── */}
-        <div className="overflow-x-auto overflow-y-visible">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-24 text-slate-550">
-              <Loader2 size={32} className="animate-spin mb-4 text-emerald-500" />
-              <p className="text-sm font-bold">Chargement des missions...</p>
-            </div>
-          ) : sortedTable.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-slate-500 bg-slate-900/40 border border-slate-800 rounded-3xl">
-              <div className="w-16 h-16 rounded-full bg-slate-950 flex items-center justify-center mb-4">
-                <CheckCircle2 size={32} className="text-slate-700" />
+              {/* Date range */}
+              <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-full border text-[11px] font-bold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
+                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                <input
+                  type="date" value={startDate} onChange={handleStartDateChange}
+                  className="bg-transparent text-[11px] font-bold text-slate-600 dark:text-slate-300 outline-none [color-scheme:dark] cursor-pointer"
+                />
+                <span className="text-slate-400">–</span>
+                <input
+                  type="date" value={endDate} onChange={handleEndDateChange}
+                  className="bg-transparent text-[11px] font-bold text-slate-600 dark:text-slate-300 outline-none [color-scheme:dark] cursor-pointer"
+                />
               </div>
-              <p className="text-sm font-bold text-slate-300">Aucune mission trouvée.</p>
-              <p className="text-xs mt-1 text-slate-550">Vous n'avez pas de tâches correspondant à ces critères.</p>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPage(1); }}
+                placeholder="Titre, Réf, Adresse…"
+                className="w-52 pl-9 pr-4 py-2 text-xs bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-xl outline-none focus:border-emerald-500 font-medium text-[#0A1628] dark:text-white placeholder-slate-400 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Table header */}
+          <div
+            className="grid items-center gap-4 px-5 py-2.5 bg-slate-50/80 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800"
+            style={{ gridTemplateColumns: '1fr 160px 110px 130px 140px 110px 120px' }}
+          >
+            {['Déclaration', 'Description', 'Priorité', 'Affectation', 'Date assignée', 'État', 'Actions'].map(h => (
+              <p key={h} className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{h}</p>
+            ))}
+          </div>
+
+          {/* Rows */}
+          {loading ? (
+            <div className="divide-y divide-slate-50 dark:divide-slate-800/50">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="grid gap-4 px-5 py-4 items-center animate-pulse"
+                  style={{ gridTemplateColumns: '1fr 160px 110px 130px 140px 110px 120px' }}>
+                  <div className="space-y-1.5"><div className="h-4 w-40 bg-slate-100 dark:bg-slate-800 rounded-lg" /><div className="h-2.5 w-24 bg-slate-100 dark:bg-slate-800 rounded-lg" /></div>
+                  <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-lg" />
+                  <div className="h-6 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                  <div className="h-6 w-28 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+                  <div className="h-3.5 w-20 bg-slate-100 dark:bg-slate-800 rounded-lg" />
+                  <div className="h-6 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                  <div className="flex gap-1.5"><div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-lg" /><div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-lg" /></div>
+                </div>
+              ))}
+            </div>
+          ) : pagedRows.length === 0 ? (
+            <div className="py-20 text-center">
+              <CheckCircle2 className="w-10 h-10 text-slate-200 dark:text-slate-700 mx-auto mb-3" />
+              <p className="text-sm font-bold text-slate-400 dark:text-slate-500">
+                {search || statusFilter !== 'all' ? 'Aucun résultat.' : 'Aucune mission.'}
+              </p>
             </div>
           ) : (
-            <table className="w-full text-left border-separate border-spacing-y-3.5">
-              <thead>
-                <tr className="text-slate-400">
-                  <th className="px-6 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">Titre</th>
-                  <th className="px-6 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">Description</th>
-                  <th className="px-6 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest w-28">Priorité</th>
-                  <th className="px-6 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">Affectation</th>
-                  <th className="px-6 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">Date d'assignation</th>
-                  <th className="px-6 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest w-32">État</th>
-                  <th className="px-6 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right w-40">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedTable.map((d) => {
-                  const prio = PRIORITY_CFG[(d.priority || '').toLowerCase()] || PRIORITY_CFG.moyenne;
-                  const stat = STATUS_CFG[d.status] || { label: d.status, color: '#94a3b8', bg: '#94a3b815', dot: '#94a3b8' };
-                  const assignType = getAssignmentType(d);
-                  const isPending = d.status === 'assignee_agent';
+            <div className="divide-y divide-slate-50 dark:divide-slate-800/30">
+              {pagedRows.map((d, i) => {
+                const prio = PRIORITY_CFG[(d.priority || '').toLowerCase()] || PRIORITY_CFG.moyenne;
+                const stat = STATUS_CFG[d.status] || { label: d.status, color: '#94a3b8', bg: '#94a3b815', dot: '#94a3b8' };
+                const assignType = getAssignmentType(d);
+                const isPending = d.status === 'assignee_agent';
 
-                  return (
-                    <tr
-                      key={d.id}
-                      className="group bg-slate-900/40 hover:bg-slate-900 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-950/10 transition-all duration-300 cursor-pointer"
-                      onClick={() => setSelectedDecl(d.id)}
-                    >
-                      {/* Titre */}
-                      <td className="px-6 py-4 rounded-l-2xl border-l border-t border-b border-slate-800/80 group-hover:border-emerald-500/30">
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-sm font-bold text-slate-100 group-hover:text-emerald-400 transition-colors truncate max-w-[200px]">
-                            {d.title}
-                          </span>
-                          <span className="text-[10px] font-mono text-slate-500 mt-1">
-                            {d.ref_citoyen || `#${d.id?.slice(-4) || '????'}`}
-                          </span>
-                        </div>
-                      </td>
+                return (
+                  <div
+                    key={d.id}
+                    onClick={() => setSelectedDecl(d.id)}
+                    className={`grid gap-4 px-5 py-3.5 items-center cursor-pointer group hover:bg-slate-50/70 dark:hover:bg-slate-800/20 transition-colors ${i % 2 !== 0 ? 'bg-slate-50/30 dark:bg-slate-800/10' : ''}`}
+                    style={{ gridTemplateColumns: '1fr 160px 110px 130px 140px 110px 120px' }}
+                  >
+                    {/* Title + ref */}
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-[#0A1628] dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                        {d.title}
+                      </p>
+                      <p className="font-mono text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">
+                        {d.ref_citoyen || `#${d.id?.slice(-4)}`}
+                      </p>
+                    </div>
 
-                      {/* Description */}
-                      <td className="px-6 py-4 border-t border-b border-slate-800/80 group-hover:border-emerald-500/30">
-                        <p className="text-xs font-medium text-slate-400 line-clamp-2 max-w-[240px]">
-                          {d.description || 'Aucune description.'}
-                        </p>
-                      </td>
+                    {/* Description */}
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 line-clamp-2">
+                        {d.description || <span className="italic">—</span>}
+                      </p>
+                    </div>
 
-                      {/* Priorité */}
-                      <td className="px-6 py-4 border-t border-b border-slate-800/80 group-hover:border-emerald-500/30">
-                        <span
-                          className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"
-                          style={{ color: prio.color, backgroundColor: prio.bg }}
-                        >
-                          {prio.label}
-                        </span>
-                      </td>
+                    {/* Priority */}
+                    <div>
+                      <span
+                        className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap"
+                        style={{ color: prio.color, background: prio.bg }}
+                      >
+                        {prio.label}
+                      </span>
+                    </div>
 
-                      {/* Type affectation */}
-                      <td className="px-6 py-4 border-t border-b border-slate-800/80 group-hover:border-emerald-500/30">
-                        <div className="flex flex-col">
-                          <span className={`inline-flex self-start px-2 py-0.5 rounded-lg text-[10px] font-bold border ${assignType.bg}`}>
-                            {assignType.label}
-                          </span>
-                          <span className="text-[9px] text-slate-500 mt-1 truncate max-w-[140px]">
-                            {assignType.text}
-                          </span>
-                        </div>
-                      </td>
+                    {/* Assignment type */}
+                    <div>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold border ${assignType.bg}`}>
+                        {assignType.label}
+                      </span>
+                      <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5 truncate max-w-[120px]">{assignType.text}</p>
+                    </div>
 
-                      {/* Date assignation */}
-                      <td className="px-6 py-4 border-t border-b border-slate-800/80 group-hover:border-emerald-500/30">
-                        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                          <Clock size={12} className="text-slate-500 shrink-0" />
+                    {/* Date assigned */}
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                        <p className="text-[11px] font-bold text-[#0A1628] dark:text-slate-300">
                           {d.assigned_at
-                            ? new Date(d.assigned_at).toLocaleDateString('fr-FR', {
-                                day: '2-digit',
-                                month: 'short',
-                                year: 'numeric',
-                              })
+                            ? new Date(d.assigned_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
                             : '—'}
-                        </div>
-                      </td>
+                        </p>
+                      </div>
+                    </div>
 
-                      {/* État */}
-                      <td className="px-6 py-4 border-t border-b border-slate-800/80 group-hover:border-emerald-500/30">
-                        <span
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"
-                          style={{ color: stat.color, backgroundColor: stat.bg }}
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: stat.dot }} />
-                          {stat.label}
-                        </span>
-                      </td>
+                    {/* Status */}
+                    <div>
+                      <span
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap"
+                        style={{ color: stat.color, background: stat.bg }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: stat.dot }} />
+                        {stat.label}
+                      </span>
+                    </div>
 
-                      {/* Actions */}
-                      <td className="px-6 py-4 rounded-r-2xl border-r border-t border-b border-slate-800/80 group-hover:border-emerald-500/30 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-2">
-                          {isPending ? (
-                            <>
-                              <button
-                                onClick={(e) => quickAccept(e, d.id)}
-                                className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold shadow-sm shadow-emerald-950/20 transition-all whitespace-nowrap"
-                              >
-                                Accepter
-                              </button>
-                              <button
-                                onClick={(e) => quickReject(e, d.id)}
-                                className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-450 text-[11px] font-bold border border-rose-500/20 shadow-sm transition-all whitespace-nowrap"
-                              >
-                                Refuser
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              onClick={() => setSelectedDecl(d.id)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-[11px] font-bold transition-all border border-slate-700/50"
-                            >
-                              <Eye size={13} />
-                              Détails
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                    {/* Actions */}
+                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => setSelectedDecl(d.id)}
+                        title="Voir les détails"
+                        className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                      {isPending && (
+                        <>
+                          <button
+                            onClick={e => quickAccept(e, d.id)}
+                            title="Accepter"
+                            className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={e => quickReject(e, d.id)}
+                            title="Refuser"
+                            className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && sortedTable.length > ROWS_PER_PAGE && (
+            <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20">
+              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500">
+                {(page - 1) * ROWS_PER_PAGE + 1}–{Math.min(page * ROWS_PER_PAGE, sortedTable.length)} sur {sortedTable.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                  className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                  <span className="text-xs">‹</span>
+                </button>
+                {[...Array(Math.min(5, totalPages))].map((_, idx) => {
+                  const p = Math.max(1, Math.min(page - 2, totalPages - 4)) + idx;
+                  if (p < 1 || p > totalPages) return null;
+                  return (
+                    <button key={p} onClick={() => setPage(p)}
+                      className={`w-8 h-8 rounded-lg border text-[11px] font-black transition-all ${p === page
+                        ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      }`}>
+                      {p}
+                    </button>
                   );
                 })}
-              </tbody>
-            </table>
+                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+                  className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                  <span className="text-xs">›</span>
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Detail Modal */}
+      {/* Detail Drawer */}
       {selectedDecl && (
         <AgentDeclarationDetail
           tacheId={selectedDecl}

@@ -58,8 +58,16 @@ const fr = {
     forgotPassword:  'Mot de passe oublié ?',
     noAccount:       'Pas encore de compte ?',
     signUp:          'S\'inscrire',
-    loginTitle:      'Bienvenue sur FixMaCity',
-    loginSubtitle:   'Connectez-vous pour accéder à votre espace citoyen',
+    loginTitle:      'Bon retour',
+    loginSubtitle:   'Entrez vos identifiants pour accéder à votre compte',
+    signUpTitle:     'Rejoignez-nous',
+    signUpSubtitle:  'Créez votre compte pour commencer à améliorer votre ville',
+    firstName:       'Prénom',
+    lastName:        'Nom',
+    delegation:      'Arrondissement',
+    langPref:        'Langue préférée',
+    haveAccount:     'Vous avez déjà un compte ?',
+    passwordRequirements: 'Min 8 caractères, 1 majuscule, 1 chiffre',
   },
 
   // ── Declarations ─────────────────────────────────────────────────────────────

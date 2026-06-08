@@ -59,7 +59,7 @@ const ChefMap: React.FC = () => {
   const exportData = () => {
     const csvContent = [
       ['ID', 'Titre', 'Status', 'Priorite', 'Latitude', 'Longitude'],
-      ...decls.map(d => [d.id, d.title, d.status, d.priority_score, d.latitude, d.longitude])
+      ...decls.map(d => [d.id, d.title, d.status, d.priority, d.latitude, d.longitude])
     ].map(e => e.join(",")).join("\n")
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -197,7 +197,7 @@ const ChefMap: React.FC = () => {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] text-slate-400 dark:text-slate-600 font-bold uppercase tracking-tight">Priorité</span>
-                  <span className="text-xs font-semibold text-rose-500">{selected.priority_score}%</span>
+                  <span className="text-xs font-semibold text-rose-500 capitalize">{selected.priority || 'Normale'}</span>
                 </div>
               </div>
               {selected.photo_url && (

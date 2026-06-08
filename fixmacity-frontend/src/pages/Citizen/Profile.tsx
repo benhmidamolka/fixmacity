@@ -89,35 +89,35 @@ const Profile: React.FC = () => {
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-[#0A1628]">Mon profil</h1>
-          <p className="text-slate-500 text-sm mt-1">Gérez vos informations personnelles et vos préférences de sécurité.</p>
+          <h1 className="text-2xl font-bold text-[#0A1628] dark:text-white">Mon profil</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gérez vos informations personnelles et vos préférences de sécurité.</p>
         </div>
 
         {/* Avatar card */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-6 flex items-center gap-6 mb-6 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 flex items-center gap-6 mb-6 shadow-sm">
           <div className="relative">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#1557FF] to-[#1040CC] flex items-center justify-center text-white text-2xl font-extrabold shadow-lg">
               {initials}
             </div>
             <button
-              className="absolute -bottom-1.5 -right-1.5 w-8 h-8 bg-white border border-slate-200 rounded-xl shadow-sm flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-all"
+              className="absolute -bottom-1.5 -right-1.5 w-8 h-8 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
               title="Modifier la photo"
             >
               <Camera className="w-4 h-4" />
             </button>
           </div>
           <div>
-            <p className="text-xl font-bold text-[#0A1628]">{form.first_name} {form.last_name}</p>
+            <p className="text-xl font-bold text-[#0A1628] dark:text-white">{form.first_name} {form.last_name}</p>
             <p className="text-slate-400 text-sm mt-0.5">{form.email}</p>
-            <span className="inline-flex items-center gap-1.5 mt-2 text-xs font-bold px-2.5 py-1 rounded-full bg-[#eff6ff] text-[#1557FF]">
+            <span className="inline-flex items-center gap-1.5 mt-2 text-xs font-bold px-2.5 py-1 rounded-full bg-[#eff6ff] dark:bg-blue-500/10 text-[#1557FF] dark:text-blue-400">
               Citoyen · Sousse
             </span>
           </div>
         </div>
 
         {/* ── Personal info form ── */}
-        <form onSubmit={handleSaveProfile} className="bg-white rounded-2xl border border-slate-100 p-6 mb-6 shadow-sm">
-          <h2 className="text-base font-bold text-[#0A1628] mb-5 flex items-center gap-2">
+        <form onSubmit={handleSaveProfile} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 mb-6 shadow-sm">
+          <h2 className="text-base font-bold text-[#0A1628] dark:text-white mb-5 flex items-center gap-2">
             <User className="w-4 h-4 text-[#1557FF]" /> Informations personnelles
           </h2>
 
@@ -176,8 +176,8 @@ const Profile: React.FC = () => {
         </form>
 
         {/* ── Change password form ── */}
-        <form onSubmit={handleChangePassword} className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
-          <h2 className="text-base font-bold text-[#0A1628] mb-1 flex items-center gap-2">
+        <form onSubmit={handleChangePassword} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm">
+          <h2 className="text-base font-bold text-[#0A1628] dark:text-white mb-1 flex items-center gap-2">
             <Lock className="w-4 h-4 text-[#1557FF]" /> Changer le mot de passe
           </h2>
           <p className="text-xs text-slate-400 mb-5">Utilisez au moins 8 caractères avec des lettres et des chiffres.</p>
@@ -268,7 +268,7 @@ function Field({
 }) {
   return (
     <div className={className}>
-      <label htmlFor={id} className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+      <label htmlFor={id} className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
         {label}
       </label>
       <div className="relative">
@@ -278,7 +278,7 @@ function Field({
           type={type}
           value={value}
           onChange={onChange}
-          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#0A1628] placeholder-slate-400 outline-none focus:border-[#1557FF] focus:bg-white transition-all"
+          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-[#0A1628] dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-[#1557FF] focus:bg-white dark:focus:bg-slate-800 transition-all"
         />
       </div>
     </div>
@@ -293,7 +293,7 @@ function PasswordField({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+      <label htmlFor={id} className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
         {label}
       </label>
       <div className="relative">
@@ -303,7 +303,7 @@ function PasswordField({
           type={show ? 'text' : 'password'}
           value={value}
           onChange={e => onChange(e.target.value)}
-          className="w-full pl-10 pr-11 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#0A1628] outline-none focus:border-[#1557FF] focus:bg-white transition-all"
+          className="w-full pl-10 pr-11 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-[#0A1628] dark:text-white outline-none focus:border-[#1557FF] focus:bg-white dark:focus:bg-slate-800 transition-all"
           autoComplete="new-password"
         />
         <button

@@ -92,7 +92,7 @@ exports.getDeclarationDetail = async (req, res) => {
     if (error || !decl) return res.status(404).json({ error: 'Déclaration introuvable ou hors département.' });
 
     // Enrich users
-    const userIds = [decl.citizen_id, decl.agent_id].filter(Boolean);
+    const userIds = [decl.citizen_id].filter(Boolean);
     const userMap = {};
     if (userIds.length) {
       const { data: uD } = await supabase.from('users')
@@ -100,7 +100,7 @@ exports.getDeclarationDetail = async (req, res) => {
       if (uD) uD.forEach(u => userMap[u.id] = u);
     }
 
-    const fullDecl = { ...decl, citizen: userMap[decl.citizen_id] || null, assigned_agent: userMap[decl.agent_id] || null };
+    const fullDecl = { ...decl, citizen: userMap[decl.citizen_id] || null, assigned_agent: null };
 
     const [photosRes, historyRes, commentsRes] = await Promise.all([
       supabase.from('declaration_photos').select('*').eq('declaration_id', id),
@@ -587,6 +587,102 @@ exports.addComment = async (req, res) => {
     return res.status(201).json({ comment });
   } catch (err) {
     console.error('[Chef] addComment error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── POST /api/chef/declarations/:id/assign-agents ──────────── */
+exports.assignAgents = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { id } = req.params;
+    const { agent_ids } = req.body;
+    const deptId = req.user.department_id;
+
+    // Fetch the declaration_services row for this chef's service
+    const { data: dsRow, error: dsErr } = await supabase
+      .from('declaration_services')
+      .select('id, status, service_id')
+      .eq('declaration_id', id)
+      .eq('service_id', deptId)
+      .single();
+
+    if (dsErr || !dsRow) {
+      return res.status(404).json({ error: 'Assignation de service introuvable pour ce département.' });
+    }
+    if (dsRow.status !== 'assignee_chef') {
+      return res.status(400).json({ error: `Statut "${dsRow.status}" — impossible d'assigner des agents.` });
+    }
+
+    // Validate agents
+    const { data: agents, error: agentErr } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, is_active, department_id')
+      .in('id', agent_ids)
+      .eq('role', 'agent')
+      .eq('department_id', deptId)
+      .eq('is_active', true);
+
+    if (agentErr || !agents || agents.length !== agent_ids.length) {
+      return res.status(400).json({ error: 'Un ou plusieurs agents invalides ou hors département.' });
+    }
+
+    // Check workload warnings
+    const warnings = [];
+    for (const agent of agents) {
+      const { count } = await supabase
+        .from('declaration_services')
+        .select('id', { count: 'exact', head: true })
+        .eq('agent_id', agent.id)
+        .in('status', ['assignee_agent', 'en_cours']);
+      if ((count || 0) >= 5) {
+        warnings.push(`${agent.first_name} ${agent.last_name} a déjà ${count} missions actives.`);
+      }
+    }
+
+    // Primary agent goes on the declaration_services row
+    const primaryAgentId = agent_ids[0];
+
+    const { error: updateDsErr } = await supabase
+      .from('declaration_services')
+      .update({
+        agent_id: primaryAgentId,
+        status: 'assignee_agent',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', dsRow.id);
+
+    if (updateDsErr) throw updateDsErr;
+
+    // Fetch declaration for notifications (no agent_id on declarations anymore)
+    const { data: decl } = await supabase
+      .from('declarations')
+      .update({
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select('id, citizen_id, ref_citoyen, title, status')
+      .single();
+
+    await logStatusChange(id, 'assignee_chef', 'assignee_agent', req.user.id,
+      `Assigné à ${agents.map(a => `${a.first_name} ${a.last_name}`).join(', ')}`);
+
+    if (decl?.citizen_id) {
+      await notifyStatusChange(req.app, decl, decl.citizen_id, 'assignee_agent');
+    }
+    for (const agent of agents) {
+      await notifyAgentAssigned(req.app, decl, agent.id);
+    }
+
+    return res.status(200).json({
+      message: `${agents.length} agent(s) assigné(s) avec succès.`,
+      agents_assigned: agents.map(a => ({ id: a.id, name: `${a.first_name} ${a.last_name}` })),
+      warnings: warnings.length > 0 ? warnings : null,
+    });
+  } catch (err) {
+    console.error('[Chef] assignAgents error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };

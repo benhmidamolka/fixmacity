@@ -123,21 +123,34 @@ function fmtDate(iso: string) {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 // KPI Card
-function KpiCard({ label, value, sub, icon: Icon, color, bg, delta }: {
+function KpiCard({ label, value, sub, icon: Icon, color, bg, delta, isDark }: {
   label: string; value: string | number; sub?: string
   icon: any; color: string; bg: string; delta?: number
+  isDark: boolean
 }) {
   return (
-    <div className="bg-white dark:bg-slate-900/50 rounded-[1.75rem] p-5 border border-slate-100 dark:border-slate-800/60 shadow-sm flex items-start gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-      <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: bg }}>
-        <Icon className="w-5 h-5" style={{ color }} />
+    <div 
+      className="rounded-2xl p-3 flex items-start gap-2.5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300"
+      style={{
+        background: isDark
+          ? 'linear-gradient(135deg, rgba(13,27,64,0.95) 0%, rgba(10,22,40,0.98) 100%)'
+          : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+        border: isDark ? '1px solid rgba(91,140,255,0.2)' : '1px solid rgba(21,87,255,0.12)',
+        boxShadow: isDark
+          ? '0 8px 32px rgba(21,87,255,0.15), inset 0 1px 0 rgba(255,255,255,0.05)'
+          : '0 8px 32px rgba(21,87,255,0.04), inset 0 1px 0 rgba(255,255,255,0.9)',
+        backdropFilter: 'blur(20px)',
+      }}
+    >
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: bg }}>
+        <Icon className="w-4 h-4" style={{ color }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">{label}</p>
-        <p className="text-2xl font-black text-[#0A1628] dark:text-white leading-none">{value}</p>
-        {sub && <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-1">{sub}</p>}
+        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">{label}</p>
+        <p className="text-lg font-black text-[#0A1628] dark:text-white leading-none">{value}</p>
+        {sub && <p className="text-[9px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">{sub}</p>}
         {delta !== undefined && (
-          <div className={`flex items-center gap-1 mt-1.5 text-[10px] font-black ${delta >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+          <div className={`flex items-center gap-1 mt-1 text-[9px] font-black ${delta >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
             {delta >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
             {Math.abs(delta)}% vs mois dernier
           </div>
@@ -381,6 +394,15 @@ const ChefDashboard: React.FC = () => {
   const [assigning, setAssigning] = useState<DeclRow | null>(null)
   const [refusing,  setRefusing]  = useState<DeclRow | null>(null)
   const [agents,    setAgents]    = useState<AgentLoad[]>([])
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'))
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains('dark'))
+    })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
 
   const [maxTasks, setMaxTasks] = useState(() => parseInt(localStorage.getItem('fmc_max_tasks') || '5'))
   const updateMaxTasks = (val: number) => {
@@ -454,58 +476,36 @@ const ChefDashboard: React.FC = () => {
     <ChefLayout title="Tableau de Bord">
       <Toaster position="top-right" toastOptions={{ style: { borderRadius: '1rem', fontWeight: 700, fontSize: 13 } }} />
 
-      <div className="space-y-6">
+      <div className="space-y-4">
 
-        {/* ── Welcome Banner ── */}
-        <div className="relative bg-gradient-to-br from-[#0A1628] to-[#1D4ED8] dark:from-slate-900 dark:to-blue-900/80 rounded-[2rem] p-7 overflow-hidden shadow-xl shadow-blue-900/10">
-          <div className="absolute inset-0 opacity-[0.07]">
-            <div className="absolute top-3 right-12 w-36 h-36 rounded-full border-[18px] border-white" />
-            <div className="absolute -bottom-10 right-36 w-56 h-56 rounded-full border-[28px] border-white" />
-            <div className="absolute top-8 left-1/2 w-20 h-20 rounded-full border-[12px] border-white" />
-          </div>
-          <div className="relative flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <p className="text-blue-200/80 text-[10px] font-black uppercase tracking-[.2em] mb-1">
-                Chef de Service · {user.department_name || 'Mon Département'}
-              </p>
-              <h1 className="text-2xl font-black text-white leading-tight">
-                Bonjour, {user.first_name || 'Chef'}
-              </h1>
-              <p className="text-blue-200 text-sm font-medium mt-1.5">
-                {urgentCount > 0
-                  ? `⚡ ${urgentCount} signalement${urgentCount > 1 ? 's' : ''} urgent${urgentCount > 1 ? 's' : ''} en attente`
-                  : kpis && kpis.pending > 0
-                    ? `${kpis.pending} signalement${kpis.pending > 1 ? 's' : ''} à traiter`
-                    : 'File d\'attente vide — excellent travail !'}
-              </p>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <button onClick={() => fetchDashboard(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-2xl text-xs font-black transition-all backdrop-blur-sm">
-                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} /> Actualiser
-              </button>
-              <Link to="/chef/declarations"
-                className="flex items-center gap-2 px-4 py-2.5 bg-white text-[#1557FF] rounded-2xl text-xs font-black shadow-lg hover:shadow-xl transition-all">
-                Toutes les déclarations <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </div>
-        </div>
 
         {/* ── KPI Row ── */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-          <KpiCard label="En Attente"     value={kpis?.pending ?? 0}         sub={urgentCount > 0 ? `${urgentCount} urgent(s)` : 'Aucune urgence'}    icon={Inbox}         color="#7C3AED" bg="#EDE9FE" />
-          <KpiCard label="En Cours"       value={kpis?.en_cours ?? 0}        sub="Missions actives"                                                      icon={Activity}      color="#1D4ED8" bg="#DBEAFE" />
-          <KpiCard label="Agents Actifs"  value={kpis?.active_agents ?? 0}   sub={`${availableCount} disponible(s)`}                                     icon={Users}         color="#059669" bg="#DCFCE7" />
-          <KpiCard label="Taux Résolution" value={`${kpis?.resolution_rate ?? 0}%`} sub={kpis?.avg_resolution_hours ? `~${kpis.avg_resolution_hours}h moy.` : 'Département'} icon={Award} color="#D97706" bg="#FEF3C7" />
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          <KpiCard isDark={isDark} label="En Attente"     value={kpis?.pending ?? 0}         sub={urgentCount > 0 ? `${urgentCount} urgent(s)` : 'Aucune urgence'}    icon={Inbox}         color="#7C3AED" bg="#EDE9FE" />
+          <KpiCard isDark={isDark} label="En Cours"       value={kpis?.en_cours ?? 0}        sub="Missions actives"                                                      icon={Activity}      color="#1D4ED8" bg="#DBEAFE" />
+          <KpiCard isDark={isDark} label="Agents Actifs"  value={kpis?.active_agents ?? 0}   sub={`${availableCount} disponible(s)`}                                     icon={Users}         color="#059669" bg="#DCFCE7" />
+          <KpiCard isDark={isDark} label="Taux Résolution" value={`${kpis?.resolution_rate ?? 0}%`} sub={kpis?.avg_resolution_hours ? `~${kpis.avg_resolution_hours}h moy.` : 'Département'} icon={Award} color="#D97706" bg="#FEF3C7" />
         </div>
 
         {/* ── Charts row ── */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
 
           {/* Donut — Status */}
-          <div className="bg-white dark:bg-slate-900/50 rounded-[1.75rem] p-6 border border-slate-100 dark:border-slate-800/60 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
+          <div 
+            className="rounded-3xl p-4 transition-all duration-300"
+            style={{
+              background: isDark
+                ? 'linear-gradient(135deg, rgba(13,27,64,0.95) 0%, rgba(10,22,40,0.98) 100%)'
+                : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              border: isDark ? '1px solid rgba(91,140,255,0.2)' : '1px solid rgba(21,87,255,0.12)',
+              boxShadow: isDark
+                ? '0 8px 32px rgba(21,87,255,0.15), inset 0 1px 0 rgba(255,255,255,0.05)'
+                : '0 8px 32px rgba(21,87,255,0.04), inset 0 1px 0 rgba(255,255,255,0.9)',
+              backdropFilter: 'blur(20px)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[.18em] text-slate-400 dark:text-slate-500">Répartition</p>
                 <h3 className="text-sm font-black text-[#0A1628] dark:text-white mt-0.5">Par statut</h3>
@@ -516,18 +516,18 @@ const ChefDashboard: React.FC = () => {
             </div>
             {statusChart.length > 0 ? (
               <>
-                <ResponsiveContainer width="100%" height={180}>
-                  <PieChart>
-                    <Pie data={statusChart} cx="50%" cy="50%" innerRadius={52} outerRadius={80} paddingAngle={3} dataKey="value">
+                <ResponsiveContainer width="100%" height={140} style={{ background: 'transparent', outline: 'none' }}>
+                  <PieChart style={{ background: 'transparent' }}>
+                    <Pie data={statusChart} cx="50%" cy="50%" innerRadius={44} outerRadius={66} paddingAngle={3} dataKey="value" activeShape={undefined} isAnimationActive={false}>
                       {statusChart.map((entry, i) => <Cell key={i} fill={entry.color} stroke="none" />)}
                     </Pie>
-                    <ReTooltip content={<DonutTooltip />} />
+                    <ReTooltip content={<DonutTooltip />} cursor={false} />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2">
                   {statusChart.map((s, i) => (
                     <div key={i} className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
                       <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{s.name}</span>
                       <span className="text-[10px] font-black text-[#0A1628] dark:text-white ml-0.5">{s.value}</span>
                     </div>
@@ -535,15 +535,28 @@ const ChefDashboard: React.FC = () => {
                 </div>
               </>
             ) : (
-              <div className="h-52 flex items-center justify-center text-slate-300 dark:text-slate-700">
+              <div className="h-40 flex items-center justify-center text-slate-300 dark:text-slate-700">
                 <BarChart3 className="w-10 h-10" />
               </div>
             )}
           </div>
 
           {/* Bar — Priority */}
-          <div className="bg-white dark:bg-slate-900/50 rounded-[1.75rem] p-6 border border-slate-100 dark:border-slate-800/60 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
+          <div 
+            className="rounded-3xl p-4 transition-all duration-300"
+            style={{
+              background: isDark
+                ? 'linear-gradient(135deg, rgba(13,27,64,0.95) 0%, rgba(10,22,40,0.98) 100%)'
+                : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              border: isDark ? '1px solid rgba(91,140,255,0.2)' : '1px solid rgba(21,87,255,0.12)',
+              boxShadow: isDark
+                ? '0 8px 32px rgba(21,87,255,0.15), inset 0 1px 0 rgba(255,255,255,0.05)'
+                : '0 8px 32px rgba(21,87,255,0.04), inset 0 1px 0 rgba(255,255,255,0.9)',
+              backdropFilter: 'blur(20px)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[.18em] text-slate-400 dark:text-slate-500">Distribution</p>
                 <h3 className="text-sm font-black text-[#0A1628] dark:text-white mt-0.5">Par priorité</h3>
@@ -553,19 +566,19 @@ const ChefDashboard: React.FC = () => {
               </div>
             </div>
             {priorityChart.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={priorityChart} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                  <ReTooltip content={<DonutTooltip />} />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+              <ResponsiveContainer width="100%" height={160} style={{ background: 'transparent', outline: 'none' }}>
+                <BarChart data={priorityChart} margin={{ top: 0, right: 8, left: -20, bottom: 0 }} style={{ background: 'transparent' }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700, fill: isDark ? '#64748b' : '#94A3B8' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: isDark ? '#64748b' : '#94A3B8' }} axisLine={false} tickLine={false} />
+                  <ReTooltip content={<DonutTooltip />} cursor={{ fill: 'transparent' }} />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]} activeBar={false} isAnimationActive={false}>
                     {priorityChart.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-52 flex items-center justify-center text-slate-300 dark:text-slate-700">
+              <div className="h-40 flex items-center justify-center text-slate-300 dark:text-slate-700">
                 <BarChart3 className="w-10 h-10" />
               </div>
             )}
@@ -573,18 +586,30 @@ const ChefDashboard: React.FC = () => {
         </div>
 
         {/* ── Urgent + Team Workload ── */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
 
           {/* Urgent declarations */}
-          <div className="bg-white dark:bg-slate-900/50 rounded-[1.75rem] border border-slate-100 dark:border-slate-800/60 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800/60">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
-                  <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+          <div 
+            className="rounded-2xl overflow-hidden flex flex-col transition-all duration-300"
+            style={{
+              background: isDark
+                ? 'linear-gradient(135deg, rgba(13,27,64,0.95) 0%, rgba(10,22,40,0.98) 100%)'
+                : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              border: isDark ? '1px solid rgba(91,140,255,0.2)' : '1px solid rgba(21,87,255,0.12)',
+              boxShadow: isDark
+                ? '0 8px 32px rgba(21,87,255,0.15), inset 0 1px 0 rgba(255,255,255,0.05)'
+                : '0 8px 32px rgba(21,87,255,0.04), inset 0 1px 0 rgba(255,255,255,0.9)',
+              backdropFilter: 'blur(20px)',
+            }}
+          >
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-800/60">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+                  <AlertTriangle className="w-3 h-3 text-red-500" />
                 </div>
                 <div>
                   <p className="text-[9px] font-black uppercase tracking-[.18em] text-slate-400 dark:text-slate-500">Prioritaire</p>
-                  <h3 className="text-sm font-black text-[#0A1628] dark:text-white">Signalements urgents</h3>
+                  <h3 className="text-xs font-black text-[#0A1628] dark:text-white">Signalements urgents</h3>
                 </div>
               </div>
               <Link to="/chef/declarations" className="text-[10px] font-black text-[#1557FF] flex items-center gap-1">
@@ -593,13 +618,13 @@ const ChefDashboard: React.FC = () => {
             </div>
             <div className="divide-y divide-slate-50 dark:divide-slate-800/50">
               {urgentDecls.length === 0 ? (
-                <div className="py-12 text-center">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                  <p className="text-sm font-black text-slate-700 dark:text-white">Aucune urgence</p>
-                  <p className="text-xs text-slate-400 mt-1">Tout est sous contrôle</p>
+                <div className="py-8 text-center">
+                  <CheckCircle2 className="w-7 h-7 text-emerald-400 mx-auto mb-1.5" />
+                  <p className="text-xs font-black text-slate-700 dark:text-white">Aucune urgence</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Tout est sous contrôle</p>
                 </div>
               ) : urgentDecls.map(d => (
-                <div key={d.id} className="flex items-center gap-3.5 px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
+                <div key={d.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0 animate-pulse" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-black text-[#0A1628] dark:text-white truncate group-hover:text-[#1557FF] transition-colors">{d.title}</p>
@@ -625,16 +650,28 @@ const ChefDashboard: React.FC = () => {
           </div>
 
           {/* Team workload */}
-          <div className="bg-white dark:bg-slate-900/50 rounded-[1.75rem] border border-slate-100 dark:border-slate-800/60 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800/60">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                  <Users className="w-3.5 h-3.5 text-blue-500" />
+          <div 
+            className="rounded-2xl overflow-hidden flex flex-col transition-all duration-300"
+            style={{
+              background: isDark
+                ? 'linear-gradient(135deg, rgba(13,27,64,0.95) 0%, rgba(10,22,40,0.98) 100%)'
+                : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+              border: isDark ? '1px solid rgba(91,140,255,0.2)' : '1px solid rgba(21,87,255,0.12)',
+              boxShadow: isDark
+                ? '0 8px 32px rgba(21,87,255,0.15), inset 0 1px 0 rgba(255,255,255,0.05)'
+                : '0 8px 32px rgba(21,87,255,0.04), inset 0 1px 0 rgba(255,255,255,0.9)',
+              backdropFilter: 'blur(20px)',
+            }}
+          >
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-800/60">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                  <Users className="w-3 h-3 text-blue-500" />
                 </div>
                 <div>
                   <p className="text-[9px] font-black uppercase tracking-[.18em] text-slate-400 dark:text-slate-500">Mon équipe</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <h3 className="text-sm font-black text-[#0A1628] dark:text-white">Charge de travail</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-black text-[#0A1628] dark:text-white">Charge de travail</h3>
                     <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-md px-1.5 py-0.5" title="Capacité maximale par agent">
                       <span className="text-[9px] font-bold text-slate-500">Max:</span>
                       <input 
@@ -653,7 +690,7 @@ const ChefDashboard: React.FC = () => {
                 Gérer <ArrowUpRight className="w-3 h-3" />
               </Link>
             </div>
-            <div className="px-6">
+            <div className="px-5">
               {agents.length === 0 ? (
                 <div className="py-12 text-center">
                   <Users className="w-8 h-8 text-slate-200 dark:text-slate-700 mx-auto mb-2" />
@@ -665,125 +702,6 @@ const ChefDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Recent Declarations Table ── */}
-        <div className="bg-white dark:bg-slate-900/50 rounded-[1.75rem] border border-slate-100 dark:border-slate-800/60 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800/60">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <FileText className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-              </div>
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[.18em] text-slate-400 dark:text-slate-500">Activité récente</p>
-                <h3 className="text-sm font-black text-[#0A1628] dark:text-white">Dernières déclarations</h3>
-              </div>
-            </div>
-            <Link to="/chef/declarations" className="flex items-center gap-1.5 text-[10px] font-black text-[#1557FF] px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl hover:bg-blue-100 transition-colors">
-              Voir tout <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-
-          {/* Table header */}
-          <div className="grid items-center gap-4 px-6 py-2.5 bg-slate-50/80 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800"
-            style={{ gridTemplateColumns: '1fr 120px 130px 130px 150px 130px 130px' }}>
-            {['Déclaration', 'Catégorie', 'Statut', 'Priorité', 'Agent assigné', 'Soumis le', 'Actions'].map(h => (
-              <p key={h} className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{h}</p>
-            ))}
-          </div>
-
-          {recentDecls.length === 0 ? (
-            <div className="py-16 text-center">
-              <FileText className="w-10 h-10 text-slate-200 dark:text-slate-700 mx-auto mb-3" />
-              <p className="text-sm font-bold text-slate-400">Aucune déclaration récente</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-50 dark:divide-slate-800/30">
-              {recentDecls.map((d, i) => {
-                const agent = null; // Normally agentOf(d)
-                return (
-                  <div key={d.id}
-                    className={`grid gap-4 px-6 py-3.5 items-center cursor-pointer group hover:bg-slate-50/70 dark:hover:bg-slate-800/20 transition-colors ${i % 2 !== 0 ? 'bg-slate-50/30 dark:bg-slate-800/10' : ''}`}
-                    style={{ gridTemplateColumns: '1fr 120px 130px 130px 150px 130px 130px' }}>
-
-                    {/* Title + ref */}
-                    <div className="min-w-0" onClick={() => navigate(`/chef/declarations/${d.id}`)}>
-                      <p className="text-sm font-black text-[#0A1628] dark:text-white truncate group-hover:text-[#1557FF] transition-colors">
-                        {d.title}
-                      </p>
-                      <p className="font-mono text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">{d.ref_citoyen}</p>
-                      {/* Project indicator */}
-                      {(d.category === 'Projet' || (d as any).shared_departments?.length > 0) && (
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800/30 uppercase tracking-widest flex items-center gap-1">
-                            <Users className="w-2.5 h-2.5" /> Projet Partagé
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Category */}
-                    <div onClick={() => navigate(`/chef/declarations/${d.id}`)}>
-                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg whitespace-nowrap">
-                        {d.category || '—'}
-                      </span>
-                    </div>
-
-                    {/* Status */}
-                    <div onClick={() => navigate(`/chef/declarations/${d.id}`)}><Pill val={d.status} type="status" /></div>
-
-                    {/* Priority */}
-                    <div onClick={() => navigate(`/chef/declarations/${d.id}`)}>
-                      <Pill val={d.priority} type="priority" />
-                    </div>
-
-                    {/* Assigned agent */}
-                    <div onClick={() => navigate(`/chef/declarations/${d.id}`)}>
-                      {d.assigned_agent ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[9px] font-black flex-shrink-0"
-                            style={{ background: '#1557FF' }}>
-                            {d.assigned_agent.first_name?.[0]}{d.assigned_agent.last_name?.[0]}
-                          </div>
-                          <span className="text-[11px] font-bold text-[#0A1628] dark:text-slate-200 truncate">
-                            {d.assigned_agent.first_name} {d.assigned_agent.last_name}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 italic">
-                          Non assigné
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Date */}
-                    <div onClick={() => navigate(`/chef/declarations/${d.id}`)}>
-                      <p className="text-[11px] font-bold text-[#0A1628] dark:text-slate-300">{fmtDate(d.created_at)}</p>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                      {['assignee_chef', 'soumise'].includes(d.status) && (
-                        <>
-                          <button onClick={() => setAssigning(d)}
-                            className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors" title="Accepter & Assigner">
-                            <Send className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => setRefusing(d)}
-                            className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors" title="Refuser">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      )}
-                      <button onClick={() => navigate(`/chef/declarations/${d.id}`)}
-                        className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors" title="Détail">
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
       </div>
 
       {/* ── Modals ── */}

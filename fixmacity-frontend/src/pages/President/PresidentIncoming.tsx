@@ -79,22 +79,39 @@ const KpiCard: React.FC<{
   )
 }
 
-const AssignModal: React.FC<{ decl: Decl; departments: { id: string, name: string }[]; onClose: () => void; onAssigned: (id: string) => void }> = ({ decl, departments, onClose, onAssigned }) => {
-  const [selected, setSelected] = useState('')
+const AssignModal: React.FC<{
+  decl: Decl
+  departments: { id: string; name: string }[]
+  onClose: () => void
+  onAssigned: (id: string) => void
+}> = ({ decl, departments, onClose, onAssigned }) => {
+  const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const toggle = (id: string) => {
+    setSelected(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
 
   const handleAssign = async () => {
-    if (!selected) return
+    if (selected.length === 0) { setError('Sélectionnez au moins un service.'); return }
     setLoading(true)
+    setError(null)
     try {
-      await fetch(`${API}/president/declarations/${decl.id}/assign`, {
+      const res = await fetch(`${API}/president/declarations/${decl.id}/assign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({ department_id: selected })
+        body: JSON.stringify({ service_ids: selected })
       })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Erreur lors de l\'affectation.'); setLoading(false); return }
       onAssigned(decl.id)
       onClose()
-    } catch (_) { }
+    } catch (_) {
+      setError('Erreur réseau.')
+    }
     setLoading(false)
   }
 
@@ -110,8 +127,10 @@ const AssignModal: React.FC<{ decl: Decl; departments: { id: string, name: strin
               <span className="text-[10px] font-black text-[#1557FF] uppercase tracking-[0.2em] bg-blue-50 dark:bg-blue-500/10 px-3 py-1 rounded-lg">AFFECTATION</span>
               <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{decl.ref_citoyen}</span>
             </div>
-            <h2 className="text-3xl font-black text-[#0A1628] dark:text-white tracking-tight">Arrondissement de pouvoir</h2>
-            <p className="text-sm text-slate-400 dark:text-slate-500 font-medium italic mt-1">Transférer la responsabilité opérationnelle au département compétent.</p>
+            <h2 className="text-3xl font-black text-[#0A1628] dark:text-white tracking-tight">Affecter aux services</h2>
+            <p className="text-sm text-slate-400 dark:text-slate-500 font-medium italic mt-1">
+              Sélectionnez un ou plusieurs départements compétents.
+            </p>
           </div>
           <button onClick={onClose} className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group">
             <X className="w-5 h-5 group-hover:rotate-90 transition-transform duration-500" />
@@ -138,52 +157,91 @@ const AssignModal: React.FC<{ decl: Decl; departments: { id: string, name: strin
             </div>
           </div>
 
-          {/* Department grid */}
+          {/* Multi-select department grid */}
           <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Département d'exécution</p>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                Départements d'exécution
+              </p>
+              {selected.length > 0 && (
+                <span className="text-[10px] font-black text-[#1557FF] bg-blue-50 dark:bg-blue-500/10 px-3 py-1 rounded-full">
+                  {selected.length} sélectionné{selected.length > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-4">
               {departments.map((dept) => {
                 const cfg = DEPT_UI[dept.name] || { color: '#64748B', icon: '🏢' }
-                const isSelected = selected === dept.id
+                const isSelected = selected.includes(dept.id)
                 return (
-                  <button key={dept.id} onClick={() => setSelected(dept.id)}
-                    className={`flex items-center gap-4 p-5 rounded-2xl border-2 transition-all text-left group/dept ${isSelected
+                  <button
+                    key={dept.id}
+                    onClick={() => toggle(dept.id)}
+                    className={`flex items-center gap-4 p-5 rounded-2xl border-2 transition-all text-left group/dept ${
+                      isSelected
                         ? 'border-[#1557FF] bg-blue-50/50 dark:bg-blue-500/10'
                         : 'border-slate-50 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 bg-white dark:bg-slate-900'
-                      }`}>
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 shadow-sm transition-transform group-hover/dept:scale-110"
-                      style={{ background: `${cfg.color}15`, color: cfg.color }}>
+                    }`}
+                  >
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 shadow-sm transition-transform group-hover/dept:scale-110"
+                      style={{ background: `${cfg.color}15`, color: cfg.color }}
+                    >
                       {cfg.icon}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className={`text-sm font-black tracking-tight mb-0.5 ${isSelected ? 'text-[#1557FF]' : 'text-[#0A1628] dark:text-white'}`}>{dept.name}</p>
+                      <p className={`text-sm font-black tracking-tight mb-0.5 ${isSelected ? 'text-[#1557FF]' : 'text-[#0A1628] dark:text-white'}`}>
+                        {dept.name}
+                      </p>
                       <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Unité Opérationnelle</p>
                     </div>
-                    {isSelected && (
-                      <div className="w-6 h-6 rounded-full bg-[#1557FF] flex items-center justify-center shadow-lg shadow-blue-500/30">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-white stroke-[4]" />
-                      </div>
-                    )}
+                    <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                      isSelected
+                        ? 'bg-[#1557FF] border-[#1557FF]'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}>
+                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                    </div>
                   </button>
                 )
               })}
             </div>
           </div>
+
+          {error && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-2xl text-sm text-red-600 dark:text-red-400 font-bold">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              {error}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="px-10 pb-10 flex gap-4">
-          <button onClick={onClose}
-            className="flex-1 h-16 rounded-2xl border border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+          <button
+            onClick={onClose}
+            className="flex-1 h-16 rounded-2xl border border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+          >
             Abandonner
           </button>
-          <button onClick={handleAssign} disabled={!selected || loading}
+          <button
+            onClick={handleAssign}
+            disabled={selected.length === 0 || loading}
             className="flex-[2] h-16 rounded-2xl text-white text-[10px] font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3 shadow-2xl shadow-blue-500/20"
-            style={{ background: '#1557FF' }}>
+            style={{ background: '#1557FF' }}
+          >
             {loading ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              <><Zap className="w-5 h-5" /> Confirmer l'affectation</>
+              <>
+                <Zap className="w-5 h-5" />
+                Confirmer l'affectation
+                {selected.length > 1 && (
+                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-[9px]">
+                    {selected.length} services
+                  </span>
+                )}
+              </>
             )}
           </button>
         </div>

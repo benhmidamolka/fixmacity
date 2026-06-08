@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import AgentLayout from '../../layouts/AgentLayout';
 import AgentDeclarationDetail from './AgentDeclarationDetail';
 import {
   Clock, CheckSquare, Eye, RefreshCw, Upload, X,
   Archive, Loader2, Star, FileText, Camera, AlertCircle,
-  Kanban as KanbanIcon, ChevronRight, RotateCcw, Search,
-  Filter, Ban, Calendar, MapPin, Maximize2, Sparkles, Inbox,
-  ArrowUpDown, CheckCircle, CheckSquare as CheckIcon
+  ChevronRight, RotateCcw, Search, Filter, Ban, Calendar,
+  MapPin, Maximize2, Inbox, ArrowUpDown, MoreHorizontal, Plus,
+  MessageSquare, Link2
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,69 +16,57 @@ const tok = () => localStorage.getItem('fmc_token') || '';
 const hdr = () => ({ Authorization: `Bearer ${tok()}` });
 const hjson = () => ({ ...hdr(), 'Content-Type': 'application/json' });
 
-/* ─── helpers (Dark theme optimized) ────────────────────────── */
-const PRIORITY_CFG: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  critique: { label: 'Critique', color: '#ef4444', bg: 'bg-red-500/10 text-red-400 border border-red-500/20', border: 'border-red-900/30' },
-  elevee:   { label: 'Élevée',  color: '#f97316', bg: 'bg-orange-500/10 text-orange-400 border border-orange-500/20', border: 'border-orange-900/30' },
-  moyenne:  { label: 'Moyenne', color: '#eab308', bg: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20', border: 'border-yellow-900/30' },
-  basse:    { label: 'Basse',   color: '#10b981', bg: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20', border: 'border-emerald-900/30' },
+/* ─── helpers (Light theme) ─────────────────────────────────── */
+const PRIORITY_CFG: Record<string, { label: string; color: string; bg: string }> = {
+  critique: { label: 'Critique', color: '#ef4444', bg: 'bg-red-100 dark:bg-red-950/20 text-red-600 dark:text-red-400' },
+  elevee:   { label: 'Élevée',   color: '#f97316', bg: 'bg-orange-100 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400' },
+  moyenne:  { label: 'Moyenne',  color: '#eab308', bg: 'bg-yellow-100 dark:bg-yellow-950/20 text-yellow-600 dark:text-yellow-400' },
+  basse:    { label: 'Basse',    color: '#10b981', bg: 'bg-emerald-100 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400' },
 };
 
 const Stars = ({ score }: { score: number }) => (
   <div className="flex items-center gap-0.5">
     {[1, 2, 3, 4, 5].map(n => (
-      <Star
-        key={n}
-        size={11}
-        className={n <= score ? 'text-amber-400 fill-amber-400' : 'text-slate-700 fill-slate-700'}
-      />
+      <Star key={n} size={10}
+        className={n <= score ? 'text-amber-400 fill-amber-400' : 'text-slate-200 dark:text-slate-800 fill-slate-200 dark:fill-slate-800'} />
     ))}
   </div>
 );
 
+/** Dot-style progress bar matching the reference design */
+const ProgressDots = ({ percent, color }: { percent: number; color: string }) => {
+  const total = 12;
+  const filled = Math.round((percent / 100) * total);
+  return (
+    <div className="flex items-center gap-0.5 flex-1">
+      {Array.from({ length: total }).map((_, i) => (
+        <div key={i} className={`w-2 h-2 rounded-full flex-shrink-0 transition-colors ${i < filled ? '' : 'bg-slate-200 dark:bg-slate-800'}`}
+          style={i < filled ? { backgroundColor: color } : undefined} />
+      ))}
+    </div>
+  );
+};
+
+const colProgress = (colId: string) => {
+  if (colId === 'assignee_agent') return 20;
+  if (colId === 'en_cours') return 55;
+  if (colId === 'resolue') return 80;
+  return 100;
+};
+
 type ColDef = {
   id: string;
   title: string;
-  gradient: string;
-  accent: string;
-  badgeBg: string;
+  accent: string;   // hex
+  accentCls: string; // tailwind text class
   description: string;
 };
 
-// Renamed "À accepter" to "Prioritaire"
 const COLUMNS: ColDef[] = [
-  {
-    id: 'assignee_agent',
-    title: 'Prioritaire',
-    gradient: 'from-rose-600 to-orange-600',
-    accent: 'border-l-rose-500',
-    badgeBg: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
-    description: 'Urgences & priorités à valider',
-  },
-  {
-    id: 'en_cours',
-    title: 'En cours',
-    gradient: 'from-amber-500 to-orange-500',
-    accent: 'border-l-orange-500',
-    badgeBg: 'bg-orange-500/10 text-orange-400 border border-orange-500/20',
-    description: 'Interventions sur le terrain',
-  },
-  {
-    id: 'resolue',
-    title: 'Évaluée',
-    gradient: 'from-emerald-500 to-teal-600',
-    accent: 'border-l-emerald-500',
-    badgeBg: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
-    description: 'En attente du citoyen',
-  },
-  {
-    id: 'cloturee',
-    title: 'Clôturée',
-    gradient: 'from-slate-700 to-slate-800',
-    accent: 'border-l-slate-600',
-    badgeBg: 'bg-slate-800 text-slate-400 border border-slate-700',
-    description: 'Missions finalisées',
-  },
+  { id: 'assignee_agent', title: 'Prioritaire', accent: '#f97316', accentCls: 'text-orange-500', description: 'Urgences à valider' },
+  { id: 'en_cours',       title: 'En cours',    accent: '#10b981', accentCls: 'text-emerald-500', description: 'Interventions terrain' },
+  { id: 'resolue',        title: 'Évaluée',     accent: '#8b5cf6', accentCls: 'text-violet-500',  description: 'Attente citoyen' },
+  { id: 'cloturee',       title: 'Clôturée',    accent: '#3b82f6', accentCls: 'text-blue-500',   description: 'Missions finalisées' },
 ];
 
 export default function AgentKanbanBoard() {
@@ -295,6 +283,8 @@ export default function AgentKanbanBoard() {
 
   /* ─── filtered data ─────────────────────────────────────────── */
   const safe = Array.isArray(declarations) ? declarations : [];
+  const categories = Array.from(new Set(safe.map((d: any) => d.category).filter(Boolean))) as string[];
+  const archivedItems = safe.filter(d => isArchived(d));
 
   const filterItem = (item: any) => {
     // If evaluated only is checked, we only show 'resolue' tasks
@@ -334,207 +324,148 @@ export default function AgentKanbanBoard() {
     });
   };
 
-  const archivedItems = safe.filter(d => isArchived(d));
-
-  // Extract unique categories for filter
-  const categories = Array.from(new Set(safe.map(d => d.category).filter(Boolean)));
-
-  /* ─── card rendering ─────────────────────────────────────────── */
-  const renderCard = (item: any, colId: string) => {
-    const prio = PRIORITY_CFG[item.priority?.toLowerCase()] || PRIORITY_CFG.moyenne;
-    const proof = proofPhoto(item);
+  const renderCard = (item: any, col: ColDef) => {
+    const colId   = col.id;
+    const prio    = PRIORITY_CFG[item.priority?.toLowerCase()] || PRIORITY_CFG.moyenne;
+    const proof   = proofPhoto(item);
     const textPhotoBefore = beforePhoto(item);
     const rapport = item.rapport_interne || item.internal_comments?.[0]?.content || null;
+    const progress = colProgress(colId);
+    const draggable = colId === 'assignee_agent' || colId === 'en_cours';
 
     return (
       <motion.div
         key={item.id}
         layoutId={`card-${item.id}`}
-        draggable={colId === 'assignee_agent' || colId === 'en_cours'}
+        draggable={draggable}
         onDragStart={e => handleDragStart(e as any, item.id)}
-        className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg hover:shadow-black/50 hover:-translate-y-0.5 hover:border-slate-700/80 transition-all group relative overflow-hidden flex flex-col cursor-grab active:cursor-grabbing"
-        whileHover={{ scale: 1.01 }}
+        className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md dark:shadow-black/20 hover:-translate-y-0.5 transition-all cursor-grab active:cursor-grabbing group"
+        whileHover={{ scale: 1.005 }}
         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       >
-        {/* Priority stripe */}
-        <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ backgroundColor: prio.color }} />
-
-        {/* Media Cover if available */}
-        {proof ? (
-          <div className="relative h-28 w-full overflow-hidden bg-slate-950 border-b border-slate-800 group/img cursor-zoom-in" onClick={() => setLightboxUrl(proof.url)}>
-            <img src={proof.url} alt="Intervention" className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500" />
-            <div className="absolute top-2 left-2 bg-emerald-600/95 backdrop-blur-md text-[9px] font-black text-white px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-md">
-              <Camera size={9} /> Après
+        {/* Photo thumbnail */}
+        {(proof || textPhotoBefore) && (
+          <div
+            className="relative h-28 w-full overflow-hidden rounded-t-2xl cursor-zoom-in group/img"
+            onClick={() => setLightboxUrl(proof ? proof.url : textPhotoBefore!)}
+          >
+            <img src={proof ? proof.url : textPhotoBefore!} alt="Photo"
+              className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500" />
+            <div className="absolute top-2 left-2 text-[9px] font-bold text-white px-2 py-0.5 rounded-full flex items-center gap-1"
+              style={{ backgroundColor: proof ? '#10b981' : '#6366f1' }}>
+              <Camera size={8} />{proof ? 'Après' : 'Avant'}
             </div>
-            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-              <Maximize2 size={16} className="text-white drop-shadow-md" />
-            </div>
-          </div>
-        ) : textPhotoBefore ? (
-          <div className="relative h-28 w-full overflow-hidden bg-slate-950 border-b border-slate-800 group/img cursor-zoom-in" onClick={() => setLightboxUrl(textPhotoBefore)}>
-            <img src={textPhotoBefore} alt="Signalement" className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500" />
-            <div className="absolute top-2 left-2 bg-indigo-600/95 backdrop-blur-md text-[9px] font-black text-white px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-md">
-              <Camera size={9} /> Avant
-            </div>
-            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-              <Maximize2 size={16} className="text-white drop-shadow-md" />
+            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
+              <Maximize2 size={16} className="text-white" />
             </div>
           </div>
-        ) : null}
+        )}
 
-        <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-          <div className="space-y-2">
-            {/* Top row */}
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[9px] font-mono font-bold text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                {item.ref_citoyen || `#${item.id?.slice(-4)}`}
-              </span>
-              <button
-                onClick={() => setSelectedDecl(item.id)}
-                className="p-1 rounded-lg bg-slate-850 hover:bg-emerald-950 hover:text-emerald-400 text-slate-400 border border-slate-800 transition-colors flex-shrink-0"
-                title="Voir détail"
-              >
-                <Eye size={12} />
-              </button>
-            </div>
-
-            {/* Title & description */}
-            <div>
-              <h4 className="text-xs font-bold text-slate-100 line-clamp-1 group-hover:text-emerald-400 transition-colors">
-                {item.title}
-              </h4>
-              <p className="text-[10px] text-slate-400 line-clamp-2 mt-0.5 leading-relaxed">
-                {item.description || 'Aucune description.'}
-              </p>
-            </div>
-
-            {/* Tags */}
-            <div className="flex flex-wrap gap-1">
+        <div className="p-4 space-y-3">
+          {/* Tags row */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
               {item.category && (
-                <span className="text-[9px] font-semibold text-slate-300 bg-slate-800 px-2 py-0.5 rounded border border-slate-700/60">
-                  {item.category}
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                  style={{ backgroundColor: col.accent + '1a', color: col.accent }}>
+                  #{item.category}
                 </span>
               )}
-              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${prio.bg}`}>
-                {prio.label}
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${prio.bg}`}>
+                #{prio.label}
               </span>
             </div>
-
-            {/* Address */}
-            <div className="flex items-center gap-1 text-[9px] text-slate-400">
-              <MapPin size={9} className="text-slate-500" />
-              <span className="truncate">{item.address || 'Non spécifié'}</span>
-            </div>
-
-            {/* ── resolue: proof photo + rapport, awaiting citizen feedback ── */}
-            {colId === 'resolue' && (
-              <div className="space-y-2 pt-1 border-t border-slate-800">
-                {rapport && (
-                  <div className="bg-slate-950 border border-slate-850 rounded-xl px-2.5 py-1.5">
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <FileText size={10} className="text-slate-500" />
-                      <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">Rapport</span>
-                    </div>
-                    <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed italic">"{rapport}"</p>
-                  </div>
-                )}
-                <div className="flex items-center gap-1 text-[8px] text-amber-400 font-semibold bg-amber-950/20 border border-amber-900/30 px-2 py-1 rounded-lg">
-                  <Clock size={10} className="text-amber-500" />
-                  <span>Attente citoyen / Clôture auto J+7</span>
-                </div>
-              </div>
-            )}
-
-            {/* ── cloturee: rating (citizen) or CRON badge + proof + rapport ── */}
-            {colId === 'cloturee' && (
-              <div className="space-y-2 pt-1 border-t border-slate-800">
-                {/* Closed-by indicator */}
-                {closedByCron(item) ? (
-                  <div className="flex items-center gap-1 text-[8px] text-slate-400 font-semibold bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg">
-                    <Clock size={10} className="text-slate-500" />
-                    <span>Clôture auto CRON +7j</span>
-                  </div>
-                ) : (
-                  <div className="bg-emerald-950/20 border border-emerald-900/30 rounded-xl p-2 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[8px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-0.5">
-                        <CheckSquare size={8} className="text-emerald-400" /> Évaluation citoyenne
-                      </span>
-                      {item.rating && <Stars score={item.rating.score} />}
-                    </div>
-                    {item.rating?.comment && (
-                      <p className="text-[10px] text-slate-300 italic leading-relaxed">
-                        "{item.rating.comment}"
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {rapport && (
-                  <div className="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5">
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <FileText size={10} className="text-slate-500" />
-                      <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">Mon rapport</span>
-                    </div>
-                    <p className="text-[9px] text-slate-400 line-clamp-1">{rapport}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── en_cours: warn if no photo yet ── */}
-            {colId === 'en_cours' && !hasProofPhoto(item) && (
-              <div className="flex items-center gap-1.5 bg-amber-950/20 border border-amber-900/30 rounded-xl px-2.5 py-1.5">
-                <AlertCircle size={12} className="text-amber-500 flex-shrink-0 animate-pulse" />
-                <span className="text-[9px] text-amber-400 font-medium">Photo preuve requise pour évaluer</span>
-              </div>
-            )}
+            <button onClick={() => setSelectedDecl(item.id)}
+              className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors flex-shrink-0"
+              title="Voir détail">
+              <Eye size={13} />
+            </button>
           </div>
 
-          {/* Footer: action button + timestamp */}
-          <div className="flex items-center justify-between pt-2 border-t border-slate-850 mt-3">
-            <span className="text-[9px] text-slate-400 flex items-center gap-1">
-              <Calendar size={9} className="text-slate-500" />
-              {item.created_at
-                ? new Date(item.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
-                : '—'}
-            </span>
+          {/* Title */}
+          <h4 className="text-sm font-bold leading-snug line-clamp-2" style={{ color: col.accent }}>
+            {item.title}
+          </h4>
 
-            <div className="flex items-center gap-1">
-              {colId === 'assignee_agent' && (
-                <>
-                  <button
-                    onClick={() => setRefuseDeclId(item.id)}
-                    className="text-[9px] font-bold text-rose-400 hover:bg-rose-950/60 bg-rose-950/30 border border-rose-900/40 px-2 py-1 rounded-lg flex items-center gap-0.5 transition-colors"
-                  >
-                    <Ban size={10} /> Refuser
-                  </button>
-                  <button
-                    onClick={() => acceptMission(item.id)}
-                    className="text-[9px] font-bold text-emerald-400 hover:bg-emerald-950/60 bg-emerald-950/30 border border-emerald-900/40 px-2 py-1 rounded-lg flex items-center gap-0.5 transition-colors"
-                  >
-                    <ChevronRight size={10} /> Accepter
-                  </button>
-                </>
-              )}
-              {colId === 'en_cours' && (
-                <button
-                  onClick={() => setResolveDeclId(item.id)}
-                  className="text-[9px] font-bold text-emerald-400 hover:bg-emerald-950/60 bg-emerald-950/30 border border-emerald-900/40 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
-                >
-                  <CheckSquare size={10} /> Évaluer
-                </button>
-              )}
-              {canArchive(item) && (
-                <button
-                  onClick={() => archiveCard(item.id)}
-                  title="Archiver la fiche"
-                  className="text-[9px] font-bold text-slate-400 hover:bg-slate-800 bg-slate-900 border border-slate-800 px-2 py-1 rounded-lg flex items-center gap-0.5 transition-colors"
-                >
-                  <Archive size={10} /> Archiver
-                </button>
+          {/* Description */}
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+            {item.description || item.address || 'Aucune description.'}
+          </p>
+
+          {/* Rapport snippet */}
+          {rapport && (colId === 'resolue' || colId === 'cloturee') && (
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 italic line-clamp-1 border-l-2 pl-2"
+              style={{ borderColor: col.accent + '60' }}>"{rapport}"</p>
+          )}
+
+          {/* Citizen rating */}
+          {colId === 'cloturee' && item.rating && (
+            <div className="flex items-center gap-1.5">
+              <Stars score={item.rating.score} />
+              {item.rating.comment && (
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 italic line-clamp-1">{item.rating.comment}</span>
               )}
             </div>
+          )}
+
+          {/* Missing proof warning */}
+          {colId === 'en_cours' && !hasProofPhoto(item) && (
+            <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-xl px-2.5 py-1.5">
+              <AlertCircle size={11} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <span className="text-[9px] text-amber-600 dark:text-amber-400 font-medium">Photo preuve requise</span>
+            </div>
+          )}
+
+          {/* Waiting badge */}
+          {colId === 'resolue' && (
+            <div className="flex items-center gap-1 text-[9px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 px-2 py-1 rounded-lg">
+              <Clock size={9} />
+              <span>Attente citoyen — Clôture auto J+7</span>
+            </div>
+          )}
+
+          {/* Date + Progress dots */}
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                <Calendar size={9} />
+                {item.created_at
+                  ? new Date(item.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
+                  : '—'}
+              </span>
+              <span className="text-[10px] font-bold" style={{ color: col.accent }}>{progress}%</span>
+            </div>
+            <ProgressDots percent={progress} color={col.accent} />
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+            {colId === 'assignee_agent' && (
+              <>
+                <button onClick={() => setRefuseDeclId(item.id)}
+                  className="text-[10px] font-semibold text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 border border-red-200 dark:border-red-900/30 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                  <Ban size={10} /> Refuser
+                </button>
+                <button onClick={() => acceptMission(item.id)}
+                  className="text-[10px] font-semibold text-white px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                  style={{ backgroundColor: col.accent }}>
+                  <ChevronRight size={10} /> Accepter
+                </button>
+              </>
+            )}
+            {colId === 'en_cours' && (
+              <button onClick={() => setResolveDeclId(item.id)}
+                className="text-[10px] font-semibold text-white px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                style={{ backgroundColor: col.accent }}>
+                <CheckSquare size={10} /> Évaluer
+              </button>
+            )}
+            {canArchive(item) && (
+              <button onClick={() => archiveCard(item.id)}
+                className="text-[10px] font-semibold text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                <Archive size={10} /> Archiver
+              </button>
+            )}
           </div>
         </div>
       </motion.div>
@@ -543,196 +474,121 @@ export default function AgentKanbanBoard() {
 
   return (
     <AgentLayout>
-      <div className="p-4 max-w-[1600px] mx-auto space-y-6 text-slate-100 bg-[#090d16] min-h-screen">
+      <div className="min-h-screen bg-[#f8f9fb] dark:bg-slate-950 px-6 py-5 space-y-5 transition-colors duration-200">
 
-        {/* Header section with Stats Overview */}
-        <div className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-3xl p-6 shadow-2xl border border-slate-800 relative overflow-hidden">
-          <div className="absolute right-0 bottom-0 top-0 w-1/3 bg-[radial-gradient(circle_at_right,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent pointer-events-none" />
-          
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <KanbanIcon size={24} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
-                  Tableau <Sparkles size={16} className="text-emerald-400" />
-                </h1>
-                <p className="text-xs text-slate-300 mt-1">
-                  Pilotez vos chantiers, uploadez des preuves d'intervention et suivez les avis citoyens.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowArchive(true)}
-                className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-850 bg-slate-900 hover:bg-slate-850 text-slate-200 transition-all hover:border-slate-750"
-              >
-                <Archive size={14} className="text-slate-400" />
-                Archives ({archivedIds.size})
-              </button>
-              <button
-                onClick={fetchDecls}
-                className="p-2.5 rounded-xl border border-slate-850 bg-slate-900 hover:bg-slate-850 text-slate-200 transition-all hover:border-slate-750"
-                title="Actualiser la liste"
-              >
-                <RefreshCw size={14} />
-              </button>
-            </div>
+        {/* ── Top Bar ── */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">Tableau de bord</h1>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Pilotez vos missions — glissez-déposez pour avancer</p>
           </div>
-        </div>
-
-        {/* Filters & Sorting Panel (Dark Mode Optimized) */}
-        <div className="bg-slate-900 border border-slate-850 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-slate-400 flex-shrink-0">
-            <Filter size={16} className="text-emerald-500" />
-            <span className="text-xs font-black uppercase tracking-wider text-slate-200">Filtres</span>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto flex-1 md:justify-end">
-            {/* Search */}
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-              <input
-                type="text"
-                placeholder="Rechercher par titre, ref, description..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
-              />
-              {searchTerm && (
-                <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-
-            {/* Date Sorting */}
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
-              <select
-                value={sortOrder}
-                onChange={e => setSortOrder(e.target.value as 'newest' | 'oldest')}
-                className="w-full pl-3 pr-8 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs outline-none cursor-pointer font-bold text-slate-200 focus:border-emerald-500 appearance-none"
-              >
-                <option value="newest">📅 Plus récent</option>
-                <option value="oldest">📅 Plus ancien</option>
-              </select>
-              <ArrowUpDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
+              <input type="text" placeholder="Rechercher..."
+                value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                className="pl-8 pr-3 py-2 text-xs border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 outline-none focus:border-emerald-500 transition-colors w-40" />
+              {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X size={11} /></button>}
             </div>
-
-            {/* Evaluated Cases Filter */}
-            <button
-              onClick={() => setEvaluatedOnly(prev => !prev)}
-              className={`flex items-center gap-2 px-3 py-2.5 border rounded-xl text-xs font-bold transition-all ${
-                evaluatedOnly
-                  ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
-                  : 'border-slate-800 bg-slate-950 text-slate-300 hover:border-slate-700'
-              }`}
-            >
-              <CheckSquare size={13} className={evaluatedOnly ? 'text-emerald-400' : 'text-slate-400'} />
-              Missions Évaluées
-            </button>
-
-            {/* Priority */}
-            <select
-              value={prioFilter}
-              onChange={e => setPrioFilter(e.target.value)}
-              className="px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs outline-none cursor-pointer font-bold text-slate-200 focus:border-emerald-500"
-            >
-              <option value="">Toutes les priorités</option>
+            <select value={sortOrder} onChange={e => setSortOrder(e.target.value as 'newest' | 'oldest')}
+              className="text-xs border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 outline-none cursor-pointer focus:border-emerald-500 transition-colors">
+              <option value="newest">📅 Plus récent</option>
+              <option value="oldest">📅 Plus ancien</option>
+            </select>
+            <select value={prioFilter} onChange={e => setPrioFilter(e.target.value)}
+              className="text-xs border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 outline-none cursor-pointer focus:border-emerald-500 transition-colors">
+              <option value="">Toutes priorités</option>
               <option value="critique">Critique</option>
               <option value="elevee">Élevée</option>
               <option value="moyenne">Moyenne</option>
               <option value="basse">Basse</option>
             </select>
-
-            {/* Category */}
-            <select
-              value={categoryFilter}
-              onChange={e => setCategoryFilter(e.target.value)}
-              className="px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs outline-none cursor-pointer font-bold text-slate-200 focus:border-emerald-500"
-            >
-              <option value="">Toutes les catégories</option>
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
+            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
+              className="text-xs border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 outline-none cursor-pointer focus:border-emerald-500 transition-colors">
+              <option value="">Toutes catégories</option>
+              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
-
+            <button onClick={() => setEvaluatedOnly(p => !p)}
+              className={`text-xs px-3 py-2 rounded-xl border font-semibold transition-all ${
+                evaluatedOnly 
+                  ? 'border-violet-400 dark:border-violet-500/50 bg-violet-50 dark:bg-violet-950/20 text-violet-600 dark:text-violet-400' 
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
+              }`}>
+              <CheckSquare size={12} className="inline mr-1" />Évaluées
+            </button>
             {(searchTerm || prioFilter || categoryFilter || evaluatedOnly) && (
-              <button
-                onClick={() => { setSearchTerm(''); setPrioFilter(''); setCategoryFilter(''); setEvaluatedOnly(false); }}
-                className="text-xs font-bold text-rose-400 hover:text-rose-300 bg-rose-950/20 border border-rose-900/40 px-3 py-2.5 rounded-xl transition-colors"
-              >
+              <button onClick={() => { setSearchTerm(''); setPrioFilter(''); setCategoryFilter(''); setEvaluatedOnly(false); }}
+                className="text-xs font-semibold text-red-400 dark:text-red-400 hover:text-red-500 dark:hover:text-red-400 border border-red-200 dark:border-red-900/30 bg-white dark:bg-slate-900 px-3 py-2 rounded-xl transition-colors">
                 Réinitialiser
               </button>
             )}
+            <button onClick={() => setShowArchive(true)}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+              <Archive size={13} /> Archives ({archivedIds.size})
+            </button>
+            <button onClick={fetchDecls}
+              className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all" title="Actualiser">
+              <RefreshCw size={13} />
+            </button>
           </div>
         </div>
 
-        {/* Board column grid */}
+        {/* ── Board ── */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-32 text-slate-400">
-            <Loader2 size={36} className="animate-spin mb-4 text-emerald-400" />
-            <p className="text-sm font-bold text-slate-300">Chargement des fiches...</p>
+          <div className="flex flex-col items-center justify-center py-32 text-gray-400">
+            <Loader2 size={32} className="animate-spin mb-3 text-blue-400" />
+            <p className="text-sm font-medium text-gray-500">Chargement des fiches...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 items-start">
             {COLUMNS.map(col => {
               const items = itemsFor(col.id);
               const isOver = dragOverCol === col.id;
-
               return (
-                <div
-                  key={col.id}
+                <div key={col.id}
                   onDragOver={e => handleDragOver(e, col.id)}
                   onDragLeave={() => setDragOverCol(null)}
                   onDrop={e => handleDrop(e, col.id)}
-                  className={`flex flex-col rounded-2xl border transition-all duration-200 min-h-[520px] ${
-                    isOver
-                      ? 'border-emerald-500 bg-emerald-950/10 shadow-lg scale-[1.01]'
-                      : 'border-slate-850 bg-slate-900/60'
-                  }`}
+                  className={`flex flex-col transition-all duration-200 min-h-[520px] rounded-2xl ${isOver ? 'scale-[1.01]' : ''}`}
                 >
                   {/* Column Header */}
-                  <div className={`px-4 py-4 rounded-t-2xl border-b border-slate-850 flex items-center justify-between bg-gradient-to-r ${col.gradient} text-white`}>
+                  <div className="flex items-center justify-between px-1 pb-3">
                     <div>
-                      <h3 className="text-xs font-black uppercase tracking-wider font-sans">
-                        {col.title}
-                      </h3>
-                      <p className="text-[9px] text-white/80 font-medium mt-0.5">
-                        {col.description}
-                      </p>
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">{col.title}</h3>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500">{items.length} fiche{items.length !== 1 ? 's' : ''}</p>
                     </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-md">
-                      {items.length}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold text-white dark:text-slate-200 bg-slate-800 dark:bg-slate-900 border border-transparent dark:border-slate-800">
+                        {items.length}
+                      </span>
+                      <button className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+                        <MoreHorizontal size={14} />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Dropzone instruction indicator when drag over */}
+                  {/* Drop indicator */}
                   <AnimatePresence>
                     {isOver && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="bg-emerald-500/10 border-b border-emerald-400/20 px-3 py-2 text-center text-[10px] font-bold text-emerald-400 animate-pulse"
-                      >
-                        Déposer ici pour {col.id === 'en_cours' ? 'accepter la mission' : 'évaluer la mission'}
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="text-center text-[10px] font-bold py-2 mb-2 rounded-xl border-2 border-dashed"
+                        style={{ color: col.accent, borderColor: col.accent + '50', backgroundColor: col.accent + '0d' }}>
+                        ↓ Déposer ici
                       </motion.div>
                     )}
                   </AnimatePresence>
 
-                  {/* Cards area */}
-                  <div className="p-3 space-y-4 flex-1 overflow-y-auto">
+                  {/* Cards */}
+                  <div className="space-y-3 flex-1 overflow-y-auto pr-0.5">
                     {items.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-20 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl bg-slate-950/30">
-                        <Inbox size={22} className="mb-2 text-slate-600" />
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Aucune fiche</p>
+                      <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-600 border-2 border-dashed border-slate-200 dark:border-slate-800/80 rounded-2xl bg-white/60 dark:bg-slate-900/40 backdrop-blur-sm">
+                        <Inbox size={24} className="mb-2" />
+                        <p className="text-[10px] font-semibold uppercase tracking-wide">Aucune fiche</p>
                       </div>
                     ) : (
                       <AnimatePresence mode="popLayout">
-                        {items.map(item => renderCard(item, col.id))}
+                        {items.map(item => renderCard(item, col))}
                       </AnimatePresence>
                     )}
                   </div>
@@ -780,7 +636,7 @@ export default function AgentKanbanBoard() {
                 </div>
                 <button
                   onClick={() => setShowArchive(false)}
-                  className="w-8 h-8 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 flex items-center justify-center text-slate-300 transition-colors"
+                  className="w-8 h-8 rounded-xl bg-slate-900 hover:bg-slate-800 flex items-center justify-center text-slate-300 transition-colors"
                 >
                   <X size={14} />
                 </button>
@@ -800,13 +656,13 @@ export default function AgentKanbanBoard() {
                   archivedItems.map(item => (
                     <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 relative group">
                       <div className="flex items-start justify-between gap-3 mb-2">
-                        <span className="text-[10px] font-mono text-slate-400 font-bold bg-slate-950 px-2 py-0.5 rounded border border-slate-850">
+                        <span className="text-[10px] font-mono text-slate-400 font-bold bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
                           {item.ref_citoyen || `#${item.id?.slice(-4)}`}
                         </span>
                         <button
                           onClick={() => unarchiveCard(item.id)}
                           title="Restaurer sur le tableau"
-                          className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:bg-slate-850 hover:text-emerald-400 text-slate-400 transition-all flex items-center gap-1 text-[9px] font-bold"
+                          className="p-1.5 rounded-lg bg-slate-950 border border-slate-800 hover:bg-slate-800 hover:text-emerald-400 text-slate-400 transition-all flex items-center gap-1 text-[9px] font-bold"
                         >
                           <RotateCcw size={10} /> Restaurer
                         </button>
@@ -881,7 +737,7 @@ export default function AgentKanbanBoard() {
               </div>
               <button
                 onClick={closeResolveModal}
-                className="w-8 h-8 rounded-xl bg-slate-900 hover:bg-slate-850 flex items-center justify-center text-slate-400 border border-slate-800 transition-colors"
+                className="w-8 h-8 rounded-xl bg-slate-900 hover:bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-800 transition-colors"
               >
                 <X size={14} />
               </button>
@@ -890,7 +746,7 @@ export default function AgentKanbanBoard() {
             <div className="p-6 space-y-4 bg-slate-900 text-slate-200">
               {/* Photo uploader */}
               <div className="space-y-2">
-                <p className="text-[10px] font-black text-slate-450 uppercase tracking-widest">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Photo preuve d'intervention *
                 </p>
                 {resolvePhotoPreview ? (
@@ -930,7 +786,7 @@ export default function AgentKanbanBoard() {
 
               {/* Rapport */}
               <div className="space-y-2">
-                <p className="text-[10px] font-black text-slate-450 uppercase tracking-widest">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Rapport d'intervention <span className="normal-case font-normal">(facultatif)</span>
                 </p>
                 <textarea
@@ -947,7 +803,7 @@ export default function AgentKanbanBoard() {
             <div className="px-6 pb-6 flex gap-3 bg-slate-900">
               <button
                 onClick={closeResolveModal}
-                className="flex-1 py-3 rounded-2xl border border-slate-800 text-sm font-bold text-slate-400 hover:bg-slate-850 hover:text-white transition-colors"
+                className="flex-1 py-3 rounded-2xl border border-slate-800 text-sm font-bold text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
               >
                 Annuler
               </button>
@@ -979,31 +835,31 @@ export default function AgentKanbanBoard() {
             {/* Modal header */}
             <div className="px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-2xl bg-rose-500/20 flex items-center justify-center text-rose-450">
+                <div className="w-9 h-9 rounded-2xl bg-rose-500/20 flex items-center justify-center text-rose-550">
                   <Ban size={16} />
                 </div>
                 <div>
                   <p className="text-sm font-black text-slate-100">Refuser la mission</p>
-                  <p className="text-[10px] text-rose-450">Un motif de refus détaillé est obligatoire</p>
+                  <p className="text-[10px] text-rose-500">Un motif de refus détaillé est obligatoire</p>
                 </div>
               </div>
               <button
                 onClick={closeRefuseModal}
-                className="w-8 h-8 rounded-xl bg-slate-900 hover:bg-slate-850 flex items-center justify-center text-slate-400 border border-slate-800 transition-colors"
+                className="w-8 h-8 rounded-xl bg-slate-900 hover:bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-800 transition-colors"
               >
                 <X size={14} />
               </button>
             </div>
 
-            <div className="p-6 space-y-4 bg-slate-900 text-slate-250">
-              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 text-[11px] text-rose-450 leading-relaxed">
+            <div className="p-6 space-y-4 bg-slate-900 text-slate-200">
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 text-[11px] text-rose-500 leading-relaxed">
                 ℹ️ Cette action retournera le signalement au Chef de Service. Vous devez justifier ce refus par écrit (min. 10 caractères).
               </div>
 
               {/* Reason */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black text-slate-450 uppercase tracking-widest">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     Motif du refus *
                   </p>
                   <span className={`text-[9px] font-bold ${refuseReason.trim().length >= 10 ? 'text-emerald-400' : 'text-slate-500'}`}>
@@ -1024,7 +880,7 @@ export default function AgentKanbanBoard() {
             <div className="px-6 pb-6 flex gap-3 bg-slate-900">
               <button
                 onClick={closeRefuseModal}
-                className="flex-1 py-3 rounded-2xl border border-slate-800 text-sm font-bold text-slate-400 hover:bg-slate-850 hover:text-white transition-colors"
+                className="flex-1 py-3 rounded-2xl border border-slate-800 text-sm font-bold text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
               >
                 Annuler
               </button>
@@ -1041,6 +897,22 @@ export default function AgentKanbanBoard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Details modal */}
+      {selectedDecl && (
+        <AgentDeclarationDetail
+          tacheId={selectedDecl}
+          onClose={() => setSelectedDecl(null)}
+          onAccepted={() => {
+            fetchDecls();
+            setSelectedDecl(null);
+          }}
+          onRejected={() => {
+            fetchDecls();
+            setSelectedDecl(null);
+          }}
+        />
       )}
     </AgentLayout>
   );

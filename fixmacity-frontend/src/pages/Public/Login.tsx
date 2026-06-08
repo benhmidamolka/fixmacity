@@ -1,15 +1,13 @@
-// src/pages/Public/Login
+// src/pages/Public/Login.tsx
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, MapPin, ClipboardCheck } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react'
 import Logo from '../../components/Logo'
 import LanguageSwitcher from '../../components/shared/LanguageSwitcher'
 
-// Image removed for CSS-only design
-const API   = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 function roleRedirect(role: string) {
   if (role === 'citizen')   return '/dashboard'
   if (role === 'agent')     return '/agent'
@@ -21,29 +19,28 @@ function roleRedirect(role: string) {
 const Login: React.FC = () => {
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const [email,       setEmail]       = useState('')
-  const [password,    setPassword]    = useState('')
-  const [showPwd,     setShowPwd]     = useState(false)
-  const [loading,     setLoading]     = useState(false)
-  const [error,       setError]       = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPwd, setShowPwd] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  // ── Standard email / password login ───────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
     try {
-      const res  = await fetch(`${API}/auth/login`, {
-        method:  'POST',
+      const res = await fetch(`${API}/auth/login`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || data.message || t('common.error'))
 
-      localStorage.setItem('fmc_token',         data.token)
+      localStorage.setItem('fmc_token', data.token)
       localStorage.setItem('fmc_refresh_token', data.refreshToken || '')
-      localStorage.setItem('fmc_user',          JSON.stringify(data.user))
+      localStorage.setItem('fmc_user', JSON.stringify(data.user))
       navigate(roleRedirect(data.user?.role))
     } catch (err: any) {
       setError(err.message || t('common.error'))
@@ -53,137 +50,123 @@ const Login: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-white">
+    <div className="min-h-screen w-full relative flex flex-col justify-between items-center p-6 bg-slate-50/50 overflow-x-hidden selection:bg-blue-500/10 selection:text-[#1557FF]">
+      
+      {/* ── Fluid Background Blobs ── */}
+      <div className="absolute top-[-10%] left-[-15%] w-[60%] h-[60%] rounded-full bg-gradient-to-tr from-blue-200/20 to-indigo-200/20 blur-[130px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-15%] w-[70%] h-[70%] rounded-full bg-gradient-to-br from-blue-400/30 to-cyan-300/20 blur-[150px] pointer-events-none transform rotate-12" />
+      <div className="absolute top-[25%] right-[10%] w-[45%] h-[45%] rounded-full bg-indigo-200/15 blur-[120px] pointer-events-none" />
 
-      {/* ── Left: form ── */}
-      <div className="flex-1 flex flex-col justify-between px-8 sm:px-14 py-10 bg-white overflow-y-auto">
-        <Logo variant="dark" size="md" />
+      {/* ── Top Navigation Bar ── */}
+      <div className="w-full max-w-7xl mx-auto flex justify-between items-center relative z-10 py-2">
+        <Logo variant="dark" size="sm" />
+        <LanguageSwitcher variant="compact" />
+      </div>
 
-        <div className="max-w-sm w-full mx-auto">
-          <h1 className="text-4xl font-extrabold text-[#0A1628] mb-1 leading-tight tracking-tight">
-            {t('auth.loginTitle')}
-          </h1>
-          <p className="text-slate-500 text-sm mb-8">{t('auth.loginSubtitle')}</p>
+      {/* ── Centered Card ── */}
+      <div className="my-auto w-full max-w-[440px] bg-white rounded-3xl border border-slate-100 shadow-[0_25px_60px_rgba(8,112,184,0.06)] p-8 sm:p-10 relative z-10">
+        
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <Logo size="md" iconOnly={true} />
+        </div>
 
-          {error && (
-            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl mb-5 animate-shake">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
-            </div>
-          )}
+        {/* Title & Subtitle */}
+        <h1 className="text-2xl font-bold text-slate-900 text-center mb-1.5 tracking-tight">
+          {t('auth.loginTitle')}
+        </h1>
+        <p className="text-slate-400 text-xs sm:text-sm text-center mb-8 font-normal leading-relaxed max-w-[280px] mx-auto">
+          {t('auth.loginSubtitle')}
+        </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
-            <div className="relative">
-              <input
-                type="email" required value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder={t('auth.email')}
-                className="w-full bg-slate-100 rounded-xl px-4 py-3.5 pr-11 text-[#0A1628] placeholder-slate-400 outline-none focus:ring-2 focus:ring-[#1557FF]/40 focus:bg-white transition-all text-sm"
-              />
-              <Mail className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            </div>
+        {/* Error Alert */}
+        {error && (
+          <div className="flex items-center gap-2.5 bg-red-50 border border-red-100 text-red-600 text-xs px-4 py-3.5 rounded-xl mb-6 animate-shake">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span className="font-medium">{error}</span>
+          </div>
+        )}
 
-            {/* Password */}
-            <div className="relative">
-              <input
-                type={showPwd ? 'text' : 'password'} required value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder={t('auth.password')}
-                className="w-full bg-slate-100 rounded-xl px-4 py-3.5 pr-20 text-[#0A1628] placeholder-slate-400 outline-none focus:ring-2 focus:ring-[#1557FF]/40 focus:bg-white transition-all text-sm"
-              />
-              <Lock className="absolute right-10 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <button type="button" onClick={() => setShowPwd(!showPwd)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
-                {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Email */}
+          <div>
+            <label className="block text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-1.5">
+              {t('auth.email')}
+            </label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="hello@example.com"
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-[#1557FF] transition-all text-sm"
+            />
+          </div>
 
-            <div className="text-right">
-              <Link to="/forgot-password" className="text-[#1557FF] text-xs font-semibold hover:underline">
+          {/* Password */}
+          <div>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                {t('auth.password')}
+              </label>
+              <Link to="/forgot-password" className="text-[#1557FF] text-[10px] sm:text-xs font-semibold hover:underline">
                 {t('auth.forgotPassword')}
               </Link>
             </div>
-
-            <button type="submit" disabled={loading}
-              className="w-full py-3.5 rounded-xl text-white font-bold text-sm transition-all hover:bg-blue-700 active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
-              style={{ background: '#1557FF' }}>
-              {loading
-                ? <><Loader2 className="w-5 h-5 animate-spin" /> {t('common.loading')}</>
-                : t('auth.login')}
-            </button>
-          </form>
-
-          <p className="text-center text-slate-500 text-sm mt-6">
-            {t('auth.noAccount')}{' '}
-            <Link to="/register" className="text-[#1557FF] font-semibold hover:underline">{t('auth.signUp')}</Link>
-          </p>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-slate-400">© 2026 FixMaCity — Municipalité de Sousse</p>
-          <LanguageSwitcher variant="compact" />
-        </div>
-      </div>
-
-      {/* ── Right Panel: CSS-only Abstract & Interactive ── */}
-      <div className="hidden lg:flex w-[45%] bg-[#060b19] relative overflow-hidden flex-col justify-between p-16 text-white border-l border-slate-900 select-none">
-        {/* Glow Effects */}
-        <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-[-20%] right-[-20%] w-[80%] h-[80%] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
-        
-        {/* Decorative Grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-30" />
-
-        {/* Top brand accent */}
-        <div className="relative z-10 flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">Plateforme Municipale</span>
-        </div>
-
-        {/* Mid section: Catchphrase & Glassmorphic stats */}
-        <div className="relative z-10 space-y-8 my-auto">
-          <div className="space-y-4">
-            <h2 className="text-4xl font-extrabold tracking-tight leading-tight">
-              Rapprocher les citoyens de leur municipalité.
-            </h2>
-            <p className="text-slate-400 text-base max-w-md">
-              Signalez les incidents, suivez les interventions en temps réel et participez activement à l'amélioration de votre cadre de vie.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {/* Glass Card 1 */}
-            <div className="backdrop-blur-md bg-white/[0.02] border border-white/[0.06] p-5 rounded-2xl flex items-center gap-4 transition-all duration-300 hover:bg-white/[0.04] hover:border-white/[0.1] group">
-              <div className="p-3 rounded-xl bg-blue-500/10 text-[#1557FF] group-hover:scale-110 transition-transform">
-                <MapPin className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Signalements Localisés</p>
-                <p className="text-sm font-bold text-slate-200 mt-0.5">Géolocalisation précise des incidents pour intervention rapide.</p>
-              </div>
-            </div>
-
-            {/* Glass Card 2 */}
-            <div className="backdrop-blur-md bg-white/[0.02] border border-white/[0.06] p-5 rounded-2xl flex items-center gap-4 transition-all duration-300 hover:bg-white/[0.04] hover:border-white/[0.1] group">
-              <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-400 group-hover:scale-110 transition-transform">
-                <ClipboardCheck className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Suivi en Temps Réel</p>
-                <p className="text-sm font-bold text-slate-200 mt-0.5">Restez informé à chaque étape, de la soumission à la résolution.</p>
-              </div>
+            <div className="relative">
+              <input
+                type={showPwd ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••••••"
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-[#1557FF] transition-all text-sm pr-12 rtl:pl-12 rtl:pr-4"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPwd(!showPwd)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer rtl:left-3.5 rtl:right-auto"
+              >
+                {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
-        </div>
 
-        {/* Footer brand info */}
-        <div className="relative z-10 flex items-center justify-between border-t border-slate-900/60 pt-6">
-          <span className="text-xs text-slate-500">Ville de Sousse — Tunisie</span>
-          <span className="text-xs text-[#1557FF] font-semibold tracking-wider uppercase">FixMaCity 2026</span>
-        </div>
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#0B132B] hover:bg-[#1C2541] active:scale-[0.98] text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 text-sm tracking-wide shadow-md shadow-slate-900/10 flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer mt-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>{t('common.loading')}</span>
+              </>
+            ) : (
+              t('auth.login')
+            )}
+          </button>
+        </form>
+
+        {/* Register link */}
+        <p className="text-center text-slate-400 text-xs sm:text-sm mt-8">
+          {t('auth.noAccount')}{' '}
+          <Link to="/register" className="text-[#1557FF] font-semibold hover:underline">
+            {t('auth.signUp')}
+          </Link>
+        </p>
+
       </div>
+
+      {/* ── Footer ── */}
+      <div className="w-full max-w-7xl mx-auto text-center py-2 relative z-10">
+        <p className="text-[11px] text-slate-400">© 2026 FixMaCity — Municipalité de Sousse. Tous droits réservés.</p>
+      </div>
+
     </div>
   )
 }
 
-export default Login;
+export default Login

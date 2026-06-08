@@ -187,7 +187,7 @@ exports.getDeclarations = async (req, res) => {
         const others = coAssignmentsMap[d.ref_citoyen] || [];
         const sameDeptOthers = others.filter(o => o.id !== d.id && o.department_id === d.department_id);
         const diffDeptOthers = others.filter(o => o.department_id !== d.department_id);
-        
+
         let assignment_type = 'agent_unique';
         if (diffDeptOthers.length > 0) {
           assignment_type = 'inter_departement';
@@ -345,7 +345,7 @@ exports.acceptDeclaration = async (req, res) => {
 
     const { data: decl, error: fetchErr } = await supabase
       .from('declarations')
-      .select('id, ref_citoyen, status, citizen_id, agent_id')
+      .select('id, ref_citoyen, title, status, citizen_id, agent_id')
       .eq('id', id)
       .eq('department_id', deptId)
       .is('deleted_at', null)
@@ -397,7 +397,7 @@ exports.refuseDeclaration = async (req, res) => {
 
     const { data: decl, error: fetchErr } = await supabase
       .from('declarations')
-      .select('id, ref_citoyen, status, citizen_id')
+      .select('id, ref_citoyen, title, status, citizen_id')
       .eq('id', id)
       .eq('department_id', deptId)
       .single();
@@ -493,7 +493,7 @@ exports.uploadPhoto = async (req, res) => {
         url: photoUrl,
         public_id: publicId,
         uploaded_by: agentId,
-        photo_type: 'intervention',
+        photo_type: 'after'
       });
 
     if (insertErr) throw insertErr;
@@ -514,7 +514,7 @@ exports.resolveDeclaration = async (req, res) => {
 
     const { data: decl, error: fetchErr } = await supabase
       .from('declarations')
-      .select('id, ref_citoyen, status, citizen_id, started_at, agent_id')
+      .select('id, ref_citoyen, title, status, citizen_id, started_at, agent_id')
       .eq('id', id)
       .eq('department_id', agentScope(req))
       .eq('agent_id', agentId)
@@ -539,7 +539,7 @@ exports.resolveDeclaration = async (req, res) => {
       .from('declaration_photos')
       .select('id')
       .eq('declaration_id', id)
-      .eq('photo_type', 'intervention')
+      .eq('photo_type', 'after')
       .limit(1);
 
     if (!photos || photos.length === 0) {
@@ -641,7 +641,7 @@ exports.closeDeclaration = async (req, res) => {
 
     const { data: decl, error: fetchErr } = await supabase
       .from('declarations')
-      .select('id, ref_citoyen, status, citizen_id, agent_id')
+      .select('id, ref_citoyen, title, status, citizen_id, agent_id')
       .eq('id', id)
       .eq('department_id', agentScope(req))
       .eq('agent_id', agentId)

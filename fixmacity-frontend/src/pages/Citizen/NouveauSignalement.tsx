@@ -263,7 +263,7 @@ function Step1({ data, onChange, onNext, delegations }: any) {
             />
             {loading && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="w-4 h-4 border-2 border-b border-slate-50 dark:border-slate-800lue-500/20 border-t-blue-500 rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-b border-slate-50 dark:border-slate-800/20 border-t-blue-500 rounded-full animate-spin" />
               </div>
             )}
           </div>
@@ -358,7 +358,7 @@ function Step1({ data, onChange, onNext, delegations }: any) {
 
       <div className="bg-white dark:bg-slate-900 px-4 py-4 space-y-3">
         {data.address && (
-          <div className="flex items-center gap-3 bg-blue-50/60 rounded-xl px-3 py-3 border border-b border-slate-50 dark:border-slate-800lue-100/60">
+          <div className="flex items-center gap-3 bg-blue-50/60 rounded-xl px-3 py-3 border border-b border-slate-50 dark:border-slate-800/60">
             <div className="w-8 h-8 bg-white dark:bg-slate-900 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
               <MapPin className="w-4 h-4 text-[#1557FF]" />
             </div>
@@ -798,7 +798,7 @@ function Step3({ data, onChange, onNext, onBack, autoFile }: any) {
 
         {/* Sensitive area detected by AI */}
         {data.near_sensitive_area && (
-          <div className="bg-blue-50 border border-b border-slate-50 dark:border-slate-800lue-200 rounded-xl p-3 flex items-start gap-3">
+          <div className="bg-blue-50 border border-b border-slate-50 dark:border-slate-800 border-blue-200 rounded-xl p-3 flex items-start gap-3">
             <span className="text-blue-500 text-lg flex-shrink-0">🏥</span>
             <div>
               <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-0.5">Zone sensible détectée</p>
@@ -927,7 +927,7 @@ function SuccessScreen({ ref_citoyen, onNew }: { ref_citoyen: string; onNew: () 
       <p className="text-slate-500 dark:text-slate-400 text-sm mb-8 max-w-xs">
         Merci pour votre contribution à Sousse ! Votre signalement a été transmis aux services techniques municipaux.
       </p>
-      <div className="w-full max-w-sm bg-blue-50 border border-b border-slate-50 dark:border-slate-800lue-100 rounded-2xl p-5 mb-4">
+      <div className="w-full max-w-sm bg-blue-50 border border-b border-slate-50 dark:border-slate-800 border-blue-100 rounded-2xl p-5 mb-4">
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Référence du ticket</p>
         <p className="text-2xl font-extrabold text-[#1557FF] font-mono mb-3">{ref_citoyen}</p>
         <button onClick={copy} className="flex items-center gap-2 mx-auto text-sm font-semibold text-[#1557FF] hover:text-blue-800 transition-colors">
@@ -992,6 +992,7 @@ const NouveauSignalement: React.FC = () => {
     ai_analyzed: false,
     ai_confidence: 0,
     ai_reasoning: '',
+    ai_danger_score: 0,
   })
 
   const update = (patch: Partial<typeof formData>) => setFormData(prev => ({ ...prev, ...patch }))
@@ -1073,6 +1074,7 @@ const NouveauSignalement: React.FC = () => {
         body.append('ai_confidence',   String(formData.ai_confidence || 80))
         body.append('ai_reasoning',    formData.ai_reasoning || '')
         body.append('ai_severity_label', formData.urgency)
+        body.append('ai_danger_score', String(formData.ai_danger_score || 0))
       } else {
         // Manual urgency — still send as priority fallback
         const urgencyToDb: Record<string, string> = {
@@ -1118,6 +1120,7 @@ const NouveauSignalement: React.FC = () => {
       photo:null, hazard:false, hazard_note:'',
       has_critical_infrastructure: false, sensitive_type: '',
       ai_analyzed: false, ai_confidence: 0, ai_reasoning: '',
+      ai_danger_score: 0,
     })
   }
 

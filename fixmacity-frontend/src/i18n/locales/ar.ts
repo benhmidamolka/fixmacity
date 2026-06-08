@@ -55,8 +55,15 @@ const ar = {
     forgotPassword:  'نسيت كلمة المرور؟',
     noAccount:       'ليس لديك حساب؟',
     signUp:          'إنشاء حساب',
-    loginTitle:      'مرحباً بك في FixMaCity',
-    loginSubtitle:   'سجّل دخولك للوصول إلى لوحة المواطن',
+    loginTitle:      'مرحباً بعودتك',
+    loginSubtitle:   'أدخل بيانات الاعتماد الخاصة بك للوصول إلى حسابك',
+    signUpTitle:     'انضم إلينا',
+    signUpSubtitle:  'أنشئ حسابك للبدء في تحسين مدينتك',
+    firstName:       'الاسم الأول',
+    lastName:        'اللقب',
+    delegation:      'الدائرة البلدية',
+    langPref:        'اللغة المفضلة',
+    haveAccount:     'هل لديك حساب بالفعل؟',
   },
 
   declarations: {

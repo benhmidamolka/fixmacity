@@ -167,11 +167,13 @@ async function notifyStatusChange(app, declaration, citizenId, dbNewStatus) {
   const message = CITIZEN_STATUS_MESSAGES[dbNewStatus];
   if (!message) return; // e.g. 'soumise' — no citizen message needed at submission
 
+  const declTitle = declaration.title || declaration.ref_citoyen || 'votre déclaration';
+
   await notify(app, {
     userId: citizenId,
     type: TYPES.STATUS_CHANGE,
-    title: 'Mise à jour de votre déclaration',
-    body: `Réf: ${declaration.ref_citoyen} — ${message}`,
+    title: `« ${declTitle} »`,
+    body: message,
     declarationId: declaration.id,
     sendEmail: EMAIL_ON_STATUS.has(dbNewStatus),
     emailSubject: `[FixMaCity] Mise à jour : ${declaration.ref_citoyen}`,

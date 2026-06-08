@@ -14,8 +14,8 @@ const NAV = [
   {
     section: 'Menu',
     items: [
-      { label: 'Mes Missions',     icon: ClipboardList,   to: '/agent/declarations'   },
-      { label: 'Tableau',          icon: Kanban,          to: '/agent/board'          },
+      { label: 'Mes Missions',     icon: Kanban,          to: '/agent/board'          },
+      { label: 'Toutes les missions', icon: ClipboardList, to: '/agent/declarations'  },
       { label: 'Archives',         icon: Archive,         to: '/agent/archives'       },
       { label: 'Notifications',    icon: Bell,            to: '/agent/notifications', badge: null },
     ]
@@ -30,9 +30,9 @@ const AgentLayout: React.FC<Props> = ({ children, title = 'Tableau de bord' }) =
   const [mobileOpen,  setMobileOpen]  = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [unreadCount, setUnreadCount] = useState<number | null>(null)
-  const isMissionsPage = location.pathname === '/agent/declarations'
+  const isMissionsPage = location.pathname === '/agent/declarations' || location.pathname === '/agent/board'
   const [darkMode, setDarkMode] = useState(() => {
-    if (localStorage.getItem('fmc_theme') === 'dark' || window.location.pathname === '/agent/declarations') return true
+    if (localStorage.getItem('fmc_theme') === 'dark' || ['/agent/declarations', '/agent/board'].includes(window.location.pathname)) return true
     return false
   })
 

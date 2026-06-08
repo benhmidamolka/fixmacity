@@ -1,31 +1,31 @@
 'use strict';
 
-const path    = require('path');
-const fs      = require('fs');
+const path = require('path');
+const fs = require('fs');
 const supabase = require('../config/db');
-const { validationResult }     = require('express-validator');
-const { generateRefCitoyen }   = require('../services/refGenerator.service');
-const { logStatusChange }      = require('../services/statusHistory.service');
+const { validationResult } = require('express-validator');
+const { generateRefCitoyen } = require('../services/refGenerator.service');
+const { logStatusChange } = require('../services/statusHistory.service');
 const { notifyNewDeclaration } = require('../services/notification.service');
 const { computePriorityScore } = require('../services/priority.service');
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
- 
+
 function mapCitizenStatus(decl) {
   const CITIZEN_STATUS_MAP = {
-    soumise:        'EN ATTENTE',
-    assignee_chef:  'EN ATTENTE',
+    soumise: 'EN ATTENTE',
+    assignee_chef: 'EN ATTENTE',
     assignee_agent: 'EN ATTENTE',
-    en_cours:       'EN COURS',
-    resolue:        'TERMINÉ',
-    cloturee:       'TERMINÉ',
-    refusee_chef:   'EN ATTENTE',
-    refusee_agent:  'EN ATTENTE',
+    en_cours: 'EN COURS',
+    resolue: 'TERMINÉ',
+    cloturee: 'TERMINÉ',
+    refusee_chef: 'EN ATTENTE',
+    refusee_agent: 'EN ATTENTE',
   };
   return { ...decl, citizen_status: CITIZEN_STATUS_MAP[decl.status] || 'EN ATTENTE' };
 }
- 
- 
+
+
 /**
  * Haversine distance in metres between two lat/lng points.
  * Used server-side to detect sensitive location proximity.
@@ -34,11 +34,11 @@ function haversineM(lat1, lng1, lat2, lng2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat/2)**2 +
-            Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
- 
+
 /**
  * Returns { is_sensitive, sensitive_type } by querying sensitive_locations table.
  * Falls back to false/null if table doesn't exist yet.
@@ -57,7 +57,7 @@ async function detectSensitiveLocation(lat, lng) {
     return { is_sensitive: false, sensitive_type: null };
   }
 }
- 
+
 /**
  * Map AI priority labels (from vision service) to:
  *  - DB priority column value ('haute'|'moyenne'|'basse')
@@ -65,29 +65,29 @@ async function detectSensitiveLocation(lat, lng) {
  */
 function mapAIPriority(aiPriority) {
   const map = {
-    haute:    { db: 'haute',   score: 10, computed: 'urgent' },
-    urgente:  { db: 'haute',   score: 10, computed: 'urgent' },
-    urgent:   { db: 'haute',   score: 10, computed: 'urgent' },
-    critique: { db: 'haute',   score: 10, computed: 'urgent' },
-    critical: { db: 'haute',   score: 10, computed: 'urgent' },
-    moyenne:  { db: 'moyenne', score:  5, computed: 'normal' },
-    normal:   { db: 'moyenne', score:  5, computed: 'normal' },
-    normale:  { db: 'moyenne', score:  5, computed: 'normal' },
-    medium:   { db: 'moyenne', score:  5, computed: 'normal' },
-    basse:    { db: 'basse',   score:  1, computed: 'faible' },
-    faible:   { db: 'basse',   score:  1, computed: 'faible' },
-    low:      { db: 'basse',   score:  1, computed: 'faible' },
+    haute: { db: 'haute', score: 10, computed: 'urgent' },
+    urgente: { db: 'haute', score: 10, computed: 'urgent' },
+    urgent: { db: 'haute', score: 10, computed: 'urgent' },
+    critique: { db: 'haute', score: 10, computed: 'urgent' },
+    critical: { db: 'haute', score: 10, computed: 'urgent' },
+    moyenne: { db: 'moyenne', score: 5, computed: 'normal' },
+    normal: { db: 'moyenne', score: 5, computed: 'normal' },
+    normale: { db: 'moyenne', score: 5, computed: 'normal' },
+    medium: { db: 'moyenne', score: 5, computed: 'normal' },
+    basse: { db: 'basse', score: 1, computed: 'faible' },
+    faible: { db: 'basse', score: 1, computed: 'faible' },
+    low: { db: 'basse', score: 1, computed: 'faible' },
   };
   return map[aiPriority?.toLowerCase()] || { db: 'moyenne', score: 5, computed: 'normal' };
 }
- 
+
 // ─── POST /api/declarations ───────────────────────────────────────────────────
- 
+
 exports.create = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
- 
+
     const {
       title, description, category,
       delegation_id, latitude, longitude, address,
@@ -98,15 +98,21 @@ exports.create = async (req, res) => {
       ai_visible_issues,
       ai_severity_label,
       used_ai_vision,
+      ai_danger_score,
     } = req.body;
- 
-    const actualDelegationId = delegation_id || req.user.delegation_id;
+
+    // Validate delegation_id is mandatory
+    if (!delegation_id) {
+      return res.status(400).json({ error: "L'arrondissement est obligatoire." });
+    }
+
+    const actualDelegationId = delegation_id;
     const { data: deleg } = await supabase.from('delegations')
       .select('id, code').eq('id', actualDelegationId).single();
     if (!deleg) return res.status(400).json({ error: 'Délégation invalide.' });
- 
+
     const refCitoyen = await generateRefCitoyen(deleg.code);
- 
+
     // ── Save photo ─────────────────────────────────────────────────
     let publicUrl = null;
     let imagePath = null;
@@ -120,73 +126,69 @@ exports.create = async (req, res) => {
       const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5005}`;
       publicUrl = `${baseUrl}/uploads/${filename}`;
     }
- 
+
     // ── AI priority mapping ────────────────────────────────────────
     const usedAI = used_ai_vision === 'true' || used_ai_vision === true;
-    const aiMap  = usedAI && ai_priority_raw ? mapAIPriority(ai_priority_raw) : null;
- 
+    const aiMap = usedAI && ai_priority_raw ? mapAIPriority(ai_priority_raw) : null;
+
     // ── Sensitive location check ───────────────────────────────────
     const { is_sensitive, sensitive_type } = await detectSensitiveLocation(
       parseFloat(latitude), parseFloat(longitude)
     );
- 
+
     // ── Compute initial priority_score for the trigger ─────────────
     //   trigger will fire on INSERT and set computed_priority
-    const aiScore       = aiMap?.score    ?? 5;
+    const aiScore = aiMap?.score ?? 5;
     const locationBonus = is_sensitive
       ? (sensitive_type === 'hospital' ? 4 : sensitive_type === 'school' ? 3 : 2)
       : 0;
-    const initialScore  = aiScore + locationBonus;
- 
+    const initialScore = aiScore + locationBonus;
+
     // ── Insert declaration ─────────────────────────────────────────
     const { data: decl, error } = await supabase.from('declarations').insert({
-      title:              title.trim(),
-      description:        description.trim(),
-      category:           category || null,
-      delegation_id:      actualDelegationId,
-      citizen_id:         req.user.id,
-      user_id:            req.user.id,
-      ref_citoyen:        refCitoyen,
-      status:             'soumise',          // ← correct enum value
-      latitude:           latitude  ? parseFloat(latitude)  : null,
-      longitude:          longitude ? parseFloat(longitude) : null,
-      address:            address   || null,
+      title: title.trim(),
+      description: description.trim(),
+      category: category || null,
+      delegation_id: actualDelegationId,
+      citizen_id: req.user.id,
+      ref_citoyen: refCitoyen,
+      status: 'soumise',          // ← correct enum value
+      latitude: latitude ? parseFloat(latitude) : null,
+      longitude: longitude ? parseFloat(longitude) : null,
+      address: address || null,
       // Priority
-      priority:           aiMap?.db ?? req.body.priority ?? 'moyenne',
-      priority_score:     initialScore,
+      priority: aiMap?.db ?? req.body.priority ?? 'moyenne',
+      priority_score: initialScore,
       // AI fields
-      ai_priority:        aiMap ? aiMap.computed : null,
-      ai_priority_score:  aiScore,
-      ai_confidence:      ai_confidence ? parseInt(ai_confidence) : null,
-      ai_reasoning:       ai_reasoning  || null,
-      ai_visible_issues:  ai_visible_issues ? JSON.stringify(ai_visible_issues) : '[]',
-      ai_severity_label:  ai_severity_label || null,
-      ai_analyzed_at:     usedAI ? new Date().toISOString() : null,
-      used_ai_vision:     usedAI,
+      ai_priority: aiMap ? aiMap.computed : null,
+      ai_priority_score: aiScore,
+      ai_confidence: ai_confidence ? parseInt(ai_confidence) : null,
+      ai_reasoning: ai_reasoning || null,
+      ai_visible_issues: ai_visible_issues ? JSON.stringify(ai_visible_issues) : '[]',
+      ai_severity_label: ai_severity_label || null,
+      ai_analyzed_at: usedAI ? new Date().toISOString() : null,
+      used_ai_vision: usedAI,
       // Location sensitivity
       is_sensitive,
-      sensitive_type:     sensitive_type || null,
-      // Photo
-      photo_avant:        publicUrl,
-      image_url:          publicUrl,
-      is_deleted:         false,
+      sensitive_type: sensitive_type || null,
+      is_deleted: false,
     }).select('*').single();
- 
+
     if (error) {
       console.error('[Declarations] create error:', error.message);
       return res.status(500).json({ error: 'Erreur lors de la soumission.' });
     }
- 
+
     // Save photo record
     if (publicUrl) {
       await supabase.from('declaration_photos').insert({
         declaration_id: decl.id,
-        url:            publicUrl,
-        uploaded_by:    req.user.id,
-        photo_type:     'photo_avant',
+        url: publicUrl,
+        uploaded_by: req.user.id,
+        photo_type: 'photo_avant',
       });
     }
- 
+
     await logStatusChange(decl.id, null, 'soumise', req.user.id);
     await notifyNewDeclaration(req.app, decl);
 
@@ -194,11 +196,29 @@ exports.create = async (req, res) => {
     setImmediate(async () => {
       try {
         const pool = supabase.pool;
-        const priority = await computePriorityScore({ ...decl, votes_count: 0 });
+        
+        const declWithAI = {
+          ...decl,
+          votes_count: 0,
+          used_ai_vision: usedAI,
+          ai_danger_score: ai_danger_score ? parseInt(ai_danger_score) : undefined,
+          ai_severity_label: ai_severity_label,
+          ai_reasoning: ai_reasoning,
+          hazard: req.body.hazard === 'true' || req.body.hazard === true
+        };
+        
+        const priority = await computePriorityScore(declWithAI);
         const levelToDb = { URGENT: 'haute', NORMAL: 'moyenne', FAIBLE: 'basse' };
         await pool.query(
-          'UPDATE declarations SET priority_score=$1, priority_label=$2, priority_method=$3, priority=$4 WHERE id=$5',
-          [priority.score, sanitizePriorityLabel(priority.level), priority.source || 'fallback', levelToDb[priority.level] || 'moyenne', decl.id]
+          'UPDATE declarations SET priority_score=$1, priority_label=$2, priority_method=$3, priority=$4, priority_meta=$5 WHERE id=$6',
+          [
+            priority.score, 
+            sanitizePriorityLabel(priority.level), 
+            priority.source || 'fallback', 
+            levelToDb[priority.level] || 'moyenne', 
+            JSON.stringify({ factors: priority.factors, ai_description: priority.ai_description }),
+            decl.id
+          ]
         );
         console.log(`[Priority] ${decl.id} → ${priority.level} (${priority.score})`);
       } catch (e) {
@@ -208,7 +228,7 @@ exports.create = async (req, res) => {
 
     return res.status(201).json({
       declaration: mapCitizenStatus(decl),
-      ai_used:         usedAI,
+      ai_used: usedAI,
       computed_priority: decl.computed_priority,
       is_sensitive,
       sensitive_type,
@@ -218,18 +238,18 @@ exports.create = async (req, res) => {
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
- 
+
 // ─── GET /api/declarations/nearby/sensitive ───────────────────────────────────
 // Returns sensitive locations near a given lat/lng (for citizen map overlay)
- 
+
 exports.getNearSensitiveLocations = async (req, res) => {
   try {
     const { lat, lng, radius = 1000 } = req.query;
     if (!lat || !lng) return res.status(400).json({ error: 'lat et lng requis.' });
- 
+
     const { data: locs } = await supabase.from('sensitive_locations').select('*');
     if (!locs) return res.json({ locations: [] });
- 
+
     const nearby = locs.filter(loc => {
       const dist = haversineM(parseFloat(lat), parseFloat(lng), loc.latitude, loc.longitude);
       return dist <= parseInt(radius);
@@ -237,7 +257,7 @@ exports.getNearSensitiveLocations = async (req, res) => {
       ...loc,
       distance_m: Math.round(haversineM(parseFloat(lat), parseFloat(lng), loc.latitude, loc.longitude)),
     }));
- 
+
     return res.json({ locations: nearby });
   } catch (err) {
     console.error('[Declarations] getNearSensitiveLocations error:', err);
@@ -265,7 +285,7 @@ exports.mine = async (req, res) => {
     const data = dataRes.rows;
     const count = parseInt(countRes.rows[0].count, 10);
 
-    return res.status(200).json({ 
+    return res.status(200).json({
       declarations: data,
       pagination: {
         total: count,
@@ -284,29 +304,29 @@ exports.nearby = async (req, res) => {
   try {
     const { latitude, longitude, category } = req.query;
     if (!latitude || !longitude) return res.json([]);
-    
+
     // Fetch recent open declarations
     let query = supabase.from('declarations')
       .select('id, title, category, latitude, longitude')
       .eq('status', 'soumise')
       .or('is_deleted.eq.false,is_deleted.is.null');
-      
+
     if (category) query = query.eq('category', category);
-    
+
     const { data, error } = await query.limit(100);
     if (error) throw error;
-    
+
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);
     const radiusInDegrees = 0.0005; // Roughly 50 meters (exact same problem)
-    
+
     const nearby = data.filter(d => {
       if (!d.latitude || !d.longitude) return false;
       const dLat = Math.abs(d.latitude - lat);
       const dLng = Math.abs(d.longitude - lng);
       return dLat < radiusInDegrees && dLng < radiusInDegrees;
     });
-    
+
     return res.json(nearby);
   } catch (err) {
     console.error('[Declarations] Nearby error:', err);
@@ -318,7 +338,7 @@ exports.nearby = async (req, res) => {
 exports.map = async (req, res) => {
   try {
     const pool = supabase.pool;
-    
+
     // We query declarations directly to ensure we get all statuses (soumise, en_cours, resolue, cloturee)
     // and join with ratings to get the citizen's score and comment if they exist.
     const sql = `
@@ -333,7 +353,7 @@ exports.map = async (req, res) => {
         AND d.longitude IS NOT NULL
       ORDER BY d.created_at DESC
     `;
-    
+
     const { rows } = await pool.query(sql);
 
     return res.status(200).json({ declarations: rows });
@@ -376,12 +396,12 @@ exports.update = async (req, res) => {
 
     const { title, description, category, latitude, longitude, address } = req.body;
     const updates = { updated_at: new Date().toISOString() };
-    if (title)       updates.title       = title.trim();
+    if (title) updates.title = title.trim();
     if (description) updates.description = description.trim();
-    if (category)    updates.category    = category;
-    if (latitude !== undefined)  updates.latitude  = latitude;
+    if (category) updates.category = category;
+    if (latitude !== undefined) updates.latitude = latitude;
     if (longitude !== undefined) updates.longitude = longitude;
-    if (address)     updates.address     = address;
+    if (address) updates.address = address;
 
     const { data: updated, error: updateErr } = await supabase
       .from('declarations')
@@ -452,7 +472,7 @@ exports.vote = async (req, res) => {
 
     const { data: decl } = await supabase
       .from('declarations')
-      .select('id')
+      .select('id, citizen_id')
       .eq('id', id)
       .is('deleted_at', null)
       .or('is_deleted.eq.false,is_deleted.is.null')
@@ -466,12 +486,12 @@ exports.vote = async (req, res) => {
       return res.status(403).json({ error: 'Vous ne pouvez pas voter pour votre propre déclaration.' });
     }
 
-    // Check duplicate vote — DB unique on (declaration_id, user_id)
+    // Check duplicate vote — DB unique on (declaration_id, citizen_id)
     const { data: existingVote } = await supabase
       .from('votes')
       .select('id')
       .eq('declaration_id', id)
-      .eq('user_id', req.user.id)
+      .eq('citizen_id', req.user.id)
       .maybeSingle();
 
     if (existingVote) {
@@ -482,8 +502,8 @@ exports.vote = async (req, res) => {
       .from('votes')
       .insert({
         declaration_id: id,
-        user_id:        req.user.id,
-        vote:           'pour',
+        citizen_id: req.user.id,
+        vote: 'pour',
       });
 
     if (insertErr) {
@@ -519,9 +539,16 @@ exports.vote = async (req, res) => {
           const pool = supabase.pool;
           await pool.query(
             `UPDATE declarations
-               SET priority_score=$1, priority_label=$2, priority_method=$3, priority=$4
-             WHERE id=$5`,
-            [priority.score, sanitizePriorityLabel(priority.level), priority.source || 'fallback', dbPriority, id]
+               SET priority_score=$1, priority_label=$2, priority_method=$3, priority=$4, priority_meta=$5
+             WHERE id=$6 AND president_override=false`,
+            [
+              priority.score, 
+              sanitizePriorityLabel(priority.level), 
+              priority.source || 'fallback', 
+              dbPriority, 
+              JSON.stringify({ factors: priority.factors, ai_description: priority.ai_description }),
+              id
+            ]
           );
         }
       } catch (e) {
@@ -560,7 +587,7 @@ exports.rate = async (req, res) => {
       return res.status(404).json({ error: 'Déclaration introuvable.' });
     }
 
-    if (decl.citizen_id !== req.user.id && decl.user_id !== req.user.id) {
+    if (decl.citizen_id !== req.user.id) {
       return res.status(403).json({ error: 'Vous ne pouvez évaluer que vos propres déclarations.' });
     }
 
@@ -584,7 +611,7 @@ exports.rate = async (req, res) => {
       const resolvedDate = new Date(decl.resolved_at);
       const now = new Date();
       const diffDays = (now.getTime() - resolvedDate.getTime()) / (1000 * 3600 * 24);
-      
+
       if (diffDays > 7) {
         return res.status(403).json({ error: 'Le délai de 7 jours pour évaluer ce signalement est dépassé.' });
       }
@@ -594,9 +621,9 @@ exports.rate = async (req, res) => {
       .from('ratings')
       .insert({
         declaration_id: id,
-        citizen_id:     req.user.id,
+        citizen_id: req.user.id,
         score,
-        comment:        comment?.trim() || null,
+        comment: comment?.trim() || null,
       });
 
     if (insertErr) {
@@ -610,10 +637,10 @@ exports.rate = async (req, res) => {
     // Update status to cloturee and set evaluation_date (using current time)
     await supabase
       .from('declarations')
-      .update({ 
-        status: 'cloturee', 
+      .update({
+        status: 'cloturee',
         closed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString() 
+        updated_at: new Date().toISOString()
       })
       .eq('id', id);
 
@@ -640,9 +667,9 @@ exports.analyzePhoto = async (req, res) => {
     const { analyzePhoto: aiAnalyze, heuristicAnalysis } = require('../services/vision.service');
 
     // ── Read GPS + category from request body ────────────────────
-    const latitude  = parseFloat(req.body.latitude)  || null;
+    const latitude = parseFloat(req.body.latitude) || null;
     const longitude = parseFloat(req.body.longitude) || null;
-    const category  = req.body.category || null;
+    const category = req.body.category || null;
 
     // ── Detect nearby sensitive locations from DB ────────────────
     let nearbyLocations = [];
@@ -673,11 +700,11 @@ exports.analyzePhoto = async (req, res) => {
     if (!fsMod.existsSync(UPLOAD_DIR)) {
       fsMod.mkdirSync(UPLOAD_DIR, { recursive: true });
     }
-    
+
     const ext = pathMod.extname(req.file.originalname) || '.jpg';
     const tmpFilename = `analyze_${Date.now()}${ext}`;
     tmpPath = pathMod.join(UPLOAD_DIR, tmpFilename);
-    
+
     fsMod.writeFileSync(tmpPath, req.file.buffer);
 
     // ── Try AI analysis, fall back to heuristic ─────────────────
@@ -692,31 +719,31 @@ exports.analyzePhoto = async (req, res) => {
     return res.status(200).json({
       success: true,
       analysis: {
-        source:              analysis.source || 'gemini_vision',
-        category:            analysis.category,
-        title:               analysis.title,
-        description:         analysis.description,
-        priority:            analysis.priority,
-        danger_score:        analysis.danger_score || 5,
-        is_hazard:           analysis.is_hazard,
-        hazard_details:      analysis.hazard_details,
-        confidence:          analysis.confidence,
-        visible_issues:      analysis.visible_issues || [],
+        source: analysis.source || 'gemini_vision',
+        category: analysis.category,
+        title: analysis.title,
+        description: analysis.description,
+        priority: analysis.priority,
+        danger_score: analysis.danger_score || 5,
+        is_hazard: analysis.is_hazard,
+        hazard_details: analysis.hazard_details,
+        confidence: analysis.confidence,
+        visible_issues: analysis.visible_issues || [],
         near_sensitive_area: analysis.near_sensitive_area || false,
         sensitive_area_impact: analysis.sensitive_area_impact || null,
-        suggestions:         analysis.suggestions || [],
+        suggestions: analysis.suggestions || [],
       }
     });
 
   } catch (err) {
     console.error('[Analyze] Error:', err.message);
-    return res.status(500).json({ 
-      error: 'Analyse impossible.' 
+    return res.status(500).json({
+      error: 'Analyse impossible.'
     });
   } finally {
     // Clean up temp file
     if (tmpPath) {
-      try { fsMod.unlinkSync(tmpPath); } catch (_) {}
+      try { fsMod.unlinkSync(tmpPath); } catch (_) { }
     }
   }
 };
@@ -757,7 +784,7 @@ exports.listComments = async (req, res) => {
       console.error('[Declarations] listComments error:', error);
       // Fallback if 'channel' column doesn't exist yet
       if (error.code === 'PGRST106') {
-         return res.json({ comments: [] });
+        return res.json({ comments: [] });
       }
       return res.status(500).json({ error: 'Erreur lors de la récupération des commentaires.' });
     }
@@ -849,7 +876,7 @@ exports.getById = async (req, res) => {
       }
     }
     if (req.user.role === 'agent' || req.user.role === 'chef') {
-      if (decl.department_id !== req.user.department_id) {
+      if (decl.service_id !== req.user.department_id) {
         return res.status(403).json({ error: 'Hors de votre département.' });
       }
     }
@@ -889,12 +916,12 @@ exports.getPriorityDetail = async (req, res) => {
     } else if (decl.ai_priority_score !== null && decl.ai_priority_score !== undefined) {
       score_ai = decl.ai_priority_score;
     }
-    
+
     const score_votes = Math.min(decl.votes_count || 0, 5);
     const score_location = decl.is_sensitive
       ? (decl.sensitive_type === 'hospital' ? 4 : decl.sensitive_type === 'school' ? 3 : 2)
       : 0;
-    
+
     // Capped at 10 for the UI display, but computed score can be full sum
     const computed_score = score_ai + score_votes + score_location;
     const score_total = Math.min(10, computed_score);
@@ -949,33 +976,33 @@ exports.getPriorityDetail = async (req, res) => {
   }
 };
 const VALID_PRIORITY_LABELS = ['low', 'medium', 'high', 'urgent'];
- 
+
 function sanitizePriorityLabel(raw) {
   if (!raw) return 'low';
   const lo = String(raw).toLowerCase().trim();
- 
+
   // Map common variants to valid enum values
   const MAP = {
-    'faible':  'low',
-    'basse':   'low',
-    'low':     'low',
-    'normal':  'medium',
+    'faible': 'low',
+    'basse': 'low',
+    'low': 'low',
+    'normal': 'medium',
     'normale': 'medium',
-    'moyen':   'medium',
+    'moyen': 'medium',
     'moyenne': 'medium',
-    'modere':  'medium',
-    'modéré':  'medium',
-    'medium':  'medium',
-    'haute':   'high',
-    'high':    'high',
-    'élevé':   'high',
-    'eleve':   'high',
-    'urgent':  'urgent',
+    'modere': 'medium',
+    'modéré': 'medium',
+    'medium': 'medium',
+    'haute': 'high',
+    'high': 'high',
+    'élevé': 'high',
+    'eleve': 'high',
+    'urgent': 'urgent',
     'urgente': 'urgent',
-    'critique':'urgent',
+    'critique': 'urgent',
   };
- 
+
   return MAP[lo] || (VALID_PRIORITY_LABELS.includes(lo) ? lo : 'low');
 }
- 
+
 exports.sanitizePriorityLabel = sanitizePriorityLabel;

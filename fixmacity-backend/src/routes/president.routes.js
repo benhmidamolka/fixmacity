@@ -16,15 +16,25 @@ router.post('/declarations/:id/recalculate-priority', ctrl.recalculateDeclaratio
 
 // AI image analysis + priority override
 router.post('/declarations/:id/analyze-image', ctrl.analyzeDeclarationImage);
-router.get('/declarations/:id/priority', require('../controllers/declarations.controller').getPriorityDetail);
+router.get('/declarations/:id/priority', ctrl.getPriorityDetail);
 router.patch('/declarations/:id/priority', ctrl.overridePriority);
 
 router.post('/declarations/:id/assign', [
-  body('department_id').isUUID().withMessage('Département invalide (UUID attendu).'),
+  body('service_ids')
+    .isArray({ min: 1 })
+    .withMessage('Au moins un service requis.'),
+  body('service_ids.*')
+    .isUUID()
+    .withMessage('Chaque service_id doit être un UUID valide.'),
 ], ctrl.assignDeclaration);
 
 router.post('/declarations/:id/reassign', [
-  body('department_id').isUUID().withMessage('Département invalide (UUID attendu).'),
+  body('service_ids')
+    .isArray({ min: 1 })
+    .withMessage('Au moins un service requis.'),
+  body('service_ids.*')
+    .isUUID()
+    .withMessage('Chaque service_id doit être un UUID valide.'),
 ], ctrl.reassignDeclaration);
 
 // ── Declaration Comments ──

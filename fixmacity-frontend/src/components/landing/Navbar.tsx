@@ -55,7 +55,7 @@ const Navbar: React.FC = () => {
           }`}>
             <User className="w-5 h-5" />
           </button>
-          <Link to="/register"
+          <Link to="/login"
             className="hidden md:flex items-center bg-[#1557FF] hover:bg-blue-600 hover:scale-[1.02] text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]">
             Signaler un problème
           </Link>
@@ -85,7 +85,7 @@ const Navbar: React.FC = () => {
               <User className="w-5 h-5" /> Compte
             </button>
           </div>
-          <Link to="/register"
+          <Link to="/login"
             className="w-full bg-[#1557FF] hover:bg-blue-600 text-white font-bold py-3.5 rounded-xl text-center text-sm shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98]"
             onClick={() => setOpen(false)}>
             Signaler un problème
