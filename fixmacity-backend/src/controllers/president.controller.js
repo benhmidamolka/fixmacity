@@ -862,42 +862,61 @@ exports.listUsers = async (req, res) => {
 
 /* ──────────── POST /api/president/users ──────────── */
 exports.createUser = async (req, res) => {
-  // 1. Protection du rôle
+  // 0. Role guard
   if (req.user?.role !== 'president') {
     return res.status(403).json({ success: false, error: 'Accès réservé au Président Municipal' });
   }
 
-  // 2. Récupération des données
-  const { role, prenom, nom, email, telephone, password, department_id, delegation_id, force } = req.body;
+  // 1. Extract body — accept both naming conventions (prenom/nom and first_name/last_name)
+  const {
+    role,
+    email,
+    telephone,
+    password,
+    department_id,
+    delegation_id,
+    force,
+    confirm_replacement,
+  } = req.body;
 
-  // 3. Validation champs obligatoires — retourne toutes les erreurs en une fois
-  const fieldErrors = {};
+  const prenom = req.body.prenom || req.body.first_name;
+  const nom    = req.body.nom    || req.body.last_name;
 
-  if (!prenom || !String(prenom).trim())
-    fieldErrors.prenom = 'Le prénom est obligatoire';
-  if (!nom || !String(nom).trim())
-    fieldErrors.nom = 'Le nom est obligatoire';
-  if (!email || !String(email).trim())
-    fieldErrors.email = "L'adresse email est obligatoire";
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim()))
-    fieldErrors.email = "Le format de l'adresse email est invalide";
-  if (!password)
-    fieldErrors.password = 'Le mot de passe est obligatoire';
-  else if (String(password).length < 8)
-    fieldErrors.password = 'Le mot de passe doit contenir au moins 8 caractères';
-  if (!['agent', 'chef'].includes(role))
-    fieldErrors.role = 'Le rôle sélectionné est invalide';
-  if (!department_id)
-    fieldErrors.department_id = 'Veuillez sélectionner un département';
-  if (role === 'agent' && !delegation_id)
-    fieldErrors.delegation_id = 'Veuillez sélectionner un arrondissement';
+  // ── Rule 3: required field validation — fail-fast on FIRST missing field ─
+  const REQUIRED = [
+    { key: 'email',         val: email,         label: 'email' },
+    { key: 'prenom',        val: prenom,        label: 'prénom' },
+    { key: 'nom',           val: nom,           label: 'nom' },
+    { key: 'password',      val: password,      label: 'mot de passe' },
+    { key: 'role',          val: role,          label: 'rôle' },
+    { key: 'department_id', val: department_id, label: 'département' },
+  ];
 
-  if (Object.keys(fieldErrors).length > 0) {
-    return res.status(400).json({
-      success: false,
-      error: 'Informations manquantes ou invalides',
-      fields: fieldErrors
-    });
+  for (const { key, val, label } of REQUIRED) {
+    if (!val || !String(val).trim()) {
+      return res.status(400).json({
+        success: false,
+        error: `Le champ '${label}' est obligatoire.`,
+        field: key,
+      });
+    }
+  }
+
+  // Role must be agent or chef
+  if (!['agent', 'chef'].includes(role)) {
+    return res.status(400).json({ success: false, error: "Le champ 'rôle' est invalide.", field: 'role' });
+  }
+  // Password length
+  if (String(password).length < 8) {
+    return res.status(400).json({ success: false, error: "Le mot de passe doit contenir au moins 8 caractères.", field: 'password' });
+  }
+  // Email format
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())) {
+    return res.status(400).json({ success: false, error: "Le format de l'adresse email est invalide.", field: 'email' });
+  }
+  // Agent requires delegation_id
+  if (role === 'agent' && !delegation_id) {
+    return res.status(400).json({ success: false, error: "Le champ 'arrondissement' est obligatoire.", field: 'delegation_id' });
   }
 
   const client = await supabase.pool.connect();
@@ -905,7 +924,7 @@ exports.createUser = async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 4a. Vérification email unique (avec rôle précis dans le message)
+    // ── Rule 1: global email uniqueness ──────────────────────────────────────
     const emailCheck = await client.query(
       'SELECT id, role FROM users WHERE LOWER(email) = LOWER($1)',
       [String(email).trim()]
@@ -920,13 +939,15 @@ exports.createUser = async (req, res) => {
         'un utilisateur';
       return res.status(409).json({
         success: false,
-        error: 'Email déjà utilisé',
+        error: 'Cette adresse email est déjà utilisée.',
         conflictType: 'EMAIL_EXISTS',
-        fields: { email: `Un compte ${roleLabel} avec cette adresse email existe déjà.` }
+        fields: { email: `Un compte ${roleLabel} avec cette adresse email existe déjà.` },
       });
     }
 
-    // B. Chef de Service existant sur ce département ?
+    // ── Rule 2: department already has active chef ────────────────────────────
+    const useForce = force === true || confirm_replacement === true;
+
     if (role === 'chef' && department_id) {
       const chefConflict = await client.query(
         `SELECT u.id, u.first_name AS prenom, u.last_name AS nom, u.email
@@ -936,37 +957,35 @@ exports.createUser = async (req, res) => {
         [department_id]
       );
 
-      if (chefConflict.rows.length > 0 && !force) {
+      if (chefConflict.rows.length > 0 && !useForce) {
         await client.query('ROLLBACK');
         const existing = chefConflict.rows[0];
         return res.status(409).json({
           success: false,
+          error_code: 'DEPARTMENT_ALREADY_HAS_CHIEF',
           error: 'Ce département possède déjà un chef de service actif.',
           conflictType: 'DEPT_HAS_CHEF',
-          existingChef: {
-            id:     existing.id,
-            prenom: existing.prenom,
-            nom:    existing.nom,
-            email:  existing.email
-          }
+          message_fr: 'Ce département possède déjà un chef de service actif. Veuillez choisir un autre département ou confirmer le remplacement.',
+          existing_chef: { id: existing.id, name: `${existing.prenom} ${existing.nom}`, email: existing.email },
+          existingChef:  { id: existing.id, prenom: existing.prenom, nom: existing.nom, email: existing.email },
         });
       }
 
-      // force=true : désassigner l'ancien chef DANS la même transaction
-      if (chefConflict.rows.length > 0 && force) {
+      // confirm_replacement / force=true: deactivate old chef atomically
+      if (chefConflict.rows.length > 0 && useForce) {
         const oldChefId = chefConflict.rows[0].id;
-        await client.query('UPDATE users SET department_id = NULL WHERE id = $1', [oldChefId]);
+        await client.query('UPDATE users    SET is_active = false, department_id = NULL, updated_at = NOW() WHERE id = $1', [oldChefId]);
         await client.query('UPDATE services SET chef_id = NULL WHERE id = $1', [department_id]);
       }
     }
 
-    // 5. Hashage + création
+    // ── 3. Create user ────────────────────────────────────────────────────────
     const hashedPassword = await bcrypt.hash(String(password), SALT_ROUNDS);
 
     const newUser = await client.query(
       `INSERT INTO users (email, password_hash, first_name, last_name, phone, role, department_id, delegation_id, is_active, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, NOW(), NOW())
-       RETURNING id, email, first_name AS prenom, last_name AS nom, role, department_id`,
+       RETURNING id, email, first_name, last_name, role, department_id`,
       [
         String(email).toLowerCase().trim(),
         hashedPassword,
@@ -975,11 +994,11 @@ exports.createUser = async (req, res) => {
         telephone ? String(telephone).trim() : null,
         role,
         department_id || null,
-        role === 'agent' ? (delegation_id || null) : null
+        role === 'agent' ? (delegation_id || null) : null,
       ]
     );
 
-    // 6. Si chef : mettre à jour services.chef_id
+    // ── 4. If chef: update services.chef_id ───────────────────────────────────
     if (role === 'chef' && department_id) {
       await client.query(
         'UPDATE services SET chef_id = $1 WHERE id = $2',
@@ -991,8 +1010,8 @@ exports.createUser = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      user: newUser.rows[0],
-      message: `Compte ${role === 'chef' ? 'Chef de Service' : 'Agent Terrain'} créé avec succès.`
+      user:    newUser.rows[0],
+      message: `Compte ${role === 'chef' ? 'Chef de Service' : 'Agent Terrain'} créé avec succès.`,
     });
 
   } catch (error) {
@@ -1003,6 +1022,7 @@ exports.createUser = async (req, res) => {
     client.release();
   }
 };
+
 
 /* ──────────── PATCH /api/president/users/:id ──────────── */
 exports.updateUser = async (req, res) => {

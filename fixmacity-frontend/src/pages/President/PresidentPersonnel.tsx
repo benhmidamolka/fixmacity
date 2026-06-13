@@ -169,7 +169,7 @@ const UserModal: React.FC<{
             role: form.role, department_id: form.department_id || null,
             delegation_id: form.delegation_id || null,
             ...(form.phone.trim() ? { telephone: form.phone.trim() } : {}),
-            force,
+            ...(force ? { force: true, confirm_replacement: true } : {}),
           }),
         })
       }
