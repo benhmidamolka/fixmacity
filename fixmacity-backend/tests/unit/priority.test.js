@@ -30,35 +30,49 @@ function isValidTransition(from, to) {
 //  PRIORITY SCORE TESTS
 // ══════════════════════════════════════════════════════
 
-const score1 = computePriorityScore({ votes_count: 10, is_sensitive: true, sensitive_type: 'hospital' });
-assert.strictEqual(score1, 9, `Expected 9, got ${score1}`);
-console.log(' Test 1 passed: Hospital + 10 votes = 9');
+describe('FixMaCity Unit Tests', () => {
+  describe('Priority Score', () => {
+    test('Test 1: Hospital + 10 votes = 9', () => {
+      const score1 = computePriorityScore({ votes_count: 10, is_sensitive: true, sensitive_type: 'hospital' });
+      expect(score1).toBe(9);
+    });
 
-const score2 = computePriorityScore({ votes_count: 0, is_sensitive: false, sensitive_type: 'none' });
-assert.strictEqual(score2, 0, `Expected 0, got ${score2}`);
-console.log('Test 2 passed: No zone, no votes = 0');
+    test('Test 2: No zone, no votes = 0', () => {
+      const score2 = computePriorityScore({ votes_count: 0, is_sensitive: false, sensitive_type: 'none' });
+      expect(score2).toBe(0);
+    });
 
-const score3 = computePriorityScore({ votes_count: 30, is_sensitive: true, sensitive_type: 'school' });
-assert.strictEqual(score3, 13, `Expected 13, got ${score3}`);
-console.log(' Test 3 passed: School + capped votes = 13');
+    test('Test 3: School + capped votes = 13', () => {
+      const score3 = computePriorityScore({ votes_count: 30, is_sensitive: true, sensitive_type: 'school' });
+      expect(score3).toBe(13);
+    });
+  });
 
-// ══════════════════════════════════════════════════════
-//  STATUS TRANSITION TESTS
-// ══════════════════════════════════════════════════════
+  describe('Status Transition Validation', () => {
+    test('Test 4: soumise -> assignee_chef valide', () => {
+      expect(isValidTransition('soumise', 'assignee_chef')).toBe(true);
+    });
 
-assert.strictEqual(isValidTransition('soumise', 'assignee_chef'), true);
-console.log(' Test 4 passed: soumise → assignee_chef valide');
+    test('Test 5: soumise -> resolue invalide', () => {
+      expect(isValidTransition('soumise', 'resolue')).toBe(false);
+    });
 
-assert.strictEqual(isValidTransition('soumise', 'resolue'), false);
-console.log('Test 5 passed: soumise → resolue invalide (transition interdite)');
+    test('Test 6: en_cours -> resolue valide', () => {
+      expect(isValidTransition('en_cours', 'resolue')).toBe(true);
+    });
 
-assert.strictEqual(isValidTransition('en_cours', 'resolue'), true);
-console.log(' Test 6 passed: en_cours → resolue valide');
+    test('Test 7: assignee_agent -> refusee_agent valide', () => {
+      expect(isValidTransition('assignee_agent', 'refusee_agent')).toBe(true);
+    });
 
-assert.strictEqual(isValidTransition('assignee_agent', 'refusee_agent'), true);
-console.log(' Test 7 passed: assignee_agent → refusee_agent valide');
+    test('Test 8: cloturee -> soumise invalide', () => {
+      expect(isValidTransition('cloturee', 'soumise')).toBe(false);
+    });
+  });
+});
 
-assert.strictEqual(isValidTransition('cloturee', 'soumise'), false);
-console.log(' Test 8 passed: cloturee → soumise invalide (état final)');
+function calculatePriorityScore(votes, joursEcoules) {
+  return (votes * 3) + (joursEcoules * 0.5);
+}
 
-console.log('\n All 8 unit tests passed');
+module.exports = { calculatePriorityScore };

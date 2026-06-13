@@ -75,23 +75,7 @@ const CAT_ICON: Record<string, string> = {
 const fmt = (d: any) => d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
 const daysLeft = (d: any) => d ? Math.max(0, Math.ceil((new Date(d).getTime() - Date.now()) / 86400000)) : null
 
-// ─── Vote bar ─────────────────────────────────────────────────────────────────
-const VoteBar = ({ pour, contre, total }: { pour: number; contre: number; total: number }) => {
-  const pct = total > 0 ? Math.round((pour / total) * 100) : 0
-  return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between text-[10px] font-bold">
-        <span className="text-emerald-600 flex items-center gap-1"><ThumbsUp className="w-3 h-3" />{pour}</span>
-        <span className="text-slate-400">{pct}% pour</span>
-        <span className="text-rose-500 flex items-center gap-1">{contre}<ThumbsDown className="w-3 h-3" /></span>
-      </div>
-      <div className="h-1.5 bg-rose-100 dark:bg-rose-900/30 rounded-full overflow-hidden">
-        <div className="h-full bg-emerald-400 rounded-full transition-all duration-700"
-          style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  )
-}
+// VoteBar removed
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }: { status: string }) => {
@@ -334,7 +318,6 @@ const PropForm = ({ initial, onSave, onClose }: { initial?: Prop | null; onSave:
 
 // ─── Citizen Decision Modal ───────────────────────────────────────────────────
 const CitizenDecisionModal = ({ prop, onDecide, onClose }: { prop: Prop; onDecide: (p: Prop, d: string, note: string) => void; onClose: () => void }) => {
-  const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
   const displayStatus = CITIZEN_STATUS_MAP[prop.status] || prop.status
   // Propositions are editable as long as they are 'active' in DB
@@ -342,7 +325,7 @@ const CitizenDecisionModal = ({ prop, onDecide, onClose }: { prop: Prop; onDecid
 
   const decide = async (decision: string) => {
     setLoading(true)
-    try { await onDecide(prop, decision, note); onClose() }
+    try { await onDecide(prop, decision, ''); onClose() }
     catch (_) {}
     finally { setLoading(false) }
   }
@@ -375,7 +358,6 @@ const CitizenDecisionModal = ({ prop, onDecide, onClose }: { prop: Prop; onDecid
                 <p className="text-[10px] text-slate-400 dark:text-slate-500">Soumis le {fmt(prop.created_at)}</p>
               </div>
             </div>
-            <VoteBar pour={prop.votes_pour || 0} contre={prop.votes_contre || 0} total={prop.total || 0} />
           </div>
 
           {prop.president_response && (
@@ -388,17 +370,7 @@ const CitizenDecisionModal = ({ prop, onDecide, onClose }: { prop: Prop; onDecid
 
         {isEditable ? (
           <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Note ou réponse (visible par le citoyen)</label>
-              <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
-                className="w-full border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800/50 text-[#0A1628] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1557FF]/20 focus:border-[#1557FF] transition-all resize-none"
-                placeholder="Ajouter une réponse..." />
-            </div>
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => decide('a_discuter')} disabled={loading}
-                className="py-3 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-400 font-bold text-xs hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-all flex items-center justify-center gap-2">
-                <MessageSquare className="w-4 h-4" /> À discuter
-              </button>
               <button onClick={() => decide('confirme')} disabled={loading}
                 className="py-3 rounded-2xl bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-600 transition-all shadow-md shadow-emerald-200 dark:shadow-none flex items-center justify-center gap-2">
                 <CheckCircle2 className="w-4 h-4" /> Confirmer
@@ -406,10 +378,6 @@ const CitizenDecisionModal = ({ prop, onDecide, onClose }: { prop: Prop; onDecid
               <button onClick={() => decide('retenu')} disabled={loading}
                 className="py-3 rounded-2xl bg-purple-500 text-white font-bold text-xs hover:bg-purple-600 transition-all shadow-md shadow-purple-200 dark:shadow-none flex items-center justify-center gap-2">
                 <Star className="w-4 h-4" /> Retenu
-              </button>
-              <button onClick={() => decide('refuse')} disabled={loading}
-                className="py-3 rounded-2xl bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 text-rose-600 dark:text-rose-400 font-bold text-xs hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-all flex items-center justify-center gap-2">
-                <X className="w-4 h-4" /> Refuser
               </button>
             </div>
           </div>
@@ -474,35 +442,7 @@ const PresCard = ({ prop, onEdit, onDelete }: { prop: Prop; onEdit: (p: Prop) =>
         {isExpired && prop.status !== 'closed' && <span className="text-red-400 dark:text-red-500 font-black ml-auto">Expiré</span>}
       </div>
 
-      {/* Vote stats */}
-      <div className="grid grid-cols-3 gap-2 mb-5">
-        <div className="bg-emerald-50/80 dark:bg-emerald-900/20 rounded-2xl p-3 border border-emerald-100/60 dark:border-emerald-800/60 text-center">
-          <ThumbsUp className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 mx-auto mb-1" />
-          <p className="text-lg font-black text-emerald-700 dark:text-emerald-300">{prop.votes_pour}</p>
-          <p className="text-[9px] font-bold text-emerald-500 dark:text-emerald-400 uppercase">Pour</p>
-        </div>
-        <div className="bg-rose-50/80 dark:bg-rose-900/20 rounded-2xl p-3 border border-rose-100/60 dark:border-rose-800/60 text-center">
-          <ThumbsDown className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400 mx-auto mb-1" />
-          <p className="text-lg font-black text-rose-600 dark:text-rose-300">{prop.votes_contre}</p>
-          <p className="text-[9px] font-bold text-rose-500 dark:text-rose-400 uppercase">Contre</p>
-        </div>
-        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-3 border border-slate-100 dark:border-slate-800 text-center">
-          <Users className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 mx-auto mb-1" />
-          <p className="text-lg font-black text-[#0A1628] dark:text-white">{prop.total}</p>
-          <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">Total</p>
-        </div>
-      </div>
-
-      {/* Progress bar */}
-      <div className="mb-5">
-        <div className="flex justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-1.5">
-          <span className="text-emerald-600 dark:text-emerald-400">{pourPct}% pour</span>
-          <span className="text-rose-500 dark:text-rose-400">{100 - pourPct}% contre</span>
-        </div>
-        <div className="h-2 bg-rose-100 dark:bg-rose-900/30 rounded-full overflow-hidden">
-          <div className="h-full bg-emerald-400 rounded-full transition-all duration-700" style={{ width: `${pourPct}%` }} />
-        </div>
-      </div>
+      {/* Progress bar removed */}
 
       {/* Actions */}
       <div className="flex gap-2 mt-auto">
@@ -560,10 +500,6 @@ const CitiCard = ({ prop, onOpen }: { prop: Prop; onOpen: (p: Prop) => void }) =
         <div className="flex-1 min-w-0">
           <p className="text-xs font-black text-[#0A1628] dark:text-white truncate">{prop.citizen}</p>
           <p className="text-[10px] text-slate-400 dark:text-slate-500">{fmt(prop.created_at)}</p>
-        </div>
-        <div className="flex items-center gap-3 text-xs font-bold">
-          <span className="text-emerald-600 flex items-center gap-0.5"><ThumbsUp className="w-3 h-3" />{prop.votes_pour || 0}</span>
-          <span className="text-rose-500 flex items-center gap-0.5"><ThumbsDown className="w-3 h-3" />{prop.votes_contre || 0}</span>
         </div>
       </div>
 

@@ -143,7 +143,7 @@ async function notifyRole(app, role, opts) {
 //
 const CITIZEN_STATUS_MESSAGES = {
   assignee_chef: 'Votre déclaration a été reçue et est en cours de traitement.',
-  assignee_agent: 'Un agent a été assigné à votre déclaration.',
+ assignee_agent: "Un agent travaille actuellement sur votre problème.",
   en_cours: "Un agent travaille actuellement sur votre problème.",
   resolue: "Votre problème a été résolu ! Merci d'évaluer notre service.",
   refusee_chef: 'Votre déclaration a été redirigée vers un autre service.',

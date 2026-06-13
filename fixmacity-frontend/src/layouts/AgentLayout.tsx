@@ -14,9 +14,8 @@ const NAV = [
   {
     section: 'Menu',
     items: [
+      { label: 'Déclarations',     icon: ClipboardList, to: '/agent/declarations'  },
       { label: 'Mes Missions',     icon: Kanban,          to: '/agent/board'          },
-      { label: 'Toutes les missions', icon: ClipboardList, to: '/agent/declarations'  },
-      { label: 'Archives',         icon: Archive,         to: '/agent/archives'       },
       { label: 'Notifications',    icon: Bell,            to: '/agent/notifications', badge: null },
     ]
   }

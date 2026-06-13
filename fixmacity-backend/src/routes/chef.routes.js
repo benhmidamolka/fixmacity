@@ -6,6 +6,12 @@ const ctrl     = require('../controllers/chef.controller');
 const authenticate = require('../middleware/auth');
 const rbac         = require('../middleware/rbac');
 
+const multer = require('multer');
+const memUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+});
+
 // DB role enum value is 'chef'
 router.use(authenticate, rbac('chef'));
 
@@ -25,6 +31,14 @@ router.post('/declarations/:id/assign-agents', [
 router.post('/declarations/:id/refuse', [
   body('reason').notEmpty().trim().withMessage('Motif de refus requis.'),
 ], ctrl.refuseDeclaration);
+
+router.post('/declarations/:id/secondary-departments', [
+  body('department_id').isUUID().withMessage('department_id invalide.'),
+], ctrl.addSecondaryDepartment);
+
+router.post('/declarations/:id/photo', memUpload.single('photo'), ctrl.uploadPhoto);
+
+router.get('/departments', ctrl.listDepartments);
 
 // ── AI Priority Score ─────────────────────────────────────────────────────────
 // Returns the computed AI priority score for a single declaration.

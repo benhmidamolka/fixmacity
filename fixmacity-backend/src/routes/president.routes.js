@@ -20,21 +20,33 @@ router.get('/declarations/:id/priority', ctrl.getPriorityDetail);
 router.patch('/declarations/:id/priority', ctrl.overridePriority);
 
 router.post('/declarations/:id/assign', [
-  body('service_ids')
+  body('assignments')
     .isArray({ min: 1 })
-    .withMessage('Au moins un service requis.'),
-  body('service_ids.*')
+    .withMessage('Au moins une assignation requise.'),
+  body('assignments.*.department_id')
     .isUUID()
-    .withMessage('Chaque service_id doit être un UUID valide.'),
+    .withMessage('department_id invalide.'),
+  body('assignments.*.chef_id')
+    .isUUID()
+    .withMessage('chef_id invalide.'),
+  body('confirm_replacement')
+    .optional()
+    .isBoolean(),
 ], ctrl.assignDeclaration);
 
 router.post('/declarations/:id/reassign', [
-  body('service_ids')
+  body('assignments')
     .isArray({ min: 1 })
-    .withMessage('Au moins un service requis.'),
-  body('service_ids.*')
+    .withMessage('Au moins une assignation requise.'),
+  body('assignments.*.department_id')
     .isUUID()
-    .withMessage('Chaque service_id doit être un UUID valide.'),
+    .withMessage('department_id invalide.'),
+  body('assignments.*.chef_id')
+    .isUUID()
+    .withMessage('chef_id invalide.'),
+  body('confirm_replacement')
+    .optional()
+    .isBoolean(),
 ], ctrl.reassignDeclaration);
 
 // ── Declaration Comments ──
@@ -46,15 +58,7 @@ router.post('/declarations/:id/comments', [
 // ── Users ──
 router.get('/users', ctrl.listUsers);
 
-router.post('/users', [
-  body('email').isEmail().withMessage('Email invalide.'),
-  body('password').isLength({ min: 8 }).withMessage('Mot de passe : 8 caractères minimum.'),
-  body('first_name').notEmpty().trim().withMessage('Prénom requis.'),
-  body('last_name').notEmpty().trim().withMessage('Nom requis.'),
-  body('role').isIn(['agent', 'chef']).withMessage('Rôle invalide (agent ou chef).'),
-  body('department_id').optional().isUUID().withMessage('Département invalide.'),
-  body('delegation_id').optional().isUUID().withMessage('Délégation invalide.'),
-], ctrl.createUser);
+router.post('/users', ctrl.createUser);
 
 router.patch('/users/:id', ctrl.updateUser);
 router.delete('/users/:id', ctrl.deleteUser);

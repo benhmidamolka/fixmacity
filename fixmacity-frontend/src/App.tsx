@@ -11,7 +11,6 @@ import PresidentPropositions from './pages/President/PresidentPropositions'
 import PresidentNotifications from './pages/President/PresidentNotifications'
 import PresidentSettings from './pages/President/PresidentSettings'
 import ChefDeclarations      from './pages/Chef/ChefDeclarations'
-import ChefDeclarationDetail from './pages/Chef/ChefDeclarationDetail'
 import ChefDashboard         from './pages/Chef/ChefDashboard'
 import ChefMap               from './pages/Chef/ChefMap'
 import ChefAgents            from './pages/Chef/ChefAgents'
@@ -134,6 +133,9 @@ const App: React.FC = () => {
         <Route path="/chef/tasks" element={
           <ProtectedRoute allowedRoles={['chef']}><ChefTasks /></ProtectedRoute>
         } />
+        <Route path="/chef/tasks/:id" element={
+          <ProtectedRoute allowedRoles={['chef']}><ChefTasks /></ProtectedRoute>
+        } />
         <Route path="/chef/map" element={
           <ProtectedRoute allowedRoles={['chef']}><ChefMap /></ProtectedRoute>
         } />
@@ -141,7 +143,7 @@ const App: React.FC = () => {
           <ProtectedRoute allowedRoles={['chef']}><ChefAgents /></ProtectedRoute>
         } />
         <Route path="/chef/declarations/:id" element={
-          <ProtectedRoute allowedRoles={['chef']}><ChefDeclarationDetail /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['chef']}><ChefDeclarations /></ProtectedRoute>
         } />
         <Route path="/chef/notifications" element={
           <ProtectedRoute allowedRoles={['chef']}><ChefNotifications /></ProtectedRoute>

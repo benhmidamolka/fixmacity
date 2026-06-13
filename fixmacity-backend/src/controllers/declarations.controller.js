@@ -109,7 +109,7 @@ exports.create = async (req, res) => {
     const actualDelegationId = delegation_id;
     const { data: deleg } = await supabase.from('delegations')
       .select('id, code').eq('id', actualDelegationId).single();
-    if (!deleg) return res.status(400).json({ error: 'Délégation invalide.' });
+    if (!deleg) return res.status(400).json({ error: 'Arrondissement invalide.' });
 
     const refCitoyen = await generateRefCitoyen(deleg.code);
 

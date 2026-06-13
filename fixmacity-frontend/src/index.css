@@ -141,3 +141,22 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in { animation: fade-in 0.3s cubic-bezier(.22,1,.36,1) both; }
+/* Forces the browser to use dark-themed native UI elements (like scrollbars) */
+html {
+  color-scheme: dark;
+}
+
+/* Custom Webkit Scrollbar for an ultra-clean look */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a; /* Tailwind slate-900 */
+}
+::-webkit-scrollbar-thumb {
+  background: #334155; /* Tailwind slate-700 */
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569; /* Tailwind slate-600 */
+}

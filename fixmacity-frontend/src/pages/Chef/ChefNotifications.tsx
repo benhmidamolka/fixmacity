@@ -135,7 +135,7 @@ const StatusPill = ({ status }: { status: string }) => {
   )
 }
 
-const PriPill = ({ priority, score }: { priority: string; score: number }) => {
+const PriPill = ({ priority, score }: { priority: string; score?: number }) => {
   const lo = priority?.toLowerCase()
   const isHigh = ['haute','high','urgent','urgente'].includes(lo)
   const isMed  = ['moyenne','medium'].includes(lo)
@@ -152,9 +152,9 @@ const PriPill = ({ priority, score }: { priority: string; score: number }) => {
   )
 }
 
-const STEPS = ['soumise', 'assignee_chef', 'assignee_agent', 'en_cours', 'resolue', 'cloturee']
+const STEPS = ['soumise', 'assignee_chef', 'assignee_agent', 'resolue', 'cloturee']
 const STEP_LABELS: Record<string, string> = {
-  soumise: 'Soumis', assignee_chef: 'Chef', assignee_agent: 'Agent', en_cours: 'En cours', resolue: 'Résolu', cloturee: 'Clôturé'
+  soumise: 'Soumise', assignee_chef: 'Assignée Chef', assignee_agent: 'Assignée Agent', resolue: 'Résolue', cloturee: 'Clôturée'
 }
 
 const AGENT_COLORS = ['#6366f1','#3b82f6','#10b981','#f59e0b','#ec4899','#8b5cf6','#ef4444','#14b8a6']
@@ -393,7 +393,8 @@ const DetailDrawer = ({
 
 
   const filteredComments = comments.filter(c => !c.channel || c.channel === channel)
-  const stepIdx = STEPS.indexOf(decl?.status || 'soumise')
+  const effectiveStatus = decl?.status === 'en_cours' ? 'assignee_agent' : (decl?.status || 'soumise')
+  const stepIdx = STEPS.indexOf(effectiveStatus)
 
   const TABS = [
     { key: 'info',     label: 'Infos',      icon: Info        },
@@ -689,7 +690,7 @@ const DetailDrawer = ({
               ) : (
                 <div className="relative">
                   <div className="absolute left-3 top-4 bottom-4 w-0.5 bg-slate-100 dark:bg-slate-800" />
-                  {[...history].reverse().map((h: any, i: number) => {
+                  {[...history].filter((h: any) => h.old_status !== h.new_status).reverse().map((h: any, i: number) => {
                     const sc = STATUS_CFG[h.new_status]
                     return (
                       <div key={h.id || i} className="flex gap-4 pb-5 last:pb-0 relative">

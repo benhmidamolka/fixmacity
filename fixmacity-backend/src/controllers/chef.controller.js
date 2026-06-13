@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════════
 // chef.controller.js  — FULL REPLACEMENT
-// Fixes:
+// Fixes:const { notifyStatusChange, notifyAgentAssigned } = require('../services/notification.service');
 //   1. 'soumis' → 'soumise' (enum crash fix throughout)
 //   2. dashboard now returns kpis, status_chart, priority_chart,
 //      urgent_declarations, recent_declarations, agent_workload
@@ -8,11 +8,12 @@
 // ════════════════════════════════════════════════════════════════════
 
 'use strict';
-
+const { notifyStatusChange, notifyAgentAssigned, notifyChefRejected } = require('../services/notification.service');
 const supabase = require('../config/db');
 const { validationResult } = require('express-validator');
 const { logStatusChange }    = require('../services/statusHistory.service');
-const { notifyStatusChange, notifyAgentAssigned } = require('../services/notification.service');
+const { cloudinary } = require('../config/cloudinary');
+
 const priorityService        = require('../services/priority.service');
 
 // ─── Correct enum values ──────────────────────────────────────────────────────
@@ -129,12 +130,68 @@ exports.getDeclarationDetail = async (req, res) => {
       comments = comments.map(c => ({ ...c, user: cMap[c.user_id] || null }));
     }
 
+    // ── other_services: other departments also assigned to this declaration ──
+    let other_services = [];
+    const { data: dsRows } = await supabase
+      .from('declaration_services')
+      .select('service_id, chef_id, status')
+      .eq('declaration_id', id)
+      .neq('service_id', deptId);
+
+    if (dsRows && dsRows.length > 0) {
+      const svcIds  = [...new Set(dsRows.map(r => r.service_id).filter(Boolean))];
+      const chefIds = [...new Set(dsRows.map(r => r.chef_id).filter(Boolean))];
+      const [svcsRes, chefsRes] = await Promise.all([
+        svcIds.length  ? supabase.from('services').select('id, name_fr').in('id', svcIds)   : { data: [] },
+        chefIds.length ? supabase.from('users').select('id, first_name, last_name').in('id', chefIds) : { data: [] },
+      ]);
+      const svcMap  = {};
+      const chefMap = {};
+      if (svcsRes.data)  svcsRes.data.forEach(s => svcMap[s.id]  = s.name_fr);
+      if (chefsRes.data) chefsRes.data.forEach(u => chefMap[u.id] = `${u.first_name} ${u.last_name}`);
+      other_services = dsRows.map(r => ({
+        service_id:   r.service_id,
+        service_name: svcMap[r.service_id]  || r.service_id,
+        chef_name:    chefMap[r.chef_id]    || '—',
+        status:       r.status,
+      }));
+    }
+
+    // ── assigned_agents: agents on THIS chef's declaration_services row ──────
+    let assigned_agents = [];
+    const { data: dsOwnRow } = await supabase
+      .from('declaration_services')
+      .select('id')
+      .eq('declaration_id', id)
+      .eq('service_id', deptId)
+      .maybeSingle();
+
+    if (dsOwnRow) {
+      const { data: dsaRows } = await supabase
+        .from('declaration_service_agents')
+        .select('agent_id')
+        .eq('declaration_service_id', dsOwnRow.id);
+      if (dsaRows && dsaRows.length > 0) {
+        const agentIds = dsaRows.map(r => r.agent_id).filter(Boolean);
+        if (agentIds.length) {
+          const { data: agentUsers } = await supabase
+            .from('users')
+            .select('id, first_name, last_name')
+            .in('id', agentIds);
+          assigned_agents = agentUsers || [];
+        }
+      }
+    }
+
     return res.status(200).json({
       declaration: fullDecl,
       ...fullDecl,  // backward compat root fields
+      // sensitive_places is already part of fullDecl spread above
       photos:   photosRes.data  || [],
       history,
       comments,
+      other_services,
+      assigned_agents,
     });
   } catch (e) {
     console.error('[Chef] getDeclarationDetail error:', e);
@@ -173,41 +230,72 @@ exports.acceptDeclaration = async (req, res) => {
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     const { id } = req.params;
-    const { agent_id } = req.body;
+    // Support both old single agent_id and new agent_ids array
+    let { agent_id, agent_ids } = req.body;
+    const deptId = req.user.department_id;
+
+    // Normalize to array
+    if (!agent_ids && agent_id) agent_ids = [agent_id];
+    if (!agent_ids) agent_ids = [];
 
     const { data: decl, error: fetchErr } = await supabase.from('declarations')
       .select('id, status, department_id, citizen_id').eq('id', id).or('is_deleted.eq.false,is_deleted.is.null').single();
     if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
-    if (decl.department_id !== req.user.department_id) return res.status(403).json({ error: 'Hors département.' });
+    if (decl.department_id !== deptId) return res.status(403).json({ error: 'Hors département.' });
     if (decl.status !== 'assignee_chef') return res.status(400).json({ error: `Statut actuel "${decl.status}" — impossible d'accepter.` });
 
-    let hasSurcharge = false;
-    if (agent_id) {
-      const { data: agent } = await supabase.from('users')
-        .select('id, department_id, role, is_active').eq('id', agent_id).single();
-      if (!agent || agent.role !== 'agent') return res.status(400).json({ error: 'Agent invalide.' });
-      if (!agent.is_active)                 return res.status(403).json({ error: 'Agent désactivé.' });
-      if (agent.department_id !== req.user.department_id) return res.status(403).json({ error: 'Agent hors département.' });
+    // ── Case 1: "Assigner plus tard" — accept with no agent ──────────────────
+    if (agent_ids.length === 0) {
+      // Upsert a declaration_services row so this chef "owns" the declaration
+      await supabase.from('declaration_services')
+        .upsert(
+          { declaration_id: id, service_id: deptId, chef_id: req.user.id, status: 'assignee_chef', updated_at: new Date().toISOString() },
+          { onConflict: 'declaration_id,service_id' }
+        );
 
-      const { count: activeCount } = await supabase.from('declarations')
-        .select('id', { count: 'exact', head: true })
-        .eq('agent_id', agent_id).in('status', ['assignee_agent', 'en_cours']).or('is_deleted.eq.false,is_deleted.is.null');
-      hasSurcharge = (activeCount || 0) >= 5;
+      // Declaration stays assignee_chef (chef accepted, no agent yet)
+      const { data: updated, error: updateErr } = await supabase.from('declarations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', id).select('*').single();
+      if (updateErr) return res.status(500).json({ error: 'Erreur serveur.' });
+
+      await logStatusChange(id, 'assignee_chef', 'assignee_chef', req.user.id, 'Accepté — agent à assigner');
+      return res.status(200).json({ declaration: updated, deferred: true });
     }
 
+    // ── Case 2: Accept & assign agent(s) ─────────────────────────────────────
+    // Validate agents
+    const { data: agentUsers, error: agentErr } = await supabase.from('users')
+      .select('id, first_name, last_name, department_id, role, is_active')
+      .in('id', agent_ids);
+    const invalid = (agentUsers || []).filter(a => a.role !== 'agent' || !a.is_active || a.department_id !== deptId);
+    if (invalid.length > 0) return res.status(400).json({ error: `Agent(s) invalides: ${invalid.map(a => `${a.first_name} ${a.last_name}`).join(', ')}` });
+
+    // Upsert declaration_services
+    const { data: dsRow, error: dsErr } = await supabase.from('declaration_services')
+      .upsert(
+        { declaration_id: id, service_id: deptId, chef_id: req.user.id, status: 'assignee_agent', updated_at: new Date().toISOString() },
+        { onConflict: 'declaration_id,service_id' }
+      ).select('id').single();
+    if (dsErr) return res.status(500).json({ error: 'Erreur lors de l\'assignation du service.' });
+
+    // Replace agent assignments
+    await supabase.from('declaration_service_agents').delete().eq('declaration_service_id', dsRow.id);
+    const insertRows = agent_ids.map(aid => ({ declaration_service_id: dsRow.id, agent_id: aid, assigned_at: new Date().toISOString() }));
+    if (insertRows.length) await supabase.from('declaration_service_agents').insert(insertRows);
+
+    // Update declaration
     const { data: updated, error: updateErr } = await supabase.from('declarations')
-      .update({ status: 'assignee_agent', agent_id: agent_id || null, updated_at: new Date().toISOString() })
+      .update({ status: 'assignee_agent', agent_id: agent_ids[0], updated_at: new Date().toISOString() })
       .eq('id', id).select('*').single();
     if (updateErr) return res.status(500).json({ error: 'Erreur serveur.' });
 
-    await logStatusChange(id, 'assignee_chef', 'assignee_agent', req.user.id);
+    await logStatusChange(id, 'assignee_chef', 'assignee_agent', req.user.id,
+      `Assigné à ${(agentUsers || []).map(a => `${a.first_name} ${a.last_name}`).join(', ')}`);
     await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_agent');
-    if (agent_id) await notifyAgentAssigned(req.app, updated, agent_id);
+    for (const aid of agent_ids) await notifyAgentAssigned(req.app, updated, aid).catch(() => {});
 
-    return res.status(200).json({
-      declaration: updated,
-      warning: hasSurcharge ? 'Cet agent a déjà beaucoup de missions actives.' : null,
-    });
+    return res.status(200).json({ declaration: updated, assigned_agents: agentUsers || [] });
   } catch (err) {
     console.error('[Chef] acceptDeclaration error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
@@ -218,8 +306,9 @@ exports.acceptDeclaration = async (req, res) => {
 exports.refuseDeclaration = async (req, res) => {
   try {
     const { id } = req.params;
-    const { reason } = req.body;
-    if (!reason?.trim()) return res.status(400).json({ error: 'Le motif est obligatoire.' });
+    const { reason, motif } = req.body;
+    const refusalReason = motif || reason;
+    if (!refusalReason || refusalReason.trim().length < 10) return res.status(400).json({ error: 'Le motif de refus est obligatoire' });
 
     const { data: decl, error: fetchErr } = await supabase.from('declarations')
       .select('id, status, department_id, citizen_id').eq('id', id).or('is_deleted.eq.false,is_deleted.is.null').single();
@@ -232,11 +321,66 @@ exports.refuseDeclaration = async (req, res) => {
       .eq('id', id).select('*').single();
     if (updateErr) return res.status(500).json({ error: 'Erreur serveur.' });
 
-    await logStatusChange(id, 'assignee_chef', 'refusee_chef', req.user.id, reason.trim());
+   await logStatusChange(id, 'assignee_chef', 'refusee_chef', req.user.id, refusalReason.trim());
     await notifyStatusChange(req.app, updated, updated.citizen_id, 'refusee_chef');
+    await notifyChefRejected(req.app, updated, refusalReason.trim());
     return res.status(200).json({ declaration: updated });
   } catch (err) {
     console.error('[Chef] refuseDeclaration error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── POST /api/chef/declarations/:id/assign-agents ──────────── */
+exports.assignAgents = async (req, res) => {
+  try {
+    const errors = require('express-validator').validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { id } = req.params;
+    const { agent_ids } = req.body;
+    const deptId = req.user.department_id;
+
+    // Validate declaration belongs to this chef's department
+    const { data: decl, error: fetchErr } = await supabase.from('declarations')
+      .select('id, status, department_id, citizen_id').eq('id', id)
+      .or('is_deleted.eq.false,is_deleted.is.null').single();
+    if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
+    if (decl.department_id !== deptId) return res.status(403).json({ error: 'Hors département.' });
+
+    // Validate all agents belong to this department
+    const { data: agentUsers } = await supabase.from('users')
+      .select('id, first_name, last_name, department_id, role, is_active')
+      .in('id', agent_ids);
+    const invalid = (agentUsers || []).filter(a => a.role !== 'agent' || !a.is_active || a.department_id !== deptId);
+    if (invalid.length > 0) return res.status(400).json({ error: `Agent(s) invalides ou hors département: ${invalid.map(a => `${a.first_name} ${a.last_name}`).join(', ')}` });
+
+    // Upsert declaration_services row for this department
+    const { data: dsRow, error: dsErr } = await supabase.from('declaration_services')
+      .upsert({ declaration_id: id, service_id: deptId, chef_id: req.user.id, status: 'assignee_agent', updated_at: new Date().toISOString() },
+               { onConflict: 'declaration_id,service_id' })
+      .select('id').single();
+    if (dsErr) return res.status(500).json({ error: 'Erreur lors de l\'assignation du service.' });
+
+    // Delete existing agent assignments for this service, then re-insert
+    await supabase.from('declaration_service_agents').delete().eq('declaration_service_id', dsRow.id);
+    const insertRows = agent_ids.map(aid => ({ declaration_service_id: dsRow.id, agent_id: aid, assigned_at: new Date().toISOString() }));
+    const { error: insertErr } = await supabase.from('declaration_service_agents').insert(insertRows);
+    if (insertErr) return res.status(500).json({ error: 'Erreur lors de l\'insertion des agents.' });
+
+    // Update declaration status to assignee_agent and set primary agent_id
+    const { data: updated, error: updateErr } = await supabase.from('declarations')
+      .update({ status: 'assignee_agent', agent_id: agent_ids[0], updated_at: new Date().toISOString() })
+      .eq('id', id).select('*').single();
+    if (updateErr) return res.status(500).json({ error: 'Erreur serveur.' });
+
+    await logStatusChange(id, decl.status, 'assignee_agent', req.user.id);
+    await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_agent');
+    for (const aid of agent_ids) await notifyAgentAssigned(req.app, updated, aid).catch(() => {});
+
+    return res.status(200).json({ declaration: updated, assigned_agents: agentUsers || [] });
+  } catch (err) {
+    console.error('[Chef] assignAgents error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
@@ -258,7 +402,7 @@ exports.listAgents = async (req, res) => {
         supabase.from('declarations').select('id', { count: 'exact', head: true })
           .eq('agent_id', agent.id).in('status', ['resolue', 'cloturee']).or('is_deleted.eq.false,is_deleted.is.null'),
       ]);
-      return { ...agent, workload: activeCount || 0, resolved_count: resolvedCount || 0, is_overloaded: (activeCount || 0) >= 5 };
+      return { ...agent, workload: activeCount || 0, resolved_count: resolvedCount || 0, is_overloaded: (activeCount || 0) >= 3 };
     }));
 
     return res.status(200).json({ agents: agentsWithWorkload });
@@ -590,30 +734,29 @@ exports.addComment = async (req, res) => {
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
-
-/* ──────────── POST /api/chef/declarations/:id/assign-agents ──────────── */
 exports.assignAgents = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-
     const { id } = req.params;
     const { agent_ids } = req.body;
     const deptId = req.user.department_id;
 
-    // Fetch the declaration_services row for this chef's service
-    const { data: dsRow, error: dsErr } = await supabase
-      .from('declaration_services')
-      .select('id, status, service_id')
-      .eq('declaration_id', id)
-      .eq('service_id', deptId)
+    // Fetch the declaration and verify it belongs to this chef's department
+    const { data: decl, error: declErr } = await supabase
+      .from('declarations')
+      .select('id, status, department_id, citizen_id, ref_citoyen, title')
+      .eq('id', id)
+      .or('is_deleted.eq.false,is_deleted.is.null')
       .single();
-
-    if (dsErr || !dsRow) {
-      return res.status(404).json({ error: 'Assignation de service introuvable pour ce département.' });
+    if (declErr || !decl) {
+      return res.status(404).json({ error: 'Déclaration introuvable.' });
     }
-    if (dsRow.status !== 'assignee_chef') {
-      return res.status(400).json({ error: `Statut "${dsRow.status}" — impossible d'assigner des agents.` });
+    if (decl.department_id !== deptId) {
+      return res.status(403).json({ error: 'Hors département.' });
+    }
+    if (decl.status !== 'assignee_chef') {
+      return res.status(400).json({ error: `Statut "${decl.status}" — impossible d'assigner des agents.` });
     }
 
     // Validate agents
@@ -624,7 +767,6 @@ exports.assignAgents = async (req, res) => {
       .eq('role', 'agent')
       .eq('department_id', deptId)
       .eq('is_active', true);
-
     if (agentErr || !agents || agents.length !== agent_ids.length) {
       return res.status(400).json({ error: 'Un ou plusieurs agents invalides ou hors département.' });
     }
@@ -633,51 +775,42 @@ exports.assignAgents = async (req, res) => {
     const warnings = [];
     for (const agent of agents) {
       const { count } = await supabase
-        .from('declaration_services')
+        .from('declarations')
         .select('id', { count: 'exact', head: true })
         .eq('agent_id', agent.id)
-        .in('status', ['assignee_agent', 'en_cours']);
-      if ((count || 0) >= 5) {
+        .in('status', ['assignee_agent', 'en_cours'])
+        .or('is_deleted.eq.false,is_deleted.is.null');
+      if ((count || 0) >= 3) {
         warnings.push(`${agent.first_name} ${agent.last_name} a déjà ${count} missions actives.`);
       }
     }
 
-    // Primary agent goes on the declaration_services row
+    // Primary agent goes on declarations.agent_id, status → assignee_agent
     const primaryAgentId = agent_ids[0];
-
-    const { error: updateDsErr } = await supabase
-      .from('declaration_services')
+    const { data: updated, error: updateErr } = await supabase
+      .from('declarations')
       .update({
         agent_id: primaryAgentId,
         status: 'assignee_agent',
         updated_at: new Date().toISOString(),
       })
-      .eq('id', dsRow.id);
-
-    if (updateDsErr) throw updateDsErr;
-
-    // Fetch declaration for notifications (no agent_id on declarations anymore)
-    const { data: decl } = await supabase
-      .from('declarations')
-      .update({
-        updated_at: new Date().toISOString(),
-      })
       .eq('id', id)
       .select('id, citizen_id, ref_citoyen, title, status')
       .single();
+    if (updateErr) throw updateErr;
 
     await logStatusChange(id, 'assignee_chef', 'assignee_agent', req.user.id,
       `Assigné à ${agents.map(a => `${a.first_name} ${a.last_name}`).join(', ')}`);
-
-    if (decl?.citizen_id) {
-      await notifyStatusChange(req.app, decl, decl.citizen_id, 'assignee_agent');
+    if (updated?.citizen_id) {
+      await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_agent');
     }
     for (const agent of agents) {
-      await notifyAgentAssigned(req.app, decl, agent.id);
+      await notifyAgentAssigned(req.app, updated, agent.id);
     }
 
     return res.status(200).json({
       message: `${agents.length} agent(s) assigné(s) avec succès.`,
+      declaration: updated,
       agents_assigned: agents.map(a => ({ id: a.id, name: `${a.first_name} ${a.last_name}` })),
       warnings: warnings.length > 0 ? warnings : null,
     });
@@ -686,3 +819,128 @@ exports.assignAgents = async (req, res) => {
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
+
+/* ──────────── POST /api/chef/declarations/:id/secondary-departments ──────────── */
+exports.addSecondaryDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { department_id, reason } = req.body;
+    const deptId = req.user.department_id;
+
+    if (!department_id) return res.status(400).json({ error: 'department_id requis.' });
+
+    const { data: decl, error: declErr } = await supabase
+      .from('declarations')
+      .select('id, department_id')
+      .eq('id', id)
+      .or('is_deleted.eq.false,is_deleted.is.null')
+      .single();
+
+    if (declErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
+    if (decl.department_id !== deptId) return res.status(403).json({ error: 'Hors département.' });
+
+    const { data: inserted, error: insertErr } = await supabase
+      .from('declaration_secondary_departments')
+      .insert({
+        declaration_id: id,
+        department_id,
+        reason,
+        added_by: req.user.id
+      })
+      .select('*')
+      .single();
+
+    if (insertErr) {
+      if (insertErr.code === '23505') return res.status(409).json({ error: 'Département déjà ajouté.' });
+      return res.status(500).json({ error: 'Erreur serveur.' });
+    }
+
+    return res.status(201).json({ message: 'Département secondaire ajouté.', data: inserted });
+  } catch (err) {
+    console.error('[Chef] addSecondaryDepartment error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
+/* ──────────── GET /api/chef/departments ──────────── */
+exports.listDepartments = async (req, res) => {
+  try {
+    const { data: departments, error } = await supabase
+      .from('departments')
+      .select('id, name_fr, name_ar')
+      .eq('is_active', true)
+      .neq('id', req.user.department_id)
+      .order('name_fr');
+
+    if (error) throw error;
+    res.json({ departments: departments || [] });
+  } catch (error) {
+    console.error('[Chef listDepartments] error:', error);
+    res.status(500).json({ error: 'Erreur serveur lors de la récupération des départements' });
+  }
+};
+
+/* ──────────── POST /api/chef/declarations/:id/photo ──────────── */
+exports.uploadPhoto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const chefId = req.user.id;
+    const deptId = req.user.department_id;
+
+    if (!req.file) return res.status(450).json({ error: 'Aucun fichier fourni.' });
+
+    const { data: decl, error: fetchErr } = await supabase
+      .from('declarations')
+      .select('id, status, department_id')
+      .eq('id', id)
+      .eq('department_id', deptId)
+      .single();
+
+    if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable ou hors département.' });
+    if (decl.status === 'cloturee') {
+      return res.status(403).json({ error: 'Photos interdites après clôture.' });
+    }
+
+    const fs = require('fs');
+    const path = require('path');
+    let photoUrl, publicId = null;
+
+    if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY) {
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: `fixmacity/interventions/${id}`, resource_type: 'image' },
+          (err, r) => (err ? reject(err) : resolve(r))
+        );
+        stream.end(req.file.buffer);
+      });
+      photoUrl = result.secure_url;
+      publicId = result.public_id;
+    } else {
+      const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
+      if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+      const ext = path.extname(req.file.originalname) || '.jpg';
+      const filename = `intervention_${chefId}_${Date.now()}${ext}`;
+      fs.writeFileSync(path.join(UPLOAD_DIR, filename), req.file.buffer);
+      const base = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5005}`;
+      photoUrl = `${base}/uploads/${filename}`;
+    }
+
+    const { error: insertErr } = await supabase
+      .from('declaration_photos')
+      .insert({
+        declaration_id: id,
+        url: photoUrl,
+        public_id: publicId,
+        uploaded_by: chefId,
+        photo_type: 'after'
+      });
+
+    if (insertErr) throw insertErr;
+
+    res.status(201).json({ url: photoUrl, message: 'Photo téléversée avec succès.' });
+  } catch (err) {
+    console.error('[Chef] uploadPhoto:', err.message);
+    res.status(500).json({ error: 'Erreur lors du téléversement.' });
+  }
+};
+

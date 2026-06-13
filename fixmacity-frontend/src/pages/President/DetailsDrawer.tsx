@@ -107,7 +107,7 @@ const DetailDrawer: React.FC<DetailsDrawerProps> = ({ dept, onClose, onEdit, onT
       try {
         const [aRes, dRes] = await Promise.all([
           apiFetch(`/president/users?role=agent&department_id=${dept.id}&limit=100`),
-          apiFetch(`/president/declarations?department_id=${dept.id}&status=in_progress&limit=100`),
+          apiFetch(`/president/declarations?department_id=${dept.id}&status=en_cours&limit=100`),
         ])
         if (aRes.users)        setAgents(aRes.users)
         if (dRes.declarations) setDecls(dRes.declarations)

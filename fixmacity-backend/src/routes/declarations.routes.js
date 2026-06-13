@@ -42,7 +42,7 @@ router.post('/',
     body('title').notEmpty().trim().withMessage('Titre requis.'),
     body('description').notEmpty().trim().withMessage('Description requise.'),
     body('category').optional().notEmpty().withMessage('Catégorie requise.'),
-    body('delegation_id').optional().isUUID().withMessage('Délégation invalide.'),
+    body('delegation_id').optional().isUUID().withMessage('Arrondissement invalide.'),
   ],
   ctrl.create
 );

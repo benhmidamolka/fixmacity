@@ -411,7 +411,30 @@ Réponds UNIQUEMENT avec ce JSON (sans markdown):
   }
 };
 
+const emailCheck = await db.query(
+  `SELECT id, role FROM users WHERE LOWER(email) = LOWER($1)`,
+  [email.trim()]
+)
 
+if (emailCheck.rows.length > 0) {
+  const existingRole = emailCheck.rows[0].role
+  
+  let message
+  if (existingRole === 'agent') {
+    message = 'Cette adresse email est déjà utilisée par un agent terrain.'
+  } else if (existingRole === 'chef') {
+    message = 'Cette adresse email est déjà utilisée par un chef de service.'
+  } else {
+    // citizen, president — message générique
+    message = 'Cette adresse email est déjà associée à un compte existant.'
+  }
+
+  return res.status(409).json({
+    error: 'Email déjà utilisé',
+    conflictType: 'EMAIL_EXISTS',
+    fields: { email: message }
+  })
+}
 
 
 
@@ -504,6 +527,7 @@ exports.overridePriority = async (req, res) => {
 };
 /* ──────────── POST /api/president/declarations/:id/assign ──────────── */
 exports.assignDeclaration = async (req, res) => {
+  // FIX #5: Role guard
   if (req.user?.role !== 'president') {
     return res.status(403).json({ success: false, error: 'Accès réservé au Président Municipal' });
   }
@@ -512,12 +536,9 @@ exports.assignDeclaration = async (req, res) => {
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     const { id } = req.params;
-    const { assignments, priority_score, planned_start, planned_end, confirm_replacement } = req.body;
+    const { service_ids, priority_score, planned_start, planned_end } = req.body;
 
-    if (!assignments || !Array.isArray(assignments) || assignments.length === 0) {
-      return res.status(400).json({ state: 'exception', message_fr: 'Veuillez sélectionner au moins un département.' });
-    }
-
+    // Fetch declaration
     const { data: decl, error: fetchErr } = await supabase
       .from('declarations')
       .select('id, status, citizen_id, ref_citoyen, title, category, delegation_id')
@@ -530,43 +551,21 @@ exports.assignDeclaration = async (req, res) => {
       return res.status(400).json({ error: `Statut "${decl.status}" ne peut pas être assigné.` });
     }
 
-    const deptIds = assignments.map(a => a.department_id);
+    // Validate all service_ids exist
     const { data: services, error: svcErr } = await supabase
       .from('services')
       .select('id, code, name_fr, chef_id')
-      .in('id', deptIds);
+      .in('id', service_ids);
 
-    if (svcErr || !services || services.length !== deptIds.length) {
-      return res.status(400).json({ state: 'exception', message_fr: 'Un ou plusieurs services introuvables.' });
+    if (svcErr || !services || services.length !== service_ids.length) {
+      return res.status(400).json({ error: 'Un ou plusieurs services introuvables.' });
     }
 
-    // Check for chef conflicts
-    let conflictService = null;
-    let existingChefId = null;
-    for (const assignment of assignments) {
-      const svc = services.find(s => s.id === assignment.department_id);
-      if (svc && svc.chef_id && svc.chef_id !== assignment.chef_id) {
-        if (!confirm_replacement) {
-          conflictService = svc;
-          existingChefId = svc.chef_id;
-          break;
-        }
-      }
-    }
-
-    if (conflictService) {
-      const { data: chefInfo } = await supabase.from('users').select('first_name, last_name').eq('id', existingChefId).maybeSingle();
-      const chefName = chefInfo ? `${chefInfo.first_name} ${chefInfo.last_name}` : 'Inconnu';
-      return res.status(409).json({
-        state: 'exception',
-        message_fr: `Le département ${conflictService.name_fr} possède déjà un Chef de Service (${chefName}). Veuillez confirmer le remplacement avant de continuer.`,
-        assigned_departments: deptIds
-      });
-    }
-
+    // Generate ref_service for the primary service (first one)
     const primaryService = services[0];
     const refService = await generateRefService(primaryService.code);
 
+    // Update declaration with primary service + status
     const { data: updated, error: updateErr } = await supabase
       .from('declarations')
       .update({
@@ -588,10 +587,11 @@ exports.assignDeclaration = async (req, res) => {
       return res.status(500).json({ error: 'Erreur lors de l\'affectation.' });
     }
 
-    const dsRows = assignments.map(a => ({
+    // Insert declaration_services rows (upsert to avoid duplicates on reassign)
+    const dsRows = service_ids.map(svcId => ({
       declaration_id: id,
-      service_id: a.department_id,
-      chef_id: a.chef_id || null,
+      service_id: svcId,
+      chef_id: services.find(s => s.id === svcId)?.chef_id || null,
       status: 'assignee_chef',
       assigned_at: new Date().toISOString(),
     }));
@@ -604,18 +604,25 @@ exports.assignDeclaration = async (req, res) => {
       console.error('[President] declaration_services insert error:', dsErr.message);
     }
 
+    // Log + notify
     await logStatusChange(id, decl.status, 'assignee_chef', req.user.id, `Assigné à ${services.map(s => s.name_fr).join(', ')}`);
     await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_chef');
 
-    const chefsIds = [...new Set(assignments.map(a => a.chef_id).filter(Boolean))];
-    for (const chefId of chefsIds) {
-      await notifyChefAssigned(req.app, updated, chefId);
+    // Notify each chef
+  // Notify the active chef of each assigned service's department
+    const svcIdsForChef = services.map(s => s.id);
+    const { data: chefs } = await supabase
+      .from('users')
+      .select('id, department_id')
+      .eq('role', 'chef')
+      .eq('is_active', true)
+      .in('department_id', svcIdsForChef);
+
+    for (const chef of chefs || []) {
+      await notifyChefAssigned(req.app, updated, chef.id);
     }
 
     return res.status(200).json({
-      state: 'success',
-      message_fr: 'Assignation confirmée avec succès.',
-      assigned_departments: deptIds,
       declaration: updated,
       services_assigned: services.map(s => ({ id: s.id, name: s.name_fr })),
     });
@@ -627,6 +634,7 @@ exports.assignDeclaration = async (req, res) => {
 
 /* ──────────── POST /api/president/declarations/:id/reassign ──────────── */
 exports.reassignDeclaration = async (req, res) => {
+  // FIX #5: Role guard
   if (req.user?.role !== 'president') {
     return res.status(403).json({ success: false, error: 'Accès réservé au Président Municipal' });
   }
@@ -635,11 +643,7 @@ exports.reassignDeclaration = async (req, res) => {
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     const { id } = req.params;
-    const { assignments, priority_score, planned_start, planned_end, confirm_replacement } = req.body;
-
-    if (!assignments || !Array.isArray(assignments) || assignments.length === 0) {
-      return res.status(400).json({ state: 'exception', message_fr: 'Veuillez sélectionner au moins un département.' });
-    }
+    const { service_ids, priority_score, planned_start, planned_end } = req.body;
 
     const { data: decl, error: fetchErr } = await supabase
       .from('declarations')
@@ -653,37 +657,13 @@ exports.reassignDeclaration = async (req, res) => {
       return res.status(400).json({ error: 'Seules les déclarations actives ou refusées peuvent être réaffectées.' });
     }
 
-    const deptIds = assignments.map(a => a.department_id);
     const { data: services, error: svcErr } = await supabase
       .from('services')
       .select('id, code, name_fr, chef_id')
-      .in('id', deptIds);
+      .in('id', service_ids);
 
-    if (svcErr || !services || services.length !== deptIds.length) {
-      return res.status(400).json({ state: 'exception', message_fr: 'Un ou plusieurs services introuvables.' });
-    }
-
-    let conflictService = null;
-    let existingChefId = null;
-    for (const assignment of assignments) {
-      const svc = services.find(s => s.id === assignment.department_id);
-      if (svc && svc.chef_id && svc.chef_id !== assignment.chef_id) {
-        if (!confirm_replacement) {
-          conflictService = svc;
-          existingChefId = svc.chef_id;
-          break;
-        }
-      }
-    }
-
-    if (conflictService) {
-      const { data: chefInfo } = await supabase.from('users').select('first_name, last_name').eq('id', existingChefId).maybeSingle();
-      const chefName = chefInfo ? `${chefInfo.first_name} ${chefInfo.last_name}` : 'Inconnu';
-      return res.status(409).json({
-        state: 'exception',
-        message_fr: `Le département ${conflictService.name_fr} possède déjà un Chef de Service (${chefName}). Veuillez confirmer le remplacement avant de continuer.`,
-        assigned_departments: deptIds
-      });
+    if (svcErr || !services || services.length !== service_ids.length) {
+      return res.status(400).json({ error: 'Un ou plusieurs services introuvables.' });
     }
 
     const primaryService = services[0];
@@ -711,12 +691,13 @@ exports.reassignDeclaration = async (req, res) => {
       return res.status(500).json({ error: 'Erreur lors de la réaffectation.' });
     }
 
+    // Delete old service assignments and insert new ones
     await supabase.from('declaration_services').delete().eq('declaration_id', id);
 
-    const dsRows = assignments.map(a => ({
+    const dsRows = service_ids.map(svcId => ({
       declaration_id: id,
-      service_id: a.department_id,
-      chef_id: a.chef_id || null,
+      service_id: svcId,
+      chef_id: services.find(s => s.id === svcId)?.chef_id || null,
       status: 'assignee_chef',
       assigned_at: new Date().toISOString(),
     }));
@@ -733,15 +714,13 @@ exports.reassignDeclaration = async (req, res) => {
       `Réaffectation par le président → ${services.map(s => s.name_fr).join(', ')}`);
     await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_chef');
 
-    const chefsIds = [...new Set(assignments.map(a => a.chef_id).filter(Boolean))];
-    for (const chefId of chefsIds) {
-      await notifyChefAssigned(req.app, updated, chefId);
+    for (const svc of services) {
+      if (svc.chef_id) {
+        await notifyChefAssigned(req.app, updated, svc.chef_id);
+      }
     }
 
     return res.status(200).json({
-      state: 'success',
-      message_fr: 'Réassignation confirmée avec succès.',
-      assigned_departments: deptIds,
       declaration: updated,
       services_assigned: services.map(s => ({ id: s.id, name: s.name_fr })),
     });
@@ -862,145 +841,59 @@ exports.listUsers = async (req, res) => {
 
 /* ──────────── POST /api/president/users ──────────── */
 exports.createUser = async (req, res) => {
-  // 1. Protection du rôle
+  // FIX #5: Role guard
   if (req.user?.role !== 'president') {
     return res.status(403).json({ success: false, error: 'Accès réservé au Président Municipal' });
   }
-
-  // 2. Récupération des données
-  const { role, prenom, nom, email, telephone, password, department_id, delegation_id, force } = req.body;
-
-  // 3. Validation champs obligatoires — retourne toutes les erreurs en une fois
-  const fieldErrors = {};
-
-  if (!prenom || !String(prenom).trim())
-    fieldErrors.prenom = 'Le prénom est obligatoire';
-  if (!nom || !String(nom).trim())
-    fieldErrors.nom = 'Le nom est obligatoire';
-  if (!email || !String(email).trim())
-    fieldErrors.email = "L'adresse email est obligatoire";
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim()))
-    fieldErrors.email = "Le format de l'adresse email est invalide";
-  if (!password)
-    fieldErrors.password = 'Le mot de passe est obligatoire';
-  else if (String(password).length < 8)
-    fieldErrors.password = 'Le mot de passe doit contenir au moins 8 caractères';
-  if (!['agent', 'chef'].includes(role))
-    fieldErrors.role = 'Le rôle sélectionné est invalide';
-  if (!department_id)
-    fieldErrors.department_id = 'Veuillez sélectionner un département';
-  if (role === 'agent' && !delegation_id)
-    fieldErrors.delegation_id = 'Veuillez sélectionner un arrondissement';
-
-  if (Object.keys(fieldErrors).length > 0) {
-    return res.status(400).json({
-      success: false,
-      error: 'Informations manquantes ou invalides',
-      fields: fieldErrors
-    });
-  }
-
-  const client = await supabase.pool.connect();
-
   try {
-    await client.query('BEGIN');
-
-    // 4a. Vérification email unique (avec rôle précis dans le message)
-    const emailCheck = await client.query(
-      'SELECT id, role FROM users WHERE LOWER(email) = LOWER($1)',
-      [String(email).trim()]
-    );
-    if (emailCheck.rows.length > 0) {
-      await client.query('ROLLBACK');
-      const existingRole = emailCheck.rows[0].role;
-      const roleLabel =
-        existingRole === 'agent'     ? 'un agent terrain'       :
-        existingRole === 'chef'      ? 'un chef de service'     :
-        existingRole === 'president' ? 'le président municipal' :
-        'un utilisateur';
-      return res.status(409).json({
-        success: false,
-        error: 'Email déjà utilisé',
-        conflictType: 'EMAIL_EXISTS',
-        fields: { email: `Un compte ${roleLabel} avec cette adresse email existe déjà.` }
-      });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    // B. Chef de Service existant sur ce département ?
-    if (role === 'chef' && department_id) {
-      const chefConflict = await client.query(
-        `SELECT u.id, u.first_name AS prenom, u.last_name AS nom, u.email
-         FROM services s
-         JOIN users u ON u.id = s.chef_id
-         WHERE s.id = $1 AND s.is_active = true AND u.is_active = true`,
-        [department_id]
-      );
+    const { email, password, first_name, last_name, role, department_id, delegation_id } = req.body;
 
-      if (chefConflict.rows.length > 0 && !force) {
-        await client.query('ROLLBACK');
-        const existing = chefConflict.rows[0];
-        return res.status(409).json({
-          success: false,
-          error: 'Ce département possède déjà un chef de service actif.',
-          conflictType: 'DEPT_HAS_CHEF',
-          existingChef: {
-            id:     existing.id,
-            prenom: existing.prenom,
-            nom:    existing.nom,
-            email:  existing.email
-          }
-        });
-      }
-
-      // force=true : désassigner l'ancien chef DANS la même transaction
-      if (chefConflict.rows.length > 0 && force) {
-        const oldChefId = chefConflict.rows[0].id;
-        await client.query('UPDATE users SET department_id = NULL WHERE id = $1', [oldChefId]);
-        await client.query('UPDATE services SET chef_id = NULL WHERE id = $1', [department_id]);
-      }
+    // DB enum uses 'agent' and 'chef' (not 'chef_service')
+    if (!['agent', 'chef'].includes(role)) {
+      return res.status(400).json({ error: 'Le président ne peut créer que des comptes agent ou chef.' });
     }
 
-    // 5. Hashage + création
-    const hashedPassword = await bcrypt.hash(String(password), SALT_ROUNDS);
+    const { data: existing } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email.toLowerCase().trim())
+      .maybeSingle();
 
-    const newUser = await client.query(
-      `INSERT INTO users (email, password_hash, first_name, last_name, phone, role, department_id, delegation_id, is_active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, NOW(), NOW())
-       RETURNING id, email, first_name AS prenom, last_name AS nom, role, department_id`,
-      [
-        String(email).toLowerCase().trim(),
-        hashedPassword,
-        String(prenom).trim(),
-        String(nom).trim(),
-        telephone ? String(telephone).trim() : null,
+    if (existing) {
+      return res.status(409).json({ error: 'Cet email est déjà utilisé.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .insert({
+        email: email.toLowerCase().trim(),
+        password_hash: hashedPassword,
+        first_name: first_name.trim(),
+        last_name: last_name.trim(),
         role,
-        department_id || null,
-        role === 'agent' ? (delegation_id || null) : null
-      ]
-    );
+        department_id: department_id || null,
+        delegation_id: delegation_id || null,
+        is_active: true,
+      })
+      .select('id, email, first_name, last_name, role, department_id, delegation_id, is_active')
+      .single();
 
-    // 6. Si chef : mettre à jour services.chef_id
-    if (role === 'chef' && department_id) {
-      await client.query(
-        'UPDATE services SET chef_id = $1 WHERE id = $2',
-        [newUser.rows[0].id, department_id]
-      );
+    if (error) {
+      console.error('[President] CreateUser error:', error.message);
+      return res.status(500).json({ error: 'Erreur lors de la création du compte.' });
     }
 
-    await client.query('COMMIT');
-
-    return res.status(201).json({
-      success: true,
-      user: newUser.rows[0],
-      message: `Compte ${role === 'chef' ? 'Chef de Service' : 'Agent Terrain'} créé avec succès.`
-    });
-
-  } catch (error) {
-    await client.query('ROLLBACK').catch(() => {});
-    console.error('[President] createUser error:', error);
-    return res.status(500).json({ success: false, error: 'Erreur serveur. Veuillez réessayer.' });
-  } finally {
-    client.release();
+    return res.status(201).json({ user });
+  } catch (err) {
+    console.error('[President] CreateUser error:', err);
+    return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
 
@@ -1015,26 +908,6 @@ exports.updateUser = async (req, res) => {
       role, department_id, is_active, delegation_id,
       first_name, last_name, email, phone, password
     } = req.body;
-
-    // Fetch current user state to validate Bug 3
-    const { data: currentUser } = await supabase
-      .from('users')
-      .select('role, department_id')
-      .eq('id', id)
-      .single();
-
-    if (!currentUser) {
-      return res.status(404).json({ error: 'Utilisateur introuvable.' });
-    }
-
-    const finalRole = role !== undefined ? role : currentUser.role;
-    
-    // Bug Fix 3: Strict "One Department per Chief" rule
-    if (department_id !== undefined && department_id !== null && department_id !== currentUser.department_id) {
-      if (finalRole === 'chef' && currentUser.department_id !== null) {
-        return res.status(400).json({ error: 'Ce chef de service est déjà affecté à un autre département.' });
-      }
-    }
 
     if (role !== undefined) updates.role = role;
     if (department_id !== undefined) updates.department_id = department_id;
@@ -1143,7 +1016,7 @@ exports.listDepartments = async (req, res) => {
     /* 1 ── Fetch all services */
     const { data: services, error } = await supabase
       .from('services')
-      .select('id, name_fr, name_ar, name_en, code, description, is_active, created_at, chef_name, date_de_creation')
+      .select('id, name_fr, name_ar, name_en, code, description, is_active, created_at')
       .order('name_fr', { ascending: true });
 
     if (error) {
@@ -1219,7 +1092,7 @@ exports.listDepartments = async (req, res) => {
       return {
         ...dept,
         name: dept.name_fr,
-        chef_name: dept.chef_name || (chef ? `${chef.first_name} ${chef.last_name}` : null),
+        chef_name: chef ? `${chef.first_name} ${chef.last_name}` : null,
         chef_id: chef?.id || null,
         agents_count: agentsCountMap[dept.id] || 0,
         ...counts,
@@ -1233,7 +1106,49 @@ exports.listDepartments = async (req, res) => {
   }
 };
 
-    // createDepartment removed to fix duplication
+    /* ── POST /api/president/departments ── */
+    exports.createDepartment = async (req, res) => {
+      try {
+        const { name_fr, name_ar, name_en, code, description } = req.body;
+
+        if (!name_fr?.trim()) return res.status(400).json({ error: 'Nom français obligatoire.' });
+        if (!code?.trim()) return res.status(400).json({ error: 'Code obligatoire.' });
+        if (code.length > 3) return res.status(400).json({ error: 'Code max 3 caractères.' });
+
+        const upperCode = code.toUpperCase().trim();
+
+        // Check code uniqueness
+        const { data: byCode } = await supabase.from('services').select('id').eq('code', upperCode).maybeSingle();
+        if (byCode) return res.status(409).json({ error: `Le code ${upperCode} est déjà utilisé.` });
+
+        // Check name uniqueness
+        const { data: byName } = await supabase.from('services').select('id').eq('name_fr', name_fr.trim()).maybeSingle();
+        if (byName) return res.status(409).json({ error: 'Un service avec ce nom existe déjà.' });
+
+        const { data: dept, error } = await supabase
+          .from('services')
+          .insert({
+            name_fr: name_fr.trim(),
+            name_ar: name_ar?.trim() || null,
+            name_en: name_en?.trim() || null,
+            code: upperCode,
+            description: description?.trim() || null,
+            is_active: true,
+          })
+          .select('*')
+          .single();
+
+        if (error) {
+          console.error('[President] CreateDept error:', error.message);
+          return res.status(500).json({ error: 'Erreur lors de la création.' });
+        }
+
+        return res.status(201).json({ department: dept, success: true });
+      } catch (err) {
+        console.error('[President] CreateDept error:', err);
+        return res.status(500).json({ error: 'Erreur serveur.' });
+      }
+    };
 
     /* ── DELETE /api/president/departments/:id ── */
     exports.deleteDepartment = async (req, res) => {
@@ -1433,34 +1348,25 @@ exports.listPropositions = async (req, res) => {
 
 /* ──────────── GET /api/president/dashboard ──────────── */
 exports.dashboard = async (req, res) => {
-  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.set('Pragma', 'no-cache');
-  res.set('Expires', '0');
-
   try {
-    const { period, range, status, department_id, delegation_id } = req.query;
-    const filterPeriod = range || period;
+    const { period, status, department_id, delegation_id } = req.query;
 
     let baseQuery = supabase
       .from('declarations')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null)
-      .or('is_deleted.eq.false,is_deleted.is.null');
+      .or('is_deleted.eq.false,is_deleted.is.null')
+      ;
 
     let sqlFilter = ` AND d.deleted_at IS NULL AND COALESCE(d.is_deleted, false) = false`;
 
-    if (filterPeriod && filterPeriod !== 'all') {
-      let days = parseInt(filterPeriod, 10);
-      if (filterPeriod === 'today') days = 1;
-      else if (filterPeriod === '7days') days = 7;
-      else if (filterPeriod === 'month') days = 30;
-      else if (filterPeriod === 'year') days = 365;
-
+    if (period && period !== 'all') {
+      const days = parseInt(period, 10);
       if (!isNaN(days)) {
         const dateLimit = new Date();
         dateLimit.setDate(dateLimit.getDate() - days);
-        baseQuery = baseQuery.or(`updated_at.gte.${dateLimit.toISOString()},created_at.gte.${dateLimit.toISOString()}`);
-        sqlFilter += ` AND COALESCE(d.updated_at, d.created_at) >= NOW() - INTERVAL '${days} days'`;
+        baseQuery = baseQuery.gte('created_at', dateLimit.toISOString());
+        sqlFilter += ` AND d.created_at >= NOW() - INTERVAL '${days} days'`;
       }
     }
     if (status && status !== 'all') {
@@ -1651,19 +1557,13 @@ exports.dashboard = async (req, res) => {
       .order('priority_score', { ascending: false })
       .limit(8);
 
-    const filterPeriodForQuery = range || period;
-    if (filterPeriodForQuery && filterPeriodForQuery !== 'all') {
-      let days = parseInt(filterPeriodForQuery, 10);
-      if (filterPeriodForQuery === 'today') days = 1;
-      else if (filterPeriodForQuery === '7days') days = 7;
-      else if (filterPeriodForQuery === 'month') days = 30;
-      else if (filterPeriodForQuery === 'year') days = 365;
-
+    if (period && period !== 'all') {
+      const days = parseInt(period, 10);
       if (!isNaN(days)) {
         const dateLimit = new Date();
         dateLimit.setDate(dateLimit.getDate() - days);
-        recentQuery = recentQuery.or(`updated_at.gte.${dateLimit.toISOString()},created_at.gte.${dateLimit.toISOString()}`);
-        crucialQuery = crucialQuery.or(`updated_at.gte.${dateLimit.toISOString()},created_at.gte.${dateLimit.toISOString()}`);
+        recentQuery = recentQuery.gte('created_at', dateLimit.toISOString());
+        crucialQuery = crucialQuery.gte('created_at', dateLimit.toISOString());
       }
     }
     if (status && status !== 'all') {
@@ -1893,7 +1793,7 @@ exports.createDepartment = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const { name_fr, name_ar, name_en, code, description, icon, chef_name, date_de_creation } = req.body;
+    const { name_fr, name_ar, name_en, code, description } = req.body;
 
     const { data: existing } = await supabase
       .from('services')
@@ -1911,9 +1811,6 @@ exports.createDepartment = async (req, res) => {
         name_en: name_en?.trim() || null,
         code: code.toUpperCase().trim(),
         description: description?.trim() || null,
-        icon: icon || '🏢',
-        chef_name: chef_name?.trim() || null,
-        date_de_creation: date_de_creation || null,
         is_active: true,
       })
       .select('*')
@@ -1935,16 +1832,13 @@ exports.createDepartment = async (req, res) => {
 exports.updateDepartment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name_fr, name_ar, name_en, description, icon, chef_name, date_de_creation } = req.body;
+    const { name_fr, name_ar, name_en, description } = req.body;
 
     const updates = {};
     if (name_fr !== undefined) updates.name_fr = name_fr.trim();
     if (name_ar !== undefined) updates.name_ar = name_ar?.trim() || null;
     if (name_en !== undefined) updates.name_en = name_en?.trim() || null;
     if (description !== undefined) updates.description = description?.trim() || null;
-    if (icon !== undefined) updates.icon = icon;
-    if (chef_name !== undefined) updates.chef_name = chef_name?.trim() || null;
-    if (date_de_creation !== undefined) updates.date_de_creation = date_de_creation || null;
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'Aucune donnée à mettre à jour.' });

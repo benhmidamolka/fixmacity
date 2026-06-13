@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { 
   Users, UserPlus, Search, MoreVertical, Mail, Phone, MapPin, 
   CheckCircle2, Clock, AlertCircle, Loader2, X, Shield, 
@@ -74,10 +75,10 @@ function AgentModal({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden border border-white dark:border-slate-800 transition-colors duration-300">
+  return createPortal(
+    <div className="fixed top-0 left-0 w-screen h-screen z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="absolute inset-0" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white dark:border-slate-800 transition-colors duration-300">
         <div className="px-8 pt-8 pb-6 bg-[#F8F9FD] dark:bg-slate-950/30">
           <div className="flex items-center justify-between mb-2">
             <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center text-xl">
@@ -165,7 +166,8 @@ function AgentModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -272,9 +274,6 @@ const ChefAgents: React.FC = () => {
             />
           </div>
           <div className="flex items-center gap-3 w-full lg:w-auto">
-            <button className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-black text-sm rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm">
-              <TrendingUp className="w-4 h-4" /> Performance
-            </button>
             <button 
               onClick={() => { setEditingAgent(undefined); setModalOpen(true) }}
               className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-8 py-3.5 bg-[#1557FF] text-white font-black text-sm rounded-2xl shadow-xl shadow-blue-500/20 hover:bg-blue-600 hover:scale-[1.02] active:scale-[0.98] transition-all"
@@ -370,23 +369,6 @@ const ChefAgents: React.FC = () => {
                       <Plus className="w-3.5 h-3.5" /> Affecter
                     </button>
                   )}
-                  <button 
-                    onClick={() => {
-                      if (agent.is_active && agent.workload > 0) {
-                        toast.error("Impossible de désactiver un agent ayant des tâches en cours");
-                        return;
-                      }
-                      toggleStatus(agent.id);
-                    }}
-                    className={`p-3 rounded-xl border transition-all shadow-sm ${
-                      agent.is_active 
-                        ? 'border-red-100 dark:border-red-900/30 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20' 
-                        : 'border-green-100 dark:border-green-900/30 text-green-500 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
-                    }`}
-                    title={agent.is_active ? 'Désactiver' : 'Activer'}
-                  >
-                    <Power className="w-4 h-4" />
-                  </button>
                 </div>
               </div>
             ))}
@@ -474,10 +456,10 @@ function AssignTaskModal({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-md" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-white dark:border-slate-800 transition-colors duration-300">
+  return createPortal(
+    <div className="fixed top-0 left-0 w-screen h-screen z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="absolute inset-0" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-white dark:border-slate-800 transition-colors duration-300">
         
         {/* Header */}
         <div className="px-8 pt-8 pb-6 bg-[#F8F9FD] dark:bg-slate-950/30">
@@ -571,7 +553,8 @@ function AssignTaskModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

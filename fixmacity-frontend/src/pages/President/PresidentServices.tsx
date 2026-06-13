@@ -51,6 +51,7 @@ interface Department {
   is_active: boolean
   chef_name: string | null
   chef_id:   string | null
+  date_de_creation?: string | null
   total:     number
   accepted:  number
   resolved:  number
@@ -112,7 +113,7 @@ const Confirm: React.FC<{ msg: string; sub?: string; onYes: () => void; onNo: ()
 // ─── Service Form Modal ───────────────────────────────────────────────────────
 interface FormState {
   name_fr: string; name_ar: string; name_en: string
-  code: string; description: string
+  code: string; description: string; chef_name: string; date_de_creation: string
 }
 
 const ICON_OPTIONS = [
@@ -136,43 +137,68 @@ const ServiceModal: React.FC<{
     name_en:     dept?.name_en     ?? '',
     code:        dept?.code        ?? '',
     description: dept?.description ?? '',
+    chef_name:   dept?.chef_name   ?? '',
+    date_de_creation: dept?.date_de_creation ?? new Date().toISOString().split('T')[0],
   })
   const [selectedIcon, setSelectedIcon] = useState(dept ? getIcon(dept.code) : '🏢')
   const [saving, setSaving] = useState(false)
   const [err, setErr]       = useState('')
 
+  // Refs for auto-focus on validation error
+  const refName    = React.useRef<HTMLInputElement>(null)
+  const refCode    = React.useRef<HTMLInputElement>(null)
+  const refDesc    = React.useRef<HTMLTextAreaElement>(null)
+
   const set = (k: keyof FormState, v: string) => setForm(f => ({ ...f, [k]: v }))
 
   const save = async () => {
-    if (!form.name_fr.trim()) { setErr('Le nom en français est obligatoire.'); return }
-    if (!form.code.trim())    { setErr('Le code est obligatoire.'); return }
-    if (form.code.length > 3) { setErr('Le code ne doit pas dépasser 3 caractères.'); return }
+    // Exception 1 — required fields with focus
+    if (!form.name_fr.trim()) {
+      setErr("L'information [Nom du service] est manquante")
+      refName.current?.focus(); return
+    }
+    if (!isEdit && !form.code.trim()) {
+      setErr("L'information [Code ID] est manquante")
+      refCode.current?.focus(); return
+    }
+    if (!isEdit && form.code.length > 3) {
+      setErr('Le code ne doit pas dépasser 3 caractères.')
+      refCode.current?.focus(); return
+    }
+    if (!form.description.trim()) {
+      setErr("L'information [Description] est manquante")
+      refDesc.current?.focus(); return
+    }
+
     setSaving(true); setErr('')
     try {
       let res
+      const payload: Record<string, any> = {
+        name_fr:     form.name_fr.trim(),
+        name_ar:     form.name_ar.trim() || null,
+        name_en:     form.name_en.trim() || null,
+        description: form.description.trim(),
+        icon:        selectedIcon,
+        chef_name:   form.chef_name.trim() || null,
+        date_de_creation: form.date_de_creation,
+      }
+
       if (isEdit) {
         res = await apiFetch(`/president/departments/${dept!.id}`, {
           method: 'PATCH',
-          body: JSON.stringify({
-            name_fr:     form.name_fr.trim(),
-            name_ar:     form.name_ar.trim() || null,
-            name_en:     form.name_en.trim() || null,
-            description: form.description.trim() || null,
-          }),
+          body: JSON.stringify(payload),
         })
       } else {
         res = await apiFetch('/president/departments', {
           method: 'POST',
-          body: JSON.stringify({
-            name_fr:     form.name_fr.trim(),
-            name_ar:     form.name_ar.trim() || null,
-            name_en:     form.name_en.trim() || null,
-            code:        form.code.toUpperCase().trim(),
-            description: form.description.trim() || null,
-          }),
+          body: JSON.stringify({ ...payload, code: form.code.toUpperCase().trim() }),
         })
       }
-      if (res.error || res.errors) { setErr(res.error || res.errors?.[0]?.msg || 'Erreur'); setSaving(false); return }
+
+      if (res.error || res.errors) {
+        const msg = res.error || res.errors?.[0]?.msg || 'Erreur'
+        setErr(msg); setSaving(false); return
+      }
       onSaved(isEdit ? 'Service modifié avec succès.' : 'Service créé avec succès.')
     } catch { setErr('Erreur serveur.'); setSaving(false) }
   }
@@ -192,6 +218,7 @@ const ServiceModal: React.FC<{
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onClick={onClose}/>
       <div className="relative bg-slate-950/95 backdrop-blur-3xl rounded-[3rem] shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden border border-slate-800/80 flex flex-col animate-in zoom-in-95 duration-500">
+        {/* Header */}
         <div className="flex-shrink-0 border-b border-slate-800 px-8 pt-8 pb-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-black text-white tracking-tight">{isEdit ? 'Modifier le service' : 'Nouveau service'}</h2>
@@ -204,12 +231,15 @@ const ServiceModal: React.FC<{
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-8 py-8 space-y-6">
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-8 py-8 space-y-6 scrollbar-thin scrollbar-thumb-slate-700">
           {err && (
             <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest px-5 py-4 rounded-2xl flex items-center gap-3">
               <AlertTriangle className="w-5 h-5 flex-shrink-0"/>{err}
             </div>
           )}
+
+          {/* Icon picker */}
           <Field label="Identité visuelle">
             <div className="grid grid-cols-6 gap-3">
               {ICON_OPTIONS.map(opt => (
@@ -219,34 +249,65 @@ const ServiceModal: React.FC<{
               ))}
             </div>
           </Field>
+
+          {/* Name + Code */}
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
-              <Field label="Nom français" req>
-                <input className={inputCls} value={form.name_fr} onChange={e => set('name_fr', e.target.value)} placeholder="Ex: Voirie & Réseaux"/>
+              <Field label="Nom du service" req>
+                <input ref={refName} className={inputCls} value={form.name_fr}
+                  onChange={e => set('name_fr', e.target.value)} placeholder="Ex: Voirie & Réseaux"/>
               </Field>
             </div>
             <Field label="Code ID" req>
-              <input className={`${inputCls} uppercase font-black text-center tracking-widest text-lg`}
-                value={form.code} onChange={e => set('code', e.target.value.toUpperCase().slice(0,3))}
+              <input ref={refCode}
+                className={`${inputCls} uppercase font-black text-center tracking-widest text-lg`}
+                value={form.code}
+                onChange={e => set('code', e.target.value.toUpperCase().slice(0, 3))}
                 placeholder="VR" maxLength={3} disabled={isEdit}
                 style={isEdit ? { opacity: 0.5, cursor: 'not-allowed' } : {}}/>
             </Field>
           </div>
+
+          {/* Arabic + English names */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Nom arabe">
-              <input className={`${inputCls} text-right`} value={form.name_ar} onChange={e => set('name_ar', e.target.value)} placeholder="الاسم بالعربية" dir="rtl"/>
+              <input className={`${inputCls} text-right`} value={form.name_ar}
+                onChange={e => set('name_ar', e.target.value)} placeholder="الاسم بالعربية" dir="rtl"/>
             </Field>
             <Field label="Nom anglais">
-              <input className={inputCls} value={form.name_en} onChange={e => set('name_en', e.target.value)} placeholder="Name in English"/>
+              <input className={inputCls} value={form.name_en}
+                onChange={e => set('name_en', e.target.value)} placeholder="Name in English"/>
             </Field>
           </div>
-          <Field label="Missions du service">
-            <textarea className={`${inputCls} resize-none h-28`} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Décrivez les responsabilités de ce département…"/>
+
+          {/* Description — required */}
+          <Field label="Description / Missions du service" req>
+            <textarea ref={refDesc}
+              className={`${inputCls} resize-none h-28`} value={form.description}
+              onChange={e => set('description', e.target.value)}
+              placeholder="Décrivez les responsabilités de ce département…"/>
           </Field>
+
+          {/* Chef + Date */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Nom du chef de service">
+              <input type="text" className={inputCls} value={form.chef_name}
+                onChange={e => set('chef_name', e.target.value)}
+                placeholder="Ex: Ahmed Ben Ali"/>
+            </Field>
+            <Field label="Date de création">
+              <input type="date" className={inputCls} value={form.date_de_creation}
+                onChange={e => set('date_de_creation', e.target.value)}/>
+            </Field>
+          </div>
         </div>
 
+        {/* Footer */}
         <div className="flex-shrink-0 border-t border-slate-800 px-8 py-6 flex gap-4 bg-slate-900/40">
-          <button onClick={onClose} className="flex-1 py-4 rounded-2xl border border-slate-800 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-800/50 transition-all">Annuler</button>
+          <button onClick={onClose}
+            className="flex-1 py-4 rounded-2xl border border-slate-800 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 hover:bg-slate-800/50 transition-all">
+            Annuler
+          </button>
           <button onClick={save} disabled={saving}
             className="flex-[1.5] py-4 rounded-2xl bg-[#1557FF] text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-3 transition-all shadow-xl shadow-blue-500/25">
             {saving ? <Loader2 className="w-5 h-5 animate-spin"/> : <Check className="w-5 h-5"/>}
@@ -375,6 +436,7 @@ const PresidentServices: React.FC = () => {
           rejected:     d.rejected    ?? 0,
           in_progress:  d.in_progress ?? 0,
           agents_count: d.agents_count ?? 0,
+          date_de_creation: d.date_de_creation ?? null,
           created_at:   d.created_at,
         })))
       }

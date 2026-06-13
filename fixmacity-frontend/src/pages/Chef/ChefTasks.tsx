@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import ChefLayout from '../../layouts/ChefLayout';
-import { Download, Paperclip, Plus, X, Loader2, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Paperclip, Plus, X, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
+import { AcceptModal, DetailDrawer } from '../../components/Chef/DetailDrawer';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5005/api';
 const tok = () => localStorage.getItem('fmc_token') || '';
@@ -15,6 +17,7 @@ interface Task {
   rawStatus: string; category: string; ref_citoyen: string;
   created_at: string; assigned_agents: Agent[];
   priority: string; has_image: boolean; refusal_reason?: string;
+  attachments?: string[];
 }
 
 const mapStatus = (s: string): Task['status'] => {
@@ -46,14 +49,65 @@ const prioCfg = (p: string) => {
 
 const AGENT_COLORS = ['#1557FF','#10B981','#F59E0B','#8B5CF6','#EC4899','#0891B2'];
 
-// ── Reassign Modal ─────────────────────────────────────────────────────────────
-function ReassignModal({ task, onClose, onDone }: { task: Task; onClose: () => void; onDone: () => void }) {
-  const [agents, setAgents]   = useState<Agent[]>([]);
-  const [selected, setSelected] = useState('');
-  const [loading, setLoading]  = useState(false);
-  const maxTasks = parseInt(localStorage.getItem('fmc_max_tasks') || '5');
+// ── Image Gallery Modal ────────────────────────────────────────────────────────
+function ImageGalleryModal({ images, onClose }: { images: string[]; onClose: () => void }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  useEffect(() => {
+  if (!images || images.length === 0) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm" onClick={onClose}>
+      <button onClick={onClose} className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-50">
+        <X className="w-6 h-6" />
+      </button>
+      
+      <div className="relative w-full max-w-4xl max-h-[80vh] flex flex-col items-center justify-center" onClick={e => e.stopPropagation()}>
+        <img 
+          src={images[currentIndex]} 
+          alt={`Attachment ${currentIndex + 1}`} 
+          className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
+        />
+        
+        {images.length > 1 && (
+          <div className="flex items-center gap-4 mt-6">
+            <button 
+              onClick={(e) => { e.stopPropagation(); setCurrentIndex(i => (i === 0 ? images.length - 1 : i - 1)); }}
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-bold transition-colors"
+            >
+              Précédent
+            </button>
+            <span className="text-white font-bold bg-black/50 px-3 py-1 rounded-full">{currentIndex + 1} / {images.length}</span>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setCurrentIndex(i => (i === images.length - 1 ? 0 : i + 1)); }}
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg font-bold transition-colors"
+            >
+              Suivant
+            </button>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ── Main ───────────────────────────────────────────────────────────────────────
+export default function ChefTasks() {
+  const navigate = useNavigate();
+  const [tasks, setTasks]   = useState<Task[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'Tous' | 'En attente' | 'En cours' | 'Évaluée' | 'Clôturée' | 'Rejetée'>('Tous');
+  const [assigningTask, setAssigningTask] = useState<Task | null>(null);
+  
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [selectedTaskImages, setSelectedTaskImages] = useState<string[]>([]);
+
+  const openAssignModal = (t: Task) => setAssigningTask(t);
+
+  useEffect(() => { 
+    fetchTasks();
     fetch(`${API_URL}/chef/agents`, { headers: { Authorization: `Bearer ${tok()}` } })
       .then(r => r.json())
       .then(d => {
@@ -62,107 +116,13 @@ function ReassignModal({ task, onClose, onDone }: { task: Task; onClose: () => v
           id: a.id,
           first_name: a.first_name,
           last_name: a.last_name,
-          active_tasks: a.workload ?? a.active_tasks ?? 0,
+          is_active: a.status !== 'inactive',
+          workload: a.workload ?? a.active_tasks ?? 0,
+          resolved_count: 0,
+          is_overloaded: false
         })));
       });
   }, []);
-
-  const doReassign = async () => {
-    if (!selected) return toast.error('Choisissez un agent');
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/chef/declarations/${task.id}/accept`, {
-        method: 'POST', headers: jsonH(),
-        body: JSON.stringify({ agent_id: selected }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error || 'Erreur');
-      toast.success('Mission réassignée ✓');
-      onDone(); onClose();
-    } catch (e: any) { toast.error(e.message); }
-    finally { setLoading(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-md" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-lg border border-slate-100 dark:border-slate-800 overflow-hidden">
-        {/* Header */}
-        <div className="px-8 pt-8 pb-5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between">
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-[.18em] text-orange-500 mb-1">Réassignation requise</p>
-            <h2 className="text-xl font-black text-[#0A1628] dark:text-white">Choisir un Autre Agent</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">{task.title}</p>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="w-5 h-5" /></button>
-        </div>
-
-        {/* Motif banner */}
-        {task.refusal_reason && (
-          <div className="mx-8 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-2xl flex gap-2.5">
-            <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-0.5">Motif du rejet</p>
-              <p className="text-xs text-red-700 dark:text-red-300 font-medium">{task.refusal_reason}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Agent list */}
-        <div className="px-8 py-5 space-y-2 max-h-64 overflow-y-auto">
-          {agents.filter(a => a.id !== (task.assigned_agents[0]?.id)).map((a, i) => {
-            const isSel = selected === a.id;
-            const pct   = Math.min(((a.active_tasks || 0) / maxTasks) * 100, 100);
-            const bCol  = (a.active_tasks || 0) >= maxTasks ? '#EF4444' : (a.active_tasks || 0) >= Math.ceil(maxTasks / 2) ? '#3B82F6' : '#10B981';
-            const sLabel = (a.active_tasks || 0) >= maxTasks ? 'Surchargé' : (a.active_tasks || 0) >= Math.ceil(maxTasks / 2) ? 'En mission' : 'Disponible';
-            return (
-              <button key={a.id} onClick={() => setSelected(a.id)}
-                className={`w-full flex items-center gap-3.5 p-3.5 rounded-2xl border-2 text-left transition-all ${isSel ? 'border-[#1557FF] bg-blue-50/40 dark:bg-blue-500/10' : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 bg-slate-50/50 dark:bg-slate-800/30'}`}>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-black shadow flex-shrink-0"
-                  style={{ background: AGENT_COLORS[i % AGENT_COLORS.length] }}>
-                  {a.first_name[0]}{a.last_name[0]}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-sm font-black text-[#0A1628] dark:text-white truncate">{a.first_name} {a.last_name}</p>
-                    <span className="text-[9px] font-black ml-2" style={{ color: bCol }}>{sLabel}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: bCol }} />
-                    </div>
-                    <span className="text-[9px] font-bold text-slate-400 flex-shrink-0">{a.active_tasks || 0}/{maxTasks}</span>
-                  </div>
-                </div>
-                {isSel && <CheckCircle2 className="w-5 h-5 text-[#1557FF] flex-shrink-0" />}
-              </button>
-            );
-          })}
-          {agents.length === 0 && (
-            <p className="text-center text-sm text-slate-400 py-8">Chargement des agents...</p>
-          )}
-        </div>
-
-        <div className="px-8 pb-8 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 text-sm font-black text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">Annuler</button>
-          <button onClick={doReassign} disabled={!selected || loading}
-            className="flex-[2] py-3.5 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-black shadow-lg flex items-center justify-center gap-2 disabled:opacity-40 transition-all">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><RefreshCw className="w-4 h-4" />Confirmer la Réassignation</>}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Main ───────────────────────────────────────────────────────────────────────
-export default function ChefTasks() {
-  const navigate = useNavigate();
-  const [tasks, setTasks]   = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'Tous' | 'En attente' | 'En cours' | 'Évaluée' | 'Clôturée' | 'Rejetée'>('Tous');
-  const [reassigning, setReassigning] = useState<Task | null>(null);
-
-  useEffect(() => { fetchTasks(); }, []);
 
   const fetchTasks = async () => {
     try {
@@ -191,6 +151,7 @@ export default function ChefTasks() {
         assigned_agents: d.assigned_agents || [],
         priority: d.priority || 'moyenne',
         has_image: !!d.image_url,
+        attachments: d.attachments || (d.image_url ? [d.image_url] : []),
         refusal_reason: d.refusal_reason || d.agent_refusal_reason || null,
       })));
     } catch (err) { console.error(err); }
@@ -242,9 +203,6 @@ export default function ChefTasks() {
                 </button>
               ))}
             </div>
-            <button className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-100 transition-colors">
-              <Download className="w-4 h-4" /> Rapport
-            </button>
           </div>
         </div>
 
@@ -288,7 +246,7 @@ export default function ChefTasks() {
                   className={`bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800/60 border-l-4 ${sCfg.border} ${
                     isRejected ? 'hover:shadow-red-100 dark:hover:shadow-none' : 'hover:shadow-md cursor-pointer'
                   } transition-shadow`}
-                  onClick={() => !isRejected && navigate(`/chef/declarations/${task.id}`)}>
+                  onClick={() => !isRejected && setSelectedId(task.id)}>
 
                   {/* Top Pills */}
                   <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -302,42 +260,67 @@ export default function ChefTasks() {
                     {task.description || 'Aucune description fournie.'}
                   </p>
 
-                  {/* Rejection motif box (only for rejected) */}
-                  {isRejected && task.refusal_reason && (
-                    <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-xl">
-                      <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">Motif du rejet</p>
-                      <p className="text-xs text-red-700 dark:text-red-300 font-medium">{task.refusal_reason}</p>
-                    </div>
-                  )}
+                  {/* Progress stepper */}
+                  <div className="mb-5">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">Avancement</p>
+                    {(() => {
+                      const getTaskStepIndex = (status: string) => {
+                        if (status === 'refusee_agent') return -1;
+                        if (status === 'assignee_chef' || status === 'assignee_agent') return 0;
+                        if (status === 'en_cours') return 1;
+                        if (status === 'resolue') return 2;
+                        if (status === 'cloturee') return 3;
+                        return 0;
+                      };
+                      const TASK_STEPS = ['En attente', 'En cours', 'Évaluée', 'Clôturée'];
+                      const cur = getTaskStepIndex(task.rawStatus);
+                      const isRefused = cur === -1;
 
-                  {/* Progress stepper (non-rejected) */}
-                  {!isRejected && (
-                    <div className="mb-5">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">Avancement</p>
-                      {(() => {
-                        const steps = ['Assigné', 'En cours', 'Évaluée', 'Clôturée'];
-                        let cur = -1;
-                        if (task.rawStatus === 'assignee_agent') cur = 0;
-                        if (task.rawStatus === 'en_cours') cur = 1;
-                        if (['resolue', 'evaluee'].includes(task.rawStatus)) cur = 2;
-                        if (task.rawStatus === 'cloturee') cur = 3;
-                        return (
+                      return (
+                        <div className="flex flex-col gap-3">
+                          {/* 4-segment bar — all gray when refused */}
                           <div className="flex items-center justify-between gap-1.5">
-                            {steps.map((label, idx) => {
-                              const done = idx < cur || (idx === 3 && cur === 3);
-                              const active = idx === cur && idx !== 3;
+                            {TASK_STEPS.map((label, idx) => {
+                              const done   = !isRefused && idx < cur;
+                              const active = !isRefused && idx === cur && idx < 3;
+                              const last   = !isRefused && idx === cur && idx === 3; // Clôturée complete
                               return (
                                 <div key={label} className="flex-1 flex flex-col gap-1.5">
-                                  <div className={`h-1.5 rounded-full transition-all ${done ? 'bg-emerald-500' : active ? 'bg-[#1557FF]' : 'bg-slate-100 dark:bg-slate-800'}`} />
-                                  <span className={`text-[9px] font-bold text-center truncate ${done ? 'text-emerald-600' : active ? 'text-[#1557FF]' : 'text-slate-400'}`}>{label}</span>
+                                  <div className={`h-1.5 rounded-full transition-all ${
+                                    done || last ? 'bg-emerald-500'
+                                    : active     ? 'bg-[#1557FF]'
+                                    : 'bg-slate-100 dark:bg-slate-800'
+                                  }`} />
+                                  <span className={`text-[9px] font-bold text-center truncate ${
+                                    done || last ? 'text-emerald-600'
+                                    : active     ? 'text-[#1557FF]'
+                                    : 'text-slate-400'
+                                  }`}>{label}</span>
                                 </div>
                               );
                             })}
                           </div>
-                        );
-                      })()}
-                    </div>
-                  )}
+
+                          {/* Refused branch: badge + reassign button */}
+                          {isRefused && (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <div className="px-2.5 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-lg inline-flex items-center gap-1.5">
+                                <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                                <span className="text-[10px] font-bold text-red-700 dark:text-red-300">
+                                  Refusé — Motif: {task.refusal_reason || 'Non précisé'}
+                                </span>
+                              </div>
+                              <button
+                                onClick={e => { e.stopPropagation(); openAssignModal(task); }}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-[10px] font-black shadow-sm transition-all">
+                                <RefreshCw className="w-3 h-3" /> Réassigner
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
 
                   {/* Dates */}
                   <div className="flex items-center justify-between mb-5">
@@ -355,31 +338,54 @@ export default function ChefTasks() {
 
                   {/* Bottom row */}
                   <div className="flex items-center justify-between">
-                    <div className="flex -space-x-2">
-                      {task.assigned_agents.slice(0, 3).map((a, i) => (
-                        <div key={a.id} className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[10px] font-bold text-slate-600 dark:text-slate-300"
-                          style={{ zIndex: 10 - i }} title={`${a.first_name} ${a.last_name}`}>
-                          {a.first_name[0]}{a.last_name[0]}
-                        </div>
-                      ))}
-                      {task.assigned_agents.length === 0 && (
-                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50">
-                          <Plus className="w-3.5 h-3.5 text-slate-400" />
-                        </div>
-                      )}
+                    <div className="flex items-center">
+                      <div className="flex -space-x-2 mr-2">
+                        {task.assigned_agents.slice(0, 3).map((a, i) => (
+                          <div key={a.id} className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
+                            style={{ zIndex: 10 - i, backgroundColor: AGENT_COLORS[i % AGENT_COLORS.length] }} title={`${a.first_name} ${a.last_name}`}>
+                            {a.first_name[0]}{a.last_name[0]}
+                          </div>
+                        ))}
+                        {task.assigned_agents.length > 3 && (
+                          <div className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500 shadow-sm" style={{ zIndex: 6 }}>
+                            +{task.assigned_agents.length - 3}
+                          </div>
+                        )}
+                      </div>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); openAssignModal(task); }} 
+                        className="w-8 h-8 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 hover:border-[#1557FF] hover:text-[#1557FF] transition-colors" 
+                        title="Assigner un agent">
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
                     {isRejected ? (
                       <button
-                        onClick={e => { e.stopPropagation(); setReassigning(task); }}
+                        onClick={e => { e.stopPropagation(); openAssignModal(task); }}
                         className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-black shadow transition-all">
                         <RefreshCw className="w-3.5 h-3.5" /> Réassigner
                       </button>
                     ) : (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 dark:bg-sky-900/20 text-sky-500 rounded-lg">
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          const atts = task.attachments || [];
+                          if (atts.length > 0) {
+                            setSelectedTaskImages(atts);
+                            setIsGalleryOpen(true);
+                          } else {
+                            toast('Aucune pièce jointe', { icon: '📎' });
+                          }
+                        }}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors ${
+                          (task.attachments?.length || 0) > 0 
+                            ? 'bg-sky-50 dark:bg-sky-900/20 text-sky-500 hover:bg-sky-100 dark:hover:bg-sky-900/40 cursor-pointer' 
+                            : 'bg-slate-50 dark:bg-slate-800/50 text-slate-400 cursor-not-allowed'
+                        }`}>
                         <Paperclip className="w-3.5 h-3.5" />
-                        <span className="text-xs font-bold">{task.has_image ? 1 : 0}</span>
-                      </div>
+                        <span className="text-xs font-bold">{task.attachments?.length || 0}</span>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -389,11 +395,33 @@ export default function ChefTasks() {
         )}
       </div>
 
-      {reassigning && (
-        <ReassignModal
-          task={reassigning}
-          onClose={() => setReassigning(null)}
-          onDone={() => { fetchTasks(); setReassigning(null); }}
+      {assigningTask && (
+        <AcceptModal
+          decl={assigningTask as any}
+          agents={agents.filter(a => 
+            !assigningTask.assigned_agents.some(ta => ta.id === a.id) &&
+            a.id !== (assigningTask as any).refusing_agent_id &&
+            a.id !== (assigningTask as any).agent_id
+          )}
+          onClose={() => setAssigningTask(null)}
+          onDone={() => { fetchTasks(); setAssigningTask(null); }}
+        />
+      )}
+
+      {isGalleryOpen && (
+        <ImageGalleryModal 
+          images={selectedTaskImages} 
+          onClose={() => { setIsGalleryOpen(false); setSelectedTaskImages([]); }} 
+        />
+      )}
+
+      {/* Shared Detail Drawer — opens on card click */}
+      {selectedId && (
+        <DetailDrawer
+          declId={selectedId}
+          agents={agents}
+          onClose={() => setSelectedId(null)}
+          onRefreshed={() => { fetchTasks(); setSelectedId(null); }}
         />
       )}
     </ChefLayout>

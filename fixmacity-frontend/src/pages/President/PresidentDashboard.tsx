@@ -73,10 +73,14 @@ const SevBadge = ({ label }: { label: string }) => {
   )
 }
 
-const DatePill = () => {
+const DATE_MAP: Record<string, string> = {
+  "Aujourd'hui": 'today', '7 derniers jours': '7days',
+  'Ce mois-ci': 'month', 'Cette année': 'year', 'Toute la période': 'all'
+}
+const DatePill = ({ onRangeChange }: { onRangeChange: (r: string) => void }) => {
   const [open, setOpen] = useState(false)
   const [range, setRange] = useState('Ce mois-ci')
-  const ranges = ['Aujourd\'hui', '7 derniers jours', 'Ce mois-ci', 'Cette année', 'Toute la période']
+  const ranges = ["Aujourd'hui", '7 derniers jours', 'Ce mois-ci', 'Cette année', 'Toute la période']
 
   return (
     <div className="relative">
@@ -99,7 +103,7 @@ const DatePill = () => {
             {ranges.map(r => (
               <button 
                 key={r}
-                onClick={() => { setRange(r); setOpen(false); }}
+                onClick={() => { setRange(r); setOpen(false); onRangeChange(DATE_MAP[r] || 'month'); }}
                 className={`w-full text-left px-4 py-2 text-[12px] font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${range === r ? 'text-primary dark:text-blue-400 bg-slate-50/50 dark:bg-slate-800/50' : 'text-slate-600 dark:text-slate-300'}`}
               >
                 {r}
@@ -274,8 +278,7 @@ const ZonesCritiques = ({ zones, loading }: { zones: any[]; loading: boolean }) 
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION 3 — Bar chart: tâches créées vs résolues
 // ─────────────────────────────────────────────────────────────────────────────
-const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; loading: boolean }) => {
-  const [selDept, setSelDept] = useState('all')
+const TachesChart = ({ trend, depts, loading, selDept, onDeptChange }: { trend: any[]; depts: any[]; loading: boolean; selDept: string; onDeptChange: (id: string) => void }) => {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -307,12 +310,12 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
             {open && (
               <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
                 className="absolute top-full mt-1 left-0 right-0 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-xl z-20 py-1 overflow-hidden">
-                <button onClick={() => { setSelDept('all'); setOpen(false) }}
+                <button onClick={() => { onDeptChange('all'); setOpen(false) }}
                   className={`w-full text-left px-3 py-2 text-[11px] font-medium transition-colors ${selDept === 'all' ? 'text-green-600 bg-green-50 dark:bg-green-500/10' : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}>
                   Tous les départements
                 </button>
-                {depts.map(d => (
-                  <button key={d.id} onClick={() => { setSelDept(d.id); setOpen(false) }}
+               {depts.map(d => (
+                  <button key={d.id} onClick={() => { onDeptChange(d.id); setOpen(false) }}
                     className={`w-full text-left px-3 py-2 text-[11px] font-medium transition-colors ${selDept === d.id ? 'text-green-600 bg-green-50 dark:bg-green-500/10' : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700'}`}>
                     {d.name_fr || d.name}
                   </button>
@@ -323,7 +326,7 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
         </div>
       </div>
 
-      <div className="flex-1" style={{ minHeight: 170 }}>
+      <div style={{ width: '100%', height: 170 }}>
         {loading ? (
           <div className="flex items-end gap-2 h-full pb-6">
             {[0.55, 0.8, 0.65, 0.9, 1, 0.7].map((h, i) => (
@@ -334,7 +337,7 @@ const TachesChart = ({ trend, depts, loading }: { trend: any[]; depts: any[]; lo
             ))}
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
+          <ResponsiveContainer width="100%" height={170}>
             <BarChart data={trend} margin={{ top: 4, right: 0, left: -26, bottom: 0 }} barCategoryGap="32%">
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 700 }} axisLine={false} tickLine={false} />
@@ -556,6 +559,8 @@ const PresidentDashboard: React.FC = () => {
   const [deptsRaw, setDeptsRaw] = useState<any[]>([])
   const [byStatus, setByStatus] = useState<Record<string, number>>({})
   const [stats, setStats] = useState({ criticalCount: 0, resolvedCount: 0, highSatisfactionCount: 0 })
+  const [selDeptId, setSelDeptId] = useState('all')
+  const [selDateRange, setSelDateRange] = useState('month')
   const [selectedDeclId, setSelectedDeclId] = useState<string | null>(null)
 
   const currentUserId = (() => {
@@ -566,10 +571,15 @@ const PresidentDashboard: React.FC = () => {
     } catch { return undefined }
   })()
 
-  const load = useCallback(async () => {
+const load = useCallback(async (deptId = 'all', dateRange = 'month') => {
     setLoading(true); setError(false)
     try {
-      const res = await fetch(`${API}/president/dashboard`, {
+      const params = new URLSearchParams()
+      if (deptId && deptId !== 'all') params.set('department_id', deptId)
+      if (dateRange && dateRange !== 'all') params.set('range', dateRange)
+      const qs = params.toString() ? '?' + params.toString() : ''
+
+      const res = await fetch(`${API}/president/dashboard${qs}`, {
         headers: { Authorization: `Bearer ${tok()}` }
       })
       if (!res.ok) throw new Error()
@@ -580,7 +590,7 @@ const PresidentDashboard: React.FC = () => {
       setDepts(data.by_department || data.byDepartment || [])
       setByStatus(data.by_status || data.byStatus || {})
       setStats(data.stats || { criticalCount: 0, resolvedCount: 0, highSatisfactionCount: 0 })
-
+      
       const arr = data.by_arrondissement || data.byArrondissement || {}
       const ZONE_NAMES = ['Hôpitaux à proximité', 'Écoles à proximité', 'Marchés publics', 'Centres sportifs', 'Bâtiments administratifs']
       const zonesArr = Object.values(arr)
@@ -605,7 +615,7 @@ const PresidentDashboard: React.FC = () => {
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load(selDeptId, selDateRange) }, [])
 
   const handleExport = async () => {
     try {
@@ -635,12 +645,12 @@ const PresidentDashboard: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <DatePill />
+          <DatePill onRangeChange={(r) => { setSelDateRange(r); load(selDeptId, r); }} />
           <button onClick={handleExport}
             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-[12px] font-bold rounded-xl hover:bg-green-700 transition-colors shadow-sm">
             <Download className="w-3.5 h-3.5" /> Exporter
           </button>
-          <button onClick={load}
+          <button onClick={() => load(selDeptId, selDateRange)}
             className="p-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600 text-gray-400 hover:text-gray-600 transition-colors">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -652,7 +662,7 @@ const PresidentDashboard: React.FC = () => {
         <div className="bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-2xl p-3 flex items-center gap-3">
           <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
           <p className="text-sm font-bold text-red-700 dark:text-red-400 flex-1">Erreur de chargement.</p>
-          <button onClick={load} className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 transition-colors">Réessayer</button>
+          <button onClick={() => load(selDeptId, selDateRange)} className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 transition-colors">Réessayer</button>
         </div>
       )}
 
@@ -685,7 +695,7 @@ const PresidentDashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <TopCritiques data={crucials} loading={loading} onSelectDecl={setSelectedDeclId} />
         <ZonesCritiques zones={zones} loading={loading} />
-        <TachesChart trend={trend} depts={deptsRaw} loading={loading} />
+        <TachesChart trend={trend} depts={deptsRaw} loading={loading} selDept={selDeptId} onDeptChange={(id) => { setSelDeptId(id); load(id, selDateRange); }} />
       </div>
 
       {/* ── Row 2: 2 columns ─────────────────────────────────────────── */}

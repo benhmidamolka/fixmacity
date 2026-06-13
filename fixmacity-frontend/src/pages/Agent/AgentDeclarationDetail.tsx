@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { Declaration, DeclarationStatus, Comment, HistoryEvent, AgentInfo } from '../../types/agent.types';
 import { PriorityBadge, StatusPill, TypeBadge, Avatar, Btn, SectionDivider } from '../ui';
 import { toast } from 'react-hot-toast';
@@ -247,6 +248,15 @@ export default function AgentDeclarationDetail({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Scroll Lock ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    const originalStyle = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalStyle;
+    };
+  }, []);
+
   // ── Fetch ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -314,17 +324,21 @@ export default function AgentDeclarationDetail({
     return () => { cancelled = true; };
   }, [tacheId]);
 
-  if (loading) return (
+  if (loading) return createPortal(
     <>
       {/* Drawer backdrop while loading */}
-      <div className="fixed inset-0 z-[900] bg-slate-950/50 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="fixed top-0 right-0 bottom-0 z-[901] w-[680px] max-w-full bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center">
+      <div className="fixed inset-0 z-[900] bg-slate-950/50 backdrop-blur-[2px]" onClick={(e) => { e.stopPropagation(); onClose(); }} />
+      <div 
+        className="fixed top-0 right-0 bottom-0 z-[901] w-[680px] h-[100dvh] max-w-full bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800 shadow-2xl flex items-center justify-center"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex flex-col items-center gap-4 text-slate-400">
           <Loader2 className="animate-spin text-emerald-500" size={36} />
           <p className="font-bold text-sm text-slate-600 dark:text-slate-300">Chargement de la mission...</p>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 
   if (!decl) return null;
@@ -445,16 +459,19 @@ export default function AgentDeclarationDetail({
   ];
 
   // ── Render ────────────────────────────────────────────────────────────────
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
         className="fixed inset-0 z-[900] bg-slate-950/40 backdrop-blur-[2px] transition-opacity"
-        onClick={onClose}
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
       />
 
       {/* Drawer panel */}
-      <div className="fixed top-0 right-0 bottom-0 z-[901] w-[700px] max-w-full bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800 shadow-2xl flex flex-col">
+      <div 
+        className="fixed top-0 right-0 bottom-0 z-[901] w-[700px] h-[100dvh] max-w-full bg-white dark:bg-slate-900 border-l border-slate-100 dark:border-slate-800 shadow-2xl flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
 
         {/* Drawer top-bar: ref + close */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
@@ -785,6 +802,7 @@ export default function AgentDeclarationDetail({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

@@ -16,9 +16,9 @@ const SOUSSE_PROJECT_IMAGES = [
 ]
 
 // ── Status config ───────────────────────────────────────────────────────────────
-const STATUS_STEPS = ['SOUMISE', 'EN COURS', 'ÉVALUÉ', 'CLÔTURÉ']
+const STATUS_STEPS = ['SOUMISE', 'EN COURS', 'RESOLUE', 'CLOTUREE']
 const STATUS_LABELS: Record<string, string> = {
-  SOUMISE: 'Soumise', 'EN COURS': 'En cours', 'ÉVALUÉ': 'Évalué', 'CLÔTURÉ': 'Clôturé',
+  SOUMISE: 'Soumise', 'EN COURS': 'En cours', RESOLUE: 'Résolue', CLOTUREE: 'Clôturée',
 }
 
 function getStepIndex(status: string) {
@@ -67,7 +67,7 @@ function ActiveSignalCard({ decl, isDark }: { decl: any; isDark: boolean }) {
   const { t } = useTranslation()
   const style = decl.citizen_status === 'EN COURS'
     ? { dot: 'bg-[#1557FF] animate-pulse', badge: 'text-[#1557FF]', label: '● Signalement Actif' }
-    : decl.citizen_status === 'ÉVALUÉ' || decl.citizen_status === 'CLÔTURÉ'
+    : decl.citizen_status === 'RESOLUE' || decl.citizen_status === 'CLOTUREE'
     ? { dot: 'bg-emerald-400', badge: 'text-emerald-500', label: '✓ Résolu' }
     : { dot: 'bg-amber-400 animate-pulse', badge: 'text-amber-500', label: '● En attente' }
 
@@ -115,7 +115,7 @@ function ActiveSignalCard({ decl, isDark }: { decl: any; isDark: boolean }) {
           <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full ${
             decl.citizen_status === 'EN COURS'
               ? 'bg-[#1557FF]/10 text-[#1557FF] border border-[#1557FF]/20'
-              : decl.citizen_status === 'CLÔTURÉ' || decl.citizen_status === 'ÉVALUÉ'
+              : decl.citizen_status === 'CLOTUREE' || decl.citizen_status === 'RESOLUE'
               ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
               : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
           }`}>
@@ -292,7 +292,7 @@ const Dashboard: React.FC = () => {
 
       const closedProps = allProps.filter((p: any) => p.status === 'closed' || p.is_closed)
       const resolvedDecls = allDecls.filter((d: any) =>
-        ['ÉVALUÉ', 'ÉVALUE', 'CLÔTURÉ', 'CLOTUREE', 'RESOLUE'].includes(d.citizen_status)
+        ['RESOLUE', 'CLOTUREE'].includes(d.citizen_status)
       )
 
       if (closedProps.length > 0) {
@@ -335,7 +335,7 @@ const Dashboard: React.FC = () => {
 
   const latest = declarations[0]
   const resolved = declarations.filter(d =>
-    ['RESOLUE', 'CLOTUREE', 'ÉVALUÉ', 'ÉVALUE', 'CLÔTURÉ'].includes(d.citizen_status)
+    ['RESOLUE', 'CLOTUREE'].includes(d.citizen_status)
   )
 
   const scroll = (ref: React.RefObject<HTMLDivElement | null>, dir: 'left' | 'right') => {
@@ -344,8 +344,8 @@ const Dashboard: React.FC = () => {
 
   // Stats
   const statDeposed = declarations.length
-  const statEvalue = declarations.filter(d => d.citizen_status === 'ÉVALUÉ' || d.citizen_status === 'ÉVALUE').length
-  const statCloture = declarations.filter(d => d.citizen_status === 'CLÔTURÉ' || d.citizen_status === 'CLOTUREE').length
+  const statEvalue = declarations.filter(d => d.citizen_status === 'RESOLUE').length
+  const statCloture = declarations.filter(d => d.citizen_status === 'CLOTUREE').length
 
   // Propositions to show (up to 6 in carousel)
   const carouselProps = propositions.length > 0 ? propositions.slice(0, 6) : [
@@ -385,7 +385,7 @@ const Dashboard: React.FC = () => {
             }}
           >
             <StatPill label="Rapports déposés" value={statDeposed} isDark={isDark} />
-            <StatPill label="Signalements à évaluer" value={propositions.length} isDark={isDark} />
+            <StatPill label="Signalements à évaluer" value={statEvalue} isDark={isDark} />
             <div className="flex-1 flex items-center justify-center gap-3 py-3 px-4">
               <span className={`text-xs font-medium whitespace-nowrap ${isDark ? 'text-white/50' : 'text-slate-500'}`}>Signalements clôturés</span>
               <span className={`font-black text-lg ${isDark ? 'text-white' : 'text-[#0a1628]'}`}>{statCloture}</span>

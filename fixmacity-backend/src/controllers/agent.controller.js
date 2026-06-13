@@ -389,10 +389,11 @@ exports.refuseDeclaration = async (req, res) => {
     const { id } = req.params;
     const agentId = req.user.id;
     const deptId = agentScope(req);
-    const raison = (req.body.raison || req.body.reason || '').trim();
+    const { motif, reason, raison } = req.body;
+    const refusalReason = (motif || raison || reason || '').trim();
 
-    if (!raison) {
-      return res.status(400).json({ error: 'Le motif de refus est obligatoire.' });
+    if (!refusalReason || refusalReason.length < 10) {
+      return res.status(400).json({ error: 'Le motif de refus est obligatoire' });
     }
 
     const { data: decl, error: fetchErr } = await supabase
@@ -418,7 +419,7 @@ exports.refuseDeclaration = async (req, res) => {
 
     if (updateErr) throw updateErr;
 
-    await logStatusChange(id, 'assignee_agent', 'refusee_agent', agentId, raison);
+    await logStatusChange(id, 'assignee_agent', 'refusee_agent', agentId, refusalReason);
     if (decl.citizen_id) {
       await notifyStatusChange(req.app, decl, decl.citizen_id, 'refusee_agent');
     }
@@ -430,7 +431,7 @@ exports.refuseDeclaration = async (req, res) => {
       chefEmit(`dept_${req.user.department_id}`, {
         type: 'DECLARATION_REFUSED_BY_AGENT',
         title: 'Mission refusée par un agent',
-        body: `${decl.ref_citoyen} — Motif : ${raison}`,
+        body: `${decl.ref_citoyen} — Motif : ${refusalReason}`,
         declarationId: id,
       });
     }
