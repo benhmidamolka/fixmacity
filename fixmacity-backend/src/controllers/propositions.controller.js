@@ -6,17 +6,31 @@ const { validationResult } = require('express-validator');
 /* ──────────── POST /api/propositions ──────────── */
 exports.createProposition = async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, category, location } = req.body;
 
-    if (!title || title.trim().length < 3) {
-      return res.status(400).json({ error: 'Un titre valide (3 caractères min) est requis pour votre suggestion.' });
+    // ── Required field validation (fail-fast, ordered) ──
+    const REQUIRED = [
+      { key: 'title',       val: title,       label: 'Titre' },
+      { key: 'description', val: description, label: 'Description' },
+      { key: 'category',    val: category,    label: 'Catégorie' },
+    ];
+    for (const { key, val, label } of REQUIRED) {
+      if (!val || !String(val).trim()) {
+        return res.status(400).json({ error: `Le champ '${label}' est obligatoire.`, field: key });
+      }
+    }
+    if (String(title).trim().length < 3) {
+      return res.status(400).json({ error: 'Le titre doit contenir au moins 3 caractères.', field: 'title' });
     }
 
     const { data: proposition, error } = await supabase.from('propositions').insert({
-      title: title.trim(),
-      description: description ? description.trim() : null,
-      created_by: req.user.id,
-      status: 'active'
+      title:       String(title).trim(),
+      description: String(description).trim(),
+      category:    String(category).trim(),
+      location:    location ? String(location).trim() : null,
+      type:        'citizen',
+      created_by:  req.user.id,
+      status:      'en_attente',
     }).select('*').single();
 
     if (error) {

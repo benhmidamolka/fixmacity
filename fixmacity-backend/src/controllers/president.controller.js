@@ -949,11 +949,11 @@ exports.createUser = async (req, res) => {
     const useForce = force === true || confirm_replacement === true;
 
     if (role === 'chef' && department_id) {
+      // Rule 2: query users directly by role+department_id — no dependency on services.chef_id accuracy
       const chefConflict = await client.query(
-        `SELECT u.id, u.first_name AS prenom, u.last_name AS nom, u.email
-         FROM services s
-         JOIN users u ON u.id = s.chef_id
-         WHERE s.id = $1 AND s.is_active = true AND u.is_active = true`,
+        `SELECT id, first_name AS prenom, last_name AS nom, email
+         FROM users
+         WHERE role = 'chef' AND department_id = $1 AND is_active = true`,
         [department_id]
       );
 
@@ -975,7 +975,8 @@ exports.createUser = async (req, res) => {
       if (chefConflict.rows.length > 0 && useForce) {
         const oldChefId = chefConflict.rows[0].id;
         await client.query('UPDATE users    SET is_active = false, department_id = NULL, updated_at = NOW() WHERE id = $1', [oldChefId]);
-        await client.query('UPDATE services SET chef_id = NULL WHERE id = $1', [department_id]);
+        await client.query('UPDATE services SET chef_id = NULL WHERE id = $1', [department_id]);          // clear by department
+        await client.query('UPDATE services SET chef_id = NULL WHERE chef_id = $1', [oldChefId]);         // defensive: clear any stale refs pointing at old chef
       }
     }
 
@@ -1049,10 +1050,50 @@ exports.updateUser = async (req, res) => {
 
     const finalRole = role !== undefined ? role : currentUser.role;
     
-    // Bug Fix 3: Strict "One Department per Chief" rule
-    if (department_id !== undefined && department_id !== null && department_id !== currentUser.department_id) {
-      if (finalRole === 'chef' && currentUser.department_id !== null) {
-        return res.status(400).json({ error: 'Ce chef de service est déjà affecté à un autre département.' });
+    // ── Rule 2: department already has active chef (reassignment conflict) ──
+    const isChefDeptChange =
+      finalRole === 'chef' &&
+      department_id !== undefined &&
+      department_id !== null &&
+      department_id !== currentUser.department_id;
+
+    const useForce = req.body.force === true || req.body.confirm_replacement === true;
+    let oldChefToDeactivate = null; // will be set if confirm_replacement applies
+
+    if (isChefDeptChange) {
+      // Rule 2: query users directly — no dependency on services.chef_id accuracy; exclude self (AND id != $2)
+      const conflictRes = await supabase.pool.query(
+        `SELECT id, first_name, last_name, email
+         FROM users
+         WHERE role = 'chef' AND department_id = $1 AND is_active = true AND id != $2`,
+        [department_id, id]
+      );
+      const conflictUser = conflictRes.rows[0] || null;
+
+      if (conflictUser) {
+        // Another active chef is already on this department
+        if (!useForce) {
+          return res.status(409).json({
+            success: false,
+            error_code: 'DEPARTMENT_ALREADY_HAS_CHIEF',
+            error: 'Ce département possède déjà un chef de service actif.',
+            conflictType: 'DEPT_HAS_CHEF',
+            message_fr: 'Ce département possède déjà un chef de service actif. Veuillez choisir un autre département ou confirmer le remplacement.',
+            existing_chef: {
+              id:    conflictUser.id,
+              name:  `${conflictUser.first_name} ${conflictUser.last_name}`,
+              email: conflictUser.email,
+            },
+            existingChef: {
+              id:     conflictUser.id,
+              prenom: conflictUser.first_name,
+              nom:    conflictUser.last_name,
+              email:  conflictUser.email,
+            },
+          });
+        }
+        // confirm_replacement=true: mark old chef for deactivation after update succeeds
+        oldChefToDeactivate = conflictUser.id;
       }
     }
 
@@ -1100,6 +1141,41 @@ exports.updateUser = async (req, res) => {
     if (error) {
       console.error('[President] UpdateUser error:', error.message);
       return res.status(500).json({ error: 'Erreur lors de la mise à jour.' });
+    }
+
+    // ── Post-update: sync services.chef_id ───────────────────────────────────
+    try {
+      const updatedRole      = user.role;
+      const updatedIsActive  = user.is_active;
+      const updatedDeptId    = user.department_id;
+      const becomingInactive = updates.is_active === false;
+      const losingChefRole   = role !== undefined && role !== 'chef' && currentUser.role === 'chef';
+
+      if (becomingInactive || losingChefRole) {
+        // Clear this user from any service they were chef of
+        await supabase.from('services').update({ chef_id: null }).eq('chef_id', id);
+      } else if (updatedRole === 'chef' && updatedIsActive) {
+        if (isChefDeptChange || (department_id !== undefined && department_id !== currentUser.department_id)) {
+          // Remove from old service
+          await supabase.from('services').update({ chef_id: null }).eq('chef_id', id);
+          // Set on new service
+          if (updatedDeptId) {
+            await supabase.from('services').update({ chef_id: id }).eq('id', updatedDeptId);
+          }
+        }
+      }
+
+      // Deactivate displaced old chef (confirm_replacement flow)
+      if (oldChefToDeactivate) {
+        await supabase
+          .from('users')
+          .update({ is_active: false, department_id: null, updated_at: new Date().toISOString() })
+          .eq('id', oldChefToDeactivate);
+        // Defensive cleanup: clear any stale services.chef_id pointing at the deactivated chef
+        await supabase.from('services').update({ chef_id: null }).eq('chef_id', oldChefToDeactivate);
+      }
+    } catch (syncErr) {
+      console.warn('[President] updateUser services sync warning:', syncErr.message);
     }
 
     return res.status(200).json({ user, success: true });
@@ -1913,27 +1989,61 @@ exports.createDepartment = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const { name_fr, name_ar, name_en, code, description, icon, chef_name, date_de_creation } = req.body;
+    // date_de_creation from client is intentionally ignored (Rule C — always set server-side)
+    const { name_fr, name_ar, name_en, code, description, icon, chef_name } = req.body;
 
-    const { data: existing } = await supabase
+    // ── Rule A: required field validation — fail-fast, ordered: Nom → Description → Icône → Code ──
+    if (!name_fr || !String(name_fr).trim()) {
+      return res.status(400).json({ error: "L'information 'Nom' est manquante." });
+    }
+    if (!description || !String(description).trim()) {
+      return res.status(400).json({ error: "L'information 'Description' est manquante." });
+    }
+    if (!icon || !String(icon).trim()) {
+      return res.status(400).json({ error: "L'information 'Icône' est manquante." });
+    }
+    if (!code || !String(code).trim()) {
+      return res.status(400).json({ error: "L'information 'Code' est manquante." });
+    }
+    if (String(code).trim().length > 3) {
+      return res.status(400).json({ error: 'Le code ne doit pas dépasser 3 caractères.' });
+    }
+
+    // ── Rule B: duplicate name detection — normalized substring containment ──
+    const normalize = (s) =>
+      s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
+    const normalizedNew = normalize(String(name_fr));
+
+    const { data: allServices } = await supabase.from('services').select('name_fr');
+    const isDupe = (allServices || []).some((s) => {
+      if (!s.name_fr) return false;
+      const n = normalize(s.name_fr);
+      return normalizedNew.includes(n) || n.includes(normalizedNew);
+    });
+    if (isDupe) {
+      return res.status(409).json({ error: 'Un service portant ce nom existe déjà.' });
+    }
+
+    // Code uniqueness check
+    const { data: existingCode } = await supabase
       .from('services')
       .select('id')
       .eq('code', code.toUpperCase().trim())
       .maybeSingle();
+    if (existingCode) return res.status(409).json({ error: 'Ce code de département existe déjà.' });
 
-    if (existing) return res.status(409).json({ error: 'Ce code de département existe déjà.' });
-
+    // ── Rule C: date_de_creation always set server-side (client value ignored) ──
     const { data: dept, error } = await supabase
       .from('services')
       .insert({
-        name_fr: name_fr.trim(),
+        name_fr: String(name_fr).trim(),
         name_ar: name_ar?.trim() || null,
         name_en: name_en?.trim() || null,
         code: code.toUpperCase().trim(),
-        description: description?.trim() || null,
-        icon: icon || '🏢',
+        description: String(description).trim(),
+        icon: String(icon).trim() || '🏢',
         chef_name: chef_name?.trim() || null,
-        date_de_creation: date_de_creation || null,
+        date_de_creation: new Date().toISOString(), // always server-side NOW()
         is_active: true,
       })
       .select('*')

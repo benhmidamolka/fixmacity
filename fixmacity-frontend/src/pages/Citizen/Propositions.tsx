@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { X, ThumbsUp, ThumbsDown, Clock, Share2, Link as LinkIcon, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { X, ThumbsUp, ThumbsDown, Clock, Share2, Link as LinkIcon, AlertCircle, CheckCircle2, Loader2, Send, MapPin } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import CitizenLayout from '../../components/citizen/CitizenLayout'
 
@@ -50,6 +50,138 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string; dot: string }>
 }
 
 const TABS = ['Tous les projets', 'En cours de vote', 'Mes votes']
+
+const SUGGESTION_CATEGORIES = [
+  'Voirie & Routes',
+  'Éclairage Public',
+  'Propreté & Déchets',
+  'Espaces Verts',
+  'Réseaux & Drainage',
+  'Signalisation Routière',
+  'Administratif',
+  'Suggestions',
+]
+
+// ─── Suggestion Modal (citizen → president) ────────────────────────────────────
+function SuggestionModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const token = localStorage.getItem('fmc_token')
+  const [form, setForm] = React.useState({ title: '', description: '', category: '', location: '' })
+  const [saving, setSaving] = React.useState(false)
+  const [err, setErr]       = React.useState('')
+
+  const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }))
+
+  const submit = async () => {
+    if (!form.title.trim())       { setErr("Le champ 'Titre' est obligatoire."); return }
+    if (form.title.trim().length < 3) { setErr('Le titre doit contenir au moins 3 caractères.'); return }
+    if (!form.description.trim()) { setErr("Le champ 'Description' est obligatoire."); return }
+    if (!form.category)           { setErr("Le champ 'Catégorie' est obligatoire."); return }
+
+    setSaving(true); setErr('')
+    try {
+      const res = await fetch(`${API}/propositions`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({
+          title:       form.title.trim(),
+          description: form.description.trim(),
+          category:    form.category,
+          location:    form.location.trim() || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setErr(data.error || 'Erreur lors de l\'envoi.'); setSaving(false); return }
+      onSuccess()
+    } catch { setErr('Erreur serveur. Veuillez réessayer.'); setSaving(false) }
+  }
+
+  const inputCls = "w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-[#0A1628] dark:text-white outline-none focus:border-[#F59E0B] focus:ring-4 focus:ring-amber-400/10 transition-all bg-white dark:bg-slate-900 placeholder:text-slate-300 dark:placeholder:text-slate-600"
+
+  return (
+    <div className="fixed inset-0 z-[130] flex items-center justify-center p-4"
+      style={{ background: 'rgba(10,22,40,0.65)', backdropFilter: 'blur(6px)' }}
+      onClick={onClose}>
+      <div className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 dark:border-slate-800"
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-7 pt-7 pb-5 border-b border-slate-100 dark:border-slate-800">
+          <div>
+            <h2 className="text-xl font-bold text-[#0A1628] dark:text-white">💡 Nouvelle suggestion</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Votre idée sera soumise au Président Municipal</p>
+          </div>
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+            <X className="w-4 h-4 text-slate-500" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-7 py-6 space-y-5">
+          {err && (
+            <div className="flex items-center gap-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 text-red-600 dark:text-red-400 text-xs font-bold px-4 py-3 rounded-xl">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />{err}
+            </div>
+          )}
+
+          {/* Titre */}
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
+              Titre <span className="text-red-400">*</span>
+            </label>
+            <input className={inputCls} value={form.title}
+              onChange={e => set('title', e.target.value)}
+              placeholder="Ex: Amélioration de l'éclairage au quartier Khezama" />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
+              Description <span className="text-red-400">*</span>
+            </label>
+            <textarea className={`${inputCls} resize-none h-28`} value={form.description}
+              onChange={e => set('description', e.target.value)}
+              placeholder="Décrivez votre proposition en détail…" />
+          </div>
+
+          {/* Catégorie */}
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
+              Catégorie <span className="text-red-400">*</span>
+            </label>
+            <select className={`${inputCls} cursor-pointer`} value={form.category}
+              onChange={e => set('category', e.target.value)}>
+              <option value="">— Choisir une catégorie —</option>
+              {SUGGESTION_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          {/* Localisation (optional) */}
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 flex items-center gap-1.5">
+              <MapPin className="w-3 h-3" /> Localisation <span className="text-slate-300 font-medium normal-case tracking-normal">(optionnel)</span>
+            </label>
+            <input className={inputCls} value={form.location}
+              onChange={e => set('location', e.target.value)}
+              placeholder="Ex: Avenue Léopold Sédar Senghor, Khezama" />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 px-7 pb-7">
+          <button onClick={onClose}
+            className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+            Annuler
+          </button>
+          <button onClick={submit} disabled={saving}
+            className="flex-[1.5] py-3 rounded-xl bg-[#F59E0B] hover:bg-amber-500 disabled:opacity-50 text-xs font-black uppercase tracking-widest text-white flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-400/25">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Envoyer
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ─── Proposition Modal ────────────────────────────────────────────────────────
 function PropositionModal({
@@ -293,11 +425,12 @@ const enrichPropositions = (arr: any[], mockProps: any[]) => {
 const Propositions: React.FC = () => {
   const { t } = useTranslation();
   const TABS = [t("propositions.tabs.all"), t("propositions.tabs.municipal"), t("propositions.tabs.voted")];
-  const [props, setProps]       = useState<any[]>([])
-  const [activeTab, setActiveTab] = useState(0)
+  const [props, setProps]          = useState<any[]>([])
+  const [activeTab, setActiveTab]  = useState(0)
   const [selectedCategory, setSelectedCategory] = useState('all')
-  const [selected, setSelected]   = useState<any>(null)
-  const [toast, setToast]         = useState<{ message: string; type: 'error' | 'success' } | null>(null)
+  const [selected, setSelected]    = useState<any>(null)
+  const [showSuggestion, setShowSuggestion] = useState(false)
+  const [toast, setToast]          = useState<{ message: string; type: 'error' | 'success' } | null>(null)
   const token = localStorage.getItem('fmc_token')
   const propsFromAPI = React.useRef(false);
 
@@ -421,7 +554,8 @@ const Propositions: React.FC = () => {
             <h1 className="text-3xl font-bold text-[#0A1628] dark:text-white">{t('propositions.presidentProposals')}</h1>
             <p className="text-slate-500 dark:text-slate-400 mt-1">{t('propositions.presidentSubtitle')}</p>
           </div>
-          <button className="flex-shrink-0 flex items-center gap-2 bg-[#F59E0B] hover:bg-amber-500 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all shadow-sm">
+          <button onClick={() => setShowSuggestion(true)}
+            className="flex-shrink-0 flex items-center gap-2 bg-[#F59E0B] hover:bg-amber-500 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all shadow-sm">
             💡 Suggérer une proposition
           </button>
         </div>
@@ -476,12 +610,23 @@ const Propositions: React.FC = () => {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Proposition detail modal */}
       {selected && (
         <PropositionModal
           prop={selected}
           onClose={() => setSelected(null)}
           onVote={handleVote}
+        />
+      )}
+
+      {/* Suggestion submission modal */}
+      {showSuggestion && (
+        <SuggestionModal
+          onClose={() => setShowSuggestion(false)}
+          onSuccess={() => {
+            setShowSuggestion(false)
+            setToast({ message: 'Suggestion envoyée au Président ✓', type: 'success' })
+          }}
         />
       )}
       {/* Toast Notification */}
