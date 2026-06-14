@@ -47,6 +47,8 @@ router.get('/declarations/:id/priority-score', ctrl.getPriorityScore);
 
 // ── Agents ───────────────────────────────────────────────────────────────────
 router.get('/agents',                     ctrl.listAgents);
+router.post('/agents',                    ctrl.addAgent);
+router.put('/agents/:id',                 ctrl.updateAgent);
 router.patch('/agents/:id/deactivate',    ctrl.deactivateAgent);
 
 // ── Dashboard & Export ────────────────────────────────────────────────────────
