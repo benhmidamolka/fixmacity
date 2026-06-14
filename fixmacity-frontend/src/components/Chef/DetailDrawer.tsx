@@ -694,9 +694,19 @@ export function DetailDrawer({ declId, agents, onClose, onRefreshed }: DetailDra
                 </div>
                 <div className="aspect-video bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                   {photoAvant ? (
-                    <img src={photoAvant.url} alt="Avant" className="w-full h-full object-cover cursor-zoom-in"
-                      onClick={(e) => { e.stopPropagation(); window.open(photoAvant.url, '_blank'); }}
-                      onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400/1e293b/475569?text=Image+Introuvable' }} />
+                    <>
+                      <img src={photoAvant.url} alt="Avant" className="w-full h-full object-cover cursor-zoom-in"
+                        onClick={(e) => { e.stopPropagation(); window.open(photoAvant.url, '_blank'); }}
+                        onError={(e) => { 
+                          const target = e.currentTarget;
+                          target.style.display = 'none';
+                          target.nextElementSibling?.classList.remove('hidden');
+                        }} />
+                      <div className="hidden flex-col items-center justify-center gap-2 text-slate-400 w-full h-full">
+                        <ImageIcon size={28} className="text-slate-300" />
+                        <p className="text-xs font-bold">Image introuvable</p>
+                      </div>
+                    </>
                   ) : (
                     <div className="flex flex-col items-center gap-2 text-slate-400">
                       <ImageIcon size={28} className="text-slate-300" />
@@ -715,10 +725,18 @@ export function DetailDrawer({ declId, agents, onClose, onRefreshed }: DetailDra
                 {photosApres.length > 0 ? (
                   <div className="grid grid-cols-2 gap-0.5">
                     {photosApres.map((p: any, i: number) => (
-                      <div key={p.id || i} className="aspect-video bg-slate-100 dark:bg-slate-800 overflow-hidden relative">
+                      <div key={p.id || i} className="aspect-video bg-slate-100 dark:bg-slate-800 overflow-hidden relative flex items-center justify-center">
                         <img src={p.url} alt={`Après ${i + 1}`} className="w-full h-full object-cover cursor-zoom-in"
                           onClick={(e) => { e.stopPropagation(); window.open(p.url, '_blank'); }}
-                          onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400/1e293b/475569?text=Image+Introuvable' }} />
+                          onError={(e) => { 
+                            const target = e.currentTarget;
+                            target.style.display = 'none';
+                            target.nextElementSibling?.classList.remove('hidden');
+                          }} />
+                        <div className="hidden flex-col items-center justify-center gap-2 text-slate-400 w-full h-full">
+                          <ImageIcon size={28} className="text-slate-300" />
+                          <p className="text-[10px] font-bold">Image introuvable</p>
+                        </div>
                         <div className="absolute bottom-2 left-2 bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">
                           ✓ Après {i + 1}
                         </div>
@@ -751,10 +769,18 @@ export function DetailDrawer({ declId, agents, onClose, onRefreshed }: DetailDra
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-[.18em] mb-3">Autres documents joints</p>
                   <div className="grid grid-cols-3 gap-2">
                     {photos.filter(p => p.photo_type !== 'photo_avant' && p.photo_type !== 'photo_apres').map((p: any, i: number) => (
-                      <div key={p.id || i} className="aspect-square rounded-2xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                      <div key={p.id || i} className="aspect-square rounded-2xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity bg-slate-100 dark:bg-slate-800 flex items-center justify-center"
                         onClick={(e) => { e.stopPropagation(); window.open(p.url, '_blank'); }}>
                         <img src={p.url} alt="" className="w-full h-full object-cover"
-                          onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400/1e293b/475569?text=Image+Introuvable' }} />
+                          onError={(e) => { 
+                            const target = e.currentTarget;
+                            target.style.display = 'none';
+                            target.nextElementSibling?.classList.remove('hidden');
+                          }} />
+                        <div className="hidden flex-col items-center justify-center gap-2 text-slate-400 w-full h-full">
+                          <ImageIcon size={24} className="text-slate-300" />
+                          <p className="text-[10px] font-bold text-center px-1">Introuvable</p>
+                        </div>
                       </div>
                     ))}
                   </div>

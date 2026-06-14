@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import ChefLayout from '../../layouts/ChefLayout';
 import { Paperclip, Plus, X, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
-import { AcceptModal, DetailDrawer } from '../../components/Chef/DetailDrawer';
+import { DetailDrawer } from '../../components/Chef/DetailDrawer';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5005/api';
 const tok = () => localStorage.getItem('fmc_token') || '';
@@ -33,7 +33,7 @@ const statusCfg = (s: Task['status']) => {
   const map = {
     todo:        { border: 'border-l-purple-500', bg: 'bg-purple-50 dark:bg-purple-500/10', text: 'text-purple-600 dark:text-purple-400', label: 'En attente' },
     in_progress: { border: 'border-l-blue-600',   bg: 'bg-blue-50 dark:bg-blue-500/10',     text: 'text-blue-600 dark:text-blue-400',     label: 'En cours' },
-    evaluee:     { border: 'border-l-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', label: 'Évaluée' },
+    evaluee:     { border: 'border-l-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', label: 'Résolue' },
     cloturee:    { border: 'border-l-slate-500',   bg: 'bg-slate-100 dark:bg-slate-800',     text: 'text-slate-600 dark:text-slate-400',   label: 'Clôturée' },
     rejected:    { border: 'border-l-red-500',     bg: 'bg-red-50 dark:bg-red-500/10',       text: 'text-red-600 dark:text-red-400',       label: 'Rejetée par Agent' },
   };
@@ -91,6 +91,86 @@ function ImageGalleryModal({ images, onClose }: { images: string[]; onClose: () 
   );
 }
 
+// ── Add Agent Modal ────────────────────────────────────────────────────────
+function AddAgentModal({ decl, agents, onClose, onDone }: {
+  decl: Task; agents: any[]; onClose: () => void; onDone: () => void
+}) {
+  const [agentIds, setAgentIds] = useState<string[]>(decl.assigned_agents.map(a => a.id));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const maxTasks = parseInt(localStorage.getItem('fmc_max_tasks') || '5');
+  const active = agents.filter(a => a.is_active);
+
+  const toggle = (id: string) =>
+    setAgentIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const go = async () => {
+    if (agentIds.length === 0) { setError('Sélectionnez au moins un agent.'); return; }
+    setLoading(true); setError(null);
+    const res = await fetch(`${API_URL}/chef/declarations/${decl.id}/assign-agents`, {
+      method: 'POST', headers: jsonH(), body: JSON.stringify({ agent_ids: agentIds })
+    }).catch(() => null);
+    if (!res) { setLoading(false); setError('Erreur réseau.'); return; }
+    const d = await res.json();
+    if (!res.ok) { setLoading(false); setError(d.error || 'Erreur.'); return; }
+    setTimeout(() => { onDone(); onClose(); }, 400);
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800">
+          <h2 className="text-lg font-black text-[#0A1628] dark:text-white">Assigner des agents</h2>
+          <p className="text-xs text-slate-500 mt-1">Sélectionnez les agents pour cette mission</p>
+        </div>
+        
+        <div className="p-6 max-h-[60vh] overflow-y-auto space-y-2">
+          {active.length === 0 ? (
+            <p className="text-sm text-center text-slate-500">Aucun agent actif.</p>
+          ) : active.map(a => {
+             const sel = agentIds.includes(a.id);
+             const over = a.workload >= maxTasks;
+             return (
+               <div key={a.id} onClick={() => toggle(a.id)}
+                 className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                   sel ? 'border-[#1557FF] bg-blue-50/50 dark:bg-blue-900/10' : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700'
+                 }`}>
+                 <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300">
+                     {a.first_name[0]}{a.last_name[0]}
+                   </div>
+                   <div>
+                     <p className="text-sm font-bold text-[#0A1628] dark:text-white">{a.first_name} {a.last_name}</p>
+                     <p className="text-[10px] font-bold text-slate-400">
+                       <span className={over ? 'text-red-500' : 'text-[#1557FF]'}>{a.workload}</span> / {maxTasks} tâches actives
+                     </p>
+                   </div>
+                 </div>
+                 <div className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${
+                   sel ? 'bg-[#1557FF] text-white border-[#1557FF]' : 'border-2 border-slate-200 dark:border-slate-700'
+                 }`}>
+                   {sel && <CheckCircle2 className="w-3.5 h-3.5" />}
+                 </div>
+               </div>
+             )
+          })}
+          {error && <p className="text-xs text-red-500 font-bold text-center mt-4">{error}</p>}
+        </div>
+
+        <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+          <button onClick={onClose} className="flex-1 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors">
+            Annuler
+          </button>
+          <button onClick={go} disabled={loading} className="flex-1 py-3 text-sm font-bold text-white bg-[#1557FF] hover:bg-blue-600 rounded-xl transition-colors disabled:opacity-50 flex justify-center items-center">
+            {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Confirmer'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function ChefTasks() {
   const navigate = useNavigate();
@@ -98,7 +178,7 @@ export default function ChefTasks() {
   const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'Tous' | 'En attente' | 'En cours' | 'Évaluée' | 'Clôturée' | 'Rejetée'>('Tous');
+  const [filter, setFilter] = useState<'Tous' | 'En attente' | 'En cours' | 'Résolue' | 'Clôturée' | 'Rejetée'>('Tous');
   const [assigningTask, setAssigningTask] = useState<Task | null>(null);
   
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
@@ -162,7 +242,7 @@ export default function ChefTasks() {
     Tous: tasks.length,
     'En attente': tasks.filter(t => t.status === 'todo').length,
     'En cours':   tasks.filter(t => t.status === 'in_progress').length,
-    'Évaluée':    tasks.filter(t => t.status === 'evaluee').length,
+    'Résolue':    tasks.filter(t => t.status === 'evaluee').length,
     'Clôturée':   tasks.filter(t => t.status === 'cloturee').length,
     'Rejetée':    tasks.filter(t => t.status === 'rejected').length,
   };
@@ -171,7 +251,7 @@ export default function ChefTasks() {
     if (filter === 'Tous')       return true;
     if (filter === 'En attente') return t.status === 'todo';
     if (filter === 'En cours')   return t.status === 'in_progress';
-    if (filter === 'Évaluée')    return t.status === 'evaluee';
+    if (filter === 'Résolue')    return t.status === 'evaluee';
     if (filter === 'Clôturée')   return t.status === 'cloturee';
     if (filter === 'Rejetée')    return t.status === 'rejected';
     return true;
@@ -189,7 +269,7 @@ export default function ChefTasks() {
           <h1 className="text-3xl font-black text-[#0A1628] dark:text-white tracking-tight">Mes Missions</h1>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 w-full lg:w-auto">
             <div className="flex items-center gap-1 flex-wrap">
-              {(['Tous', 'En attente', 'En cours', 'Évaluée', 'Clôturée', 'Rejetée'] as const).map(tab => (
+              {(['Tous', 'En attente', 'En cours', 'Résolue', 'Clôturée', 'Rejetée'] as const).map(tab => (
                 <button key={tab} onClick={() => setFilter(tab)}
                   className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-all ${
                     filter === tab ? 'border-[#1557FF] text-[#1557FF]' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -272,7 +352,7 @@ export default function ChefTasks() {
                         if (status === 'cloturee') return 3;
                         return 0;
                       };
-                      const TASK_STEPS = ['En attente', 'En cours', 'Évaluée', 'Clôturée'];
+                      const TASK_STEPS = ['En attente', 'En cours', 'Résolue', 'Clôturée'];
                       const cur = getTaskStepIndex(task.rawStatus);
                       const isRefused = cur === -1;
 
@@ -337,55 +417,59 @@ export default function ChefTasks() {
                   </div>
 
                   {/* Bottom row */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex -space-x-2 mr-2">
-                        {task.assigned_agents.slice(0, 3).map((a, i) => (
-                          <div key={a.id} className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
-                            style={{ zIndex: 10 - i, backgroundColor: AGENT_COLORS[i % AGENT_COLORS.length] }} title={`${a.first_name} ${a.last_name}`}>
-                            {a.first_name[0]}{a.last_name[0]}
+                  <div className="flex items-center justify-between w-full">
+                    {!isRejected ? (
+                      <>
+                        <div className="flex items-center">
+                          <div className="flex -space-x-2 mr-2">
+                            {task.assigned_agents.slice(0, 3).map((a, i) => (
+                              <div key={a.id} className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
+                                style={{ zIndex: 10 - i, backgroundColor: AGENT_COLORS[i % AGENT_COLORS.length] }} title={`${a.first_name} ${a.last_name}`}>
+                                {a.first_name[0]}{a.last_name[0]}
+                              </div>
+                            ))}
+                            {task.assigned_agents.length > 3 && (
+                              <div className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500 shadow-sm" style={{ zIndex: 6 }}>
+                                +{task.assigned_agents.length - 3}
+                              </div>
+                            )}
                           </div>
-                        ))}
-                        {task.assigned_agents.length > 3 && (
-                          <div className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500 shadow-sm" style={{ zIndex: 6 }}>
-                            +{task.assigned_agents.length - 3}
-                          </div>
-                        )}
-                      </div>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); openAssignModal(task); }} 
-                        className="w-8 h-8 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 hover:border-[#1557FF] hover:text-[#1557FF] transition-colors" 
-                        title="Assigner un agent">
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); openAssignModal(task); }} 
+                            className="w-8 h-8 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center bg-slate-50 dark:bg-slate-800/50 hover:border-[#1557FF] hover:text-[#1557FF] transition-colors" 
+                            title="Assigner un agent">
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
 
-                    {isRejected ? (
-                      <button
-                        onClick={e => { e.stopPropagation(); openAssignModal(task); }}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-black shadow transition-all">
-                        <RefreshCw className="w-3.5 h-3.5" /> Réassigner
-                      </button>
+                        <button 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            const atts = task.attachments || [];
+                            if (atts.length > 0) {
+                              setSelectedTaskImages(atts);
+                              setIsGalleryOpen(true);
+                            } else {
+                              toast('Aucune pièce jointe', { icon: '📎' });
+                            }
+                          }}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors ${
+                            (task.attachments?.length || 0) > 0 
+                              ? 'bg-sky-50 dark:bg-sky-900/20 text-sky-500 hover:bg-sky-100 dark:hover:bg-sky-900/40 cursor-pointer' 
+                              : 'bg-slate-50 dark:bg-slate-800/50 text-slate-400 cursor-not-allowed'
+                          }`}>
+                          <Paperclip className="w-3.5 h-3.5" />
+                          <span className="text-xs font-bold">{task.attachments?.length || 0}</span>
+                        </button>
+                      </>
                     ) : (
-                      <button 
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          const atts = task.attachments || [];
-                          if (atts.length > 0) {
-                            setSelectedTaskImages(atts);
-                            setIsGalleryOpen(true);
-                          } else {
-                            toast('Aucune pièce jointe', { icon: '📎' });
-                          }
-                        }}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors ${
-                          (task.attachments?.length || 0) > 0 
-                            ? 'bg-sky-50 dark:bg-sky-900/20 text-sky-500 hover:bg-sky-100 dark:hover:bg-sky-900/40 cursor-pointer' 
-                            : 'bg-slate-50 dark:bg-slate-800/50 text-slate-400 cursor-not-allowed'
-                        }`}>
-                        <Paperclip className="w-3.5 h-3.5" />
-                        <span className="text-xs font-bold">{task.attachments?.length || 0}</span>
-                      </button>
+                      <div className="flex justify-end w-full">
+                        <button
+                          onClick={e => { e.stopPropagation(); openAssignModal(task); }}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-black shadow transition-all">
+                          <RefreshCw className="w-3.5 h-3.5" /> Réassigner
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -396,13 +480,9 @@ export default function ChefTasks() {
       </div>
 
       {assigningTask && (
-        <AcceptModal
-          decl={assigningTask as any}
-          agents={agents.filter(a => 
-            !assigningTask.assigned_agents.some(ta => ta.id === a.id) &&
-            a.id !== (assigningTask as any).refusing_agent_id &&
-            a.id !== (assigningTask as any).agent_id
-          )}
+        <AddAgentModal
+          decl={assigningTask}
+          agents={agents}
           onClose={() => setAssigningTask(null)}
           onDone={() => { fetchTasks(); setAssigningTask(null); }}
         />
