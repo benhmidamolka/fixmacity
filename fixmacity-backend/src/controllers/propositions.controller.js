@@ -30,7 +30,7 @@ exports.createProposition = async (req, res) => {
       location:    location ? String(location).trim() : null,
       type:        'citizen',
       created_by:  req.user.id,
-      status:      'en_attente',
+      status:      'active',
     }).select('*').single();
 
     if (error) {

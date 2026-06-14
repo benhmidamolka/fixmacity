@@ -112,6 +112,7 @@ router.delete('/propositions/:id', ctrl.deleteProposition);
 // existing ↓
 router.post('/propositions/:id/confirmer', ctrl.confirmProposition);
 router.post('/propositions/:id/retenu', ctrl.retainProposition);
+router.patch('/propositions/:id/decide', ctrl.decideProposition);
 router.get('/propositions/:id/summary', ctrl.getPropositionSummary);
 router.patch('/propositions/:id/respond', [
   body('status').isIn(['a_discuter', 'retenu', 'refuse']).withMessage('Statut invalide.'),

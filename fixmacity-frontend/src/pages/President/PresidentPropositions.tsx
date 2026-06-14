@@ -57,14 +57,17 @@ interface Prop {
 const CATEGORIES = ['Voirie', 'Éclairage public', 'Propreté', 'Espaces Verts', 'Réseaux', 'Signalisation', 'Général']
 
 const STATUS_LABEL: Record<string, string> = {
-  active: 'Actif', closed: 'Clôturé', draft: 'Brouillon',
+  active:     'Non traitée',
+  closed:     'Clôturée',
+  draft:      'Brouillon',
+  Confirmer:  'Confirmée',
+  Retenu:     'Retenue',
+  // legacy
   en_attente: 'En attente', confirme: 'Confirmé', retenu: 'Retenu', rejete: 'Rejeté',
 }
 
-const CITIZEN_STATUS_MAP: Record<string, string> = {
-  active: 'en_attente',   // citizen proposals in "active" = awaiting president decision
-  closed: 'retenu',       // closed citizen = retained
-}
+// No mapping needed — status IS the DB value now
+const CITIZEN_STATUS_MAP: Record<string, string> = {}
 
 const CAT_ICON: Record<string, string> = {
   'Voirie': '🛣️', 'Éclairage public': '💡', 'Propreté': '🗑️',
@@ -77,16 +80,19 @@ const daysLeft = (d: any) => d ? Math.max(0, Math.ceil((new Date(d).getTime() - 
 
 // VoteBar removed
 
-// ─── Status badge ─────────────────────────────────────────────────────────────
+// ─── Status badge ──────────────────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }: { status: string }) => {
   const cfg: Record<string, string> = {
-    active:     'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
-    closed:     'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
-    draft:      'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
-    en_attente: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
-    confirme:   'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
-    retenu:     'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800',
-    rejete:     'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800',
+    active:    'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
+    closed:    'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
+    draft:     'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
+    Confirmer: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
+    Retenu:    'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800',
+    // legacy fallbacks
+    en_attente:'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
+    confirme:  'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800',
+    retenu:    'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800',
+    rejete:    'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800',
   }
   return (
     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${cfg[status] || cfg.active}`}>
@@ -302,13 +308,14 @@ const PropForm = ({ initial, onSave, onClose }: { initial?: Prop | null; onSave:
           </Field>
         </div>
 
-        <div className="flex gap-3 mt-8">
-          <button onClick={onClose} className="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+        <div className="flex gap-3 mt-6">
+          <button type="button" onClick={onClose}
+            className="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
             Annuler
           </button>
-          <button onClick={submit} disabled={loading}
-            className="flex-1 py-3 rounded-2xl bg-[#1557FF] text-white font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-            {loading ? <><RefreshCw className="w-4 h-4 animate-spin" />Enregistrement...</> : (initial ? 'Mettre à jour' : 'Publier')}
+          <button type="button" onClick={submit} disabled={loading}
+            className="flex-1 py-3 rounded-2xl bg-[#1557FF] text-white font-bold text-sm hover:bg-blue-700 transition-all shadow-md shadow-blue-200 dark:shadow-none disabled:opacity-60">
+            {loading ? 'Enregistrement...' : (initial ? 'Mettre à jour' : 'Publier')}
           </button>
         </div>
       </div>
@@ -316,19 +323,25 @@ const PropForm = ({ initial, onSave, onClose }: { initial?: Prop | null; onSave:
   )
 }
 
-// ─── Citizen Decision Modal ───────────────────────────────────────────────────
-const CitizenDecisionModal = ({ prop, onDecide, onClose }: { prop: Prop; onDecide: (p: Prop, d: string, note: string) => void; onClose: () => void }) => {
+// ─── Citizen Decision Modal ────────────────────────────────────────────────────
+const CitizenDecisionModal = ({ prop, onDecide, onClose }: {
+  prop: Prop;
+  onDecide: (p: Prop, d: string) => void;
+  onClose: () => void;
+}) => {
   const [loading, setLoading] = useState(false)
-  const displayStatus = CITIZEN_STATUS_MAP[prop.status] || prop.status
-  // Propositions are editable as long as they are 'active' in DB
-  const isEditable = !['retenu', 'rejete', 'closed'].includes(displayStatus)
+  // status IS the DB enum: 'active' | 'Confirmer' | 'Retenu' | 'closed'
+  const isPending = prop.status === 'active'
 
   const decide = async (decision: string) => {
     setLoading(true)
-    try { await onDecide(prop, decision, ''); onClose() }
+    try { await onDecide(prop, decision); onClose() }
     catch (_) {}
     finally { setLoading(false) }
   }
+
+  const loc = (prop as any).location
+  const decidedAt = (prop as any).decided_at
 
   return (
     <DrawerOverlay onClose={onClose}>
@@ -341,13 +354,29 @@ const CitizenDecisionModal = ({ prop, onDecide, onClose }: { prop: Prop; onDecid
         </div>
 
         <div className="space-y-4 mb-6">
+          {/* Status + category row */}
           <div className="flex items-center justify-between">
-            <StatusBadge status={displayStatus} />
-            <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">{prop.category}</span>
+            <StatusBadge status={prop.status} />
+            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
+              <Tag className="w-3 h-3" />{prop.category}
+            </span>
           </div>
+
+          {/* Title */}
           <h3 className="text-lg font-black text-[#0A1628] dark:text-white leading-tight">{prop.title}</h3>
+
+          {/* Description */}
           <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{prop.description}</p>
 
+          {/* Location — only if present */}
+          {loc && (
+            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
+              <span className="text-base">📍</span>
+              <span>{loc}</span>
+            </div>
+          )}
+
+          {/* Citizen info card */}
           <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-[#1557FF] font-black text-xs shadow-sm">
@@ -359,47 +388,45 @@ const CitizenDecisionModal = ({ prop, onDecide, onClose }: { prop: Prop; onDecid
               </div>
             </div>
           </div>
-
-          {prop.president_response && (
-            <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 rounded-xl p-3">
-              <p className="text-[10px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1">Réponse présidentielle</p>
-              <p className="text-xs text-purple-700 dark:text-purple-300">{prop.president_response}</p>
-            </div>
-          )}
         </div>
 
-        {isEditable ? (
-          <div className="space-y-4">
+        {/* Action area */}
+        {isPending ? (
+          <div className="space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Prendre une décision</p>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => decide('confirme')} disabled={loading}
-                className="py-3 rounded-2xl bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-600 transition-all shadow-md shadow-emerald-200 dark:shadow-none flex items-center justify-center gap-2">
+                className="py-3 rounded-2xl bg-emerald-500 text-white font-bold text-xs hover:bg-emerald-600 transition-all shadow-md shadow-emerald-200 dark:shadow-none flex items-center justify-center gap-2 disabled:opacity-60">
                 <CheckCircle2 className="w-4 h-4" /> Confirmer
               </button>
               <button onClick={() => decide('retenu')} disabled={loading}
-                className="py-3 rounded-2xl bg-purple-500 text-white font-bold text-xs hover:bg-purple-600 transition-all shadow-md shadow-purple-200 dark:shadow-none flex items-center justify-center gap-2">
+                className="py-3 rounded-2xl bg-purple-500 text-white font-bold text-xs hover:bg-purple-600 transition-all shadow-md shadow-purple-200 dark:shadow-none flex items-center justify-center gap-2 disabled:opacity-60">
                 <Star className="w-4 h-4" /> Retenu
               </button>
             </div>
           </div>
         ) : (
-          <div className={`flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold border ${
-            displayStatus === 'confirme' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800' :
-            displayStatus === 'retenu' ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-100 dark:border-purple-800' :
-            displayStatus === 'rejete' ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-800' :
-            'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+          <div className={`flex flex-col items-center gap-2 py-4 px-5 rounded-2xl border ${
+            prop.status === 'Confirmer'
+              ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800'
+              : prop.status === 'Retenu'
+              ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-100 dark:border-purple-800'
+              : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
           }`}>
-            {displayStatus === 'confirme' ? <CheckCircle2 className="w-4 h-4" /> : 
-             displayStatus === 'retenu' ? <Star className="w-4 h-4" /> :
-             displayStatus === 'rejete' ? <X className="w-4 h-4" /> : <Activity className="w-4 h-4" />}
-            {displayStatus === 'confirme' ? 'Proposition confirmée' : 
-             displayStatus === 'retenu' ? 'Proposition retenue' :
-             displayStatus === 'rejete' ? 'Proposition rejetée' : 'Décision enregistrée'}
+            <div className="flex items-center gap-2 font-bold text-sm">
+              {prop.status === 'Confirmer' ? <CheckCircle2 className="w-4 h-4" /> : <Star className="w-4 h-4" />}
+              Décision enregistrée — {STATUS_LABEL[prop.status] || prop.status}
+            </div>
+            {decidedAt && (
+              <p className="text-[10px] opacity-75">Le {fmt(decidedAt)}</p>
+            )}
           </div>
         )}
       </div>
     </DrawerOverlay>
   )
 }
+
 
 // ─── Presidential Prop Card ───────────────────────────────────────────────────
 const PresCard = ({ prop, onEdit, onDelete }: { prop: Prop; onEdit: (p: Prop) => void; onDelete: (p: Prop) => void }) => {
@@ -442,17 +469,29 @@ const PresCard = ({ prop, onEdit, onDelete }: { prop: Prop; onEdit: (p: Prop) =>
         {isExpired && prop.status !== 'closed' && <span className="text-red-400 dark:text-red-500 font-black ml-auto">Expiré</span>}
       </div>
 
-      {/* Progress bar removed */}
+      {/* Vote bar */}
+      {prop.total > 0 && (
+        <div className="mb-5">
+          <div className="flex justify-between text-[10px] font-black mb-1.5">
+            <span className="text-emerald-500">✓ {prop.votes_pour} pour</span>
+            <span className="text-rose-400">{prop.votes_contre} contre ✗</span>
+          </div>
+          <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-500"
+              style={{ width: `${pourPct}%` }} />
+          </div>
+        </div>
+      )}
 
-      {/* Actions */}
-      <div className="flex gap-2 mt-auto">
-        <button onClick={() => onEdit(prop)}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-2xl bg-[#0A1628] dark:bg-slate-800 text-white text-xs font-bold hover:bg-[#1557FF] dark:hover:bg-blue-600 transition-all">
-          <Edit2 className="w-3.5 h-3.5" />Modifier
+      {/* Edit / Delete */}
+      <div className="flex gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
+        <button onClick={e => { e.stopPropagation(); onEdit(prop) }}
+          className="flex-1 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-[#1557FF] hover:border-blue-200 dark:hover:border-blue-800 transition-all flex items-center justify-center gap-1.5">
+          <Edit2 className="w-3.5 h-3.5" /> Modifier
         </button>
-        <button onClick={() => onDelete(prop)}
-          className="w-10 flex items-center justify-center rounded-2xl bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 text-rose-500 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-all">
-          <Trash2 className="w-4 h-4" />
+        <button onClick={e => { e.stopPropagation(); onDelete(prop) }}
+          className="flex-1 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-500 hover:border-rose-200 dark:hover:border-rose-800 transition-all flex items-center justify-center gap-1.5">
+          <Trash2 className="w-3.5 h-3.5" /> Supprimer
         </button>
       </div>
     </div>
@@ -461,9 +500,9 @@ const PresCard = ({ prop, onEdit, onDelete }: { prop: Prop; onEdit: (p: Prop) =>
 
 // ─── Citizen Prop Card ────────────────────────────────────────────────────────
 const CitiCard = ({ prop, onOpen }: { prop: Prop; onOpen: (p: Prop) => void }) => {
-  const displayStatus = CITIZEN_STATUS_MAP[prop.status] || prop.status
-  const isPending = displayStatus === 'en_attente'
-  const resolvedImg = prop.image_url ? (prop.image_url.startsWith('http') ? prop.image_url : `${API.replace('/api', '')}${prop.image_url}`) : null
+  const isPending   = prop.status === 'active'
+  const isConfirmed = prop.status === 'Confirmer'
+  const isRetenu    = prop.status === 'Retenu'
 
   return (
     <div className="group bg-white dark:bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 p-7 hover:shadow-2xl hover:shadow-slate-200/50 dark:hover:shadow-none hover:-translate-y-1 transition-all duration-300 flex flex-col relative overflow-hidden cursor-pointer"
@@ -473,17 +512,9 @@ const CitiCard = ({ prop, onOpen }: { prop: Prop; onOpen: (p: Prop) => void }) =
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-t-3xl" />
       )}
 
-      {/* Image if exists */}
-      {resolvedImg && (
-        <div className="relative h-44 -mx-7 -mt-7 mb-5 overflow-hidden rounded-t-[2.5rem]">
-          <img src={resolvedImg} alt={prop.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <StatusBadge status={displayStatus} />
+        <StatusBadge status={prop.status} />
         <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1">
           <Tag className="w-3 h-3" />{prop.category}
         </span>
@@ -510,9 +541,13 @@ const CitiCard = ({ prop, onOpen }: { prop: Prop; onOpen: (p: Prop) => void }) =
         </button>
       ) : (
         <div className={`w-full py-2.5 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 border ${
-          displayStatus === 'confirme' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800' : 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-100 dark:border-purple-800'
+          isConfirmed ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800' :
+          isRetenu    ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-100 dark:border-purple-800'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
         }`}>
-          {displayStatus === 'confirme' ? <><CheckCircle2 className="w-3.5 h-3.5" />Confirmée</> : <><Star className="w-3.5 h-3.5" />Retenue</>}
+          {isConfirmed ? <><CheckCircle2 className="w-3.5 h-3.5" />Confirmée</> :
+           isRetenu    ? <><Star className="w-3.5 h-3.5" />Retenue</> :
+                         <><Activity className="w-3.5 h-3.5" />Traitée</>}
         </div>
       )}
     </div>
@@ -564,23 +599,15 @@ export default function PresidentPropositions() {
           status: p.status || 'active',
           category: p.category || 'Général',
         })))
-        setCitiProps((data.citizen || []).map((p: any) => {
-          let derivedStatus = p.status || 'active';
-          if (p.president_response) {
-            if (p.president_response.includes('[CONFIRMÉ]')) derivedStatus = 'confirme';
-            else if (p.president_response.includes('[RETENU]')) derivedStatus = 'retenu';
-            else if (p.president_response.includes('[REFUSE]')) derivedStatus = 'rejete';
-          }
-          return {
-            ...p,
-            citizen: p.citizen || 'Anonyme',
-            votes_pour: p.pour || p.votes_pour || 0,
-            votes_contre: p.contre || p.votes_contre || 0,
-            total: p.total || 0,
-            status: derivedStatus,
-            category: p.category || 'Général',
-          };
-        }))
+        setCitiProps((data.citizen || []).map((p: any) => ({
+          ...p,
+          citizen: p.citizen || 'Anonyme',
+          votes_pour: p.pour || p.votes_pour || 0,
+          votes_contre: p.contre || p.votes_contre || 0,
+          total: p.total || 0,
+          status: p.status || 'active',   // trust DB status directly
+          category: p.category || 'Général',
+        })))
       }
     } catch (e: any) {
       toast.error('Impossible de charger les propositions')
@@ -618,42 +645,26 @@ export default function PresidentPropositions() {
   }
 
   // ── Citizen decision ───────────────────────────────────────────────────────
-  const decideProp = async (prop: Prop, decision: string, note: string) => {
-    const endpoint = decision === 'confirme'
-      ? `/president/propositions/${prop.id}/confirmer`
-      : decision === 'retenu'
-      ? `/president/propositions/${prop.id}/retenu`
-      : `/president/propositions/${prop.id}/respond`
-
-    const body = (decision === 'a_discuter' || decision === 'refuse' || decision === 'confirme' || decision === 'retenu')
-      ? JSON.stringify({ status: decision, president_response: note, president_note: note })
-      : JSON.stringify({ president_note: note });
-
-    const method = (decision === 'a_discuter' || decision === 'refuse') ? 'PATCH' : 'POST'
-
-    await apiFetch(endpoint, { method, body })
+  const decideProp = async (prop: Prop, decision: string) => {
+    // Map internal keys to DB enum values
+    const dbDecision = decision === 'confirme' ? 'Confirmer' : 'Retenu'
+    await apiFetch(`/president/propositions/${prop.id}/decide`, {
+      method: 'PATCH',
+      body: JSON.stringify({ decision: dbDecision }),
+    })
     toast.success(
-      decision === 'confirme' ? 'Proposition confirmée ✅' :
-      decision === 'retenu' ? 'Proposition retenue 📌' : 'Décision enregistrée'
+      dbDecision === 'Confirmer' ? 'Proposition confirmée ✅' : 'Proposition retenue 📌'
     )
     fetchAll()
   }
 
   // ── Filtering ──────────────────────────────────────────────────────────────
-  const filter = (arr: Prop[], isCitizen = false) => arr.filter(p => {
+  const filter = (arr: Prop[], _isCitizen = false) => arr.filter(p => {
     const q = search.toLowerCase()
     const matchQ = !q || p.title.toLowerCase().includes(q) || (p.citizen || '').toLowerCase().includes(q)
     if (!matchQ) return false
-
-    if (filterStatus !== 'all') {
-      const displayStatus = isCitizen ? (CITIZEN_STATUS_MAP[p.status] || p.status) : p.status
-      if (displayStatus !== filterStatus) return false
-    }
-
-    if (filterCategory !== 'all') {
-      if (p.category !== filterCategory) return false
-    }
-
+    if (filterStatus !== 'all' && p.status !== filterStatus) return false
+    if (filterCategory !== 'all' && p.category !== filterCategory) return false
     return true
   })
 
@@ -664,14 +675,14 @@ export default function PresidentPropositions() {
     totalPres: presProps.length,
     activePres: presProps.filter(p => p.status === 'active').length,
     totalVotes: presProps.reduce((s, p) => s + (p.total || 0), 0),
-    pending: citiProps.filter(p => (CITIZEN_STATUS_MAP[p.status] || p.status) === 'en_attente').length,
-    confirmed: citiProps.filter(p => (CITIZEN_STATUS_MAP[p.status] || p.status) === 'confirme').length,
-    retained: citiProps.filter(p => (CITIZEN_STATUS_MAP[p.status] || p.status) === 'retenu').length,
+    pending:   citiProps.filter(p => p.status === 'active').length,
+    confirmed: citiProps.filter(p => p.status === 'Confirmer').length,
+    retained:  citiProps.filter(p => p.status === 'Retenu').length,
     totalCiti: citiProps.length,
   }
 
   const presFilters = [['all', 'Tous'], ['active', 'Actif'], ['closed', 'Clôturé'], ['draft', 'Brouillon']]
-  const citiFilters = [['all', 'Tous'], ['en_attente', 'En attente'], ['confirme', 'Confirmé'], ['retenu', 'Retenu']]
+  const citiFilters = [['all', 'Tous'], ['active', 'Non traitées'], ['Confirmer', 'Confirmées'], ['Retenu', 'Retenues']]
 
   return (
     <PresidentLayout title="Propositions">

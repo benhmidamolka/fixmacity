@@ -1476,7 +1476,7 @@ exports.deleteProposition = async (req, res) => {
 /* ──────────── GET /api/president/propositions ──────────── */
 exports.listPropositions = async (req, res) => {
   try {
-    const { status, page = 1, limit = 50 } = req.query;
+    const { status, type, date_from, date_to, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
 
     let query = supabase
@@ -1486,6 +1486,8 @@ exports.listPropositions = async (req, res) => {
       .range(offset, offset + limit - 1);
 
     if (status && status !== 'all') query = query.eq('status', status);
+    if (date_from) query = query.gte('created_at', new Date(date_from).toISOString());
+    if (date_to)   query = query.lte('created_at', new Date(new Date(date_to).setHours(23,59,59,999)).toISOString());
 
     const { data, error, count } = await query;
     if (error) throw error;
@@ -1501,7 +1503,9 @@ exports.listPropositions = async (req, res) => {
 
     const structured = (data || []).map(p => {
       const creator = userMap[p.created_by];
-      const isPresidential = creator?.role === 'president';
+      // A proposition is presidential if: creator is president, OR type column says so
+      const isPresidential = creator?.role === 'president' || p.type === 'president';
+      const isCitizen      = !isPresidential;
       return {
         ...p,
         is_presidential: isPresidential,
@@ -1514,11 +1518,18 @@ exports.listPropositions = async (req, res) => {
       };
     });
 
+    let presidential = structured.filter(p => p.is_presidential);
+    let citizen      = structured.filter(p => !p.is_presidential);
+
+    // Apply type filter after enrichment (type=citizen|president)
+    if (type === 'citizen')   presidential = [];
+    if (type === 'president') citizen      = [];
+
     return res.status(200).json({
       success: true,
       propositions: structured,
-      presidential: structured.filter(p => p.is_presidential),
-      citizen: structured.filter(p => !p.is_presidential),
+      presidential,
+      citizen,
       total: count,
     });
   } catch (err) {
@@ -2157,44 +2168,78 @@ exports.deleteDepartment = async (req, res) => {
   }
 };
 
-/* ──────────── POST /api/president/propositions/:id/confirmer ──────────── */
-exports.confirmProposition = async (req, res) => {
+/* ──────────── PATCH /api/president/propositions/:id/decide ──────────── */
+// Task B: unified decision endpoint — Confirmer | Retenu
+exports.decideProposition = async (req, res) => {
   try {
     const { id } = req.params;
-    const { president_note } = req.body;
-    const { data, error } = await supabase.from('propositions')
+    const { decision } = req.body; // 'Confirmer' | 'Retenu'
+
+    if (!['Confirmer', 'Retenu'].includes(decision)) {
+      return res.status(400).json({ error: "Décision invalide. Valeurs acceptées : 'Confirmer' ou 'Retenu'." });
+    }
+
+    // Fetch proposition
+    const { data: prop } = await supabase.from('propositions')
+      .select('id, title, status, created_by, is_deleted')
+      .eq('id', id).maybeSingle();
+
+    if (!prop || prop.is_deleted) {
+      return res.status(404).json({ error: 'Proposition introuvable ou déjà supprimée.' });
+    }
+    if (prop.status !== 'active') {
+      return res.status(400).json({ error: 'Action non autorisée pour le statut actuel.' });
+    }
+
+    const now = new Date().toISOString();
+    const { data: updated, error } = await supabase.from('propositions')
       .update({
-        status: 'active',
-        president_response: president_note ? `[CONFIRMÉ] ${president_note}` : '[CONFIRMÉ]',
-        updated_at: new Date().toISOString(),
+        status:     decision,       // sets enum 'Confirmer' or 'Retenu'
+        decided_at: now,
+        decided_by: req.user.id,
+        updated_at: now,
       })
       .eq('id', id).select('*').single();
-    if (error) throw error;
-    return res.status(200).json({ success: true, data });
+
+    if (error) {
+      console.error('[President] decideProposition DB error:', error);
+      return res.status(500).json({ error: 'Erreur lors de l\'enregistrement de la décision.' });
+    }
+
+    // ── In-app notification to citizen ──────────────────────────────────────
+    try {
+      const notifMessage = decision === 'Confirmer'
+        ? `Votre suggestion '${prop.title}' a été reçue par le Président.`
+        : `Votre suggestion '${prop.title}' a été retenue pour étude par le Président.`;
+      await supabase.from('notifications').insert({
+        user_id:    prop.created_by,
+        message:    notifMessage,
+        type:       'proposition_decision',
+        is_read:    false,
+        created_at: now,
+      });
+    } catch (notifErr) {
+      // Non-fatal — log and continue
+      console.warn('[President] decideProposition notification error:', notifErr.message);
+    }
+
+    return res.status(200).json({ success: true, proposition: updated, decision });
   } catch (err) {
-    console.error('[President] confirmProposition error:', err);
+    console.error('[President] decideProposition error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
 
-/* ──────────── POST /api/president/propositions/:id/retenu ──────────── */
+/* ──────────── POST /api/president/propositions/:id/confirmer (legacy) ──────────── */
+exports.confirmProposition = async (req, res) => {
+  req.body.decision = 'Confirmer';
+  return exports.decideProposition(req, res);
+};
+
+/* ──────────── POST /api/president/propositions/:id/retenu (legacy) ──────────── */
 exports.retainProposition = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { president_note } = req.body;
-    const { data, error } = await supabase.from('propositions')
-      .update({
-        status: 'closed',
-        president_response: president_note ? `[RETENU] ${president_note}` : '[RETENU]',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id).select('*').single();
-    if (error) throw error;
-    return res.status(200).json({ success: true, data });
-  } catch (err) {
-    console.error('[President] retainProposition error:', err);
-    return res.status(500).json({ error: 'Erreur serveur.' });
-  }
+  req.body.decision = 'Retenu';
+  return exports.decideProposition(req, res);
 };
 
 /* ──────────── GET /api/president/declarations/:id/comments ──────────── */
