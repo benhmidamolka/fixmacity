@@ -71,6 +71,45 @@ exports.listDeclarations = async (req, res) => {
       }
     }
 
+    // Enrich with assigned agents (for Mes Missions avatar display)
+    if (data && data.length > 0) {
+      const declIds = data.map(d => d.id);
+      const { data: dsRows } = await supabase
+        .from('declaration_services')
+        .select('id, declaration_id')
+        .in('declaration_id', declIds)
+        .eq('service_id', deptId);
+
+      const dsIdToDeclId = {};
+      const dsIds = [];
+      (dsRows || []).forEach(r => { dsIdToDeclId[r.id] = r.declaration_id; dsIds.push(r.id); });
+
+      let agentsByDecl = {};
+      if (dsIds.length > 0) {
+        const { data: dsaRows } = await supabase
+          .from('declaration_service_agents')
+          .select('declaration_service_id, agent_id')
+          .in('declaration_service_id', dsIds);
+
+        const agentIds = [...new Set((dsaRows || []).map(r => r.agent_id).filter(Boolean))];
+        let agentMap = {};
+        if (agentIds.length) {
+          const { data: agentUsers } = await supabase.from('users')
+            .select('id, first_name, last_name').in('id', agentIds);
+          (agentUsers || []).forEach(a => agentMap[a.id] = a);
+        }
+
+        (dsaRows || []).forEach(r => {
+          const declId = dsIdToDeclId[r.declaration_service_id];
+          if (!declId) return;
+          if (!agentsByDecl[declId]) agentsByDecl[declId] = [];
+          if (agentMap[r.agent_id]) agentsByDecl[declId].push(agentMap[r.agent_id]);
+        });
+      }
+
+      data = data.map(d => ({ ...d, assigned_agents: agentsByDecl[d.id] || [] }));
+    }
+
     return res.status(200).json({ declarations: data || [], total: count || 0, page: +page, limit: +limit });
   } catch (e) {
     console.error('[Chef] listDeclarations exception:', e);
@@ -416,10 +455,23 @@ exports.listAgents = async (req, res) => {
 exports.addAgent = async (req, res) => {
   try {
     const { email, first_name, last_name, password } = req.body;
-    if (!email || !first_name || !last_name || !password) return res.status(400).json({ error: 'Tous les champs sont requis.' });
+    
+    if (!email?.trim())      return res.status(400).json({ error: "Le champ 'Email' est obligatoire." });
+    if (!first_name?.trim()) return res.status(400).json({ error: "Le champ 'Prénom' est obligatoire." });
+    if (!last_name?.trim())  return res.status(400).json({ error: "Le champ 'Nom' est obligatoire." });
+    if (!password)           return res.status(400).json({ error: "Le champ 'Mot de passe' est obligatoire." });
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return res.status(400).json({ error: 'Adresse e-mail invalide.' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' });
+    }
 
     const { data: existing } = await supabase.from('users').select('id').eq('email', email.toLowerCase().trim()).maybeSingle();
-    if (existing) return res.status(409).json({ error: 'Email déjà utilisé.' });
+    if (existing) return res.status(409).json({ error: "L'adresse e-mail est déjà utilisée." });
 
     const bcrypt = require('bcrypt');
     const hash = await bcrypt.hash(password, 12);
