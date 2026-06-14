@@ -459,6 +459,9 @@ exports.uploadPhoto = async (req, res) => {
       .single();
 
     if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
+    if (decl.status === 'cloturee') {
+      return res.status(403).json({ error: 'Modification impossible sur un signalement clôturé.' });
+    }
     if (decl.status !== 'en_cours') {
       return res.status(403).json({ error: 'Photos autorisées uniquement lors d\'une intervention en cours.' });
     }
@@ -544,7 +547,7 @@ exports.resolveDeclaration = async (req, res) => {
       .limit(1);
 
     if (!photos || photos.length === 0) {
-      return res.status(400).json({ error: 'Une photo de preuve d\'intervention est obligatoire avant de résoudre.' });
+      return res.status(400).json({ error: "Une photo de résolution est obligatoire" });
     }
 
     const { error: updateErr } = await supabase
@@ -562,6 +565,15 @@ exports.resolveDeclaration = async (req, res) => {
     await logStatusChange(id, 'en_cours', 'resolue', agentId, rapport_interne || 'Résolution confirmée par l\'agent');
     if (decl.citizen_id) {
       await notifyStatusChange(req.app, decl, decl.citizen_id, 'resolue');
+    }
+    const { data: chefUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('department_id', agentScope(req))
+      .eq('role', 'chef')
+      .maybeSingle();
+    if (chefUser && chefUser.id) {
+      await notifyStatusChange(req.app, decl, chefUser.id, 'resolue');
     }
 
     res.json({ message: 'Mission résolue avec succès. En attente de clôture par le Chef de Service.', status: 'resolue' });
@@ -601,6 +613,17 @@ exports.addComment = async (req, res) => {
 
     if (!content || !content.trim()) {
       return res.status(400).json({ error: 'Le contenu du commentaire est requis.' });
+    }
+
+    const { data: decl, error: fetchErr } = await supabase
+      .from('declarations')
+      .select('id, status')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
+    if (decl.status === 'cloturee') {
+      return res.status(403).json({ error: 'Modification impossible sur un signalement clôturé.' });
     }
 
     const { data, error } = await supabase
@@ -651,6 +674,9 @@ exports.closeDeclaration = async (req, res) => {
     if (fetchErr || !decl) {
       return res.status(404).json({ error: 'Déclaration introuvable ou non assignée à vous.' });
     }
+    if (decl.status !== 'resolue') {
+      return res.status(400).json({ error: `Statut "${decl.status}" ne peut pas être clôturé. Seul "resolue" peut être clôturé.` });
+    }
 
     const { error: updateErr } = await supabase
       .from('declarations')
@@ -665,6 +691,15 @@ exports.closeDeclaration = async (req, res) => {
     await logStatusChange(id, decl.status, 'cloturee', agentId, 'Clôturée par l\'agent via le Board');
     if (decl.citizen_id) {
       await notifyStatusChange(req.app, decl, decl.citizen_id, 'cloturee');
+    }
+    const { data: chefUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('department_id', agentScope(req))
+      .eq('role', 'chef')
+      .maybeSingle();
+    if (chefUser && chefUser.id) {
+      await notifyStatusChange(req.app, decl, chefUser.id, 'cloturee');
     }
 
     res.json({ message: 'Mission clôturée avec succès.', status: 'cloturee' });
