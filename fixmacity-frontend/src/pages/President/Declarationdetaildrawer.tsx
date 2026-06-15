@@ -595,18 +595,10 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
   const [commentText, setCommentText] = useState('')
   const [sending, setSending] = useState(false)
   const [assigning, setAssigning] = useState(false)
-  const [assignments, setAssignments] = useState<{ department_id: string, chef_id: string }[]>([{ department_id: '', chef_id: '' }])
-  const [chefs, setChefs] = useState<any[]>([])
+  const [assignments, setAssignments] = useState<{ department_id: string }[]>([{ department_id: '' }])
   const [replacementWarning, setReplacementWarning] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
   const [imgExpanded, setImgExpanded] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch(`${API}/president/users?role=chef&limit=500`, { headers: hdr() })
-      .then(r => r.json())
-      .then(d => { if (d.users) setChefs(d.users) })
-      .catch(() => { })
-  }, [])
 
   // AI state
   const [aiResult, setAiResult] = useState<AIResult | null>(null)
@@ -653,7 +645,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
   useEffect(() => {
     if (declarationId) {
       setDetail(null); setPhotos([]); setHistory([]); setComments([])
-      setTab('info'); setCommentText(''); setAssignments([{ department_id: '', chef_id: '' }]); setReplacementWarning(null);
+      setTab('info'); setCommentText(''); setAssignments([{ department_id: '' }]); setReplacementWarning(null);
       setAiResult(null); setAiError(null); setFinalPriority(null)
       load()
     }
@@ -712,7 +704,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
       const ep = detail.status === 'soumise' ? 'assign' : 'reassign'
       const res = await fetch(`${API}/president/declarations/${detail.id}/${ep}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...hdr() },
-        body: JSON.stringify({ assignments: validAssignments.map(a => ({ department_id: a.department_id, chef_id: a.chef_id || null })), confirm_replacement: forceConfirm }),
+        body: JSON.stringify({ assignments: validAssignments.map(a => ({ department_id: a.department_id })), confirm_replacement: forceConfirm }),
       })
       const data = await res.json()
 
@@ -1040,7 +1032,7 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                       {canAss ? 'Affecter la déclaration' : 'Réassigner la déclaration'}
                     </p>
                     <button
-                      onClick={() => setAssignments(prev => [...prev, { department_id: '', chef_id: '' }])}
+                      onClick={() => setAssignments(prev => [...prev, { department_id: '' }])}
                       className="text-[9px] font-black uppercase text-blue-600 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-2 py-1 rounded-lg transition-colors"
                     >
                       + Ajouter un service
@@ -1054,29 +1046,12 @@ const DeclarationDetailDrawer: React.FC<Props> = ({
                         onChange={e => {
                           const newAss = [...assignments];
                           newAss[i].department_id = e.target.value;
-                          const autoChef = chefs.find(c => c.department_id === e.target.value);
-                          newAss[i].chef_id = autoChef?.id || '';
                           setAssignments(newAss);
-
                         }}
                         className="flex-1 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-200 transition-all"
                       >
                         <option value="">Département…</option>
                         {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
-                      <select
-                        value={ass.chef_id}
-                        onChange={e => {
-                          const newAss = [...assignments];
-                          newAss[i].chef_id = e.target.value;
-                          setAssignments(newAss);
-                        }}
-                        className="flex-1 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-200 transition-all"
-                      >
-                        <option value="">👨‍💼 Chef (Auto si vide)…</option>
-                        {chefs
-                          .filter(c => !ass.department_id || c.department_id === ass.department_id)
-                          .map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
                       </select>
                       {assignments.length > 1 && (
                         <button

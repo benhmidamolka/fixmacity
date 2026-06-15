@@ -52,27 +52,10 @@ export default function AgentDeclarations() {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [evaluatedOnly, setEvaluatedOnly] = useState<boolean>(false);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+
   const [selectedDecl, setSelectedDecl] = useState<string | null>(null);
 
-  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    if (endDate && val && new Date(endDate) < new Date(val)) {
-      toast.error('La date de fin ne peut pas être inférieure à la date de début.');
-    } else {
-      setStartDate(val);
-    }
-  };
 
-  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    if (startDate && val && new Date(val) < new Date(startDate)) {
-      toast.error('La date de fin ne peut pas être inférieure à la date de début.');
-    } else {
-      setEndDate(val);
-    }
-  };
 
   const fetchDecls = async () => {
     try {
@@ -110,29 +93,12 @@ export default function AgentDeclarations() {
       (d.priority || '').toLowerCase() === priorityFilter.toLowerCase();
     const matchEvaluated = !evaluatedOnly || (d.rating && d.rating.score > 0);
 
-    let matchDate = true;
-    if (startDate || endDate) {
-      const created = d.created_at ? new Date(d.created_at) : null;
-      if (created) {
-        if (startDate) {
-          const startD = new Date(startDate);
-          startD.setHours(0, 0, 0, 0);
-          if (startD > created) matchDate = false;
-        }
-        if (endDate) {
-          const endD = new Date(endDate);
-          endD.setHours(23, 59, 59, 999);
-          if (endD < created) matchDate = false;
-        }
-      }
-    }
-
-    return matchSearch && matchStatus && matchPriority && matchEvaluated && matchDate;
+    return matchSearch && matchStatus && matchPriority && matchEvaluated;
   });
 
   const sortedTable = [...filteredTable].sort((a, b) => {
-    const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-    const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+    const dateA = a.assigned_at ? new Date(a.assigned_at).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0);
+    const dateB = b.assigned_at ? new Date(b.assigned_at).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0);
     return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
   });
 
@@ -265,19 +231,7 @@ export default function AgentDeclarations() {
                 <option value="yes">Évaluées seulement</option>
               </select>
 
-              {/* Date range */}
-              <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-full border text-[11px] font-bold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                <input
-                  type="date" value={startDate} onChange={handleStartDateChange}
-                  className="bg-transparent text-[11px] font-bold text-slate-600 dark:text-slate-300 outline-none [color-scheme:dark] cursor-pointer"
-                />
-                <span className="text-slate-400">–</span>
-                <input
-                  type="date" value={endDate} onChange={handleEndDateChange}
-                  className="bg-transparent text-[11px] font-bold text-slate-600 dark:text-slate-300 outline-none [color-scheme:dark] cursor-pointer"
-                />
-              </div>
+
             </div>
 
             {/* Search */}

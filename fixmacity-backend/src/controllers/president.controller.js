@@ -571,6 +571,7 @@ exports.assignDeclaration = async (req, res) => {
       .from('declarations')
       .update({
         status: 'assignee_chef',
+        department_id: primaryService.id,
         service_id: primaryService.id,
         ref_service: refService,
         priority_score: priority_score || decl.priority_score || 0,
@@ -588,7 +589,14 @@ exports.assignDeclaration = async (req, res) => {
       return res.status(500).json({ error: 'Erreur lors de l\'affectation.' });
     }
 
-    const dsRows = assignments.map(a => ({
+    // Resolve chef_id from services table when not explicitly provided ("Auto si vide" case)
+    const enrichedAssignments = assignments.map(a => {
+      if (a.chef_id) return a;
+      const svc = services.find(s => s.id === a.department_id);
+      return { ...a, chef_id: svc?.chef_id || null };
+    });
+
+    const dsRows = enrichedAssignments.map(a => ({
       declaration_id: id,
       service_id: a.department_id,
       chef_id: a.chef_id || null,
@@ -607,7 +615,7 @@ exports.assignDeclaration = async (req, res) => {
     await logStatusChange(id, decl.status, 'assignee_chef', req.user.id, `Assigné à ${services.map(s => s.name_fr).join(', ')}`);
     await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_chef');
 
-    const chefsIds = [...new Set(assignments.map(a => a.chef_id).filter(Boolean))];
+    const chefsIds = [...new Set(enrichedAssignments.map(a => a.chef_id).filter(Boolean))];
     for (const chefId of chefsIds) {
       await notifyChefAssigned(req.app, updated, chefId);
     }
@@ -694,6 +702,7 @@ exports.reassignDeclaration = async (req, res) => {
       .from('declarations')
       .update({
         status: 'assignee_chef',
+        department_id: primaryService.id,
         service_id: primaryService.id,
         ref_service: refService,
         priority_score: priority_score || decl.priority_score || 0,
@@ -713,7 +722,14 @@ exports.reassignDeclaration = async (req, res) => {
 
     await supabase.from('declaration_services').delete().eq('declaration_id', id);
 
-    const dsRows = assignments.map(a => ({
+    // Resolve chef_id from services table when not explicitly provided ("Auto si vide" case)
+    const enrichedAssignments = assignments.map(a => {
+      if (a.chef_id) return a;
+      const svc = services.find(s => s.id === a.department_id);
+      return { ...a, chef_id: svc?.chef_id || null };
+    });
+
+    const dsRows = enrichedAssignments.map(a => ({
       declaration_id: id,
       service_id: a.department_id,
       chef_id: a.chef_id || null,
@@ -733,7 +749,7 @@ exports.reassignDeclaration = async (req, res) => {
       `Réaffectation par le président → ${services.map(s => s.name_fr).join(', ')}`);
     await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_chef');
 
-    const chefsIds = [...new Set(assignments.map(a => a.chef_id).filter(Boolean))];
+    const chefsIds = [...new Set(enrichedAssignments.map(a => a.chef_id).filter(Boolean))];
     for (const chefId of chefsIds) {
       await notifyChefAssigned(req.app, updated, chefId);
     }

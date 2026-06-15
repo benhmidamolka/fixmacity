@@ -22,8 +22,13 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 function getStepIndex(status: string) {
-  const idx = STATUS_STEPS.indexOf(status)
-  return idx === -1 ? 0 : idx
+  if (!status) return 0
+  const n = status.toLowerCase()
+  if (n === 'soumise') return 0
+  if (['assignee_chef','assignee_agent','en_cours','refusee_chef','refusee_agent'].includes(n) || status === 'EN COURS') return 1
+  if (['resolue','resolu'].includes(n) || status === 'RESOLUE') return 2
+  if (['cloturee','cloture','évalué','clôturé'].includes(n) || ['CLOTUREE','CLÔTURÉ','ÉVALUÉ'].includes(status)) return 3
+  return 0
 }
 
 // ── Horizontal Progress Timeline ────────────────────────────────────────────────

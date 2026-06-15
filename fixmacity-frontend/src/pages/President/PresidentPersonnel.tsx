@@ -322,7 +322,7 @@ const UserModal: React.FC<{
 
           {/* Bandeau conflit DEPT_HAS_CHEF */}
           {conflict && form.role === 'chef' && (
-            <div className="rounded-2xl border border-amber-400/40 bg-amber-950/10 dark:bg-amber-950/30 p-4 space-y-3">
+            <div className="relative z-10 rounded-2xl border-2 border-amber-400/60 bg-amber-50 dark:bg-amber-900/50 p-5 space-y-3 shadow-md">
               <div className="flex items-start gap-2.5">
                 <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div className="space-y-1">

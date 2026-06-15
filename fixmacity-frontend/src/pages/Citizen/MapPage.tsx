@@ -16,22 +16,23 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
 
-// ─── 3 statuses only ──────────────────────────────────────────────────────────
-// soumise = amber  |  en_cours = blue  |  cloturee (= resolue) = green
+// ─── 4 statuses ───────────────────────────────────────────────────────────────
+// soumise = amber  |  en_cours = blue  |  resolue = green | cloturee = slate
 const STATUS_CFG: Record<string, { color: string; label: string; heatColor: string }> = {
   soumise:        { color: '#F59E0B', label: 'Soumise',  heatColor: 'rgba(245,158,11,0.25)' },
   assignee_chef:  { color: '#1557FF', label: 'En cours', heatColor: 'rgba(21,87,255,0.2)'   },
   assignee_agent: { color: '#1557FF', label: 'En cours', heatColor: 'rgba(21,87,255,0.2)'   },
   en_cours:       { color: '#1557FF', label: 'En cours', heatColor: 'rgba(21,87,255,0.2)'   },
   resolue:        { color: '#16a34a', label: 'Résolue',  heatColor: 'rgba(22,163,74,0.2)'   },
-  cloturee:       { color: '#16a34a', label: 'Résolue',  heatColor: 'rgba(22,163,74,0.2)'   },
-  refusee_chef:   { color: '#16a34a', label: 'Résolue',  heatColor: 'rgba(22,163,74,0.2)'   },
+  cloturee:       { color: '#475569', label: 'Clôturée', heatColor: 'rgba(71,85,105,0.2)'   },
+  refusee_chef:   { color: '#ef4444', label: 'Refusée',  heatColor: 'rgba(239,68,68,0.2)'   },
 }
 
 const LEGEND = [
   { color: '#F59E0B', label: 'Soumise'  },
   { color: '#1557FF', label: 'En cours' },
   { color: '#16a34a', label: 'Résolue'  },
+  { color: '#475569', label: 'Clôturée' },
 ]
 
 // ─── Tile layers ──────────────────────────────────────────────────────────────
@@ -63,8 +64,8 @@ function DarkAwareTileLayer() {
 
 const CATEGORIES      = ['Toutes catégories', 'Voirie', 'Éclairage', 'Propreté', 'Espaces Verts', 'Réseaux', 'Signalisation']
 const ARRONDISSEMENTS = ['Tout Sousse', 'Sousse Ville', 'Sousse Jawhara', 'Sousse Sidi Abdelhamid']
-const STATUSES        = ['Tous statuts', 'Soumise', 'En cours', 'Résolue']
-const TIMELINE_STEPS  = ['Soumis', 'Assigné', 'Intervention', 'Résolution']
+const STATUSES        = ['Tous statuts', 'Soumise', 'En cours', 'Résolue', 'Clôturée']
+const TIMELINE_STEPS  = ['Soumise', 'En cours', 'Résolue', 'Clôturée']
 
 const MOCK: any[] = [
   { id:'1', title:'Éclairage défectueux - Avenue de la République', description:'Le lampadaire clignote depuis deux nuits.', category:'Éclairage', status:'en_cours', latitude:35.8270, longitude:10.6370, address:'Avenue de la République, Sousse', created_at:'2026-04-20T21:15:00Z', history:[{changed_at:'2026-04-20T21:15:00Z'},{changed_at:'2026-04-21T09:30:00Z'},null,null] },
@@ -96,10 +97,10 @@ function FlyTo({ coords }: { coords: [number,number] | null }) {
 
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 function getStep(status: string) {
-  if (['soumise','assignee_chef','assignee_agent'].includes(status)) return 1
-  if (status === 'en_cours') return 2
-  if (status === 'resolue')  return 3
-  if (status === 'cloturee') return 4
+  if (status === 'soumise') return 1
+  if (['assignee_chef','assignee_agent','en_cours'].includes(status)) return 2
+  if (['resolue'].includes(status)) return 3
+  if (['cloturee'].includes(status)) return 4
   return 0
 }
 

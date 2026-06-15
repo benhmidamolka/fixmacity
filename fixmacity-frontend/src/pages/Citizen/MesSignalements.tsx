@@ -24,15 +24,15 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string; dot
   'CLÔTURÉ':  { label: 'Clôturé',  color: '#475569', bg: '#f1f5f9', dot: '#94a3b8' },
 }
 
-const STEPS = ['Soumise', 'Assignée', 'En cours', 'Résolue']
+const CITIZEN_STEPS = ['Soumise', 'En cours', 'Résolue', 'Clôturée']
 
 function stepIdx(s: string) {
   if (!s) return 0
   const n = s.toLowerCase()
   if (n === 'soumise') return 0
-  if (['assignee_chef','assignee_agent','refusee_chef','refusee_agent'].includes(n)) return 1
-  if (n === 'en_cours' || s === 'EN COURS') return 2
-  if (['resolue','cloturee'].includes(n) || ['RESOLUE','CLOTUREE','ÉVALUÉ','CLÔTURÉ'].includes(s)) return 3
+  if (['assignee_chef','assignee_agent','en_cours','refusee_chef','refusee_agent'].includes(n) || s === 'EN COURS') return 1
+  if (['resolue','resolu'].includes(n) || ['RESOLUE'].includes(s)) return 2
+  if (['cloturee','cloture','évalué','clôturé'].includes(n) || ['CLOTUREE','ÉVALUÉ','CLÔTURÉ'].includes(s)) return 3
   return 0
 }
 
@@ -67,14 +67,14 @@ function Timeline({ status, history }: { status: string; history?: any[] }) {
   return (
     <div className="relative space-y-0">
       <div className="absolute left-3 top-4 bottom-4 w-0.5 bg-slate-100 dark:bg-white/10" />
-      {STEPS.map((step, i) => {
+      {CITIZEN_STEPS.map((step, i) => {
         const done    = i < active
         const current = i === active
         const h = history?.find(e => {
           if (i === 0) return e.new_status === 'soumise'
-          if (i === 1) return ['assignee_chef','assignee_agent'].includes(e.new_status)
-          if (i === 2) return e.new_status === 'en_cours'
-          return ['resolue','cloturee'].includes(e.new_status)
+          if (i === 1) return ['assignee_chef','assignee_agent','en_cours'].includes(e.new_status)
+          if (i === 2) return e.new_status === 'resolue'
+          return ['cloturee'].includes(e.new_status)
         })
         return (
           <div key={step} className="flex items-start gap-3 relative pb-3 last:pb-0">
