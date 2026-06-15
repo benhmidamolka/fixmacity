@@ -115,22 +115,26 @@ exports.create = async (req, res) => {
     const force = req.body.force === 'true' || req.body.force === true;
     if (!force && latitude && longitude && category) {
       try {
-        const pool = supabase.pool;
-        const dupResult = await pool.query(
+        // 10 m radius in degrees (Tunisia ≈ 36°N):
+        //   1° lat ≈ 111 000 m  →  10 m ≈ 0.000090°
+        //   1° lng ≈  90 000 m  →  10 m ≈ 0.000111°
+        // Pythagorean threshold = (0.000090)² + (0.000111)² ≈ 0.0000000204
+        const RADIUS_DEG2 = 0.000000025; // slightly generous to cover both axes
+        const dupResult = await supabase.pool.query(
           `SELECT id, title, ref_citoyen, status, votes_count
            FROM declarations
            WHERE category = $1
              AND is_deleted = false
              AND status NOT IN ('cloturee','refusee_chef','refusee_agent')
-             AND latitude IS NOT NULL
+             AND latitude  IS NOT NULL
              AND longitude IS NOT NULL
              AND (
                (latitude  - $2::float)^2 +
                (longitude - $3::float)^2
-             ) < 0.00000001
+             ) < $4
            ORDER BY created_at DESC
            LIMIT 1`,
-          [category, parseFloat(latitude), parseFloat(longitude)]
+          [category, parseFloat(latitude), parseFloat(longitude), RADIUS_DEG2]
         );
         if (dupResult.rows.length > 0) {
           const existing = dupResult.rows[0];

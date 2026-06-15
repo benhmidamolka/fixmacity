@@ -499,7 +499,7 @@ const PresCard = ({ prop, onEdit, onDelete }: { prop: Prop; onEdit: (p: Prop) =>
 }
 
 // ─── Citizen Prop Card ────────────────────────────────────────────────────────
-const CitiCard = ({ prop, onOpen }: { prop: Prop; onOpen: (p: Prop) => void }) => {
+const CitiCard = ({ prop, onOpen, onDelete }: { prop: Prop; onOpen: (p: Prop) => void; onDelete: (p: Prop) => void }) => {
   const isPending   = prop.status === 'active'
   const isConfirmed = prop.status === 'Confirmer'
   const isRetenu    = prop.status === 'Retenu'
@@ -540,14 +540,25 @@ const CitiCard = ({ prop, onOpen }: { prop: Prop; onOpen: (p: Prop) => void }) =
           Prendre une décision <ChevronRight className="w-3.5 h-3.5" />
         </button>
       ) : (
-        <div className={`w-full py-2.5 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 border ${
-          isConfirmed ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800' :
-          isRetenu    ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-100 dark:border-purple-800'
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
-        }`}>
-          {isConfirmed ? <><CheckCircle2 className="w-3.5 h-3.5" />Confirmée</> :
-           isRetenu    ? <><Star className="w-3.5 h-3.5" />Retenue</> :
-                         <><Activity className="w-3.5 h-3.5" />Traitée</>}
+        <div className="flex gap-2">
+          <div className={`flex-1 py-2.5 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 border ${
+            isConfirmed ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800' :
+            isRetenu    ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-100 dark:border-purple-800'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+          }`}>
+            {isConfirmed ? <><CheckCircle2 className="w-3.5 h-3.5" />Confirmée</> :
+             isRetenu    ? <><Star className="w-3.5 h-3.5" />Retenue</> :
+                           <><Activity className="w-3.5 h-3.5" />Traitée</>}
+          </div>
+          {isConfirmed && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(prop); }}
+              className="w-10 h-10 shrink-0 rounded-2xl flex items-center justify-center text-rose-500 bg-rose-50 border border-rose-100 hover:bg-rose-500 hover:text-white transition-all dark:bg-rose-900/20 dark:border-rose-800"
+              title="Supprimer cette suggestion"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -828,7 +839,7 @@ export default function PresidentPropositions() {
                     onDelete={prop => setDeleteProp(prop)} />
                 ))
               : filtered.map(p => (
-                  <CitiCard key={p.id} prop={p} onOpen={prop => setDecisionProp(prop)} />
+                  <CitiCard key={p.id} prop={p} onOpen={prop => setDecisionProp(prop)} onDelete={prop => setDeleteProp(prop)} />
                 ))
             }
           </div>

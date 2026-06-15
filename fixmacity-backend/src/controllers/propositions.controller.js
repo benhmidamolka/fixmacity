@@ -37,6 +37,27 @@ exports.createProposition = async (req, res) => {
       console.error('[Propositions] DB Error:', error);
       return res.status(500).json({ error: 'Erreur lors de la création de la suggestion.' });
     }
+
+    // Notify présidents
+    try {
+      const { data: presidents } = await supabase.from('users').select('id').eq('role', 'president').eq('is_active', true);
+      if (presidents && presidents.length > 0) {
+        const citizenName = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Un citoyen';
+        const notifications = presidents.map(p => ({
+          user_id: p.id,
+          type: 'new_proposition',
+          title: 'Nouvelle suggestion citoyenne',
+          body: `${citizenName} a soumis une suggestion : « ${proposition.title} »`,
+          reference_id: proposition.id,
+          is_read: false,
+          created_at: new Date().toISOString()
+        }));
+        await supabase.from('notifications').insert(notifications);
+      }
+    } catch (notifErr) {
+      console.warn('[Propositions] President notification error:', notifErr.message);
+    }
+
     return res.status(201).json({ proposition });
   } catch (err) {
     console.error('[Propositions] Create error:', err);

@@ -350,12 +350,14 @@ function PropCard({ prop, onClick }: { prop: any; onClick: () => void }) {
   const isOwnCitizenSuggestion = isOwnProposal && prop.type === 'citizen'
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden hover:shadow-lg transition-all cursor-pointer group relative flex flex-col h-full"
-      onClick={onClick}>
+    <div className={`bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden transition-all relative flex flex-col h-full ${
+      isOwnCitizenSuggestion ? '' : 'hover:shadow-lg cursor-pointer group'
+    }`}
+      onClick={isOwnCitizenSuggestion ? undefined : onClick}>
 
       <div className="relative h-44 overflow-hidden">
         <img src={prop.img} alt={prop.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          className={`w-full h-full object-cover transition-transform duration-500 ${isOwnCitizenSuggestion ? '' : 'group-hover:scale-105'}`} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
         <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
           style={{ background: c.bg, color: c.text }}>
@@ -371,7 +373,9 @@ function PropCard({ prop, onClick }: { prop: any; onClick: () => void }) {
       </div>
 
       <div className="p-5 flex-1 flex flex-col">
-        <h3 className="font-bold text-[#0A1628] dark:text-white text-base leading-tight mb-2 group-hover:text-[#1557FF] transition-colors">{prop.title}</h3>
+        <h3 className={`font-bold text-[#0A1628] dark:text-white text-base leading-tight mb-2 transition-colors ${
+          isOwnCitizenSuggestion ? '' : 'group-hover:text-[#1557FF]'
+        }`}>{prop.title}</h3>
 
         {/* Countdown — only show for president-type propositions */}
         {!isOwnCitizenSuggestion && (
@@ -469,6 +473,8 @@ const Propositions: React.FC = () => {
   const [showSuggestion, setShowSuggestion] = useState(false)
   const [toast, setToast]          = useState<{ message: string; type: 'error' | 'success' } | null>(null)
   const token = localStorage.getItem('fmc_token')
+  const storedUser = localStorage.getItem('fmc_user')
+  const user = storedUser ? JSON.parse(storedUser) : null
   const propsFromAPI = React.useRef(false);
 
   useEffect(() => {
@@ -636,13 +642,18 @@ const Propositions: React.FC = () => {
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProps.map(p => (
-              <PropCard 
-                key={p.id} 
-                prop={p} 
-                onClick={() => setSelected(p)} 
-              />
-            ))}
+            {filteredProps.map(p => {
+              const isOwnCitizenSuggestion = user?.id && p.created_by && String(user.id) === String(p.created_by) && p.type === 'citizen';
+              return (
+                <PropCard 
+                  key={p.id} 
+                  prop={p} 
+                  onClick={() => {
+                    if (!isOwnCitizenSuggestion) setSelected(p);
+                  }} 
+                />
+              );
+            })}
           </div>
         )}
       </div>

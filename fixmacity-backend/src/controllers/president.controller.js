@@ -1477,6 +1477,22 @@ exports.updateProposition = async (req, res) => {
 exports.deleteProposition = async (req, res) => {
   try {
     const { id } = req.params;
+
+    const { data: prop, error: fetchErr } = await supabase
+      .from('propositions')
+      .select('id, type, status, created_by')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchErr || !prop) {
+      return res.status(404).json({ error: 'Proposition introuvable.' });
+    }
+
+    // Only allow deleting if type='president' OR (type='citizen' and status='Confirmer')
+    if (prop.type !== 'president' && !(prop.type === 'citizen' && prop.status === 'Confirmer')) {
+      return res.status(403).json({ error: 'Action non autorisée : la suggestion ne peut pas être supprimée.' });
+    }
+
     // Delete votes first (FK constraint)
     await supabase.from('proposition_votes').delete().eq('proposition_id', id);
     const { error } = await supabase.from('propositions').delete().eq('id', id);
@@ -2197,11 +2213,14 @@ exports.decideProposition = async (req, res) => {
 
     // Fetch proposition
     const { data: prop } = await supabase.from('propositions')
-      .select('id, title, status, created_by, is_deleted')
+      .select('id, title, status, created_by, type')
       .eq('id', id).maybeSingle();
 
-    if (!prop || prop.is_deleted) {
-      return res.status(404).json({ error: 'Proposition introuvable ou déjà supprimée.' });
+    if (!prop) {
+      return res.status(404).json({ error: 'Proposition introuvable.' });
+    }
+    if (prop.type !== 'citizen') {
+      return res.status(400).json({ error: 'Action non autorisée : seules les suggestions citoyennes peuvent être décidées.' });
     }
     if (prop.status !== 'active') {
       return res.status(400).json({ error: 'Action non autorisée pour le statut actuel.' });
@@ -2224,15 +2243,21 @@ exports.decideProposition = async (req, res) => {
 
     // ── In-app notification to citizen ──────────────────────────────────────
     try {
-      const notifMessage = decision === 'Confirmer'
-        ? `Votre suggestion '${prop.title}' a été reçue par le Président.`
-        : `Votre suggestion '${prop.title}' a été retenue pour étude par le Président.`;
+      const notifTitle = decision === 'Confirmer'
+        ? 'Votre suggestion a été confirmée'
+        : 'Votre suggestion a été retenue';
+      const notifBody = decision === 'Confirmer'
+        ? `Votre suggestion « ${prop.title} » a été confirmée par le Président.`
+        : `Votre suggestion « ${prop.title} » a été retenue pour étude par le Président.`;
+
       await supabase.from('notifications').insert({
-        user_id:    prop.created_by,
-        message:    notifMessage,
-        type:       'proposition_decision',
-        is_read:    false,
-        created_at: now,
+        user_id:      prop.created_by,
+        type:         'proposition_decision',
+        title:        notifTitle,
+        body:         notifBody,
+        reference_id: prop.id,
+        is_read:      false,
+        created_at:   now,
       });
     } catch (notifErr) {
       // Non-fatal — log and continue

@@ -150,12 +150,17 @@ function Step1({ data, onChange, onNext, delegations }: any) {
     setLoading(true)
     try {
       const r = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=fr`
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1&accept-language=fr`
       )
       const d = await r.json()
-      applyLocation(lat, lng, d.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`)
-    } catch {
-      applyLocation(lat, lng, `${lat.toFixed(4)}, ${lng.toFixed(4)}`)
+      if (!d.display_name) console.warn('[Nominatim] No display_name returned:', d)
+      const formattedAddress = d.display_name
+        ? d.display_name.split(',').slice(0, 3).join(',').trim()
+        : `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+      applyLocation(lat, lng, formattedAddress)
+    } catch (err) {
+      console.warn('[Nominatim] reverseGeocode failed:', err)
+      applyLocation(lat, lng, `${lat.toFixed(5)}, ${lng.toFixed(5)}`)
     } finally {
       setLoading(false)
     }
@@ -1090,10 +1095,11 @@ const NouveauSignalement: React.FC = () => {
       let delegation_id = ''
       try {
         const r = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=fr`
+          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1&accept-language=fr`
         )
         const d = await r.json()
-        address = d.display_name?.split(',').slice(0, 3).join(',') || address
+        if (!d.display_name) console.warn('[Nominatim] No display_name (map bootstrap):', d)
+        address = d.display_name ? d.display_name.split(',').slice(0, 3).join(',').trim() : address
       } catch { /* keep coords as address */ }
 
       // Try to detect delegation from coordinates
