@@ -415,7 +415,7 @@ function Step2({ data, onChange, onNext, onBack }: any) {
     // Check for nearby duplicates
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('fmc_token')
       const r = await fetch(`${API}/declarations/nearby?latitude=${data.latitude}&longitude=${data.longitude}&category=${data.category}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -438,7 +438,7 @@ function Step2({ data, onChange, onNext, onBack }: any) {
   const handleSupport = async (declId: string) => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('fmc_token')
       const res = await fetch(`${API}/declarations/${declId}/vote`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
@@ -645,25 +645,6 @@ function Step3({ data, onChange, onNext, onBack, autoFile }: any) {
     if (!data.title || !data.description) {
       toast.error("L'information [Titre / Description] est manquante")
       return
-    }
-    
-    // Replace Math.random() with real fetch to /api/declarations/nearby
-    if (!showSimilar) {
-      try {
-        const token = localStorage.getItem('fmc_token')
-        const res = await fetch(`${API}/declarations/nearby?lat=${data.latitude}&lng=${data.longitude}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-        if (res.ok) {
-          const result = await res.json()
-          if (result.declarations && result.declarations.length > 0) {
-            setShowSimilar(true)
-            return
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching nearby declarations", err)
-      }
     }
     
     onNext()
