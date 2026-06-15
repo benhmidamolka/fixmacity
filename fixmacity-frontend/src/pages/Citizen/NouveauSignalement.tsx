@@ -963,9 +963,68 @@ function SuccessScreen({ ref_citoyen, onNew }: { ref_citoyen: string; onNew: () 
   )
 }
 
+// ─── Duplicate Declaration Dialog ─────────────────────────────────────────────
+function DuplicateDialog({
+  existing, onVote, onForce, onClose,
+}: {
+  existing: { id: string; title: string; ref_citoyen: string; status: string; votes_count: number };
+  onVote:  () => void;
+  onForce: () => void;
+  onClose: () => void;
+}) {
+  const statusLabel: Record<string, string> = {
+    soumise:        'Soumise',
+    assignee_chef:  'En cours',
+    assignee_agent: 'En cours',
+    en_cours:       'En cours',
+    resolue:        'Résolue',
+  }
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      style={{ background: 'rgba(10,22,40,0.65)', backdropFilter: 'blur(6px)' }}
+      onClick={onClose}>
+      <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md shadow-2xl p-6"
+        onClick={e => e.stopPropagation()}>
+        <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+          <AlertCircle className="w-7 h-7 text-amber-500" />
+        </div>
+        <h3 className="text-lg font-bold text-[#0A1628] dark:text-white text-center mb-2">
+          Déclaration similaire existante
+        </h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-5 leading-relaxed">
+          Une déclaration similaire existe déjà à cet endroit&nbsp;:
+        </p>
+        <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 mb-5">
+          <p className="text-sm font-bold text-[#0A1628] dark:text-white mb-1">« {existing.title} »</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Réf&nbsp;: <span className="font-mono font-bold text-[#1557FF]">{existing.ref_citoyen}</span>
+            &nbsp;·&nbsp;Statut&nbsp;: <span className="font-semibold">{statusLabel[existing.status] || existing.status}</span>
+            &nbsp;·&nbsp;{existing.votes_count ?? 0} soutien(s)
+          </p>
+        </div>
+        <p className="text-sm text-slate-600 dark:text-slate-300 text-center mb-5">
+          Voulez-vous voter pour celle-ci au lieu de créer un doublon&nbsp;?
+        </p>
+        <div className="flex flex-col gap-3">
+          <button onClick={onVote}
+            className="w-full py-3.5 rounded-xl text-white font-bold text-sm transition-all hover:opacity-90"
+            style={{ background: '#1557FF' }}>
+            👍 Voter pour celle-ci
+          </button>
+          <button onClick={onForce}
+            className="w-full py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+            Créer quand même
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 const NouveauSignalement: React.FC = () => {
   const [searchParams]               = useSearchParams()
+  const navigate                     = useNavigate()
   const fromMap                      = searchParams.get('from') === 'map'
 
   const [step,       setStep]       = useState(1)
@@ -973,6 +1032,8 @@ const NouveauSignalement: React.FC = () => {
   const [refCitoyen, setRefCitoyen] = useState('')
   const [submitted,  setSubmitted]  = useState(false)
   const [delegations, setDelegations] = useState<any[]>([])
+  const [duplicateInfo, setDuplicateInfo] = useState<any>(null)   // 409 duplicate payload
+  const [forceCreate,  setForceCreate]  = useState(false)          // skip dup check on retry
   // Fast-lane: photo File reconstructed from sessionStorage
   const [mapAutoFile, setMapAutoFile] = useState<File | null>(null)
 
@@ -1050,7 +1111,7 @@ const NouveauSignalement: React.FC = () => {
     bootstrap()
   }, [fromMap])
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (force = false) => {
     setLoading(true)
     const token = localStorage.getItem('fmc_token')
     try {
@@ -1062,6 +1123,9 @@ const NouveauSignalement: React.FC = () => {
       body.append('latitude',      String(formData.latitude))
       body.append('longitude',     String(formData.longitude))
       body.append('address',       formData.address)
+
+      // ── Force flag (skip duplicate check) ────────────────────────
+      if (force || forceCreate) body.append('force', 'true')
 
       // ── AI vision fields ──────────────────────────────────────────
       if (formData.ai_analyzed) {
@@ -1097,11 +1161,18 @@ const NouveauSignalement: React.FC = () => {
         method: 'POST', headers: { Authorization: `Bearer ${token}` }, body,
       })
       const data = await res.json()
-      
+
+      // ── Duplicate detected by backend ──────────────────────────────
+      if (res.status === 409 && data.duplicate) {
+        setDuplicateInfo(data.existing)
+        setLoading(false)
+        return
+      }
+
       if (!res.ok) {
         throw new Error(data.error || 'Erreur lors de la soumission');
       }
-      
+
       setRefCitoyen(data.declaration?.ref_citoyen || data.ref_citoyen || 'SOU-2026-00-0001')
       setSubmitted(true)
     } catch (err: any) {
@@ -1141,8 +1212,39 @@ const NouveauSignalement: React.FC = () => {
           : step === 1     ? <Step1 data={formData} onChange={update} onNext={() => setStep(2)} delegations={delegations} />
           : step === 2     ? <Step2 data={formData} onChange={update} onNext={() => setStep(3)} onBack={() => setStep(1)} />
           : step === 3     ? <Step3 data={formData} onChange={update} onNext={() => setStep(4)} onBack={() => fromMap ? setStep(1) : setStep(2)} autoFile={mapAutoFile} />
-          : <Step4 data={formData} onSubmit={handleSubmit} onBack={() => setStep(3)} loading={loading} delegations={delegations} />}
+          : <Step4 data={formData} onSubmit={() => handleSubmit(false)} onBack={() => setStep(3)} loading={loading} delegations={delegations} />}
         </div>
+
+        {/* Duplicate declaration dialog */}
+        {duplicateInfo && (
+          <DuplicateDialog
+            existing={duplicateInfo}
+            onVote={async () => {
+              const token = localStorage.getItem('fmc_token')
+              try {
+                const r = await fetch(`${API}/declarations/${duplicateInfo.id}/vote`, {
+                  method: 'POST', headers: { Authorization: `Bearer ${token}` },
+                })
+                if (r.ok) {
+                  toast.success('Votre vote a été enregistré !')
+                  setDuplicateInfo(null)
+                  navigate('/citizen/mes-signalements')
+                } else {
+                  const e = await r.json()
+                  toast.error(e.error || 'Erreur lors du vote.')
+                }
+              } catch {
+                toast.error('Erreur serveur.')
+              }
+            }}
+            onForce={() => {
+              setForceCreate(true)
+              setDuplicateInfo(null)
+              handleSubmit(true)
+            }}
+            onClose={() => setDuplicateInfo(null)}
+          />
+        )}
         {!submitted && step < 4 && (
           <div className="grid grid-cols-2 gap-3 mt-4">
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-3 flex items-center gap-3">

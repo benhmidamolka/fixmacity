@@ -198,6 +198,7 @@ function PropositionModal({
   const user = storedUser ? JSON.parse(storedUser) : null
   const isPresident = user?.role === 'president'
   const isOwnProposal = user?.id && prop.created_by && String(user.id) === String(prop.created_by)
+  const isOwnCitizenSuggestion = isOwnProposal && prop.type === 'citizen'
 
   const handleVote = (v: 'pour' | 'contre') => {
     if (isOwnProposal) return
@@ -270,8 +271,13 @@ function PropositionModal({
               </div>
             )}
 
-            {/* Self-authored proposal */}
-            {isOwnProposal ? (
+            {/* Citizen's own suggestion → status card only, no vote */}
+            {isOwnCitizenSuggestion ? (
+              <div className="mt-2">
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-3">Statut de votre suggestion</p>
+                <CitizenSuggestionStatus status={prop.status} />
+              </div>
+            ) : isOwnProposal ? (
               <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/40 rounded-2xl p-4 text-center">
                 <p className="text-blue-700 dark:text-blue-300 font-bold text-sm">🏛️ Votre proposition</p>
                 <p className="text-blue-600 dark:text-blue-400 text-xs mt-1">Vous ne pouvez pas voter sur vos propres propositions.</p>
@@ -306,6 +312,31 @@ function PropositionModal({
   )
 }
 
+// ─── Citizen suggestion status badge ─────────────────────────────────────────
+function CitizenSuggestionStatus({ status }: { status: string }) {
+  const s = (status || '').toLowerCase()
+  if (s === 'retenu' || s === 'retained') {
+    return (
+      <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/40 rounded-xl p-3 text-center">
+        <p className="text-green-700 dark:text-green-300 font-bold text-xs">✓ Retenue par le Président</p>
+      </div>
+    )
+  }
+  if (s === 'confirmer' || s === 'confirme' || s === 'confirmé' || s === 'confirmed') {
+    return (
+      <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/40 rounded-xl p-3 text-center">
+        <p className="text-green-700 dark:text-green-300 font-bold text-xs">✓ Confirmée</p>
+      </div>
+    )
+  }
+  // default: a_discuter / active / pending → amber "En attente"
+  return (
+    <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-xl p-3 text-center">
+      <p className="text-amber-700 dark:text-amber-300 font-bold text-xs">⏳ En attente de décision du Président</p>
+    </div>
+  )
+}
+
 // ─── Proposition Card ─────────────────────────────────────────────────────────
 function PropCard({ prop, onClick }: { prop: any; onClick: () => void }) {
   const { t } = useTranslation();
@@ -316,6 +347,7 @@ function PropCard({ prop, onClick }: { prop: any; onClick: () => void }) {
   const user = storedUser ? JSON.parse(storedUser) : null
   const isPresident = user?.role === 'president'
   const isOwnProposal = user?.id && prop.created_by && String(user.id) === String(prop.created_by)
+  const isOwnCitizenSuggestion = isOwnProposal && prop.type === 'citizen'
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden hover:shadow-lg transition-all cursor-pointer group relative flex flex-col h-full"
@@ -333,7 +365,7 @@ function PropCard({ prop, onClick }: { prop: any; onClick: () => void }) {
         {/* Own proposal badge */}
         {isOwnProposal && (
           <span className="absolute top-3 right-3 bg-blue-600 text-white text-[10px] font-black px-2 py-1 rounded-full">
-            Ma proposition
+            {isOwnCitizenSuggestion ? 'Ma suggestion' : 'Ma proposition'}
           </span>
         )}
       </div>
@@ -341,18 +373,20 @@ function PropCard({ prop, onClick }: { prop: any; onClick: () => void }) {
       <div className="p-5 flex-1 flex flex-col">
         <h3 className="font-bold text-[#0A1628] dark:text-white text-base leading-tight mb-2 group-hover:text-[#1557FF] transition-colors">{prop.title}</h3>
 
-        {/* Countdown */}
-        <div className="flex">
-          <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full mb-4 ${
-            urgent ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
-          }`}>
-            ⏳ {t('propositions.daysLeft', { days: prop.days_left })}
+        {/* Countdown — only show for president-type propositions */}
+        {!isOwnCitizenSuggestion && (
+          <div className="flex">
+            <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full mb-4 ${
+              urgent ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
+            }`}>
+              ⏳ {t('propositions.daysLeft', { days: prop.days_left })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Progress & Votes container */}
         <div className="mt-auto flex flex-col justify-end">
-          {isPresident && (
+          {isPresident && !isOwnCitizenSuggestion && (
             <div className="mb-4">
               <div className="flex justify-between text-xs font-bold mb-1.5">
                 <span className="text-slate-500 dark:text-slate-400 font-medium">{t('propositions.citizenSupport')}</span>
@@ -364,8 +398,11 @@ function PropCard({ prop, onClick }: { prop: any; onClick: () => void }) {
             </div>
           )}
 
-          {/* Own proposal: show view details instead of vote buttons */}
-          {isOwnProposal ? (
+          {/* Citizen's own suggestion → status card, never vote buttons */}
+          {isOwnCitizenSuggestion ? (
+            <CitizenSuggestionStatus status={prop.status} />
+          ) : isOwnProposal ? (
+            // Own president-type proposal: no voting
             <div className="bg-blue-50 dark:bg-blue-950/20 rounded-xl p-3 text-center">
               <p className="text-blue-600 dark:text-blue-400 text-xs font-bold">Voir les détails →</p>
             </div>

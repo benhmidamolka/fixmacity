@@ -111,7 +111,48 @@ exports.create = async (req, res) => {
       .select('id, code').eq('id', actualDelegationId).single();
     if (!deleg) return res.status(400).json({ error: 'Arrondissement invalide.' });
 
+    // ── Duplicate check (skip if force=true) ───────────────────────
+    const force = req.body.force === 'true' || req.body.force === true;
+    if (!force && latitude && longitude && category) {
+      try {
+        const pool = supabase.pool;
+        const dupResult = await pool.query(
+          `SELECT id, title, ref_citoyen, status, votes_count
+           FROM declarations
+           WHERE category = $1
+             AND is_deleted = false
+             AND status NOT IN ('cloturee','refusee_chef','refusee_agent')
+             AND latitude IS NOT NULL
+             AND longitude IS NOT NULL
+             AND (
+               (latitude  - $2::float)^2 +
+               (longitude - $3::float)^2
+             ) < 0.00000001
+           ORDER BY created_at DESC
+           LIMIT 1`,
+          [category, parseFloat(latitude), parseFloat(longitude)]
+        );
+        if (dupResult.rows.length > 0) {
+          const existing = dupResult.rows[0];
+          return res.status(409).json({
+            duplicate: true,
+            existing: {
+              id:          existing.id,
+              title:       existing.title,
+              ref_citoyen: existing.ref_citoyen,
+              status:      existing.status,
+              votes_count: existing.votes_count,
+            },
+          });
+        }
+      } catch (dupErr) {
+        // Non-fatal: if duplicate check fails, proceed with creation
+        console.warn('[Declarations] Duplicate check failed (non-fatal):', dupErr.message);
+      }
+    }
+
     const refCitoyen = await generateRefCitoyen(deleg.code);
+
 
     // ── Save photo ─────────────────────────────────────────────────
     let publicUrl = null;
