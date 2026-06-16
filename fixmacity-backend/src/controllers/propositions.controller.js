@@ -72,11 +72,10 @@ exports.listPropositions = async (req, res) => {
 
     // Visibility rules:
     // - president: sees everything (all types, all statuses)
-    // - citizen: sees type='president' propositions (all statuses, for voting)
-    //            PLUS their own type='citizen' suggestions (for tracking)
-    // - other roles: same as citizen (read-only, can vote on president propositions)
+    // - citizen: sees type='president' AND status='active' (votable only)
+    //            PLUS their own type='citizen' suggestions (for tracking, any status)
     if (req.user.role === 'citizen') {
-      query = query.or(`type.eq.president,created_by.eq.${req.user.id}`);
+      query = query.or(`and(type.eq.president,status.eq.active),created_by.eq.${req.user.id}`);
     }
     // president role: no filter applied — sees all rows
 

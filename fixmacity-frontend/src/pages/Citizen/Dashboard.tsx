@@ -413,7 +413,7 @@ const Dashboard: React.FC = () => {
       const allProps = Array.isArray(props) ? props : props.propositions || []
       // Fix 1: only show président propositions that are active and votable
       const active = allProps.filter((p: any) =>
-        p.type === 'president' && p.status === 'active'
+        p.status === 'active' && p.type === 'president'
       )
       setPropositions(active)
     }).finally(() => setLoading(false))
