@@ -329,14 +329,6 @@ const ChefDeclarations: React.FC = () => {
               className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black hover:border-slate-300 transition-all">
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} /> Actualiser
             </button>
-            <button onClick={() => {
-              fetch(`${API}/chef/export`, { headers: hdr() })
-                .then(r => r.ok ? r.blob() : null)
-                .then(b => { if (!b) return; const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = `declarations-${new Date().toISOString().slice(0, 10)}.csv`; a.click() })
-            }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#1557FF] text-white rounded-xl text-xs font-black shadow-sm shadow-blue-100 hover:bg-blue-600 transition-all">
-              <Download className="w-3.5 h-3.5" /> CSV
-            </button>
           </div>
         </div>
 
