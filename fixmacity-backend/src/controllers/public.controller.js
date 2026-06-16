@@ -113,7 +113,8 @@ exports.getInterventions = async (req, res) => {
     const serviceMap = {};
     (services || []).forEach(s => { serviceMap[s.id] = s.name_fr; });
 
-    const formatted = declarations.map(d => ({
+    const declarationsWithPhotos = declarations.filter(d => photoMap[d.id]);
+    const formatted = declarationsWithPhotos.map(d => ({
       id: d.id,
       title: d.title,
       category: d.category,

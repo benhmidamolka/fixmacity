@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
 import { Search, ChevronDown, X, MapPin, Clock, CheckCircle, ThumbsUp, Award } from 'lucide-react'
@@ -7,24 +7,6 @@ import CitizenLayout from '../../components/citizen/CitizenLayout'
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 
 const CATEGORIES = ['Toutes', 'Voirie', 'Éclairage', 'Propreté', 'Espaces Verts', 'Réseaux', 'Signalisation']
-
-// ─── Mock data ────────────────────────────────────────────────────────────────
-const getMockFixes = (t: any) => [
-  { id: '1', title: t('works.mocks.fixes.1.title', 'Réparation chaussée Rue Ibn Khaldoun'), category: t('works.mocks.fixes.1.category', 'Voirie'), description: t('works.mocks.fixes.1.desc', "Le nid de poule signalé a été réparé en 2 jours."), address: t('works.mocks.fixes.1.addr', 'Rue Ibn Khaldoun, Sousse'), resolved_at: new Date(Date.now() - 2 * 86400000).toISOString(), rating: 5, rating_comment: t('works.mocks.fixes.1.comment', 'Travail rapide et propre, merci !'), votes_count: 14, before_img: 'https://chatgpt.com/backend-api/estuary/content?id=file_000000001be8720abba7aae3312f9e28&fn=image.png&cd=attachment&ts=494569&p=fs&cid=1&sig=8b58ed0a663b17c01b7f504aa45258d3ad05b89150135bc8a1bef7d24ee4e5dd&v=0', after_img: '' },
-  { id: '2', title: t('works.mocks.fixes.2.title', 'Éclairage public Place Farhat Hached'), category: t('works.mocks.fixes.2.category', 'Éclairage'), description: t('works.mocks.fixes.2.desc', '3 lampadaires défectueux remplacés par des modèles LED haute efficacité.'), address: t('works.mocks.fixes.2.addr', 'Place Farhat Hached, Sousse'), resolved_at: new Date(Date.now() - 4 * 86400000).toISOString(), rating: 4, rating_comment: t('works.mocks.fixes.2.comment', 'Intervention rapide, merci!'), votes_count: 8, after_img: 'http://www.commune-sousse.gov.tn/sites/default/files/16777126_10206506030849776_1318912901_o_1.jpg' },
-  { id: '3', title: t('works.mocks.fixes.3.title', 'Nettoyage Parc de la Ligue Arabe'), category: t('works.mocks.fixes.3.category', 'Propreté'), description: t('works.mocks.fixes.3.desc', 'Le parc a été entièrement nettoyé et de nouveaux bacs à ordures installés.'), address: t('works.mocks.fixes.3.addr', 'Parc de la Ligue Arabe, Sousse'), resolved_at: new Date(Date.now() - 7 * 86400000).toISOString(), rating: 5, rating_comment: t('works.mocks.fixes.3.comment', 'Super initiative !'), votes_count: 22, after_img: 'https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=400&q=80' },
-  { id: '4', title: t('works.mocks.fixes.4.title', 'Taille des arbres Avenue Bourguiba'), category: t('works.mocks.fixes.4.category', 'Espaces Verts'), description: t('works.mocks.fixes.4.desc', "Les arbres obstruant la visibilité ont été taillés par l'équipe espaces verts."), address: t('works.mocks.fixes.4.addr', 'Av. Habib Bourguiba, Sousse'), resolved_at: new Date(Date.now() - 10 * 86400000).toISOString(), rating: 4, rating_comment: undefined, votes_count: 6, after_img: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&q=80' },
-  { id: '5', title: t('works.mocks.fixes.5.title', 'Réparation fuite eau Cité Ettaamir'), category: t('works.mocks.fixes.5.category', 'Réseaux'), description: t('works.mocks.fixes.5.desc', "La fuite d'eau signalée a été colmatée et la chaussée remise en état."), address: t('works.mocks.fixes.5.addr', 'Cité Ettaamir, Sousse'), resolved_at: new Date(Date.now() - 14 * 86400000).toISOString(), rating: 3, rating_comment: t('works.mocks.fixes.5.comment', 'Bien mais un peu lent.'), votes_count: 11, after_img: 'https://i5.walmartimages.com/asr/170e4bef-5ecd-4f49-8bc7-4d89e25a2455.8d6351a87cefbf7c2300bed6d4a0d373.jpeg?odnHeight=640&odnWidth=640&odnBg=FFFFFF' },
-  { id: '6', title: t('works.mocks.fixes.6.title', 'Panneau stop remplacé Rond-point Nord'), category: t('works.mocks.fixes.6.category', 'Signalisation'), description: t('works.mocks.fixes.6.desc', 'Le panneau stop endommagé a été remplacé par un neuf conforme aux normes.'), address: t('works.mocks.fixes.6.addr', 'Rond-point Sousse Nord'), resolved_at: new Date(Date.now() - 5 * 86400000).toISOString(), rating: 5, rating_comment: undefined, votes_count: 3, after_img: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&q=80' },
-]
-
-const getMockProjects = (t: any) => [
-  { id: 'p1', title: t('works.mocks.projects.1.title', 'Végétalisation de la Place des Martyrs'), category: t('works.mocks.projects.1.category', 'Espaces Verts'), description: t('works.mocks.projects.1.desc', "Transformation de la place centrale en espace vert piétonnier."), pour_pct: 73, total_votes: 1245, completed_at: new Date(Date.now() - 30 * 86400000).toISOString(), duration: t('works.mocks.projects.1.duration', '3 mois'), img: 'https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=600&q=80', type: 'voted' },
-  { id: 'p2', title: t('works.mocks.projects.2.title', "Modernisation de l'Éclairage Public"), category: t('works.mocks.projects.2.category', 'Éclairage'), description: t('works.mocks.projects.2.desc', 'Remplacement de 3000 lampadaires par des LED à détection de mouvement. Réduction de 60% de la consommation énergétique.'), pour_pct: 89, total_votes: 2100, completed_at: new Date(Date.now() - 15 * 86400000).toISOString(), duration: t('works.mocks.projects.2.duration', '4 mois'), img: 'https://images.unsplash.com/photo-1508193638397-1c4234db14d8?w=600&q=80', type: 'voted' },
-  { id: 'p3', title: t('works.mocks.projects.3.title', 'Bacs à Ordures Connectés'), category: t('works.mocks.projects.3.category', 'Propreté'), description: t('works.mocks.projects.3.desc', 'Installation de 200 bacs intelligents avec capteurs IoT pour optimiser les tournées de collecte.'), pour_pct: 65, total_votes: 756, completed_at: new Date(Date.now() - 45 * 86400000).toISOString(), duration: t('works.mocks.projects.3.duration', '2 mois'), img: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=600&q=80', type: 'voted' },
-  { id: 'p4', title: t('works.mocks.projects.4.title', 'Réfection du marché municipal'), category: t('works.mocks.projects.4.category', 'Infrastructures'), description: t('works.mocks.projects.4.desc', 'Rénovation complète des toitures et mise aux normes sanitaires du marché central de Sousse.'), completed_at: new Date(Date.now() - 60 * 86400000).toISOString(), duration: t('works.mocks.projects.4.duration', '6 mois'), img: 'https://images.unsplash.com/photo-1533900298318-6b8da08a523e?w=600&q=80', type: 'municipal' },
-  { id: 'p5', title: t('works.mocks.projects.5.title', "Nouvelle station d'épuration Sousse Sud"), category: t('works.mocks.projects.5.category', 'Réseaux'), description: t('works.mocks.projects.5.desc', "Création d'une station d'épuration de dernière génération pour soulager le réseau sud."), completed_at: new Date(Date.now() - 120 * 86400000).toISOString(), duration: t('works.mocks.projects.5.duration', '12 mois'), img: 'https://images.unsplash.com/photo-1581093458791-9f3c3900df4b?w=600&q=80', type: 'municipal' },
-]
 
 function daysAgo(dateStr: string, t: any) {
   const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
@@ -47,7 +29,12 @@ function FixModal({ work, onClose }: { work: any; onClose: () => void }) {
 
         {/* Header image */}
         <div className="relative h-52 overflow-hidden rounded-t-3xl">
-          <img src={work.after_img} alt={work.title} className="w-full h-full object-cover" />
+          <img
+            src={work.after_img || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80'}
+            alt={work.title}
+            className="w-full h-full object-cover"
+            onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80' }}
+          />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,22,40,0.75) 0%, transparent 55%)' }} />
           <button onClick={onClose}
             className="absolute top-4 right-4 w-9 h-9 bg-white dark:bg-slate-800/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white dark:bg-slate-800/40 transition-all">
@@ -86,7 +73,12 @@ function FixModal({ work, onClose }: { work: any; onClose: () => void }) {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-green-600 mb-1.5">{t('works.modal.after', 'Après')}</p>
-                  <img src={work.after_img} alt={t('works.modal.after', 'Après')} className="w-full h-36 object-cover rounded-xl" />
+                  <img
+                    src={work.after_img || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80'}
+                    alt={t('works.modal.after', 'Après')}
+                    className="w-full h-36 object-cover rounded-xl"
+                    onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80' }}
+                  />
                 </div>
               </div>
             </div>
@@ -192,8 +184,12 @@ function FixCard({ work, onClick }: { work: any; onClick: () => void }) {
     <div onClick={onClick}
       className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer group">
       <div className="relative h-44 overflow-hidden">
-        <img src={work.after_img} alt={work.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <img
+          src={work.after_img || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80'}
+          alt={work.title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80' }}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
         <span className="absolute top-3 left-3 flex items-center gap-1 bg-green-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-full">
           <CheckCircle className="w-3 h-3" /> {t('works.status.resolved', 'Résolu')}
@@ -281,8 +277,6 @@ const TravauxRealises: React.FC = () => {
   }, [location.state])
   const [fixes, setFixes] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
-  const fixesFromAPI = useRef(false)
-  const projectsFromAPI = useRef(false)
   const [selectedFix, setSelectedFix] = useState<any>(null)
   const [selectedProj, setSelectedProj] = useState<any>(null)
   const [search, setSearch] = useState('')
@@ -291,11 +285,6 @@ const TravauxRealises: React.FC = () => {
   const [projFilter, setProjFilter] = useState<'all' | 'municipal' | 'voted'>('all')
   const token = localStorage.getItem('fmc_token')
 
-  // Re-populate mocks when language changes (skipped when API data is loaded)
-  useEffect(() => {
-    if (!fixesFromAPI.current) setFixes(getMockFixes(t))
-    if (!projectsFromAPI.current) setProjects(getMockProjects(t))
-  }, [t])
 
   useEffect(() => {
     // Load resolved declarations
@@ -309,7 +298,7 @@ const TravauxRealises: React.FC = () => {
             rating: d.rating?.score || null,
             rating_comment: d.rating?.comment || null
           }))
-          fixesFromAPI.current = true; setFixes(mapped)
+          setFixes(mapped)
         }
       }).catch(() => {})
 
