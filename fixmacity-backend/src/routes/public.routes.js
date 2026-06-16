@@ -16,6 +16,9 @@ router.get('/declarations/:id/feedback', publicCtrl.getDeclarationFeedback);
 // GET /api/public/delegations -> For listing all delegations
 router.get('/delegations', publicCtrl.getPublicDelegations);
 
+// GET /api/public/interventions -> For recent resolved declarations
+router.get('/interventions', publicCtrl.getInterventions);
+
 // GET /api/public/geocode/reverse
 router.get('/geocode/reverse', publicCtrl.reverseGeocode);
 

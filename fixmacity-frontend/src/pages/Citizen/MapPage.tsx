@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { X, Search, ChevronDown, MapPin, Camera, Navigation, Loader2 } from 'lucide-react'
+import { X, Search, ChevronDown, MapPin, Navigation, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import CitizenLayout from '../../components/citizen/CitizenLayout'
 
@@ -252,9 +252,9 @@ interface Suggestion { display_name: string; lat: string; lon: string }
 // ─── Main Map Page ────────────────────────────────────────────────────────────
 const MapPage: React.FC = () => {
   const navigate = useNavigate()
-  const fileRef  = useRef<HTMLInputElement>(null)
 
-  const [decls,       setDecls]       = useState<any[]>(MOCK)
+  const [decls,       setDecls]       = useState<any[]>([])
+  const [declSuggestions, setDeclSuggestions] = useState<any[]>([])
   const [selected,    setSelected]    = useState<any>(null)
   const [flyTo,       setFlyTo]       = useState<[number,number]|null>(null)
 
@@ -288,11 +288,30 @@ const MapPage: React.FC = () => {
       })
   }, [])
 
-  // ── Address search with Nominatim geocoding ───────────────────────────────
+  // ── Address & Declaration search ──────────────────────────────────────────────
   const handleSearchChange = (val: string) => {
     setSearch(val)
     clearTimeout(searchTimeout.current)
-    if (val.length < 3) { setSuggestions([]); setShowSugg(false); return }
+    if (val.length < 3) { 
+      setSuggestions([])
+      setDeclSuggestions([])
+      setShowSugg(false)
+      return 
+    }
+
+    // Filter existing declarations by title or ref
+    const matchedDecls = decls.filter(d =>
+      d.title?.toLowerCase().includes(val.toLowerCase()) ||
+      d.ref_citoyen?.toLowerCase().includes(val.toLowerCase())
+    )
+    if (matchedDecls.length > 0) {
+      setDeclSuggestions(matchedDecls.slice(0, 5))
+    } else {
+      setDeclSuggestions([])
+    }
+    
+    // We update showSugg immediately based on declarations, but it might change again after geocoding
+    setShowSugg(matchedDecls.length > 0 || suggestions.length > 0)
 
     searchTimeout.current = setTimeout(async () => {
       setSearching(true)
@@ -302,7 +321,7 @@ const MapPage: React.FC = () => {
         )
         const data: Suggestion[] = await res.json()
         setSuggestions(data)
-        setShowSugg(data.length > 0)
+        setShowSugg(data.length > 0 || matchedDecls.length > 0)
       } catch {
         setSuggestions([])
       } finally {
@@ -318,25 +337,7 @@ const MapPage: React.FC = () => {
     setSuggestions([])
   }
 
-  // ── Signaler avec photo ───────────────────────────────────────────────────
-  const handlePhotoSelected = (file: File) => {
-    // Store photo in sessionStorage as base64 so NouveauSignalement can pick it up
-    const reader = new FileReader()
-    reader.onload = e => {
-      const b64 = e.target?.result as string
-      sessionStorage.setItem('map_photo_b64',  b64)
-      sessionStorage.setItem('map_photo_name', file.name)
-      sessionStorage.setItem('map_photo_type', file.type)
-      
-      // Also store location if possible (using map center if flyTo not set)
-      const center = flyTo || [35.8245, 10.6346]
-      sessionStorage.setItem('map_photo_lat', String(center[0]))
-      sessionStorage.setItem('map_photo_lng', String(center[1]))
-      
-      navigate('/nouveau-signalement?from=map')
-    }
-    reader.readAsDataURL(file)
-  }
+  // ── (Photo upload feature removed) ────────────────────────────────────────
 
   const filtered = decls.filter(d => {
     if (!d || !d.status) return false;
@@ -406,18 +407,33 @@ const MapPage: React.FC = () => {
             <input
               value={search}
               onChange={e => handleSearchChange(e.target.value)}
-              onFocus={() => suggestions.length > 0 && setShowSugg(true)}
+              onFocus={() => (suggestions.length > 0 || declSuggestions.length > 0) && setShowSugg(true)}
               onBlur={() => setTimeout(() => setShowSugg(false), 200)}
-              placeholder="Rechercher une adresse à Sousse..."
+              placeholder="Rechercher une adresse ou une déclaration..."
               className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-[#1557FF] dark:focus:border-blue-500 focus:bg-white dark:focus:bg-slate-700 transition-all"
             />
             {/* Autocomplete dropdown */}
-            {showSugg && suggestions.length > 0 && (
-              <div className="absolute top-full mt-1 left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-[1200] overflow-hidden">
+            {showSugg && (suggestions.length > 0 || declSuggestions.length > 0) && (
+              <div className="absolute top-full mt-1 left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-[1200] overflow-hidden max-h-[300px] overflow-y-auto">
+                {declSuggestions.map((d, i) => (
+                  <button key={`decl-${i}`}
+                    onMouseDown={() => {
+                      setSelected(d)
+                      setFlyTo([d.latitude, d.longitude])
+                      setShowSugg(false)
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-300 transition-colors flex flex-col gap-0.5 border-b border-slate-50 dark:border-slate-700/50">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5 text-[#1557FF] flex-shrink-0" />
+                      <span className="truncate font-semibold">{d.title}</span>
+                    </div>
+                    {d.ref_citoyen && <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-5.5 uppercase tracking-wider pl-[22px]">{d.ref_citoyen}</span>}
+                  </button>
+                ))}
                 {suggestions.map((s, i) => (
-                  <button key={i}
+                  <button key={`addr-${i}`}
                     onMouseDown={() => handleSelectSuggestion(s)}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:text-[#1557FF] dark:hover:text-blue-400 text-slate-700 dark:text-slate-300 transition-colors flex items-center gap-2 border-b border-slate-50 dark:border-slate-700 last:border-0">
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:text-[#1557FF] dark:hover:text-blue-400 text-slate-700 dark:text-slate-300 transition-colors flex items-center gap-2 border-b border-slate-50 dark:border-slate-700/50 last:border-0">
                     <MapPin className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
                     <span className="truncate">{s.display_name.split(',').slice(0,3).join(', ')}</span>
                   </button>
@@ -468,20 +484,6 @@ const MapPage: React.FC = () => {
               <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${heatmap ? 'left-5' : 'left-0.5'}`} />
             </button>
             <span className={`text-xs font-semibold ${heatmap ? 'text-[#1557FF]' : 'text-slate-400 dark:text-slate-500'}`}>Heatmap</span>
-          </div>
-
-          {/* ── Signaler avec photo IA button ── */}
-          <div className="absolute top-3 z-[999] left-1/2 -translate-x-1/2">
-            {/* Hidden file input */}
-            <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden"
-              onChange={e => e.target.files?.[0] && handlePhotoSelected(e.target.files[0])} />
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="flex items-center gap-2 bg-white/95 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-full px-4 py-2 shadow-md text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:border-[#1557FF] dark:hover:border-blue-500 hover:text-[#1557FF] dark:hover:text-blue-400 transition-all">
-              <Camera className="w-4 h-4 text-[#1557FF]" />
-              Signaler avec photo
-              <span className="w-5 h-5 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center text-[10px] font-black text-[#1557FF] dark:text-blue-400">IA</span>
-            </button>
           </div>
 
           {/* Legend */}

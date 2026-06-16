@@ -68,6 +68,70 @@ exports.getPublicDelegations = async (req, res) => {
   }
 };
 
+exports.getInterventions = async (req, res) => {
+  try {
+    // Step 1: fetch resolved declarations
+    const { data: declarations, error } = await supabase
+      .from('declarations')
+      .select('id, title, category, address, resolved_at, votes_count, service_id')
+      .in('status', ['resolue', 'cloturee'])
+      .eq('is_deleted', false)
+      .order('resolved_at', { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+    if (!declarations || declarations.length === 0) {
+      return res.status(200).json({ interventions: [] });
+    }
+
+    const ids = declarations.map(d => d.id);
+    const serviceIds = [...new Set(declarations.map(d => d.service_id).filter(Boolean))];
+
+    // Step 2: fetch after-photos
+    const { data: photos } = await supabase
+      .from('declaration_photos')
+      .select('declaration_id, url, photo_type')
+      .in('declaration_id', ids)
+      .eq('photo_type', 'after');
+
+    // Step 3: fetch ratings
+    const { data: ratings } = await supabase
+      .from('ratings')
+      .select('declaration_id, score, comment')
+      .in('declaration_id', ids);
+
+    // Step 4: fetch service names
+    const { data: services } = serviceIds.length > 0
+      ? await supabase.from('services').select('id, name_fr').in('id', serviceIds)
+      : { data: [] };
+
+    // Build lookup maps
+    const photoMap = {};
+    (photos || []).forEach(p => { if (!photoMap[p.declaration_id]) photoMap[p.declaration_id] = p.url; });
+    const ratingMap = {};
+    (ratings || []).forEach(r => { ratingMap[r.declaration_id] = { score: r.score, comment: r.comment }; });
+    const serviceMap = {};
+    (services || []).forEach(s => { serviceMap[s.id] = s.name_fr; });
+
+    const formatted = declarations.map(d => ({
+      id: d.id,
+      title: d.title,
+      category: d.category,
+      address: d.address,
+      resolved_at: d.resolved_at,
+      votes_count: d.votes_count,
+      service_name: d.service_id ? serviceMap[d.service_id] || null : null,
+      rating: ratingMap[d.id] || null,
+      after_img: photoMap[d.id] || null,
+    }));
+
+    return res.status(200).json({ interventions: formatted });
+  } catch (err) {
+    console.error('[Public Controller - getInterventions]', err.message);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
+
 // Reverse geocode: lat/lng → address
 exports.reverseGeocode = async (req, res) => {
   const { lat, lng } = req.query;

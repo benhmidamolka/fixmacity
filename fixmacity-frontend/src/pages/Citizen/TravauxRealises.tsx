@@ -299,20 +299,26 @@ const TravauxRealises: React.FC = () => {
 
   useEffect(() => {
     // Load resolved declarations
-    fetch(`${API}/declarations/map`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API}/public/interventions`)
       .then(r => r.json())
       .then(data => {
-        const arr = Array.isArray(data) ? data : data.declarations || []
-        const resolved = arr.filter((d: any) => d.status === 'resolue' || d.status === 'cloturee')
-        if (resolved.length > 0) { fixesFromAPI.current = true; setFixes(resolved) }
-      }).catch(() => { })
+        const arr = Array.isArray(data) ? data : data.interventions || []
+        if (arr.length > 0) {
+          const mapped = arr.map((d: any) => ({
+            ...d,
+            rating: d.rating?.score || null,
+            rating_comment: d.rating?.comment || null
+          }))
+          fixesFromAPI.current = true; setFixes(mapped)
+        }
+      }).catch(() => {})
 
     // Load closed propositions
     fetch(`${API}/propositions`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(data => {
         const arr = Array.isArray(data) ? data : data.propositions || []
-        const closed = arr.filter((p: any) => p.status === 'closed' || p.is_closed)
+        const closed = arr.filter((p: any) => p.status === 'Retenu' || p.status === 'Confirmer' || p.status === 'closed')
         if (closed.length > 0) {
           const voted = closed.map((p: any) => {
             const pour = p.pour || p.votes_pour || 0
@@ -323,9 +329,12 @@ const TravauxRealises: React.FC = () => {
             const duration = p.end_date && p.start_date
               ? `${Math.max(1, Math.round((new Date(p.end_date).getTime() - new Date(p.start_date).getTime()) / (30 * 24 * 3600000)))} mois`
               : 'N/A'
+            let pType = 'voted'
+            if (p.status === 'Confirmer') pType = 'municipal'
+
             return {
               ...p,
-              type: 'voted',
+              type: pType,
               pour_pct,
               total_votes: total,
               img,

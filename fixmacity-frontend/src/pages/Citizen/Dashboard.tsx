@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, ArrowRight, Map } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, ArrowRight, Map, X, CheckCircle, Clock, MapPin } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import CitizenLayout from '../../components/citizen/CitizenLayout'
 
@@ -211,11 +211,13 @@ function PropositionCard({ prop, onVote, isDark }: { prop: any; onVote: (id: str
 }
 
 // ── Community Impact Card ───────────────────────────────────────────────────────
-function ImpactCard({ project, isDark }: { project: any; isDark: boolean }) {
-  const imgSrc = project.img || SOUSSE_PROJECT_IMAGES[0]
+function ImpactCard({ project, isDark, onClick }: { project: any; isDark: boolean; onClick?: () => void }) {
+  const imgSrc = project.after_img || project.img || SOUSSE_PROJECT_IMAGES[0]
+  const comment = project.rating?.comment
   return (
     <div
-      className="flex-shrink-0 w-[240px] rounded-2xl overflow-hidden flex flex-col transition-all duration-300"
+      onClick={onClick}
+      className="flex-shrink-0 w-[240px] rounded-2xl overflow-hidden flex flex-col transition-all duration-300 cursor-pointer hover:scale-[1.02]"
       style={{
         background: isDark ? 'rgba(10,20,50,0.7)' : '#ffffff',
         border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
@@ -223,22 +225,137 @@ function ImpactCard({ project, isDark }: { project: any; isDark: boolean }) {
         backdropFilter: isDark ? 'blur(16px)' : 'none',
       }}
     >
-      {/* Before/After images stacked */}
       <div className="relative h-28 overflow-hidden group">
         <img src={imgSrc} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         <div className={`absolute inset-0 bg-gradient-to-t ${isDark ? 'from-[#0a1428]/60' : 'from-white/60'} to-transparent`} />
-        <div className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-all">
+        <div className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
           <ArrowRight className="w-3.5 h-3.5 text-white" />
         </div>
       </div>
-
-      {/* Body */}
       <div className="p-3">
         <h4 className={`font-bold text-xs leading-snug line-clamp-2 mb-2 ${isDark ? 'text-white' : 'text-[#0a1628]'}`}>{project.title}</h4>
-        <p className={`text-[10px] italic line-clamp-1 ${isDark ? 'text-white/40' : 'text-slate-500'}`}>
-          "Merci pour ce travail !"
-        </p>
+        {comment ? (
+          <p className={`text-[10px] italic line-clamp-1 ${isDark ? 'text-white/40' : 'text-slate-500'}`}>"{comment}"</p>
+        ) : (
+          <p className={`text-[10px] italic line-clamp-1 ${isDark ? 'text-white/40' : 'text-slate-500'}`}>"Merci pour ce travail !"</p>
+        )}
         <p className={`text-[10px] mt-0.5 ${isDark ? 'text-white/30' : 'text-slate-400'}`}>- Citoyen</p>
+      </div>
+    </div>
+  )
+}
+
+// ── Minimal FixModal (intervention detail) ──────────────────────────────────────
+function FixModal({ work, onClose }: { work: any; onClose: () => void }) {
+  const resolvedDays = work.resolved_at
+    ? Math.floor((Date.now() - new Date(work.resolved_at).getTime()) / 86400000)
+    : null
+  const daysLabel = resolvedDays === null ? '' : resolvedDays === 0 ? "Aujourd'hui" : resolvedDays === 1 ? 'Il y a 1 jour' : `Il y a ${resolvedDays} jours`
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}>
+        <div className="relative h-48 overflow-hidden rounded-t-3xl">
+          <img src={work.after_img || SOUSSE_PROJECT_IMAGES[0]} alt={work.title} className="w-full h-full object-cover" />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,22,40,0.75) 0%, transparent 55%)' }} />
+          <button onClick={onClose} className="absolute top-4 right-4 w-9 h-9 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/50 transition-all">
+            <X className="w-4 h-4" />
+          </button>
+          <div className="absolute bottom-4 left-5">
+            <span className="inline-flex items-center gap-1.5 bg-green-500 text-white text-xs font-bold px-2.5 py-1 rounded-full mb-2">
+              <CheckCircle className="w-3 h-3" /> Résolu
+            </span>
+            <h2 className="text-white text-lg font-bold leading-tight">{work.title}</h2>
+          </div>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            {work.category && <span className="bg-slate-100 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-full">{work.category}</span>}
+            {daysLabel && <span className="flex items-center gap-1.5 text-sm text-slate-500"><Clock className="w-4 h-4" />{daysLabel}</span>}
+            {work.address && <span className="flex items-center gap-1.5 text-sm text-slate-500"><MapPin className="w-4 h-4" />{work.address}</span>}
+          </div>
+          {work.rating && (
+            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Évaluation citoyenne</p>
+              <div className="flex items-center gap-2 mb-1">
+                {[1,2,3,4,5].map(i => <span key={i} className={`text-lg ${i <= (work.rating.score||0) ? 'text-amber-400' : 'text-slate-200'}`}>★</span>)}
+                <span className="text-sm font-bold text-slate-700">{work.rating.score}/5</span>
+              </div>
+              {work.rating.comment && <p className="text-sm text-slate-600 italic">"{work.rating.comment}"</p>}
+            </div>
+          )}
+          {work.service_name && <p className="text-xs text-slate-500">Service : <span className="font-semibold text-slate-700">{work.service_name}</span></p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Minimal PropositionModal ────────────────────────────────────────────────────
+function PropositionModal({ prop, onClose, onVote }: { prop: any; onClose: () => void; onVote: (id: string, vote: 'pour' | 'contre') => void }) {
+  const [voted, setVoted] = useState<'pour' | 'contre' | null>(prop.user_vote || null)
+  const [voting, setVoting] = useState(false)
+  const storedUser = localStorage.getItem('fmc_user')
+  const currentUser = storedUser ? JSON.parse(storedUser) : null
+  const isOwn = currentUser?.id && prop.created_by && String(currentUser.id) === String(prop.created_by)
+  const imgSrc = prop.image_url
+    ? (prop.image_url.startsWith('http') ? prop.image_url : `${API.replace('/api', '')}${prop.image_url}`)
+    : SOUSSE_PROP_IMAGES[0]
+  const handleVote = async (v: 'pour' | 'contre') => {
+    if (voted || voting || isOwn) return
+    setVoting(true)
+    await onVote(prop.id, v)
+    setVoted(v)
+    setVoting(false)
+  }
+  const pour = prop.votes_pour || prop.pour || 0
+  const contre = prop.votes_contre || prop.contre || 0
+  const total = pour + contre || 1
+  const pct = Math.round((pour / total) * 100)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}>
+        <div className="relative h-48 overflow-hidden rounded-t-3xl">
+          <img src={imgSrc} alt={prop.title} className="w-full h-full object-cover" />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,22,40,0.75) 0%, transparent 55%)' }} />
+          <button onClick={onClose} className="absolute top-4 right-4 w-9 h-9 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/50 transition-all">
+            <X className="w-4 h-4" />
+          </button>
+          <h2 className="absolute bottom-4 left-5 text-white text-lg font-bold leading-tight">{prop.title}</h2>
+        </div>
+        <div className="p-5 space-y-4">
+          {prop.description && <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">{prop.description}</p>}
+          <div>
+            <div className="flex justify-between text-xs font-bold text-slate-500 mb-1">
+              <span>Pour — {pour}</span><span>Contre — {contre}</span>
+            </div>
+            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-full rounded-full bg-[#1557FF]" style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+          {isOwn ? (
+            <div className="text-center text-sm text-blue-600 font-semibold py-2">Votre proposition</div>
+          ) : voted ? (
+            <div className="text-center text-sm text-emerald-600 font-bold py-2">✓ Vote enregistré — {voted === 'pour' ? 'Pour' : 'Contre'}</div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => handleVote('pour')} disabled={voting}
+                className="flex items-center justify-center gap-2 py-3 rounded-2xl text-white font-bold text-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-60"
+                style={{ background: 'linear-gradient(135deg,#1557FF,#0d42cc)' }}>
+                <ThumbsUp className="w-4 h-4" /> Pour
+              </button>
+              <button onClick={() => handleVote('contre')} disabled={voting}
+                className="flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm bg-rose-50 text-rose-600 border border-rose-100 transition-all active:scale-95 disabled:opacity-60">
+                <ThumbsDown className="w-4 h-4" /> Contre
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -265,6 +382,8 @@ const Dashboard: React.FC = () => {
   const [propositions, setPropositions] = useState<any[]>([])
   const [completedProjects, setCompletedProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedProp, setSelectedProp] = useState<any>(null)
+  const [selectedProject, setSelectedProject] = useState<any>(null)
 
   const [isDark, setIsDark] = useState(() => localStorage.getItem('fmc_theme') === 'dark')
 
@@ -292,37 +411,20 @@ const Dashboard: React.FC = () => {
       setDeclarations(allDecls)
 
       const allProps = Array.isArray(props) ? props : props.propositions || []
-      const active = allProps.filter((p: any) => p.status !== 'closed' && !p.is_closed)
-      setPropositions(active)
-
-      const closedProps = allProps.filter((p: any) => p.status === 'closed' || p.is_closed)
-      const resolvedDecls = allDecls.filter((d: any) =>
-        ['RESOLUE', 'CLOTUREE'].includes(d.citizen_status)
+      // Fix 1: only show président propositions that are active and votable
+      const active = allProps.filter((p: any) =>
+        p.type === 'president' && p.status === 'active'
       )
-
-      if (closedProps.length > 0) {
-        setCompletedProjects(closedProps.map((p: any, idx: number) => {
-          const img = p.image_url
-            ? (p.image_url.startsWith('http') ? p.image_url : `${API.replace('/api', '')}${p.image_url}`)
-            : SOUSSE_PROJECT_IMAGES[idx % SOUSSE_PROJECT_IMAGES.length]
-          return { ...p, img, type: 'voted' }
-        }))
-      } else if (resolvedDecls.length > 0) {
-        setCompletedProjects(resolvedDecls.slice(0, 4).map((d: any, idx: number) => ({
-          ...d,
-          img: d.photo_url
-            ? (d.photo_url.startsWith('http') ? d.photo_url : `${API.replace('/api', '')}${d.photo_url}`)
-            : SOUSSE_PROJECT_IMAGES[idx % SOUSSE_PROJECT_IMAGES.length],
-          type: 'declaration',
-          description: d.description || 'Résolu avec succès.',
-        })))
-      } else {
-        setCompletedProjects([
-          { id: 'p1', title: 'Végétalisation de la Place des Martyrs', img: SOUSSE_PROJECT_IMAGES[0], type: 'municipal' },
-          { id: 'p2', title: 'Extension des Pistes Cyclables Phase 2', img: SOUSSE_PROP_IMAGES[1], type: 'municipal' },
-        ])
-      }
+      setPropositions(active)
     }).finally(() => setLoading(false))
+
+    // Fix 2: fetch completed interventions from public endpoint
+    fetch(`${API}/public/interventions`)
+      .then(r => r.json())
+      .then(data => {
+        const arr = Array.isArray(data) ? data : data.interventions || []
+        setCompletedProjects(arr.slice(0, 3))
+      }).catch(() => {})
   }, [])
 
   const handleVote = async (id: string, vote: 'pour' | 'contre') => {
@@ -465,10 +567,15 @@ const Dashboard: React.FC = () => {
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                   {carouselProps.map(p => (
-                    <PropositionCard key={p.id} prop={p} onVote={handleVote} isDark={isDark} />
+                    <div key={p.id} onClick={() => setSelectedProp(p)} className="cursor-pointer">
+                      <PropositionCard prop={p} onVote={handleVote} isDark={isDark} />
+                    </div>
                   ))}
                 </div>
               )}
+              <div className="mt-2 text-right">
+                <Link to="/propositions" className="text-xs font-bold text-[#1557FF] hover:underline">Voir toutes les propositions →</Link>
+              </div>
             </div>
           </div>
 
@@ -519,7 +626,7 @@ const Dashboard: React.FC = () => {
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                   {completedProjects.length > 0 ? (
-                    completedProjects.map(p => <ImpactCard key={p.id} project={p} isDark={isDark} />)
+                    completedProjects.map(p => <ImpactCard key={p.id} project={p} isDark={isDark} onClick={() => setSelectedProject(p)} />)
                   ) : (
                     <div className={`text-sm py-8 text-center w-full ${isDark ? 'text-white/30' : 'text-slate-400'}`}>
                       Aucun projet réalisé pour le moment.
@@ -527,6 +634,9 @@ const Dashboard: React.FC = () => {
                   )}
                 </div>
               )}
+              <div className="mt-2 text-right">
+                <Link to="/travaux-realises" className="text-xs font-bold text-[#1557FF] hover:underline">Voir tous les travaux →</Link>
+              </div>
             </div>
           </div>
 
@@ -555,6 +665,9 @@ const Dashboard: React.FC = () => {
 
         </div>
       </div>
+
+      {selectedProp && <PropositionModal prop={selectedProp} onClose={() => setSelectedProp(null)} onVote={handleVote} />}
+      {selectedProject && <FixModal work={selectedProject} onClose={() => setSelectedProject(null)} />}
     </CitizenLayout>
   )
 }
