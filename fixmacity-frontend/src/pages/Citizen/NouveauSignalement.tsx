@@ -445,7 +445,7 @@ function Step2({ data, onChange, onNext, onBack }: any) {
       })
       if (res.ok) {
         toast.success("Votre vote de soutien a bien été enregistré !")
-        navigate('/citizen/map') // or dashboard
+        navigate('/mes-signalements')
       } else {
         toast.error("Erreur lors du vote.")
       }
@@ -1215,7 +1215,7 @@ const NouveauSignalement: React.FC = () => {
                 if (r.ok) {
                   toast.success('Votre vote a été enregistré !')
                   setDuplicateInfo(null)
-                  navigate('/citizen/mes-signalements')
+                  navigate('/mes-signalements')
                 } else {
                   const e = await r.json()
                   toast.error(e.error || 'Erreur lors du vote.')

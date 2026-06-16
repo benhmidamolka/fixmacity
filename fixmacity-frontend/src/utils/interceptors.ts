@@ -38,17 +38,20 @@ window.fetch = async (...args) => {
           (newConfig.headers as Headers).set('Authorization', `Bearer ${data.token}`);
           
           return originalFetch(resource, newConfig);
-        } else {
-          // Refresh failed, clear storage and redirect
+        } else if (refreshRes.status === 401 || refreshRes.status === 403) {
+          // Refresh explicitly rejected, clear storage and redirect
           localStorage.removeItem('fmc_token');
           localStorage.removeItem('fmc_refresh_token');
           localStorage.removeItem('fmc_user');
           if (!url.includes('/auth/me')) {
              window.location.href = '/login';
           }
+        } else {
+          console.warn('[Interceptors] Refresh failed with non-401/403 status:', refreshRes.status);
         }
       } catch (err) {
         console.error('Refresh token error:', err);
+        // Do not log out on network errors
       }
     }
   }
