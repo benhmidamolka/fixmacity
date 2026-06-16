@@ -16,4 +16,10 @@ router.get('/declarations/:id/feedback', publicCtrl.getDeclarationFeedback);
 // GET /api/public/delegations -> For listing all delegations
 router.get('/delegations', publicCtrl.getPublicDelegations);
 
+// GET /api/public/geocode/reverse
+router.get('/geocode/reverse', publicCtrl.reverseGeocode);
+
+// GET /api/public/geocode/forward
+router.get('/geocode/forward', publicCtrl.forwardGeocode);
+
 module.exports = router;

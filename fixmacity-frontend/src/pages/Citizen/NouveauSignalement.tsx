@@ -150,7 +150,7 @@ function Step1({ data, onChange, onNext, delegations }: any) {
     setLoading(true)
     try {
       const r = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1&accept-language=fr`
+        `${API}/public/geocode/reverse?lat=${lat}&lng=${lng}`
       )
       const d = await r.json()
       if (!d.display_name) console.warn('[Nominatim] No display_name returned:', d)
@@ -183,7 +183,7 @@ function Step1({ data, onChange, onNext, delegations }: any) {
 
       // Search within the Sousse municipality viewbox (lon_min,lat_max,lon_max,lat_min)
       const viewbox = `${SOUSSE_BBOX.minLng},${SOUSSE_BBOX.maxLat},${SOUSSE_BBOX.maxLng},${SOUSSE_BBOX.minLat}`
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(normalizedQuery)}&format=json&limit=10&accept-language=fr&countrycodes=tn&viewbox=${viewbox}&bounded=0`
+      const url = `${API}/public/geocode/forward?q=${encodeURIComponent(normalizedQuery)}&viewbox=${viewbox}`
 
       const r = await fetch(url)
       let results = await r.json()
@@ -1076,7 +1076,7 @@ const NouveauSignalement: React.FC = () => {
       let delegation_id = ''
       try {
         const r = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1&accept-language=fr`
+          `${API}/public/geocode/reverse?lat=${lat}&lng=${lng}`
         )
         const d = await r.json()
         if (!d.display_name) console.warn('[Nominatim] No display_name (map bootstrap):', d)

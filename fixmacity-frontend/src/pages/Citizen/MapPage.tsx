@@ -298,7 +298,7 @@ const MapPage: React.FC = () => {
       setSearching(true)
       try {
         const res  = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val + ' Sousse Tunisie')}&format=json&limit=5&addressdetails=1`
+          `${API}/public/geocode/forward?q=${encodeURIComponent(val + ' Sousse Tunisie')}`
         )
         const data: Suggestion[] = await res.json()
         setSuggestions(data)

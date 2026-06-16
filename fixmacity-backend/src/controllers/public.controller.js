@@ -67,3 +67,37 @@ exports.getPublicDelegations = async (req, res) => {
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
+
+// Reverse geocode: lat/lng → address
+exports.reverseGeocode = async (req, res) => {
+  const { lat, lng } = req.query;
+  if (!lat || !lng) return res.status(400).json({ error: 'lat et lng requis.' });
+  try {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1&accept-language=fr`,
+      { headers: { 'User-Agent': 'FixMaCity/1.0 (contact@fixmacity.tn)' } }
+    );
+    const data = await r.json();
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: 'Geocoding error', detail: err.message });
+  }
+};
+
+// Forward geocode: address string → coordinates
+exports.forwardGeocode = async (req, res) => {
+  const { q, viewbox, countrycodes = 'tn', limit = 10 } = req.query;
+  if (!q) return res.status(400).json({ error: 'q requis.' });
+  try {
+    const params = new URLSearchParams({ q, format: 'json', limit, 'accept-language': 'fr', countrycodes });
+    if (viewbox) params.append('viewbox', viewbox);
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/search?${params}`,
+      { headers: { 'User-Agent': 'FixMaCity/1.0 (contact@fixmacity.tn)' } }
+    );
+    const data = await r.json();
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: 'Geocoding error', detail: err.message });
+  }
+};
