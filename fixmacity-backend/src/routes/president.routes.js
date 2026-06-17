@@ -103,6 +103,7 @@ router.post('/propositions',
   ],
   ctrl.createProposition
 );
+router.post('/projets-municipaux', memUpload.single('image'), ctrl.createMunicipalProject);
 // NEW ↓
 router.put('/propositions/:id',
   memUpload.single('photo'),

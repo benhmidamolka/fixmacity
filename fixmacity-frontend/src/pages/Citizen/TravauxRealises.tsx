@@ -307,7 +307,9 @@ const TravauxRealises: React.FC = () => {
       .then(r => r.json())
       .then(data => {
         const arr = Array.isArray(data) ? data : data.propositions || []
-        const closed = arr.filter((p: any) => p.status === 'Retenu' || p.status === 'Confirmer' || p.status === 'closed')
+        const closed = arr.filter((p: any) => 
+          p.status === 'Retenu' || p.status === 'Confirmer' || p.status === 'closed' || p.type === 'municipal'
+        )
         if (closed.length > 0) {
           const voted = closed.map((p: any) => {
             const pour = p.pour || p.votes_pour || 0
@@ -319,7 +321,7 @@ const TravauxRealises: React.FC = () => {
               ? `${Math.max(1, Math.round((new Date(p.end_date).getTime() - new Date(p.start_date).getTime()) / (30 * 24 * 3600000)))} mois`
               : 'N/A'
             let pType = 'voted'
-            if (p.status === 'Confirmer') pType = 'municipal'
+            if (p.status === 'Confirmer' || p.type === 'municipal') pType = 'municipal'
 
             return {
               ...p,

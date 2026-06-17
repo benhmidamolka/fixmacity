@@ -1430,6 +1430,47 @@ exports.createProposition = async (req, res) => {
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
+exports.createMunicipalProject = async (req, res) => {
+  try {
+    const { title, description, category, start_date, end_date } = req.body;
+    if (!title?.trim()) return res.status(400).json({ error: 'Titre requis.' });
+    if (!description?.trim()) return res.status(400).json({ error: 'Description requise.' });
+    if (!category?.trim()) return res.status(400).json({ error: 'Catégorie requise.' });
+
+    let image_url = null;
+    if (req.file) {
+      const path = require('path');
+      const fs = require('fs');
+      const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads');
+      if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+      const ext = path.extname(req.file.originalname) || '.jpg';
+      const filename = `projet_${req.user.id}_${Date.now()}${ext}`;
+      fs.writeFileSync(path.join(UPLOAD_DIR, filename), req.file.buffer);
+      const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5005}`;
+      image_url = `${baseUrl}/uploads/${filename}`;
+    }
+
+    const { data, error } = await supabase.from('propositions').insert({
+      title: title.trim(),
+      description: description.trim(),
+      category: category.trim(),
+      image_url,
+      type: 'municipal',
+      status: 'active',
+      created_by: req.user.id,
+      start_date: start_date || null,
+      end_date: end_date || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).select('*').single();
+
+    if (error) throw error;
+    return res.status(201).json({ message: 'Projet municipal publié.', project: data });
+  } catch (err) {
+    console.error('[President] createMunicipalProject:', err.message);
+    return res.status(500).json({ error: 'Erreur serveur.' });
+  }
+};
 
 /* ──────────── PUT /api/president/propositions/:id ──────────── */
 exports.updateProposition = async (req, res) => {

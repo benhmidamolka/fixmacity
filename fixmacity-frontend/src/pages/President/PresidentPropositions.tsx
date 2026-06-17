@@ -5,7 +5,7 @@ import {
   Plus, Search, ThumbsUp, ThumbsDown, Users, Edit2, Trash2,
   Calendar, CheckCircle2, X, Star, Tag, Activity, BarChart3,
   Clock, ChevronRight, Sparkles, AlertTriangle, RefreshCw,
-  TrendingUp, MessageSquare, Filter, Upload, Award
+  TrendingUp, MessageSquare, Filter, Upload, Award, Loader2
 } from 'lucide-react'
 import PresidentLayout from '../../layouts/PresidentLayout'
 
@@ -579,11 +579,143 @@ const KpiCard = ({ label, value, sub, icon: Icon, color }: { label: string; valu
   </div>
 )
 
+function MuniForm({ onSave, onClose }: { onSave: (fd: FormData) => void; onClose: () => void }) {
+  const [form, setForm] = useState({ title: '', description: '', category: '', start_date: '', end_date: '' })
+  const [image, setImage] = useState<File | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+
+  const submit = async () => {
+    if (!form.title.trim()) { setErr('Titre requis.'); return }
+    if (!form.description.trim()) { setErr('Description requise.'); return }
+    if (!form.category) { setErr('Catégorie requise.'); return }
+    setSaving(true); setErr('')
+    const fd = new FormData()
+    fd.append('title', form.title.trim())
+    fd.append('description', form.description.trim())
+    fd.append('category', form.category)
+    // Default start_date to today if not provided
+    fd.append('start_date', form.start_date || new Date().toISOString().split('T')[0])
+    if (form.end_date) fd.append('end_date', form.end_date)
+    if (image) fd.append('image', image)
+    try { await onSave(fd) } catch { setErr('Erreur serveur.') } finally { setSaving(false) }
+  }
+
+  const CATS = ['Voirie & Routes','Éclairage Public','Propreté & Déchets','Espaces Verts','Réseaux & Drainage','Signalisation Routière','Administratif']
+  const inputCls = "w-full border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-[#0A1628] dark:text-white bg-slate-50 dark:bg-slate-800/50 focus:outline-none focus:ring-2 focus:ring-[#1557FF]/20 focus:border-[#1557FF] transition-all"
+
+  return (
+    <DrawerOverlay onClose={onClose}>
+      <div className="p-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#1557FF] flex items-center justify-center">
+              <Plus className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h2 className="text-base font-black text-[#0A1628] dark:text-white">Nouveau projet municipal</h2>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Ce projet apparaîtra dans "Travaux réalisés"</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {err && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />{err}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Titre *</label>
+            <input className={inputCls} value={form.title} onChange={e => set('title', e.target.value)} placeholder="Ex: Réfection de la route principale" />
+          </div>
+          
+          <div className="space-y-1.5">
+            <label className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Description *</label>
+            <textarea className={`${inputCls} resize-none h-24`} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Décrivez le projet réalisé..." />
+          </div>
+          
+          <div className="space-y-1.5">
+            <label className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Catégorie *</label>
+            <select className={inputCls} value={form.category} onChange={e => set('category', e.target.value)}>
+              <option value="">— Choisir —</option>
+              {CATS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Date de début</label>
+              <input type="date" className={inputCls} value={form.start_date} onChange={e => set('start_date', e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Date de fin</label>
+              <input type="date" className={inputCls} value={form.end_date} onChange={e => set('end_date', e.target.value)} />
+            </div>
+          </div>
+          
+          <div className="space-y-1.5">
+            <label className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Photo du projet</label>
+            <input type="file" accept="image/*" onChange={e => setImage(e.target.files?.[0] || null)}
+              className="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#1557FF]/10 file:text-[#1557FF] hover:file:bg-[#1557FF]/20" />
+            {image && <p className="text-xs text-green-600 font-medium">✓ {image.name}</p>}
+          </div>
+        </div>
+        
+        <div className="flex gap-3 mt-6">
+          <button type="button" onClick={onClose}
+            className="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+            Annuler
+          </button>
+          <button type="button" onClick={submit} disabled={saving}
+            className="flex-1 py-3 rounded-2xl bg-[#1557FF] text-white font-bold text-sm hover:bg-blue-700 transition-all shadow-md shadow-blue-200 dark:shadow-none disabled:opacity-60 flex justify-center items-center gap-2">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Publier'}
+          </button>
+        </div>
+      </div>
+    </DrawerOverlay>
+  )
+}
+
+function MuniCard({ prop, onDelete }: { prop: Prop; onDelete: () => void }) {
+  const img = prop.image_url 
+    ? (prop.image_url.startsWith('http') ? prop.image_url : `${API.replace('/api','')}${prop.image_url}`)
+    : 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80'
+  return (
+    <div className="group bg-white dark:bg-slate-900/40 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 overflow-hidden hover:shadow-xl transition-all">
+      <div className="relative h-44 overflow-hidden">
+        <img src={img} alt={prop.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80' }} />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+        <span className="absolute top-3 left-3 bg-purple-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full">🏛️ Municipal</span>
+        <button onClick={onDelete} className="absolute top-3 right-3 w-7 h-7 bg-red-500/80 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <Trash2 className="w-3 h-3" />
+        </button>
+      </div>
+      <div className="p-5">
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{prop.category}</span>
+        <h3 className="font-bold text-[#0A1628] dark:text-white text-sm leading-tight mt-1 mb-2">{prop.title}</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{prop.description}</p>
+        <div className="mt-3 flex items-center gap-2">
+          <span className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-[10px] font-bold px-2 py-0.5 rounded-full">✓ Publié</span>
+          {prop.created_at && <span className="text-[10px] text-slate-400 ml-auto">{new Date(prop.created_at).toLocaleDateString('fr-FR')}</span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function PresidentPropositions() {
-  const [tab, setTab] = useState<'president' | 'citizen'>('president')
+  const [tab, setTab] = useState<'president' | 'citizen' | 'municipal'>('president')
   const [presProps, setPresProps] = useState<Prop[]>([])
   const [citiProps, setCitiProps] = useState<Prop[]>([])
+  const [muniProps, setMuniProps] = useState<Prop[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -591,6 +723,7 @@ export default function PresidentPropositions() {
 
   // Modals
   const [showForm, setShowForm] = useState(false)
+  const [showMuniForm, setShowMuniForm] = useState(false)
   const [editProp, setEditProp] = useState<Prop | null>(null)
   const [deleteProp, setDeleteProp] = useState<Prop | null>(null)
   const [decisionProp, setDecisionProp] = useState<Prop | null>(null)
@@ -602,7 +735,7 @@ export default function PresidentPropositions() {
     try {
       const data = await apiFetch('/president/propositions')
       if (data?.success) {
-        setPresProps((data.presidential || []).map((p: any) => ({
+        setPresProps((data.presidential || []).filter((p: any) => p.type !== 'municipal').map((p: any) => ({
           ...p,
           votes_pour: p.pour || p.votes_pour || 0,
           votes_contre: p.contre || p.votes_contre || 0,
@@ -610,7 +743,7 @@ export default function PresidentPropositions() {
           status: p.status || 'active',
           category: p.category || 'Général',
         })))
-        setCitiProps((data.citizen || []).map((p: any) => ({
+        setCitiProps((data.citizen || []).filter((p: any) => p.type !== 'municipal').map((p: any) => ({
           ...p,
           citizen: p.citizen || 'Anonyme',
           votes_pour: p.pour || p.votes_pour || 0,
@@ -620,6 +753,14 @@ export default function PresidentPropositions() {
           category: p.category || 'Général',
         })))
       }
+      
+      const muniData = await apiFetch('/propositions')
+      const allProps = Array.isArray(muniData) ? muniData : muniData.propositions || []
+      setMuniProps(allProps.filter((p: any) => p.type === 'municipal').map((p: any) => ({
+        ...p,
+        status: p.status || 'active',
+        category: p.category || 'Général',
+      })))
     } catch (e: any) {
       toast.error('Impossible de charger les propositions')
       console.error(e)
@@ -640,6 +781,20 @@ export default function PresidentPropositions() {
       toast.success('Proposition publiée ✓')
     }
     setEditProp(null)
+    setShowForm(false)
+    fetchAll()
+  }
+
+  const saveMuniProp = async (formData: FormData) => {
+    const token = localStorage.getItem('fmc_token')
+    const res = await fetch(`${API}/president/projets-municipaux`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData  // NO Content-Type header — browser sets multipart boundary automatically
+    })
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erreur') }
+    toast.success('Projet municipal publié ✓')
+    setShowMuniForm(false)
     fetchAll()
   }
 
@@ -679,7 +834,7 @@ export default function PresidentPropositions() {
     return true
   })
 
-  const filtered = tab === 'president' ? filter(presProps) : filter(citiProps, true)
+  const filtered = tab === 'president' ? filter(presProps) : tab === 'municipal' ? filter(muniProps) : filter(citiProps, true)
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = {
@@ -694,6 +849,7 @@ export default function PresidentPropositions() {
 
   const presFilters = [['all', 'Tous'], ['active', 'Actif'], ['closed', 'Clôturé'], ['draft', 'Brouillon']]
   const citiFilters = [['all', 'Tous'], ['active', 'Non traitées'], ['Confirmer', 'Confirmées'], ['Retenu', 'Retenues']]
+  const muniFilters = [['all', 'Tous'], ['active', 'Publié'], ['closed', 'Clôturé']]
 
   return (
     <PresidentLayout title="Propositions">
@@ -715,6 +871,12 @@ export default function PresidentPropositions() {
               <button onClick={() => { setEditProp(null); setShowForm(true) }}
                 className="flex items-center gap-2 bg-[#1557FF] text-white px-5 py-2.5 rounded-2xl text-sm font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none">
                 <Plus className="w-4 h-4" />Nouvelle proposition
+              </button>
+            )}
+            {tab === 'municipal' && (
+              <button onClick={() => setShowMuniForm(true)}
+                className="flex items-center gap-2 bg-[#1557FF] text-white px-5 py-2.5 rounded-2xl text-sm font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none">
+                <Plus className="w-4 h-4" />Nouveau projet
               </button>
             )}
           </div>
@@ -748,6 +910,7 @@ export default function PresidentPropositions() {
           {[
             { key: 'president' as const, label: '🏛️ Propositions présidentielles', count: presProps.length },
             { key: 'citizen' as const, label: '👥 Suggestions citoyennes', count: stats.pending, highlight: stats.pending > 0 },
+            { key: 'municipal' as const, label: '🏗️ Projets municipaux', count: muniProps.length },
           ].map(t => (
             <button key={t.key}
               onClick={() => { setTab(t.key); setFilterStatus('all'); setSearch('') }}
@@ -791,7 +954,7 @@ export default function PresidentPropositions() {
 
           <div className="flex items-center gap-2 flex-wrap">
             <Filter className="w-4 h-4 text-slate-400 mr-1" />
-            {(tab === 'president' ? presFilters : citiFilters).map(([v, l]) => (
+            {(tab === 'president' ? presFilters : tab === 'municipal' ? muniFilters : citiFilters).map(([v, l]) => (
               <button key={v} onClick={() => setFilterStatus(v)}
                 className={`px-5 py-2.5 rounded-2xl text-xs font-black transition-all ${
                   filterStatus === v ? 'bg-[#1557FF] text-white shadow-lg shadow-blue-200 dark:shadow-none' : 'bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'
@@ -832,14 +995,18 @@ export default function PresidentPropositions() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {tab === 'president'
+            {tab === 'citizen'
               ? filtered.map(p => (
+                  <CitiCard key={p.id} prop={p} onOpen={prop => setDecisionProp(prop)} onDelete={prop => setDeleteProp(prop)} />
+                ))
+              : tab === 'municipal'
+              ? filtered.map(p => (
+                  <MuniCard key={p.id} prop={p} onDelete={() => setDeleteProp(p)} />
+                ))
+              : filtered.map(p => (
                   <PresCard key={p.id} prop={p}
                     onEdit={prop => { setEditProp(prop); setShowForm(true) }}
                     onDelete={prop => setDeleteProp(prop)} />
-                ))
-              : filtered.map(p => (
-                  <CitiCard key={p.id} prop={p} onOpen={prop => setDecisionProp(prop)} onDelete={prop => setDeleteProp(prop)} />
                 ))
             }
           </div>
@@ -852,6 +1019,11 @@ export default function PresidentPropositions() {
           initial={editProp}
           onSave={saveProp}
           onClose={() => { setShowForm(false); setEditProp(null) }} />
+      )}
+      {showMuniForm && (
+        <MuniForm
+          onSave={saveMuniProp}
+          onClose={() => setShowMuniForm(false)} />
       )}
       {deleteProp && (
         <ConfirmDelete
