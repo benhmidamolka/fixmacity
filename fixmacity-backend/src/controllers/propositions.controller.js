@@ -75,7 +75,7 @@ exports.listPropositions = async (req, res) => {
     // - citizen: sees type='president' AND status='active' (votable only)
     //            PLUS their own type='citizen' suggestions (for tracking, any status)
     if (req.user.role === 'citizen') {
-      query = query.or(`and(type.eq.president,status.eq.active),created_by.eq.${req.user.id}`);
+    query = query.or(`type.eq.president,type.eq.municipal,created_by.eq.${req.user.id}`);
     }
     // president role: no filter applied — sees all rows
 

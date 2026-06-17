@@ -1465,6 +1465,28 @@ exports.createMunicipalProject = async (req, res) => {
     }).select('*').single();
 
     if (error) throw error;
+
+    // Notify all active citizens
+    const { data: citizens } = await supabase
+      .from('users')
+      .select('id')
+      .eq('role', 'citizen')
+      .eq('is_active', true);
+
+    if (citizens && citizens.length > 0) {
+      const now = new Date().toISOString();
+      const notifs = citizens.map(c => ({
+        user_id: c.id,
+        type: 'new_municipal_project',
+        title: 'Nouveau projet municipal publié',
+        body: `La municipalité a publié un nouveau projet : « ${data.title} »`,
+        reference_id: data.id,
+        is_read: false,
+        created_at: now,
+      }));
+      await supabase.from('notifications').insert(notifs);
+    }
+
     return res.status(201).json({ message: 'Projet municipal publié.', project: data });
   } catch (err) {
     console.error('[President] createMunicipalProject:', err.message);

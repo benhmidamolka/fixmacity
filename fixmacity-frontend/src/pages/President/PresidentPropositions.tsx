@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import toast from 'react-hot-toast'
 import {
-  Plus, Search, ThumbsUp, ThumbsDown, Users, Edit2, Trash2,
+  Plus, Search, ThumbsUp, ThumbsDown, Users, Edit2, Trash2, Pencil,
   Calendar, CheckCircle2, X, Star, Tag, Activity, BarChart3,
   Clock, ChevronRight, Sparkles, AlertTriangle, RefreshCw,
   TrendingUp, MessageSquare, Filter, Upload, Award, Loader2
@@ -579,8 +579,14 @@ const KpiCard = ({ label, value, sub, icon: Icon, color }: { label: string; valu
   </div>
 )
 
-function MuniForm({ onSave, onClose }: { onSave: (fd: FormData) => void; onClose: () => void }) {
-  const [form, setForm] = useState({ title: '', description: '', category: '', start_date: '', end_date: '' })
+function MuniForm({ onSave, onClose, initial }: { onSave: (fd: FormData) => void; onClose: () => void; initial?: any }) {
+  const [form, setForm] = useState({
+    title: initial?.title || '',
+    description: initial?.description || '',
+    category: initial?.category || '',
+    start_date: initial?.start_date?.split('T')[0] || '',
+    end_date: initial?.end_date?.split('T')[0] || ''
+  })
   const [image, setImage] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -682,18 +688,28 @@ function MuniForm({ onSave, onClose }: { onSave: (fd: FormData) => void; onClose
   )
 }
 
-function MuniCard({ prop, onDelete }: { prop: Prop; onDelete: () => void }) {
-  const img = prop.image_url 
+function MuniCard({ prop, onDelete, onOpen, onEdit }: {
+  prop: Prop;
+  onDelete: () => void;
+  onOpen: () => void;
+  onEdit: () => void;
+}) {
+  const img = prop.image_url
     ? (prop.image_url.startsWith('http') ? prop.image_url : `${API.replace('/api','')}${prop.image_url}`)
     : 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80'
   return (
-    <div className="group bg-white dark:bg-slate-900/40 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 overflow-hidden hover:shadow-xl transition-all">
+    <div onClick={onOpen} className="group cursor-pointer bg-white dark:bg-slate-900/40 rounded-[2.5rem] border border-slate-100 dark:border-slate-800/60 overflow-hidden hover:shadow-xl transition-all">
       <div className="relative h-44 overflow-hidden">
         <img src={img} alt={prop.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80' }} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
         <span className="absolute top-3 left-3 bg-purple-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full">🏛️ Municipal</span>
-        <button onClick={onDelete} className="absolute top-3 right-3 w-7 h-7 bg-red-500/80 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={e => { e.stopPropagation(); onEdit() }}
+          className="absolute top-3 right-12 w-7 h-7 bg-blue-500/80 hover:bg-blue-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <Pencil className="w-3 h-3" />
+        </button>
+        <button onClick={e => { e.stopPropagation(); onDelete() }}
+          className="absolute top-3 right-3 w-7 h-7 bg-red-500/80 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
           <Trash2 className="w-3 h-3" />
         </button>
       </div>
@@ -727,6 +743,8 @@ export default function PresidentPropositions() {
   const [editProp, setEditProp] = useState<Prop | null>(null)
   const [deleteProp, setDeleteProp] = useState<Prop | null>(null)
   const [decisionProp, setDecisionProp] = useState<Prop | null>(null)
+  const [selectedMuni, setSelectedMuni] = useState<Prop | null>(null)
+  const [editingMuni, setEditingMuni] = useState<Prop | null>(null)
   const [error, setError] = useState('')
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
@@ -1001,7 +1019,11 @@ export default function PresidentPropositions() {
                 ))
               : tab === 'municipal'
               ? filtered.map(p => (
-                  <MuniCard key={p.id} prop={p} onDelete={() => setDeleteProp(p)} />
+                  <MuniCard key={p.id} prop={p}
+                    onDelete={() => setDeleteProp(p)}
+                    onOpen={() => setSelectedMuni(p)}
+                    onEdit={() => setEditingMuni(p)}
+                  />
                 ))
               : filtered.map(p => (
                   <PresCard key={p.id} prop={p}
@@ -1024,6 +1046,90 @@ export default function PresidentPropositions() {
         <MuniForm
           onSave={saveMuniProp}
           onClose={() => setShowMuniForm(false)} />
+      )}
+      {selectedMuni && (
+        <div className="fixed inset-0 z-[130] flex"
+          style={{background:'rgba(10,22,40,0.5)', backdropFilter:'blur(4px)'}}
+          onClick={() => setSelectedMuni(null)}>
+          <div className="ml-auto w-full max-w-lg h-full bg-white dark:bg-slate-900 shadow-2xl overflow-y-auto flex flex-col"
+            onClick={e => e.stopPropagation()}>
+            <div className="relative h-52 overflow-hidden flex-shrink-0">
+              <img
+                src={selectedMuni.image_url
+                  ? (selectedMuni.image_url.startsWith('http') ? selectedMuni.image_url : `${API.replace('/api','')}${selectedMuni.image_url}`)
+                  : 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80'}
+                alt={selectedMuni.title}
+                className="w-full h-full object-cover"
+                onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80' }}
+              />
+              <div className="absolute inset-0" style={{background:'linear-gradient(to top, rgba(10,22,40,0.8) 0%, transparent 60%)'}} />
+              <button onClick={() => setSelectedMuni(null)}
+                className="absolute top-4 right-4 w-9 h-9 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-all">
+                <X className="w-4 h-4" />
+              </button>
+              <div className="absolute bottom-4 left-5">
+                <span className="bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full">🏛️ Projet Municipal</span>
+                <h2 className="text-white text-xl font-bold mt-2">{selectedMuni.title}</h2>
+              </div>
+            </div>
+            <div className="p-6 space-y-4 flex-1">
+              <div className="flex gap-2 flex-wrap">
+                <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold px-3 py-1.5 rounded-full">{selectedMuni.category}</span>
+                <span className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-xs font-bold px-3 py-1.5 rounded-full">✓ Publié</span>
+                {selectedMuni.created_at && (
+                  <span className="text-xs text-slate-400 flex items-center gap-1">
+                    Publié le {new Date(selectedMuni.created_at).toLocaleDateString('fr-FR')}
+                  </span>
+                )}
+              </div>
+              <p className="text-slate-600 dark:text-slate-400 leading-relaxed">{selectedMuni.description}</p>
+              {(selectedMuni.start_date || selectedMuni.end_date) && (
+                <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 grid grid-cols-2 gap-4">
+                  {selectedMuni.start_date && (
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Début</p>
+                      <p className="text-sm font-bold text-[#0A1628] dark:text-white">{new Date(selectedMuni.start_date).toLocaleDateString('fr-FR')}</p>
+                    </div>
+                  )}
+                  {selectedMuni.end_date && (
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Fin</p>
+                      <p className="text-sm font-bold text-[#0A1628] dark:text-white">{new Date(selectedMuni.end_date).toLocaleDateString('fr-FR')}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex gap-3">
+              <button onClick={() => { setEditingMuni(selectedMuni); setSelectedMuni(null) }}
+                className="flex-1 py-3 rounded-xl bg-[#1557FF] text-white text-sm font-bold hover:bg-blue-700 transition-all">
+                ✏️ Modifier
+              </button>
+              <button onClick={() => { setDeleteProp(selectedMuni); setSelectedMuni(null) }}
+                className="py-3 px-5 rounded-xl border border-red-200 text-red-500 text-sm font-bold hover:bg-red-50 transition-all">
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {editingMuni && (
+        <MuniForm
+          initial={editingMuni}
+          onSave={async (fd) => {
+            const token = localStorage.getItem('fmc_token')
+            const res = await fetch(`${API}/president/propositions/${editingMuni.id}`, {
+              method: 'PUT',
+              headers: { Authorization: `Bearer ${token}` },
+              body: fd
+            })
+            if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erreur') }
+            toast.success('Projet mis à jour ✓')
+            setEditingMuni(null)
+            fetchAll()
+          }}
+          onClose={() => setEditingMuni(null)}
+        />
       )}
       {deleteProp && (
         <ConfirmDelete
