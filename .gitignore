@@ -7,3 +7,4 @@ dist
 *.env.local
 find_and_fix*
 check_*.js
+dev-notes/
