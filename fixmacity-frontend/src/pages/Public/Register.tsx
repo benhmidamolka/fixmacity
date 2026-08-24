@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Eye, EyeOff, AlertCircle, ChevronDown } from 'lucide-react'
@@ -6,13 +6,6 @@ import Logo from '../../components/Logo'
 import LanguageSwitcher from '../../components/shared/LanguageSwitcher'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
-
-const DELEGATIONS = [
-  { id: '11111111-1111-4111-8111-111111111111', name: 'Sousse Médina (Vieux-Sousse)' },
-  { id: '22222222-2222-4222-8222-222222222222', name: 'Sousse Sud' },
-  { id: '33333333-3333-4333-8333-333333333333', name: 'Sousse Nord' },
-  { id: '44444444-4444-4444-8444-444444444444', name: 'Sousse Erriadh (Hay Riad)' },
-]
 
 function passwordStrength(p: string) {
   let s = 0
@@ -33,6 +26,14 @@ const Register: React.FC = () => {
   const [showPwd, setShowPwd] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [delegations, setDelegations] = useState<{id: string, name: string}[]>([])
+
+  useEffect(() => {
+    fetch(`${API}/public/delegations`)
+      .then(r => r.json())
+      .then(data => setDelegations(data.delegations || data))
+      .catch(e => console.error('Failed to fetch delegations:', e))
+  }, [])
 
   const strength = passwordStrength(form.password)
 
@@ -182,7 +183,7 @@ const Register: React.FC = () => {
                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 pr-10 text-slate-900 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-[#1557FF] transition-all text-sm appearance-none rtl:pl-10 rtl:pr-4"
               >
                 <option value="" disabled>{t('auth.delegation')}</option>
-                {DELEGATIONS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                {delegations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
               <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none rtl:left-3.5 rtl:right-auto" />
             </div>

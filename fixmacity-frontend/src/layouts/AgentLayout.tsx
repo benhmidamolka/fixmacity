@@ -53,7 +53,10 @@ const AgentLayout: React.FC<Props> = ({ children, title = 'Tableau de bord' }) =
     }
   }, [darkMode, isMissionsPage])
 
-  const handleNotif = useCallback(() => setUnreadCount(n => (n ?? 0) + 1), [])
+  const handleNotif = useCallback((data?: unknown) => {
+    setUnreadCount(n => (n ?? 0) + 1)
+    window.dispatchEvent(new CustomEvent('fmc:notification', { detail: data }))
+  }, [])
   useSocket(handleNotif)
 
   useEffect(() => {

@@ -59,7 +59,13 @@ app.use(express.urlencoded({ extended: true }));
 // Sanitize all incoming request bodies (XSS prevention)
 app.use(sanitize);
 
-app.use('/uploads', express.static(UPLOAD_DIR));
+app.use('/uploads', express.static(UPLOAD_DIR, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.jfif')) {
+      res.setHeader('Content-Type', 'image/jpeg');
+    }
+  }
+}));
 
 app.use(generalLimiter);
 

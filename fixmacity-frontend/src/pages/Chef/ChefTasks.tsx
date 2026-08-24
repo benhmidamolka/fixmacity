@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import ChefLayout from '../../layouts/ChefLayout';
@@ -7,6 +7,7 @@ import { toast, Toaster } from 'react-hot-toast';
 import { DetailDrawer } from '../../components/Chef/DetailDrawer';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5005/api';
+const WS_URL  = import.meta.env.VITE_WS_URL   || 'http://localhost:5005';
 const tok = () => localStorage.getItem('fmc_token') || '';
 const jsonH = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${tok()}` });
 
@@ -22,10 +23,11 @@ interface Task {
 
 const mapStatus = (s: string): Task['status'] => {
   const normalized = s?.toLowerCase();
-  if (['assignee_agent', 'en_cours'].includes(normalized)) return 'in_progress';
+  if (normalized === 'en_cours') return 'in_progress';
   if (['resolue', 'evaluee'].includes(normalized)) return 'evaluee';
   if (normalized === 'cloturee') return 'cloturee';
   if (normalized === 'refusee_agent') return 'rejected';
+  if (['en_attente', 'assignee_agent', 'assignee_chef'].includes(normalized)) return 'todo';
   return 'todo';
 };
 
@@ -180,14 +182,15 @@ export default function ChefTasks() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'Tous' | 'En attente' | 'En cours' | 'Résolue' | 'Clôturée' | 'Rejetée'>('Tous');
   const [assigningTask, setAssigningTask] = useState<Task | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [selectedTaskImages, setSelectedTaskImages] = useState<string[]>([]);
 
   const openAssignModal = (t: Task) => setAssigningTask(t);
 
+  // ── Load agents once ──────────────────────────────────────────────────────
   useEffect(() => { 
-    fetchTasks();
     fetch(`${API_URL}/chef/agents`, { headers: { Authorization: `Bearer ${tok()}` } })
       .then(r => r.json())
       .then(d => {
@@ -204,20 +207,25 @@ export default function ChefTasks() {
       });
   }, []);
 
-  const fetchTasks = async () => {
+  // ── Fetch tasks ───────────────────────────────────────────────────────────
+  const fetchTasks = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/chef/declarations`, {
+      const res = await fetch(`${API_URL}/chef/declarations?limit=200`, {
         headers: { Authorization: `Bearer ${tok()}` }
       });
       if (!res.ok) throw new Error('Erreur');
       const resData = await res.json();
       const arr: any[] = resData.declarations ?? (Array.isArray(resData) ? resData : []);
 
-      // Include active + rejected-by-agent; exclude pure incoming / chef-refused
+      // DEBUG: log what statuses came back
+      console.log('[ChefTasks] raw statuses:', arr.map(d => `${d.status}:${d.id?.slice(0,8)}`));
+
+      // Include all statuses the chef manages; only exclude pre-assignment and chef-refused
       const filtered = arr.filter((d: any) =>
-        !['soumise', 'rejetee', 'assignee_chef', 'refusee_chef'].includes(d.status)
+        !['soumise', 'rejetee', 'refusee_chef'].includes(d.status)
       );
+      console.log('[ChefTasks] filtered count:', filtered.length, filtered.map(d => d.status));
 
       setTasks(filtered.map((d: any) => ({
         id: d.id,
@@ -235,8 +243,35 @@ export default function ChefTasks() {
         refusal_reason: d.refusal_reason || d.agent_refusal_reason || null,
       })));
     } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  };
+    finally { setLoading(false); setRefreshing(false); }
+  }, []);
+
+  // ── Auto-poll every 10 s + Socket.io live push ────────────────────────────
+  useEffect(() => {
+    fetchTasks();
+
+    // Polling fallback: refresh every 10 seconds
+    const pollId = setInterval(() => fetchTasks(), 10_000);
+
+    // Socket.io live events: refresh immediately when relevant
+    let cleanup: (() => void) | null = null;
+    import('socket.io-client').then(({ io }) => {
+      const socket = io(WS_URL, { auth: { token: tok() }, transports: ['websocket'] });
+      const refresh = () => {
+        fetchTasks();
+        toast.success('Missions mises à jour', { id: 'tasks-refresh', duration: 2000 });
+      };
+      socket.on('ASSIGNED_CHEF',  refresh);
+      socket.on('STATUS_CHANGE',  refresh);
+      socket.on('ASSIGNED_AGENT', refresh);
+      cleanup = () => socket.disconnect();
+    }).catch(() => {}); // silently skip if socket.io-client unavailable
+
+    return () => {
+      clearInterval(pollId);
+      cleanup?.();
+    };
+  }, [fetchTasks]);
 
   const counts = {
     Tous: tasks.length,
@@ -266,7 +301,17 @@ export default function ChefTasks() {
 
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <h1 className="text-3xl font-black text-[#0A1628] dark:text-white tracking-tight">Mes Missions</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-black text-[#0A1628] dark:text-white tracking-tight">Mes Missions</h1>
+            <button
+              onClick={() => { setRefreshing(true); fetchTasks(); }}
+              title="Rafraîchir"
+              className={`w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-[#1557FF] hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all ${
+                refreshing ? 'animate-spin text-[#1557FF]' : ''
+              }`}>
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 w-full lg:w-auto">
             <div className="flex items-center gap-1 flex-wrap">
               {(['Tous', 'En attente', 'En cours', 'Résolue', 'Clôturée', 'Rejetée'] as const).map(tab => (
@@ -416,6 +461,18 @@ export default function ChefTasks() {
                     )}
                   </div>
 
+                  {/* En attente note */}
+                  {task.status === 'todo' && (
+                    <div className="mb-3 px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-lg flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                      <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400">
+                        {task.assigned_agents?.length > 0 
+                          ? "En attente d'acceptation par l'agent."
+                          : "Non encore assigné. Veuillez assigner un agent."}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Bottom row */}
                   <div className="flex items-center justify-between w-full">
                     {!isRejected ? (
@@ -501,7 +558,11 @@ export default function ChefTasks() {
           declId={selectedId}
           agents={agents}
           onClose={() => setSelectedId(null)}
-          onRefreshed={() => { fetchTasks(); setSelectedId(null); }}
+          onRefreshed={() => {
+            // Refresh tasks immediately without closing the drawer
+            // so the chef sees the updated status in real time
+            fetchTasks();
+          }}
         />
       )}
     </ChefLayout>

@@ -47,8 +47,11 @@ const ProgressDots = ({ percent, color }: { percent: number; color: string }) =>
   );
 };
 
+const isHighPrio = (p: string) => ['critique', 'elevee', 'urgent', 'haute', 'high'].includes((p || '').toLowerCase());
+
 const colProgress = (colId: string) => {
   if (colId === 'assignee_agent') return 20;
+  if (colId === 'prioritaire') return 55;
   if (colId === 'en_cours') return 55;
   if (colId === 'resolue') return 80;
   return 100;
@@ -63,10 +66,11 @@ type ColDef = {
 };
 
 const COLUMNS: ColDef[] = [
-  { id: 'assignee_agent', title: 'Prioritaire', accent: '#f97316', accentCls: 'text-orange-500', description: 'Urgences à valider' },
-  { id: 'en_cours',       title: 'En cours',    accent: '#10b981', accentCls: 'text-emerald-500', description: 'Interventions terrain' },
+  { id: 'assignee_agent', title: 'À accepter',  accent: '#3b82f6', accentCls: 'text-blue-500',   description: 'Nouvelles missions' },
+  { id: 'prioritaire',    title: 'Prioritaire', accent: '#f97316', accentCls: 'text-orange-500', description: 'Urgences acceptées' },
+  { id: 'en_cours',       title: 'En cours',    accent: '#10b981', accentCls: 'text-emerald-500', description: 'Interventions acceptées' },
   { id: 'resolue',        title: 'Évaluée',     accent: '#8b5cf6', accentCls: 'text-violet-500',  description: 'Attente citoyen' },
-  { id: 'cloturee',       title: 'Clôturée',    accent: '#3b82f6', accentCls: 'text-blue-500',   description: 'Missions finalisées' },
+  { id: 'cloturee',       title: 'Clôturée',    accent: '#9ca3af', accentCls: 'text-slate-500',   description: 'Missions finalisées' },
 ];
 
 export default function AgentKanbanBoard() {
@@ -119,7 +123,7 @@ export default function AgentKanbanBoard() {
   const fetchDecls = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API}/agent/declarations`, { headers: hdr() });
+      const res = await fetch(`${API}/agent/declarations?limit=500`, { headers: hdr() });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setDeclarations(data.declarations || (Array.isArray(data) ? data : []));
@@ -269,10 +273,17 @@ export default function AgentKanbanBoard() {
     if (!id) return;
 
     const card = declarations.find(d => d.id === id);
-    if (!card || card.status === targetColId) return;
+    if (!card) return;
+
+    const isHigh = isHighPrio(card.priority);
+    const currentLogicalCol = card.status === 'assignee_agent' ? 'assignee_agent' 
+      : card.status === 'en_cours' ? (isHigh ? 'prioritaire' : 'en_cours') 
+      : card.status === 'resolue' ? 'resolue' : 'cloturee';
+
+    if (currentLogicalCol === targetColId) return;
 
     // Only allow forward transitions
-    if (targetColId === 'en_cours' && card.status === 'assignee_agent') {
+    if ((targetColId === 'prioritaire' || targetColId === 'en_cours') && card.status === 'assignee_agent') {
       await acceptMission(id);
     } else if (targetColId === 'resolue' && card.status === 'en_cours') {
       setResolveDeclId(id);
@@ -286,17 +297,19 @@ export default function AgentKanbanBoard() {
   const categories = Array.from(new Set(safe.map((d: any) => d.category).filter(Boolean))) as string[];
   const archivedItems = safe.filter(d => isArchived(d));
 
+  const normalize = (s?: any) => s ? String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : ""
+
   const filterItem = (item: any) => {
     // If evaluated only is checked, we only show 'resolue' tasks
     if (evaluatedOnly && item.status !== 'resolue') {
       return false;
     }
     if (searchTerm) {
-      const s = searchTerm.toLowerCase();
-      const matchText = (item.title || '').toLowerCase().includes(s) ||
-        (item.description || '').toLowerCase().includes(s) ||
-        (item.ref_citoyen || '').toLowerCase().includes(s) ||
-        (item.category || '').toLowerCase().includes(s);
+      const s = normalize(searchTerm);
+      const matchText = normalize(item.title).includes(s) ||
+        normalize(item.description).includes(s) ||
+        normalize(item.ref_citoyen).includes(s) ||
+        normalize(item.category).includes(s);
       if (!matchText) return false;
     }
     if (prioFilter && item.priority?.toLowerCase() !== prioFilter.toLowerCase()) {
@@ -309,11 +322,18 @@ export default function AgentKanbanBoard() {
   };
 
   const itemsFor = (colId: string) => {
-    let list = safe.filter(d => d.status === colId && !isArchived(d) && filterItem(d));
+    let list = safe.filter(d => !isArchived(d) && filterItem(d));
     
-    // "Prioritaire" only targets assignments the agent has to accept with priority high or urgent
     if (colId === 'assignee_agent') {
-      list = list.filter(d => ['critique', 'elevee', 'urgent', 'high'].includes(d.priority?.toLowerCase()));
+      list = list.filter(d => d.status === 'assignee_agent');
+    } else if (colId === 'prioritaire') {
+      list = list.filter(d => d.status === 'en_cours' && isHighPrio(d.priority));
+    } else if (colId === 'en_cours') {
+      list = list.filter(d => d.status === 'en_cours' && !isHighPrio(d.priority));
+    } else if (colId === 'resolue') {
+      list = list.filter(d => d.status === 'resolue');
+    } else if (colId === 'cloturee') {
+      list = list.filter(d => d.status === 'cloturee');
     }
 
     // Dynamic date sorting (newest/oldest)
@@ -331,7 +351,7 @@ export default function AgentKanbanBoard() {
     const textPhotoBefore = beforePhoto(item);
     const rapport = item.rapport_interne || item.internal_comments?.[0]?.content || null;
     const progress = colProgress(colId);
-    const draggable = colId === 'assignee_agent' || colId === 'en_cours';
+    const draggable = colId === 'assignee_agent' || colId === 'prioritaire' || colId === 'en_cours';
 
     return (
       <motion.div
@@ -409,7 +429,7 @@ export default function AgentKanbanBoard() {
           )}
 
           {/* Missing proof warning */}
-          {colId === 'en_cours' && !hasProofPhoto(item) && (
+          {(colId === 'en_cours' || colId === 'prioritaire') && !hasProofPhoto(item) && (
             <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-xl px-2.5 py-1.5">
               <AlertCircle size={11} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
               <span className="text-[9px] text-amber-600 dark:text-amber-400 font-medium">Photo preuve requise</span>
@@ -453,7 +473,7 @@ export default function AgentKanbanBoard() {
                 </button>
               </>
             )}
-            {colId === 'en_cours' && (
+            {(colId === 'en_cours' || colId === 'prioritaire') && (
               <button onClick={() => setResolveDeclId(item.id)}
                 className="text-[10px] font-semibold text-white px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
                 style={{ backgroundColor: col.accent }}>
@@ -540,7 +560,7 @@ export default function AgentKanbanBoard() {
             <p className="text-sm font-medium text-gray-500">Chargement des fiches...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5 items-start">
             {COLUMNS.map(col => {
               const items = itemsFor(col.id);
               const isOver = dragOverCol === col.id;

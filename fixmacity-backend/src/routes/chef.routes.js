@@ -20,13 +20,16 @@ router.get('/declarations',            ctrl.listDeclarations);
 router.get('/declarations/:id',        ctrl.getDeclarationDetail);
 
 router.post('/declarations/:id/accept', [
-  body('agent_id').optional().isUUID().withMessage('Agent ID invalide.'),
+  body('agent_ids').optional().isArray().withMessage('agent_ids doit être un tableau.'),
+  body('agent_ids.*').isUUID().withMessage('Chaque agent_id doit être un UUID valide.'),
 ], ctrl.acceptDeclaration);
 
+// Keep the old route name for backwards compatibility with frontend components
+// that might still call it, routing it to the unified controller
 router.post('/declarations/:id/assign-agents', [
   body('agent_ids').isArray({ min: 1 }).withMessage('Au moins un agent requis.'),
   body('agent_ids.*').isUUID().withMessage('Chaque agent_id doit être un UUID valide.'),
-], ctrl.assignAgents);
+], ctrl.acceptDeclaration);
 
 router.post('/declarations/:id/refuse', [
   body('reason').notEmpty().trim().withMessage('Motif de refus requis.'),

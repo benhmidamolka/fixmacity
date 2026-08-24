@@ -27,6 +27,7 @@ router.post('/declarations/:id/assign', [
     .isUUID()
     .withMessage('department_id invalide.'),
   body('assignments.*.chef_id')
+    .optional({ nullable: true, checkFalsy: true })
     .isUUID()
     .withMessage('chef_id invalide.'),
   body('confirm_replacement')
@@ -42,6 +43,7 @@ router.post('/declarations/:id/reassign', [
     .isUUID()
     .withMessage('department_id invalide.'),
   body('assignments.*.chef_id')
+    .optional({ nullable: true, checkFalsy: true })
     .isUUID()
     .withMessage('chef_id invalide.'),
   body('confirm_replacement')

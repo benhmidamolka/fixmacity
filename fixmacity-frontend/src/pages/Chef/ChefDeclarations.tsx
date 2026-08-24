@@ -61,9 +61,10 @@ interface DetailFull extends Decl {
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   soumise:        { label: 'Soumise',   color: '#d97706', bg: '#fffbeb', dot: '#f59e0b' },
-  assignee_chef:  { label: 'À traiter', color: '#7c3aed', bg: '#ede9fe', dot: '#8b5cf6' },
-  assignee_agent: { label: 'Assignée',  color: '#1d4ed8', bg: '#dbeafe', dot: '#3b82f6' },
-  en_cours:       { label: 'Assignée',  color: '#1d4ed8', bg: '#dbeafe', dot: '#3b82f6' },
+  assignee_chef:  { label: 'Assignée', color: '#7c3aed', bg: '#ede9fe', dot: '#8b5cf6' },
+  assignee_agent: { label: 'En attente',  color: '#d97706', bg: '#fffbeb', dot: '#f59e0b' },
+  en_attente:     { label: 'En attente',  color: '#d97706', bg: '#fffbeb', dot: '#f59e0b' },
+  en_cours:       { label: 'En cours',  color: '#1d4ed8', bg: '#dbeafe', dot: '#3b82f6' },
   resolue:        { label: 'Résolue',   color: '#15803d', bg: '#dcfce7', dot: '#22c55e' },
   cloturee:       { label: 'Clôturée',  color: '#475569', bg: '#f1f5f9', dot: '#94a3b8' },
   refusee_chef:   { label: 'Refusée',   color: '#dc2626', bg: '#fee2e2', dot: '#ef4444' },
@@ -235,15 +236,15 @@ const ChefDeclarations: React.FC = () => {
     return a ? { first_name: a.first_name, last_name: a.last_name } : null
   }
 
+  const normalize = (s?: any) => s ? String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : ""
+
   // Filter
   const filtered = declarations.filter(d => {
     // Statut
     if (statusFilter.length > 0) {
       const matches = statusFilter.some(sf => {
         if (sf === 'refused')   return ['refusee_chef', 'refusee_agent'].includes(d.status)
-        if (sf === 'assignee')  return ['assignee_agent', 'en_cours'].includes(d.status)
-        if (sf === 'resolue')   return d.status === 'resolue'
-        if (sf === 'cloturee')  return d.status === 'cloturee'
+        if (sf === 'en_attente') return ['en_attente', 'assignee_agent'].includes(d.status)
         return d.status === sf
       })
       if (!matches) return false
@@ -280,10 +281,13 @@ const ChefDeclarations: React.FC = () => {
     }
 
     if (search) {
-      const q = search.toLowerCase()
-      return d.title.toLowerCase().includes(q)
-        || d.ref_citoyen.toLowerCase().includes(q)
-        || (d.category || '').toLowerCase().includes(q)
+      const q = normalize(search)
+      return normalize(d.title).includes(q)
+        || normalize(d.ref_citoyen).includes(q)
+        || normalize(d.ref_service).includes(q)
+        || normalize(d.category).includes(q)
+        || normalize(d.description).includes(q)
+        || normalize(d.address).includes(q)
     }
     return true
   })
@@ -340,11 +344,12 @@ const ChefDeclarations: React.FC = () => {
             {/* Filters */}
             <div className="flex items-center gap-2 flex-wrap">
               <FilterDropdown multi label="Statuts" icon={Activity} value={statusFilter} onChange={(v: any) => { setStatusFilter(v); setPage(1) }} options={[
-                { value: 'assignee_chef', label: 'À traiter', dot: '#8b5cf6' },
-                { value: 'assignee',      label: 'Assignée',  dot: '#3b82f6' },
+                { value: 'assignee_chef', label: 'Assignée', dot: '#8b5cf6' },
+                { value: 'en_attente', label: 'En attente', dot: '#f59e0b' },
+                { value: 'en_cours',      label: 'En cours', dot: '#3b82f6' },
                 { value: 'resolue',       label: 'Résolue',   dot: '#22c55e' },
                 { value: 'cloturee',      label: 'Clôturée',  dot: '#94a3b8' },
-                { value: 'refused',       label: 'Refusée',   dot: '#ef4444' },
+                { value: 'refused',       label: 'Rejetée',   dot: '#ef4444' },
               ]} />
               <FilterDropdown multi label="Priorités" icon={Zap} value={prioFilter} onChange={(v: any) => { setPrioFilter(v); setPage(1) }} options={[
                 { value: 'haute', label: 'Haute', dot: '#EF4444' },

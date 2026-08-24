@@ -47,7 +47,7 @@ const ROLE_BADGE: Record<string, string> = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function mapComments(raw: any[]): Comment[] {
   return (raw || []).map((c: any) => {
-    const a = c.author || {};
+    const a = c.author || c.user || {};
     const first = a.first_name || '', last = a.last_name || '';
     const name = `${first} ${last}`.trim() || 'Utilisateur';
     const init = first && last ? `${first[0]}${last[0]}` : first ? first.slice(0, 2) : 'UI';

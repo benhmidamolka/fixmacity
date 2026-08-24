@@ -13,10 +13,10 @@ const hjson = () => ({ ...hdr(), 'Content-Type': 'application/json' });
 
 const FILTERS: { key: 'all' | DeclarationStatus; label: string }[] = [
   { key: 'all',            label: 'Toutes' },
-  { key: 'assignee_agent', label: 'Nouvelles' },
+  { key: 'assignee_agent', label: 'En attente' },
   { key: 'en_cours',       label: 'En cours' },
   { key: 'resolue',        label: 'Résolues' },
-  { key: 'refusee_agent',  label: 'Refusées' },
+  { key: 'refusee_agent',  label: 'Rejetées' },
 ];
 
 export default function AgentDashboard() {

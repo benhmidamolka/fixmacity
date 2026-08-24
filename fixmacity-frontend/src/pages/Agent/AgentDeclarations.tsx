@@ -24,9 +24,9 @@ const PRIORITY_CFG: Record<string, { label: string; color: string; bg: string }>
 };
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  assignee_agent: { label: 'À Accepter', color: '#3b82f6', bg: '#3b82f615', dot: '#3b82f6' },
+  assignee_agent: { label: 'À accepter', color: '#3b82f6', bg: '#3b82f615', dot: '#3b82f6' },
   en_cours:       { label: 'En cours',   color: '#f97316', bg: '#f9731615', dot: '#f97316' },
-  resolue:        { label: 'Résolue',    color: '#10b981', bg: '#10b98115', dot: '#10b981' },
+  resolue:        { label: 'Évaluée',    color: '#10b981', bg: '#10b98115', dot: '#10b981' },
   cloturee:       { label: 'Clôturée',   color: '#9ca3af', bg: '#9ca3af15', dot: '#9ca3af' },
   refusee_agent:  { label: 'Refusée',    color: '#ef4444', bg: '#ef444415', dot: '#ef4444' },
 };
@@ -50,6 +50,7 @@ export default function AgentDeclarations() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [evaluatedOnly, setEvaluatedOnly] = useState<boolean>(false);
 
@@ -60,7 +61,7 @@ export default function AgentDeclarations() {
   const fetchDecls = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API}/agent/declarations`, { headers: hdr() });
+      const res = await fetch(`${API}/agent/declarations?limit=500`, { headers: hdr() });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setDeclarations(data.declarations || (Array.isArray(data) ? data : []));
@@ -81,19 +82,28 @@ export default function AgentDeclarations() {
   }, []);
 
   const safeDeclarations = Array.isArray(declarations) ? declarations : [];
+  const categories = Array.from(new Set(safeDeclarations.map((d: any) => d.category).filter(Boolean))) as string[];
+
+  const normalize = (s?: any) => s ? String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : ""
 
   const filteredTable = safeDeclarations.filter((d) => {
+    const q = normalize(search);
     const matchSearch =
-      (d.title || '').toLowerCase().includes(search.toLowerCase()) ||
-      (d.ref_citoyen || '').toLowerCase().includes(search.toLowerCase()) ||
-      (d.address || '').toLowerCase().includes(search.toLowerCase());
+      normalize(d.title).includes(q) ||
+      normalize(d.ref_citoyen).includes(q) ||
+      normalize(d.address).includes(q) ||
+      normalize(d.description).includes(q) ||
+      normalize(d.category).includes(q);
     const matchStatus = statusFilter === 'all' || d.status === statusFilter;
     const matchPriority =
       priorityFilter === 'all' ||
       (d.priority || '').toLowerCase() === priorityFilter.toLowerCase();
+    const matchCategory =
+      categoryFilter === 'all' ||
+      d.category === categoryFilter;
     const matchEvaluated = !evaluatedOnly || (d.rating && d.rating.score > 0);
 
-    return matchSearch && matchStatus && matchPriority && matchEvaluated;
+    return matchSearch && matchStatus && matchPriority && matchCategory && matchEvaluated;
   });
 
   const sortedTable = [...filteredTable].sort((a, b) => {
@@ -123,6 +133,12 @@ export default function AgentDeclarations() {
     e.stopPropagation();
     setSelectedDecl(id);
     // The detail modal will open on the "actions" tab for pending missions
+  };
+
+  // Quick resolve opens the detail modal so the agent can upload a proof picture
+  const quickResolve = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setSelectedDecl(id);
   };
 
   const stats = {
@@ -206,9 +222,20 @@ export default function AgentDeclarations() {
               >
                 <option value="all">Toutes priorités</option>
                 <option value="critique">Critique</option>
+                <option value="elevee">Élevée</option>
                 <option value="haute">Haute</option>
                 <option value="moyenne">Moyenne</option>
                 <option value="basse">Basse</option>
+              </select>
+
+              {/* Category filter */}
+              <select
+                value={categoryFilter}
+                onChange={e => { setCategoryFilter(e.target.value); setPage(1); }}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-full border text-[11px] font-bold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 outline-none cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+              >
+                <option value="all">Toutes catégories</option>
+                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
 
               {/* Sort */}
@@ -378,6 +405,15 @@ export default function AgentDeclarations() {
                             <AlertTriangle className="w-3.5 h-3.5" />
                           </button>
                         </>
+                      )}
+                      {d.status === 'en_cours' && (
+                        <button
+                          onClick={e => quickResolve(e, d.id)}
+                          title="Évaluer"
+                          className="w-8 h-8 rounded-lg bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        </button>
                       )}
                     </div>
                   </div>

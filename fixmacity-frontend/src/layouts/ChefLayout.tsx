@@ -43,7 +43,10 @@ const ChefLayout: React.FC<Props> = ({ children, title = 'Mes Affectations' }) =
     }
   }, [darkMode])
 
-  const handleNotif = useCallback(() => setUnreadCount(n => (n ?? 0) + 1), [])
+  const handleNotif = useCallback((data?: unknown) => {
+    setUnreadCount(n => (n ?? 0) + 1)
+    window.dispatchEvent(new CustomEvent('fmc:notification', { detail: data }))
+  }, [])
   useSocket(handleNotif)
 
   useEffect(() => {

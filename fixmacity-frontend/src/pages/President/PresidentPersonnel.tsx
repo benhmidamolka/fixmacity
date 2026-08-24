@@ -18,11 +18,7 @@ const avatarColor = (name: string) => PALETTE[(name?.charCodeAt(0) ?? 0) % PALET
 const initials = (fn: string, ln: string) =>
   `${(fn?.[0] ?? '').toUpperCase()}${(ln?.[0] ?? '').toUpperCase()}`
 
-const DELEGATIONS = [
-  { id: 'a309fed2-6c50-49ae-b2be-a6e7ccd096df', name: 'Sousse Ville' },
-  { id: '0ede6556-2f67-4a0d-a7cb-d0cdca4504a5', name: 'Sousse Jawhara' },
-  { id: 'a1ca5994-b186-4970-91f6-c44925cfc4b4', name: 'Sousse Sidi Abdelhamid' },
-]
+
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 interface User {
@@ -110,9 +106,10 @@ interface ConflictChef { id: string; prenom: string; nom: string; email: string 
 const UserModal: React.FC<{
   user: User | null
   departments: Dept[]
+  delegations: any[]
   onClose: () => void
   onSaved: (msg: string) => void
-}> = ({ user, departments, onClose, onSaved }) => {
+}> = ({ user, departments, delegations, onClose, onSaved }) => {
   const isEdit = !!user
   const [form, setForm] = useState<EditForm>({
     first_name: user?.first_name ?? '', last_name: user?.last_name ?? '',
@@ -353,7 +350,7 @@ const UserModal: React.FC<{
               {(hasErr) => (
                 <select className={inp(hasErr)} value={form.delegation_id} onChange={e => set('delegation_id', e.target.value)}>
                   <option value="">— Sélectionner un arrondissement —</option>
-                  {DELEGATIONS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  {delegations.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               )}
             </Field>
@@ -453,6 +450,7 @@ const PresidentPersonnel: React.FC = () => {
   const [deptFilt, setDeptFilt] = useState('')
   const [users, setUsers] = useState<User[]>([])
   const [departments, setDepts] = useState<Dept[]>([])
+  const [delegations, setDelegations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [editTarget, setEditTarget] = useState<User | null>(null)
   const [showModal, setShowModal] = useState(false)
@@ -469,9 +467,10 @@ const PresidentPersonnel: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [uRes, dRes] = await Promise.all([
+      const [uRes, dRes, delRes] = await Promise.all([
         apiFetch('/president/users?limit=200'),
         apiFetch('/president/departments'),
+        apiFetch('/public/delegations'),
       ])
       if (uRes.users) {
         setUsers(uRes.users.map((u: any) => ({
@@ -499,6 +498,7 @@ const PresidentPersonnel: React.FC = () => {
         })))
       }
       if (dRes.departments) setDepts(dRes.departments)
+      if (delRes) setDelegations(delRes.delegations || delRes)
     } catch { flash('Erreur lors du chargement.', 'err') }
     finally { setLoading(false) }
   }, [])
@@ -881,6 +881,7 @@ const PresidentPersonnel: React.FC = () => {
         <UserModal
           user={createMode ? null : editTarget}
           departments={departments}
+          delegations={delegations}
           onClose={() => { setShowModal(false); setEditTarget(null); setCreateMode(false) }}
           onSaved={msg => { setShowModal(false); setEditTarget(null); setCreateMode(false); flash(msg); load() }}
         />,

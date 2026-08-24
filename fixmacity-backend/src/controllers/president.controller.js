@@ -3,7 +3,7 @@ const supabase = require('../config/db');
 const { validationResult } = require('express-validator');
 const { generateRefService } = require('../services/refGenerator.service');
 const { logStatusChange } = require('../services/statusHistory.service');
-const { notifyStatusChange, notifyChefAssigned } = require('../services/notification.service');
+const { notifyStatusChange, notifyChefAssigned, notify, TYPES } = require('../services/notification.service');
 const { getNextGenAI } = require('../services/gemini.rotation');
 
 const SALT_ROUNDS = 12;
@@ -36,7 +36,7 @@ exports.getPriorityDetail = async (req, res) => {
 /* ──────────── GET /api/president/declarations ──────────── */
 exports.listDeclarations = async (req, res) => {
   try {
-    const { status, delegation_id, department_id, service_id, page = 1, limit = 20 } = req.query;
+    const { status, delegation_id, department_id, service_id, search, page = 1, limit = 20 } = req.query;
     const effectiveServiceId = service_id || department_id;
     const offset = (page - 1) * limit;
 
@@ -52,6 +52,7 @@ exports.listDeclarations = async (req, res) => {
     if (status) query = query.eq('status', status);
     if (delegation_id) query = query.eq('delegation_id', delegation_id);
     if (effectiveServiceId) query = query.eq('service_id', effectiveServiceId);
+    if (search) query = query.or(`ref_citoyen.ilike.%${search}%,title.ilike.%${search}%,ref_service.ilike.%${search}%`);
     let { data, error, count } = await query;
 
     if (data && data.length > 0) {
@@ -76,12 +77,12 @@ exports.listDeclarations = async (req, res) => {
       }
 
       data = data.map(d => {
-const agent = null; // agent lookup moved to declaration_services
+        const agent = null; // agent lookup moved to declaration_services
         return {
           ...d,
           // Ensure priority fields are always present
-          priority_score:  d.priority_score  ?? 0,
-          priority_label:  d.priority_label  ?? null,
+          priority_score: d.priority_score ?? 0,
+          priority_label: d.priority_label ?? null,
           priority_method: d.priority_method ?? null,
           users: userMap[d.user_id || d.citizen_id] || null,
           agent_name: agent ? `${agent.first_name} ${agent.last_name}` : null,
@@ -107,7 +108,7 @@ const agent = null; // agent lookup moved to declaration_services
 exports.getDeclarationDetail = async (req, res) => {
   try {
     const { id } = req.params;
- 
+
     // ── 1. Fetch base declaration ──────────────────────────────────────────
     const { data: decl, error: declErr } = await supabase
       .from('declarations')
@@ -124,11 +125,11 @@ exports.getDeclarationDetail = async (req, res) => {
       decl.priority_method = decl.priority_method ?? null;
       decl.priority_meta = decl.priority_meta ?? {};
     }
- 
+
     if (declErr || !decl) {
       return res.status(404).json({ error: 'Déclaration introuvable.' });
     }
- 
+
     // ── 2. Citizen info ────────────────────────────────────────────────────
     let citizen = null;
     const citizenId = decl.citizen_id || decl.user_id;
@@ -140,7 +141,7 @@ exports.getDeclarationDetail = async (req, res) => {
         .maybeSingle();
       citizen = data || null;
     }
-// ── 3. Department / service ────────────────────────────────────────────
+    // ── 3. Department / service ────────────────────────────────────────────
     let department = null;
     if (decl.service_id) {
       const { data } = await supabase
@@ -164,7 +165,7 @@ exports.getDeclarationDetail = async (req, res) => {
         .maybeSingle();
       chef = data || null;
     }
-// ── 5. Agent (from declarations.agent_id) ───────────────────────────────
+    // ── 5. Agent (from declarations.agent_id) ───────────────────────────────
     let agent = null;
     if (decl.agent_id) {
       const { data } = await supabase
@@ -179,14 +180,14 @@ exports.getDeclarationDetail = async (req, res) => {
       .from('declaration_photos')
       .select('*')
       .eq('declaration_id', id);
- 
+
     // ── 7. Status history ──────────────────────────────────────────────────
     const { data: historyRaw } = await supabase
       .from('status_history')
       .select('*')
       .eq('declaration_id', id)
       .order('created_at', { ascending: false });
- 
+
     // Enrich history with user info
     let history = [];
     if (historyRaw && historyRaw.length > 0) {
@@ -204,14 +205,14 @@ exports.getDeclarationDetail = async (req, res) => {
         user: h.changed_by ? (userMap[h.changed_by] || null) : null,
       }));
     }
- 
+
     // ── 8. Internal comments ───────────────────────────────────────────────
     const { data: commentsRaw } = await supabase
       .from('internal_comments')
       .select('*')
       .eq('declaration_id', id)
       .order('created_at', { ascending: true });
- 
+
     let comments = [];
     if (commentsRaw && commentsRaw.length > 0) {
       const uIds = [...new Set(commentsRaw.map(c => c.user_id).filter(Boolean))];
@@ -228,40 +229,40 @@ exports.getDeclarationDetail = async (req, res) => {
         user: userMap[c.user_id] || null,
       }));
     }
- 
+
     // ── 9. Rating (if any) ─────────────────────────────────────────────────
     const { data: rating } = await supabase
       .from('ratings')
       .select('score, comment, rated_at')
       .eq('declaration_id', id)
       .maybeSingle();
- 
+
     // ── 10. Build response ─────────────────────────────────────────────────
     return res.status(200).json({
       declaration: {
         ...decl,
         // Ensure priority fields are always present (even if null in DB)
-        priority_score:  decl.priority_score  ?? 0,
-        priority_label:  decl.priority_label  ?? null,
+        priority_score: decl.priority_score ?? 0,
+        priority_label: decl.priority_label ?? null,
         priority_method: decl.priority_method ?? null,
-        priority_meta:   decl.priority_meta   ?? {},
+        priority_meta: decl.priority_meta ?? {},
         citizen,
         department,
         chef,
         agent,
         rating: rating || null,
       },
-      photos:   photos   || [],
-      history:  history  || [],
+      photos: photos || [],
+      history: history || [],
       comments: comments || [],
     });
- 
+
   } catch (err) {
     console.error('[President] getDeclarationDetail error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
- 
+
 /* ──────────── POST /api/president/declarations/:id/analyze-image ──────────── */
 exports.analyzeDeclarationImage = async (req, res) => {
   try {
@@ -290,15 +291,15 @@ exports.analyzeDeclarationImage = async (req, res) => {
         error: 'Aucune image attachée à cette déclaration'
       });
     }
- 
+
     // Build score from non-AI signals regardless of whether we have an image
     const voteBonus = Math.min(decl.votes_count || 0, 5);
-    const locBonus  = decl.is_sensitive
+    const locBonus = decl.is_sensitive
       ? (decl.sensitive_type === 'hospital' ? 4 : decl.sensitive_type === 'school' ? 3 : 2)
       : 0;
- 
+
     let aiResult = null;
- 
+
     // Only call Gemini if we have an image
     if (imageUrl) {
       try {
@@ -321,7 +322,7 @@ exports.analyzeDeclarationImage = async (req, res) => {
           decl.is_sensitive ? `Zone sensible: ${decl.sensitive_type === 'hospital' ? 'Proximité hôpital' : 'Proximité école'}` : '',
           decl.votes_count > 0 ? `Votes communautaires: ${decl.votes_count}` : '',
         ].filter(Boolean).join('\n');
- 
+
         const prompt = `Tu es expert en maintenance urbaine à Sousse, Tunisie.
 Analyse cette photo et évalue la priorité d'intervention municipale.
  
@@ -341,14 +342,14 @@ Réponds UNIQUEMENT avec ce JSON (sans markdown):
   "reasoning": "1-2 phrases en français",
   "visible_issues": ["problème1", "problème2"]
 }`;
- 
+
         const genAI = getNextGenAI();
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
         const result = await model.generateContent([prompt, { inlineData: { mimeType, data: base64Image } }]);
         const text = result.response.text().trim();
         const jsonStr = text.replace(/^```json?\n?/, '').replace(/\n?```$/, '').trim();
         aiResult = JSON.parse(jsonStr);
- 
+
         // Normalize priority value
         const prioMap = {
           critique: 'urgent', critical: 'urgent', urgent: 'urgent',
@@ -361,45 +362,45 @@ Réponds UNIQUEMENT avec ce JSON (sans markdown):
         // aiResult stays null → we compute without AI
       }
     }
- 
+
     // Score computation
     const aiScore = aiResult
       ? (aiResult.priority === 'urgent' ? 10 : aiResult.priority === 'normal' ? 5 : 1)
       : 0;
     const totalScore = aiScore + voteBonus + locBonus;
-    const autoLabel  = totalScore >= 12 ? 'urgent' : totalScore >= 5 ? 'normal' : 'faible';
- 
+    const autoLabel = totalScore >= 12 ? 'urgent' : totalScore >= 5 ? 'normal' : 'faible';
+
     // Persist analysis result to declarations table
     const updatePayload = {
-      ai_priority:           aiResult ? aiResult.priority : null,
-      ai_confidence:         aiResult?.confidence || null,
-      ai_reasoning:          aiResult?.reasoning || null,
-      ai_visible_issues:     aiResult?.visible_issues || [],
-      ai_severity_label:     aiResult?.severity_label || null,
-      ai_analyzed_at:        new Date().toISOString(),
-      priority_score:        totalScore,
+      ai_priority: aiResult ? aiResult.priority : null,
+      ai_confidence: aiResult?.confidence || null,
+      ai_reasoning: aiResult?.reasoning || null,
+      ai_visible_issues: aiResult?.visible_issues || [],
+      ai_severity_label: aiResult?.severity_label || null,
+      ai_analyzed_at: new Date().toISOString(),
+      priority_score: totalScore,
       // Mirror final priority into DB priority column (unless president already locked it)
       ...(!(decl.ai_priority_confirmed) && {
         priority: autoLabel === 'urgent' ? 'haute' : autoLabel === 'normal' ? 'moyenne' : 'basse',
       }),
     };
- 
+
     await supabase.from('declarations').update(updatePayload).eq('id', id).is('deleted_at', null);
- 
+
     return res.status(200).json({
       // AI analysis (null if no image or AI failed)
-      has_image:     !!imageUrl,
-      ai_used:       !!aiResult,
-      ai_priority:   aiResult?.priority || null,
+      has_image: !!imageUrl,
+      ai_used: !!aiResult,
+      ai_priority: aiResult?.priority || null,
       ai_confidence: aiResult?.confidence || null,
-      ai_reasoning:  aiResult?.reasoning || null,
+      ai_reasoning: aiResult?.reasoning || null,
       ai_visible_issues: aiResult?.visible_issues || [],
       ai_severity_label: aiResult?.severity_label || null,
       // Score breakdown
       score_breakdown: {
-        ai_score:    aiScore,
-        vote_bonus:  voteBonus,
-        loc_bonus:   locBonus,
+        ai_score: aiScore,
+        vote_bonus: voteBonus,
+        loc_bonus: locBonus,
         total_score: totalScore,
       },
       // Final computed label
@@ -545,7 +546,7 @@ exports.assignDeclaration = async (req, res) => {
     let existingChefId = null;
     for (const assignment of assignments) {
       const svc = services.find(s => s.id === assignment.department_id);
-      if (svc && svc.chef_id && svc.chef_id !== assignment.chef_id) {
+      if (svc && svc.chef_id && assignment.chef_id && svc.chef_id !== assignment.chef_id) {
         if (!confirm_replacement) {
           conflictService = svc;
           existingChefId = svc.chef_id;
@@ -675,7 +676,7 @@ exports.reassignDeclaration = async (req, res) => {
     let existingChefId = null;
     for (const assignment of assignments) {
       const svc = services.find(s => s.id === assignment.department_id);
-      if (svc && svc.chef_id && svc.chef_id !== assignment.chef_id) {
+      if (svc && svc.chef_id && assignment.chef_id && svc.chef_id !== assignment.chef_id) {
         if (!confirm_replacement) {
           conflictService = svc;
           existingChefId = svc.chef_id;
@@ -896,15 +897,15 @@ exports.createUser = async (req, res) => {
   } = req.body;
 
   const prenom = req.body.prenom || req.body.first_name;
-  const nom    = req.body.nom    || req.body.last_name;
+  const nom = req.body.nom || req.body.last_name;
 
   // ── Rule 3: required field validation — fail-fast on FIRST missing field ─
   const REQUIRED = [
-    { key: 'email',         val: email,         label: 'email' },
-    { key: 'prenom',        val: prenom,        label: 'prénom' },
-    { key: 'nom',           val: nom,           label: 'nom' },
-    { key: 'password',      val: password,      label: 'mot de passe' },
-    { key: 'role',          val: role,          label: 'rôle' },
+    { key: 'email', val: email, label: 'email' },
+    { key: 'prenom', val: prenom, label: 'prénom' },
+    { key: 'nom', val: nom, label: 'nom' },
+    { key: 'password', val: password, label: 'mot de passe' },
+    { key: 'role', val: role, label: 'rôle' },
     { key: 'department_id', val: department_id, label: 'département' },
   ];
 
@@ -949,10 +950,10 @@ exports.createUser = async (req, res) => {
       await client.query('ROLLBACK');
       const existingRole = emailCheck.rows[0].role;
       const roleLabel =
-        existingRole === 'agent'     ? 'un agent terrain'       :
-        existingRole === 'chef'      ? 'un chef de service'     :
-        existingRole === 'president' ? 'le président municipal' :
-        'un utilisateur';
+        existingRole === 'agent' ? 'un agent terrain' :
+          existingRole === 'chef' ? 'un chef de service' :
+            existingRole === 'president' ? 'le président municipal' :
+              'un utilisateur';
       return res.status(409).json({
         success: false,
         error: 'Cette adresse email est déjà utilisée.',
@@ -983,7 +984,7 @@ exports.createUser = async (req, res) => {
           conflictType: 'DEPT_HAS_CHEF',
           message_fr: 'Ce département possède déjà un chef de service actif. Veuillez choisir un autre département ou confirmer le remplacement.',
           existing_chef: { id: existing.id, name: `${existing.prenom} ${existing.nom}`, email: existing.email },
-          existingChef:  { id: existing.id, prenom: existing.prenom, nom: existing.nom, email: existing.email },
+          existingChef: { id: existing.id, prenom: existing.prenom, nom: existing.nom, email: existing.email },
         });
       }
 
@@ -1027,12 +1028,12 @@ exports.createUser = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      user:    newUser.rows[0],
+      user: newUser.rows[0],
       message: `Compte ${role === 'chef' ? 'Chef de Service' : 'Agent Terrain'} créé avec succès.`,
     });
 
   } catch (error) {
-    await client.query('ROLLBACK').catch(() => {});
+    await client.query('ROLLBACK').catch(() => { });
     console.error('[President] createUser error:', error);
     return res.status(500).json({ success: false, error: 'Erreur serveur. Veuillez réessayer.' });
   } finally {
@@ -1065,7 +1066,7 @@ exports.updateUser = async (req, res) => {
     }
 
     const finalRole = role !== undefined ? role : currentUser.role;
-    
+
     // ── Rule 2: department already has active chef (reassignment conflict) ──
     const isChefDeptChange =
       finalRole === 'chef' &&
@@ -1096,15 +1097,15 @@ exports.updateUser = async (req, res) => {
             conflictType: 'DEPT_HAS_CHEF',
             message_fr: 'Ce département possède déjà un chef de service actif. Veuillez choisir un autre département ou confirmer le remplacement.',
             existing_chef: {
-              id:    conflictUser.id,
-              name:  `${conflictUser.first_name} ${conflictUser.last_name}`,
+              id: conflictUser.id,
+              name: `${conflictUser.first_name} ${conflictUser.last_name}`,
               email: conflictUser.email,
             },
             existingChef: {
-              id:     conflictUser.id,
+              id: conflictUser.id,
               prenom: conflictUser.first_name,
-              nom:    conflictUser.last_name,
-              email:  conflictUser.email,
+              nom: conflictUser.last_name,
+              email: conflictUser.email,
             },
           });
         }
@@ -1161,11 +1162,11 @@ exports.updateUser = async (req, res) => {
 
     // ── Post-update: sync services.chef_id ───────────────────────────────────
     try {
-      const updatedRole      = user.role;
-      const updatedIsActive  = user.is_active;
-      const updatedDeptId    = user.department_id;
+      const updatedRole = user.role;
+      const updatedIsActive = user.is_active;
+      const updatedDeptId = user.department_id;
       const becomingInactive = updates.is_active === false;
-      const losingChefRole   = role !== undefined && role !== 'chef' && currentUser.role === 'chef';
+      const losingChefRole = role !== undefined && role !== 'chef' && currentUser.role === 'chef';
 
       if (becomingInactive || losingChefRole) {
         // Clear this user from any service they were chef of
@@ -1345,37 +1346,37 @@ exports.listDepartments = async (req, res) => {
   }
 };
 
-    // createDepartment removed to fix duplication
+// createDepartment removed to fix duplication
 
-    /* ── DELETE /api/president/departments/:id ── */
-    exports.deleteDepartment = async (req, res) => {
-      try {
-        const { id } = req.params;
+/* ── DELETE /api/president/departments/:id ── */
+exports.deleteDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-        // Block if active declarations exist
-        const { data: active } = await supabase
-          .from('declarations')
-          .select('id')
-          .eq('department_id', id)
-          .is('deleted_at', null)
-          .not('status', 'in', '(resolue,cloturee)')
-          .limit(1)
-          .maybeSingle();
+    // Block if active declarations exist
+    const { data: active } = await supabase
+      .from('declarations')
+      .select('id')
+      .eq('department_id', id)
+      .is('deleted_at', null)
+      .not('status', 'in', '(resolue,cloturee)')
+      .limit(1)
+      .maybeSingle();
 
-        if (active) {
-          return res.status(409).json({
-            error: 'Impossible de supprimer: des déclarations actives sont encore assignées à ce service.'
-          });
-        }
+    if (active) {
+      return res.status(409).json({
+        error: 'Impossible de supprimer: des déclarations actives sont encore assignées à ce service.'
+      });
+    }
 
-        // Detach users first
-        await supabase.from('users').update({ department_id: null }).eq('department_id', id);
+    // Detach users first
+    await supabase.from('users').update({ department_id: null }).eq('department_id', id);
 
-        const { error } = await supabase.from('services').delete().eq('id', id);
-        if (error) {
-          console.error('[President] DeleteDept error:', error.message);
-          return res.status(500).json({ error: 'Erreur lors de la suppression.' });
-        }
+    const { error } = await supabase.from('services').delete().eq('id', id);
+    if (error) {
+      console.error('[President] DeleteDept error:', error.message);
+      return res.status(500).json({ error: 'Erreur lors de la suppression.' });
+    }
 
     return res.status(200).json({ success: true });
   } catch (err) {
@@ -1582,7 +1583,7 @@ exports.listPropositions = async (req, res) => {
 
     if (status && status !== 'all') query = query.eq('status', status);
     if (date_from) query = query.gte('created_at', new Date(date_from).toISOString());
-    if (date_to)   query = query.lte('created_at', new Date(new Date(date_to).setHours(23,59,59,999)).toISOString());
+    if (date_to) query = query.lte('created_at', new Date(new Date(date_to).setHours(23, 59, 59, 999)).toISOString());
 
     const { data, error, count } = await query;
     if (error) throw error;
@@ -1600,7 +1601,7 @@ exports.listPropositions = async (req, res) => {
       const creator = userMap[p.created_by];
       // A proposition is presidential if: creator is president, OR type column says so
       const isPresidential = creator?.role === 'president' || p.type === 'president';
-      const isCitizen      = !isPresidential;
+      const isCitizen = !isPresidential;
       return {
         ...p,
         is_presidential: isPresidential,
@@ -1614,11 +1615,11 @@ exports.listPropositions = async (req, res) => {
     });
 
     let presidential = structured.filter(p => p.is_presidential);
-    let citizen      = structured.filter(p => !p.is_presidential);
+    let citizen = structured.filter(p => !p.is_presidential);
 
     // Apply type filter after enrichment (type=citizen|president)
-    if (type === 'citizen')   presidential = [];
-    if (type === 'president') citizen      = [];
+    if (type === 'citizen') presidential = [];
+    if (type === 'president') citizen = [];
 
     return res.status(200).json({
       success: true,
@@ -1672,7 +1673,7 @@ exports.dashboard = async (req, res) => {
         sqlFilter += ` AND d.status = '${status}'`;
       }
     }
-  if (department_id && department_id !== 'all') {
+    if (department_id && department_id !== 'all') {
       baseQuery = baseQuery.eq('service_id', department_id);
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(department_id)) {
         sqlFilter += ` AND d.service_id = '${department_id}'`;
@@ -2292,7 +2293,7 @@ exports.decideProposition = async (req, res) => {
     const now = new Date().toISOString();
     const { data: updated, error } = await supabase.from('propositions')
       .update({
-        status:     decision,       // sets enum 'Confirmer' or 'Retenu'
+        status: decision,       // sets enum 'Confirmer' or 'Retenu'
         decided_at: now,
         decided_by: req.user.id,
         updated_at: now,
@@ -2314,13 +2315,13 @@ exports.decideProposition = async (req, res) => {
         : `Votre suggestion « ${prop.title} » a été retenue pour étude par le Président.`;
 
       await supabase.from('notifications').insert({
-        user_id:      prop.created_by,
-        type:         'proposition_decision',
-        title:        notifTitle,
-        body:         notifBody,
+        user_id: prop.created_by,
+        type: 'proposition_decision',
+        title: notifTitle,
+        body: notifBody,
         reference_id: prop.id,
-        is_read:      false,
-        created_at:   now,
+        is_read: false,
+        created_at: now,
       });
     } catch (notifErr) {
       // Non-fatal — log and continue
@@ -2410,13 +2411,13 @@ exports.addComment = async (req, res) => {
 
     const { data: decl } = await supabase
       .from('declarations')
-      .select('id')
+      .select('id, department_id')
       .eq('id', id)
       .is('deleted_at', null)
-
       .single();
     if (!decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
 
+    let finalComment;
     const { data: comment, error } = await supabase
       .from('internal_comments')
       .insert({
@@ -2429,19 +2430,31 @@ exports.addComment = async (req, res) => {
       .single();
 
     if (error) {
-      // If 'channel' column doesn't exist yet, insert without it
       if (error.code === '42703') {
         const { data: c2, error: e2 } = await supabase
           .from('internal_comments')
           .insert({ declaration_id: id, user_id: req.user.id, content: content.trim() })
           .select('*').single();
         if (e2) return res.status(500).json({ error: 'Erreur serveur.' });
-        return res.status(201).json({ comment: { ...c2, channel: 'president_chef' } });
+        finalComment = { ...c2, channel: 'president_chef' };
+      } else {
+        return res.status(500).json({ error: 'Erreur serveur.' });
       }
-      return res.status(500).json({ error: 'Erreur serveur.' });
+    } else {
+      finalComment = comment;
     }
 
-    return res.status(201).json({ comment });
+    // Notify chef
+    if (decl.department_id) {
+      try {
+        const { data: chefUser } = await supabase.from('users').select('id').eq('department_id', decl.department_id).eq('role', 'chef').eq('is_active', true).limit(1).maybeSingle();
+        if (chefUser?.id) {
+          await notify(req.app, { userId: chefUser.id, type: TYPES.INTERNAL_COMMENT || 'INTERNAL_COMMENT', title: 'Nouveau message du Président', body: `Présidence: ${content.trim().substring(0, 80)}`, declarationId: id });
+        }
+      } catch (notifErr) { console.error('[President] notification error:', notifErr); }
+    }
+
+    return res.status(201).json({ comment: finalComment });
   } catch (err) {
     console.error('[President] addComment error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
@@ -2548,10 +2561,10 @@ exports.recalculateDeclarationPriority = async (req, res) => {
     const { error: updateErr } = await supabase
       .from('declarations')
       .update({
-        priority_score:  priority.score,
-        priority_label:  priority.level,
+        priority_score: priority.score,
+        priority_label: priority.level,
         priority_method: priority.source,
-        priority_meta:   {
+        priority_meta: {
           factors: priority.factors,
           ai_description: priority.ai_description,
           ai_danger_level: priority.ai_danger_level,
@@ -2564,8 +2577,8 @@ exports.recalculateDeclarationPriority = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: {
-        priority_score:  priority.score,
-        priority_label:  priority.level,
+        priority_score: priority.score,
+        priority_label: priority.level,
         priority_method: priority.source,
         priority_meta: {
           factors: priority.factors,
@@ -2577,5 +2590,107 @@ exports.recalculateDeclarationPriority = async (req, res) => {
   } catch (err) {
     console.error('[President] recalculateDeclarationPriority error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
-  }
+  }/* ──────────── COMMENTS (PRESIDENT) ──────────── */
+  exports.listComments = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { data, error } = await supabase
+        .from('internal_comments')
+        .select(`
+        id, content, channel, created_at,
+        author:user_id (id, first_name, last_name, role)
+      `)
+        .eq('declaration_id', id)
+        .in('channel', ['president_chef'])
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      res.json({ comments: data || [] });
+    } catch (err) {
+      console.error('[President] listComments:', err.message);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  };
+
+  exports.addComment = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { content } = req.body;
+      const channel = 'president_chef';
+
+      if (!content || !content.trim()) {
+        return res.status(400).json({ error: 'Contenu requis.' });
+      }
+
+      const { data: decl, error: fetchErr } = await supabase
+        .from('declarations')
+        .select('id, department_id, service_id')
+        .eq('id', id)
+        .is('deleted_at', null)
+        .single();
+
+      if (fetchErr || !decl) {
+        return res.status(404).json({ error: 'Déclaration introuvable.' });
+      }
+
+      let finalComment;
+      const { data: comment, error } = await supabase
+        .from('internal_comments')
+        .insert({
+          declaration_id: id,
+          user_id: req.user.id,
+          content: content.trim(),
+          channel
+        })
+        .select(`id, content, channel, created_at, author:user_id (id, first_name, last_name, role)`)
+        .single();
+
+      if (error) {
+        if (error.code === '42703') { // channel missing
+          const { data: c2, error: e2 } = await supabase
+            .from('internal_comments')
+            .insert({
+              declaration_id: id,
+              user_id: req.user.id,
+              content: content.trim()
+            })
+            .select(`id, content, created_at, author:user_id (id, first_name, last_name, role)`)
+            .single();
+          if (e2) return res.status(500).json({ error: 'Erreur serveur' });
+          finalComment = { ...c2, channel };
+        } else {
+          return res.status(500).json({ error: 'Erreur serveur' });
+        }
+      } else {
+        finalComment = comment;
+      }
+
+      // Notify the chef(s) of the department
+      const targetDept = decl.department_id || decl.service_id;
+      if (targetDept) {
+        const { data: chefs } = await supabase.from('users')
+          .select('id')
+          .eq('department_id', targetDept)
+          .eq('role', 'chef')
+          .eq('is_active', true);
+
+        if (chefs && chefs.length > 0) {
+          for (const chef of chefs) {
+            await notify(req.app, {
+              userId: chef.id,
+              type: TYPES.INTERNAL_COMMENT || 'INTERNAL_COMMENT',
+              title: 'Nouveau message du Président',
+              body: `Président: ${content.trim().substring(0, 80)}`,
+              declarationId: id,
+            }).catch(() => { });
+          }
+        }
+      }
+
+      res.status(201).json(finalComment);
+    } catch (err) {
+      console.error('[President] addComment:', err.message);
+      res.status(500).json({ error: 'Erreur serveur' });
+    }
+  };
 };

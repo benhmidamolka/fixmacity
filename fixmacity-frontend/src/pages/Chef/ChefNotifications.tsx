@@ -12,6 +12,7 @@ import {
   ArrowDown, Info
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { AcceptModal, RefuseModal } from '../../components/Chef/DetailDrawer'
 
 const API   = import.meta.env.VITE_API_URL || 'http://localhost:5005/api'
 const tok   = () => localStorage.getItem('fmc_token') || ''
@@ -100,13 +101,13 @@ const fmtTime = (d: string) => new Date(d).toLocaleTimeString('fr-FR', { hour: '
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   soumise:        { label: 'Soumise',        color: '#d97706', bg: '#fffbeb', dot: '#f59e0b' },
-  assignee_chef:  { label: 'À traiter',      color: '#7c3aed', bg: '#ede9fe', dot: '#8b5cf6' },
-  assignee_agent: { label: 'Assignée agent', color: '#1d4ed8', bg: '#dbeafe', dot: '#3b82f6' },
-  en_cours:       { label: 'En cours',       color: '#c2410c', bg: '#ffedd5', dot: '#f97316' },
+  assignee_chef:  { label: 'Assigné',        color: '#7c3aed', bg: '#ede9fe', dot: '#8b5cf6' },
+  assignee_agent: { label: 'En attente',     color: '#d97706', bg: '#fffbeb', dot: '#f59e0b' },
+  en_cours:       { label: 'En cours',       color: '#1d4ed8', bg: '#dbeafe', dot: '#3b82f6' },
   resolue:        { label: 'Résolue',        color: '#15803d', bg: '#dcfce7', dot: '#22c55e' },
   cloturee:       { label: 'Clôturée',       color: '#475569', bg: '#f1f5f9', dot: '#94a3b8' },
   refusee_chef:   { label: 'Refusée',        color: '#dc2626', bg: '#fee2e2', dot: '#ef4444' },
-  refusee_agent:  { label: 'Renvoyée agent', color: '#b91c1c', bg: '#fee2e2', dot: '#ef4444' },
+  refusee_agent:  { label: 'Refusée',        color: '#dc2626', bg: '#fee2e2', dot: '#ef4444' },
 }
 
 const CHANNEL_CFG: Record<string, { label: string; color: string; bg: string; role: string }> = {
@@ -158,150 +159,6 @@ const STEP_LABELS: Record<string, string> = {
 }
 
 const AGENT_COLORS = ['#6366f1','#3b82f6','#10b981','#f59e0b','#ec4899','#8b5cf6','#ef4444','#14b8a6']
-
-// ── Accept modal ──────────────────────────────────────────────────────────────
-function AcceptModal({ decl, agents, onClose, onDone }: {
-  decl: Decl; agents: Agent[]; onClose: () => void; onDone: () => void
-}) {
-  const [agentId, setAgentId] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [warning, setWarning] = useState<string | null>(null)
-  const [error,   setError]   = useState<string | null>(null)
-  const maxTasks = parseInt(localStorage.getItem('fmc_max_tasks') || '5')
-  const active   = agents.filter(a => a.is_active)
-
-  const go = async () => {
-    if (!agentId) { setError('Sélectionnez un agent.'); return }
-    setLoading(true); setError(null)
-    const res = await fetch(`${API}/chef/declarations/${decl.id}/accept`, {
-      method: 'POST', headers: hjson(), body: JSON.stringify({ agent_id: agentId })
-    }).catch(() => null)
-    if (!res) { setLoading(false); setError('Erreur réseau.'); return }
-    const d = await res.json()
-    if (!res.ok) { setLoading(false); setError(d.error || 'Erreur.'); return }
-    if (d.warning) setWarning(d.warning)
-    setTimeout(() => { onDone(); onClose() }, d.warning ? 1500 : 400)
-    setLoading(false)
-  }
-
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-      style={{ background: 'rgba(10,22,40,.6)', backdropFilter: 'blur(6px)' }} onClick={onClose}>
-      <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-emerald-50 flex items-center justify-center">
-              <UserCheck size={16} className="text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-sm font-black text-slate-900 dark:text-slate-100">Accepter & Assigner</p>
-              <p className="text-[10px] text-slate-400 truncate max-w-52">{decl.title}</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-            <X size={14} />
-          </button>
-        </div>
-        <div className="p-6 space-y-3">
-          {active.length === 0 ? (
-            <div className="py-8 text-center border-2 border-dashed border-slate-100 rounded-2xl">
-              <p className="text-xs font-bold text-slate-400">Aucun agent actif disponible</p>
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {active.map((a, i) => {
-                const overloaded = a.workload >= maxTasks
-                return (
-                  <label key={a.id}
-                    className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-all ${agentId === a.id ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-500/10' : 'border-slate-100 dark:border-slate-800 hover:border-slate-200 bg-white dark:bg-slate-900'}`}>
-                    <input type="radio" name="agent" value={a.id} checked={agentId === a.id} onChange={() => setAgentId(a.id)} className="sr-only" />
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs text-white flex-shrink-0"
-                      style={{ background: AGENT_COLORS[i % AGENT_COLORS.length] }}>
-                      {a.first_name[0]}{a.last_name[0]}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{a.first_name} {a.last_name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${Math.min(100, (a.workload / maxTasks) * 100)}%`, background: overloaded ? '#ef4444' : a.workload >= Math.ceil(maxTasks / 2) ? '#f59e0b' : '#22c55e' }} />
-                        </div>
-                        <span className="text-[10px] text-slate-400">{a.workload}/{maxTasks}</span>
-                      </div>
-                    </div>
-                    {overloaded && <span className="text-[9px] font-black text-red-500 border border-red-200 rounded-full px-1.5 py-0.5">Chargé</span>}
-                    {agentId === a.id && <Check size={14} className="text-emerald-500 flex-shrink-0" />}
-                  </label>
-                )
-              })}
-            </div>
-          )}
-          {warning && <div className="flex gap-2 px-3 py-2.5 bg-amber-50 border border-amber-100 rounded-xl text-xs text-amber-700"><AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />{warning}</div>}
-          {error   && <div className="flex gap-2 px-3 py-2.5 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700"><AlertCircle size={13} className="flex-shrink-0 mt-0.5" />{error}</div>}
-        </div>
-        <div className="px-6 pb-6 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">Annuler</button>
-          <button onClick={go} disabled={loading || !agentId || active.length === 0}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm disabled:opacity-40 transition-all">
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <><UserCheck size={14} /> Assigner</>}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Refuse modal ──────────────────────────────────────────────────────────────
-function RefuseModal({ decl, onClose, onDone }: { decl: Decl; onClose: () => void; onDone: () => void }) {
-  const [reason,  setReason]  = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState<string | null>(null)
-  const REASONS = ['Hors périmètre technique', 'Informations insuffisantes', 'Doublon détecté', 'Matériel non disponible', 'Autre']
-
-  const go = async () => {
-    if (!reason.trim()) { setError('Motif obligatoire.'); return }
-    setLoading(true)
-    const res = await fetch(`${API}/chef/declarations/${decl.id}/refuse`, {
-      method: 'POST', headers: hjson(), body: JSON.stringify({ reason })
-    }).catch(() => null)
-    if (!res || !res.ok) { setLoading(false); setError('Erreur.'); return }
-    onDone(); onClose()
-  }
-
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-      style={{ background: 'rgba(10,22,40,.6)', backdropFilter: 'blur(6px)' }} onClick={onClose}>
-      <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="px-6 py-5 bg-red-50/60 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-red-100 flex items-center justify-center"><XCircle size={16} className="text-red-500" /></div>
-            <p className="text-sm font-black text-red-700 dark:text-red-400">Refuser le dossier</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-400"><X size={14} /></button>
-        </div>
-        <div className="p-6 space-y-3">
-          <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-xs text-red-700">Le Président sera notifié et pourra réassigner ce dossier.</div>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Motif *</p>
-          {REASONS.map(r => (
-            <button key={r} onClick={() => setReason(r)}
-              className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold border-2 transition-all ${reason === r ? 'border-red-400 bg-red-50 text-red-600' : 'border-slate-100 dark:border-slate-800 text-slate-500 hover:border-slate-200'}`}>
-              {r}
-            </button>
-          ))}
-          <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Précisions…" rows={3}
-            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm outline-none focus:border-red-400 resize-none text-slate-700 dark:text-slate-300 placeholder-slate-400" />
-          {error && <div className="text-xs text-red-500 font-bold">{error}</div>}
-        </div>
-        <div className="px-6 pb-6 flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">Annuler</button>
-          <button onClick={go} disabled={loading || !reason.trim()}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-black text-sm disabled:opacity-40 transition-all">
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <><XCircle size={14} /> Confirmer</>}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 // ─── Detail drawer (right slide-in) ──────────────────────────────────────────
 const DetailDrawer = ({
@@ -358,9 +215,9 @@ const DetailDrawer = ({
   // Load agents list for the accept/assignment modal
   useEffect(() => {
     fetch(`${API}/chef/agents`, { headers: hdr() })
-      .then(r => r.ok ? r.json() : [])
-      .then(setAgents)
-      .catch(() => [])
+      .then(r => r.ok ? r.json() : { agents: [] })
+      .then(d => setAgents(d.agents || []))
+      .catch(() => setAgents([]))
   }, [])
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [comments.length, channel])

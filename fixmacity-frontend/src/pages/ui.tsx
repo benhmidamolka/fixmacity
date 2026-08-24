@@ -23,13 +23,13 @@ export function PriorityBadge({ p }: { p: string }) {
 // ─── Status Pill ───────────────────────────────────────────────────────────────
 const STATUS_MAP: Record<string, { label: string; dotColor: string; bg: string; text: string }> = {
   soumise:        { label: 'Soumise',        dotColor: 'bg-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/20', text: 'text-amber-600 dark:text-amber-450' },
-  assignee_chef:  { label: 'Chef assigné',   dotColor: 'bg-violet-500', bg: 'bg-violet-50 dark:bg-violet-950/20', text: 'text-violet-600 dark:text-violet-400' },
-  assignee_agent: { label: 'À accepter',     dotColor: 'bg-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/20', text: 'text-blue-600 dark:text-blue-400' },
+  assignee_chef:  { label: 'Assignée',       dotColor: 'bg-violet-500', bg: 'bg-violet-50 dark:bg-violet-950/20', text: 'text-violet-600 dark:text-violet-400' },
+  assignee_agent: { label: 'En attente',     dotColor: 'bg-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/20', text: 'text-blue-600 dark:text-blue-400' },
   en_cours:       { label: 'En cours',       dotColor: 'bg-orange-500', bg: 'bg-orange-50 dark:bg-orange-950/20', text: 'text-orange-600 dark:text-orange-400' },
   resolue:        { label: 'Résolue',        dotColor: 'bg-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/20', text: 'text-emerald-600 dark:text-emerald-400' },
   cloturee:       { label: 'Clôturée',       dotColor: 'bg-slate-500', bg: 'bg-slate-50 dark:bg-slate-800/40', text: 'text-slate-500 dark:text-slate-400' },
-  refusee_chef:   { label: 'Refusée',        dotColor: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-950/20', text: 'text-red-600 dark:text-red-400' },
-  refusee_agent:  { label: 'Refusée',        dotColor: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-950/20', text: 'text-red-600 dark:text-red-400' },
+  refusee_chef:   { label: 'Rejetée',        dotColor: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-950/20', text: 'text-red-600 dark:text-red-400' },
+  refusee_agent:  { label: 'Rejetée',        dotColor: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-950/20', text: 'text-red-600 dark:text-red-400' },
 };
 
 export function StatusPill({ s }: { s: string }) {

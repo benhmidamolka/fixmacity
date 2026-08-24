@@ -8,13 +8,13 @@
 // ════════════════════════════════════════════════════════════════════
 
 'use strict';
-const { notifyStatusChange, notifyAgentAssigned, notifyChefRejected } = require('../services/notification.service');
+const { notifyStatusChange, notifyAgentAssigned, notifyChefRejected, notify, TYPES } = require('../services/notification.service');
 const supabase = require('../config/db');
 const { validationResult } = require('express-validator');
-const { logStatusChange }    = require('../services/statusHistory.service');
+const { logStatusChange } = require('../services/statusHistory.service');
 const { cloudinary } = require('../config/cloudinary');
 
-const priorityService        = require('../services/priority.service');
+const priorityService = require('../services/priority.service');
 
 // ─── Correct enum values ──────────────────────────────────────────────────────
 const VALID_STATUSES = [
@@ -42,13 +42,29 @@ exports.listDeclarations = async (req, res) => {
       return res.status(400).json({ error: `Statut invalide: "${status}". Valeurs acceptées: ${VALID_STATUSES.join(', ')}` });
     }
 
+    const { data: dsRows, error: dsErr } = await supabase
+      .from('declaration_services')
+      .select('declaration_id')
+      .eq('service_id', deptId);
+
+    if (dsErr) {
+      console.error('[Chef] listDeclarations dsErr:', dsErr.message);
+      return res.status(500).json({ error: 'Erreur serveur.' });
+    }
+
+    const assignedDeclIds = dsRows.map(r => r.declaration_id);
+
+    if (assignedDeclIds.length === 0) {
+      return res.status(200).json({ declarations: [], total: 0, page: +page, limit: +limit });
+    }
+
     let q = supabase
       .from('declarations')
       .select('*', { count: 'exact' })
-      .eq('department_id', deptId)
+      .in('id', assignedDeclIds)
       .or('is_deleted.eq.false,is_deleted.is.null')
-      .order('priority_score', { ascending: false })
-      .order('created_at',     { ascending: false })
+      .order('updated_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .range(offset, offset + Number(limit) - 1);
 
     if (status) q = q.eq('status', status);
@@ -126,10 +142,20 @@ exports.getDeclarationDetail = async (req, res) => {
 
     const { data: decl, error } = await supabase
       .from('declarations').select('*')
-      .eq('id', id).eq('department_id', deptId)
+      .eq('id', id)
       .or('is_deleted.eq.false,is_deleted.is.null').single();
 
-    if (error || !decl) return res.status(404).json({ error: 'Déclaration introuvable ou hors département.' });
+    if (error || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
+
+    // Verify the department is assigned to this declaration
+    const { data: checkDs } = await supabase
+      .from('declaration_services')
+      .select('id')
+      .eq('declaration_id', id)
+      .eq('service_id', deptId)
+      .maybeSingle();
+
+    if (!checkDs) return res.status(403).json({ error: 'Hors de votre département.' });
 
     // Enrich users
     const userIds = [decl.citizen_id].filter(Boolean);
@@ -178,21 +204,21 @@ exports.getDeclarationDetail = async (req, res) => {
       .neq('service_id', deptId);
 
     if (dsRows && dsRows.length > 0) {
-      const svcIds  = [...new Set(dsRows.map(r => r.service_id).filter(Boolean))];
+      const svcIds = [...new Set(dsRows.map(r => r.service_id).filter(Boolean))];
       const chefIds = [...new Set(dsRows.map(r => r.chef_id).filter(Boolean))];
       const [svcsRes, chefsRes] = await Promise.all([
-        svcIds.length  ? supabase.from('services').select('id, name_fr').in('id', svcIds)   : { data: [] },
+        svcIds.length ? supabase.from('services').select('id, name_fr').in('id', svcIds) : { data: [] },
         chefIds.length ? supabase.from('users').select('id, first_name, last_name').in('id', chefIds) : { data: [] },
       ]);
-      const svcMap  = {};
+      const svcMap = {};
       const chefMap = {};
-      if (svcsRes.data)  svcsRes.data.forEach(s => svcMap[s.id]  = s.name_fr);
+      if (svcsRes.data) svcsRes.data.forEach(s => svcMap[s.id] = s.name_fr);
       if (chefsRes.data) chefsRes.data.forEach(u => chefMap[u.id] = `${u.first_name} ${u.last_name}`);
       other_services = dsRows.map(r => ({
-        service_id:   r.service_id,
-        service_name: svcMap[r.service_id]  || r.service_id,
-        chef_name:    chefMap[r.chef_id]    || '—',
-        status:       r.status,
+        service_id: r.service_id,
+        service_name: svcMap[r.service_id] || r.service_id,
+        chef_name: chefMap[r.chef_id] || '—',
+        status: r.status,
       }));
     }
 
@@ -226,7 +252,7 @@ exports.getDeclarationDetail = async (req, res) => {
       declaration: fullDecl,
       ...fullDecl,  // backward compat root fields
       // sensitive_places is already part of fullDecl spread above
-      photos:   photosRes.data  || [],
+      photos: photosRes.data || [],
       history,
       comments,
       other_services,
@@ -278,27 +304,32 @@ exports.acceptDeclaration = async (req, res) => {
     if (!agent_ids) agent_ids = [];
 
     const { data: decl, error: fetchErr } = await supabase.from('declarations')
-      .select('id, status, department_id, citizen_id').eq('id', id).or('is_deleted.eq.false,is_deleted.is.null').single();
+      .select('id, status, department_id, service_id, citizen_id').eq('id', id).or('is_deleted.eq.false,is_deleted.is.null').single();
     if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
-    if (decl.department_id !== deptId) return res.status(403).json({ error: 'Hors département.' });
-    if (decl.status !== 'assignee_chef') return res.status(400).json({ error: `Statut actuel "${decl.status}" — impossible d'accepter.` });
+    if (decl.service_id !== deptId) return res.status(403).json({ error: 'Hors département.' });
+    if (!['assignee_chef', 'assignee_agent'].includes(decl.status)) {
+      return res.status(400).json({ error: `Statut actuel "${decl.status}" — impossible d'accepter ou d'assigner.` });
+    }
 
     // ── Case 1: "Assigner plus tard" — accept with no agent ──────────────────
     if (agent_ids.length === 0) {
       // Upsert a declaration_services row so this chef "owns" the declaration
       await supabase.from('declaration_services')
         .upsert(
-          { declaration_id: id, service_id: deptId, chef_id: req.user.id, status: 'assignee_chef', updated_at: new Date().toISOString() },
+          { declaration_id: id, service_id: deptId, chef_id: req.user.id, status: 'assignee_agent', updated_at: new Date().toISOString() },
           { onConflict: 'declaration_id,service_id' }
         );
 
-      // Declaration stays assignee_chef (chef accepted, no agent yet)
+      // Declaration becomes assignee_agent (chef accepted, waiting to assign agent)
       const { data: updated, error: updateErr } = await supabase.from('declarations')
-        .update({ updated_at: new Date().toISOString() })
+        .update({ status: 'assignee_agent', updated_at: new Date().toISOString() })
         .eq('id', id).select('*').single();
       if (updateErr) return res.status(500).json({ error: 'Erreur serveur.' });
 
-      await logStatusChange(id, 'assignee_chef', 'assignee_chef', req.user.id, 'Accepté — agent à assigner');
+      if (decl.status === 'assignee_chef') {
+        await logStatusChange(id, 'assignee_chef', 'assignee_agent', req.user.id, 'Accepté — agent à assigner');
+        await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_agent');
+      }
       return res.status(200).json({ declaration: updated, deferred: true });
     }
 
@@ -329,10 +360,17 @@ exports.acceptDeclaration = async (req, res) => {
       .eq('id', id).select('*').single();
     if (updateErr) return res.status(500).json({ error: 'Erreur serveur.' });
 
-    await logStatusChange(id, 'assignee_chef', 'assignee_agent', req.user.id,
+    await logStatusChange(id, decl.status, 'assignee_agent', req.user.id,
       `Assigné à ${(agentUsers || []).map(a => `${a.first_name} ${a.last_name}`).join(', ')}`);
-    await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_agent');
-    for (const aid of agent_ids) await notifyAgentAssigned(req.app, updated, aid).catch(() => {});
+
+    if (decl.status === 'assignee_chef') {
+      await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_agent');
+    }
+    for (const aid of agent_ids) {
+      await notifyAgentAssigned(req.app, updated, aid).catch((err) => {
+        console.error('[Chef] Error notifying agent:', err);
+      });
+    }
 
     return res.status(200).json({ declaration: updated, assigned_agents: agentUsers || [] });
   } catch (err) {
@@ -350,9 +388,9 @@ exports.refuseDeclaration = async (req, res) => {
     if (!refusalReason || refusalReason.trim().length < 10) return res.status(400).json({ error: 'Le motif de refus est obligatoire' });
 
     const { data: decl, error: fetchErr } = await supabase.from('declarations')
-      .select('id, status, department_id, citizen_id').eq('id', id).or('is_deleted.eq.false,is_deleted.is.null').single();
+      .select('id, status, department_id, service_id, citizen_id').eq('id', id).or('is_deleted.eq.false,is_deleted.is.null').single();
     if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
-    if (decl.department_id !== req.user.department_id) return res.status(403).json({ error: 'Hors département.' });
+    if (decl.service_id !== req.user.department_id) return res.status(403).json({ error: 'Hors département.' });
     if (decl.status !== 'assignee_chef') return res.status(400).json({ error: `Statut actuel "${decl.status}" — impossible de refuser.` });
 
     const { data: updated, error: updateErr } = await supabase.from('declarations')
@@ -360,66 +398,12 @@ exports.refuseDeclaration = async (req, res) => {
       .eq('id', id).select('*').single();
     if (updateErr) return res.status(500).json({ error: 'Erreur serveur.' });
 
-   await logStatusChange(id, 'assignee_chef', 'refusee_chef', req.user.id, refusalReason.trim());
+    await logStatusChange(id, 'assignee_chef', 'refusee_chef', req.user.id, refusalReason.trim());
     await notifyStatusChange(req.app, updated, updated.citizen_id, 'refusee_chef');
     await notifyChefRejected(req.app, updated, refusalReason.trim());
     return res.status(200).json({ declaration: updated });
   } catch (err) {
     console.error('[Chef] refuseDeclaration error:', err);
-    return res.status(500).json({ error: 'Erreur serveur.' });
-  }
-};
-
-/* ──────────── POST /api/chef/declarations/:id/assign-agents ──────────── */
-exports.assignAgents = async (req, res) => {
-  try {
-    const errors = require('express-validator').validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-
-    const { id } = req.params;
-    const { agent_ids } = req.body;
-    const deptId = req.user.department_id;
-
-    // Validate declaration belongs to this chef's department
-    const { data: decl, error: fetchErr } = await supabase.from('declarations')
-      .select('id, status, department_id, citizen_id').eq('id', id)
-      .or('is_deleted.eq.false,is_deleted.is.null').single();
-    if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
-    if (decl.department_id !== deptId) return res.status(403).json({ error: 'Hors département.' });
-
-    // Validate all agents belong to this department
-    const { data: agentUsers } = await supabase.from('users')
-      .select('id, first_name, last_name, department_id, role, is_active')
-      .in('id', agent_ids);
-    const invalid = (agentUsers || []).filter(a => a.role !== 'agent' || !a.is_active || a.department_id !== deptId);
-    if (invalid.length > 0) return res.status(400).json({ error: `Agent(s) invalides ou hors département: ${invalid.map(a => `${a.first_name} ${a.last_name}`).join(', ')}` });
-
-    // Upsert declaration_services row for this department
-    const { data: dsRow, error: dsErr } = await supabase.from('declaration_services')
-      .upsert({ declaration_id: id, service_id: deptId, chef_id: req.user.id, status: 'assignee_agent', updated_at: new Date().toISOString() },
-               { onConflict: 'declaration_id,service_id' })
-      .select('id').single();
-    if (dsErr) return res.status(500).json({ error: 'Erreur lors de l\'assignation du service.' });
-
-    // Delete existing agent assignments for this service, then re-insert
-    await supabase.from('declaration_service_agents').delete().eq('declaration_service_id', dsRow.id);
-    const insertRows = agent_ids.map(aid => ({ declaration_service_id: dsRow.id, agent_id: aid, assigned_at: new Date().toISOString() }));
-    const { error: insertErr } = await supabase.from('declaration_service_agents').insert(insertRows);
-    if (insertErr) return res.status(500).json({ error: 'Erreur lors de l\'insertion des agents.' });
-
-    // Update declaration status to assignee_agent and set primary agent_id
-    const { data: updated, error: updateErr } = await supabase.from('declarations')
-      .update({ status: 'assignee_agent', agent_id: agent_ids[0], updated_at: new Date().toISOString() })
-      .eq('id', id).select('*').single();
-    if (updateErr) return res.status(500).json({ error: 'Erreur serveur.' });
-
-    await logStatusChange(id, decl.status, 'assignee_agent', req.user.id);
-    await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_agent');
-    for (const aid of agent_ids) await notifyAgentAssigned(req.app, updated, aid).catch(() => {});
-
-    return res.status(200).json({ declaration: updated, assigned_agents: agentUsers || [] });
-  } catch (err) {
-    console.error('[Chef] assignAgents error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
@@ -455,11 +439,11 @@ exports.listAgents = async (req, res) => {
 exports.addAgent = async (req, res) => {
   try {
     const { email, first_name, last_name, password } = req.body;
-    
-    if (!email?.trim())      return res.status(400).json({ error: "Le champ 'Email' est obligatoire." });
+
+    if (!email?.trim()) return res.status(400).json({ error: "Le champ 'Email' est obligatoire." });
     if (!first_name?.trim()) return res.status(400).json({ error: "Le champ 'Prénom' est obligatoire." });
-    if (!last_name?.trim())  return res.status(400).json({ error: "Le champ 'Nom' est obligatoire." });
-    if (!password)           return res.status(400).json({ error: "Le champ 'Mot de passe' est obligatoire." });
+    if (!last_name?.trim()) return res.status(400).json({ error: "Le champ 'Nom' est obligatoire." });
+    if (!password) return res.status(400).json({ error: "Le champ 'Mot de passe' est obligatoire." });
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
@@ -500,8 +484,8 @@ exports.updateAgent = async (req, res) => {
 
     const updates = { updated_at: new Date().toISOString() };
     if (first_name) updates.first_name = first_name.trim();
-    if (last_name)  updates.last_name  = last_name.trim();
-    if (email)      updates.email      = email.toLowerCase().trim();
+    if (last_name) updates.last_name = last_name.trim();
+    if (email) updates.email = email.toLowerCase().trim();
 
     const { data: updated, error } = await supabase.from('users').update(updates).eq('id', id)
       .select('id, email, first_name, last_name, is_active').single();
@@ -560,11 +544,11 @@ exports.dashboard = async (req, res) => {
       statusCounts[s] = count || 0;
     }));
 
-    const total    = Object.values(statusCounts).reduce((a, b) => a + b, 0);
-    const pending  = statusCounts['assignee_chef'] || 0;
+    const total = Object.values(statusCounts).reduce((a, b) => a + b, 0);
+    const pending = statusCounts['assignee_chef'] || 0;
     const en_cours = (statusCounts['assignee_agent'] || 0) + (statusCounts['en_cours'] || 0);
     const resolved = (statusCounts['resolue'] || 0) + (statusCounts['cloturee'] || 0);
-    const refused  = (statusCounts['refusee_chef'] || 0) + (statusCounts['refusee_agent'] || 0);
+    const refused = (statusCounts['refusee_chef'] || 0) + (statusCounts['refusee_agent'] || 0);
 
     // ── Active agents ──────────────────────────────────────────────
     const { count: activeAgents } = await supabase.from('users')
@@ -627,8 +611,8 @@ exports.dashboard = async (req, res) => {
       recentEnriched = recentEnriched.map(d => ({
         ...d,
         delegation_name: dMap[d.delegation_id] || '',
-        citizen_name:    cMap[d.citizen_id]    || '',
-        image_url:       d.image_url || d.photo_avant,
+        citizen_name: cMap[d.citizen_id] || '',
+        image_url: d.image_url || d.photo_avant,
       }));
     }
 
@@ -645,13 +629,13 @@ exports.dashboard = async (req, res) => {
           .eq('agent_id', a.id).in('status', ['resolue', 'cloturee']).or('is_deleted.eq.false,is_deleted.is.null'),
       ]);
       return {
-        id:             a.id,
-        name:           `${a.first_name} ${a.last_name}`,
-        initials:       `${a.first_name?.[0] || '?'}${a.last_name?.[0] || '?'}`.toUpperCase(),
-        active_tasks:   active   || 0,
+        id: a.id,
+        name: `${a.first_name} ${a.last_name}`,
+        initials: `${a.first_name?.[0] || '?'}${a.last_name?.[0] || '?'}`.toUpperCase(),
+        active_tasks: active || 0,
         resolved_count: resolvedA || 0,
-        avg_rating:     0,
-        is_active:      a.is_active,
+        avg_rating: 0,
+        is_active: a.is_active,
       };
     }));
 
@@ -662,24 +646,24 @@ exports.dashboard = async (req, res) => {
         en_cours,
         resolved,
         refused,
-        active_agents:         activeAgents || 0,
-        resolution_rate:       total > 0 ? Math.round((resolved / total) * 100) : 0,
-        avg_resolution_hours:  avg_hours,
+        active_agents: activeAgents || 0,
+        resolution_rate: total > 0 ? Math.round((resolved / total) * 100) : 0,
+        avg_resolution_hours: avg_hours,
       },
       status_chart: [
-        { name: 'En attente',   value: pending,  color: '#8B5CF6' },
-        { name: 'En cours',     value: en_cours, color: '#3B82F6' },
-        { name: 'Résolues',     value: resolved, color: '#10B981' },
-        { name: 'Refusées',     value: refused,  color: '#EF4444' },
+        { name: 'En attente', value: pending, color: '#8B5CF6' },
+        { name: 'En cours', value: en_cours, color: '#3B82F6' },
+        { name: 'Résolues', value: resolved, color: '#10B981' },
+        { name: 'Refusées', value: refused, color: '#EF4444' },
       ].filter(s => s.value > 0),
       priority_chart: [
-        { name: 'Faible',  value: faibleCount  || 0, color: '#10B981' },
-        { name: 'Normal',  value: normalCount  || 0, color: '#F59E0B' },
-        { name: 'Urgent',  value: urgentCount  || 0, color: '#EF4444' },
+        { name: 'Faible', value: faibleCount || 0, color: '#10B981' },
+        { name: 'Normal', value: normalCount || 0, color: '#F59E0B' },
+        { name: 'Urgent', value: urgentCount || 0, color: '#EF4444' },
       ],
       urgent_declarations: urgentEnriched,
       recent_declarations: recentEnriched,
-      agent_workload:      agentWorkload,
+      agent_workload: agentWorkload,
     });
   } catch (err) {
     console.error('[Chef] dashboard error:', err);
@@ -697,9 +681,9 @@ exports.exportData = async (req, res) => {
 
     if (error) return res.status(500).json({ error: 'Erreur serveur.' });
 
-    const hdrs = ['ref_citoyen','ref_service','title','category','status','created_at','assigned_at','resolved_at'];
+    const hdrs = ['ref_citoyen', 'ref_service', 'title', 'category', 'status', 'created_at', 'assigned_at', 'resolved_at'];
     const rows = [hdrs.join(',')];
-    (data || []).forEach(r => rows.push(hdrs.map(h => `"${(r[h] ?? '').toString().replace(/"/g,'""')}"`).join(',')));
+    (data || []).forEach(r => rows.push(hdrs.map(h => `"${(r[h] ?? '').toString().replace(/"/g, '""')}"`).join(',')));
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename=department_export.csv');
@@ -717,9 +701,9 @@ exports.listComments = async (req, res) => {
     const deptId = req.user.department_id;
 
     const { data: decl } = await supabase.from('declarations')
-      .select('department_id').eq('id', id).or('is_deleted.eq.false,is_deleted.is.null').single();
+      .select('department_id, service_id').eq('id', id).or('is_deleted.eq.false,is_deleted.is.null').single();
     if (!decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
-    if (decl.department_id !== deptId) return res.status(403).json({ error: 'Hors département.' });
+    if (decl.service_id !== deptId) return res.status(403).json({ error: 'Hors département.' });
 
     let { data, error } = await supabase.from('internal_comments')
       .select('*').eq('declaration_id', id)
@@ -757,120 +741,68 @@ exports.addComment = async (req, res) => {
     const deptId = req.user.department_id;
 
     if (!content?.trim()) return res.status(400).json({ error: 'Contenu requis.' });
-    if (!['president_chef','chef_agent'].includes(channel)) return res.status(403).json({ error: 'Canal non autorisé.' });
+    if (!['president_chef', 'chef_agent'].includes(channel)) return res.status(403).json({ error: 'Canal non autorisé.' });
 
     const { data: decl } = await supabase.from('declarations')
-      .select('department_id').eq('id', id).or('is_deleted.eq.false,is_deleted.is.null').single();
+      .select('department_id, service_id, agent_id').eq('id', id).or('is_deleted.eq.false,is_deleted.is.null').single();
     if (!decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
-    if (decl.department_id !== deptId) return res.status(403).json({ error: 'Hors département.' });
+    if (decl.service_id !== deptId) return res.status(403).json({ error: 'Hors département.' });
 
+    let finalComment;
     const { data: comment, error } = await supabase.from('internal_comments')
       .insert({ declaration_id: id, user_id: req.user.id, content: content.trim(), channel })
       .select('*').single();
 
     if (error) {
       if (error.code === '42703') {
-        // channel column missing — insert without it
         const { data: c2, error: e2 } = await supabase.from('internal_comments')
           .insert({ declaration_id: id, user_id: req.user.id, content: content.trim() })
           .select('*').single();
         if (e2) return res.status(500).json({ error: 'Erreur serveur.' });
-        return res.status(201).json({ comment: { ...c2, channel } });
+        finalComment = { ...c2, channel };
+      } else {
+        return res.status(500).json({ error: 'Erreur serveur.' });
       }
-      return res.status(500).json({ error: 'Erreur serveur.' });
+    } else {
+      finalComment = comment;
     }
 
-    return res.status(201).json({ comment });
+    // Send notifications
+    try {
+      const chefName = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Chef de Service';
+      if (channel === 'president_chef') {
+        const { data: pres } = await supabase.from('users').select('id').eq('role', 'president').eq('is_active', true).limit(1).maybeSingle();
+        if (pres?.id) {
+          await notify(req.app, {
+            userId: pres.id,
+            type: TYPES.INTERNAL_COMMENT || 'INTERNAL_COMMENT',
+            title: 'Nouveau message d\'un Chef',
+            body: `${chefName}: ${content.trim().substring(0, 80)}`,
+            declarationId: id,
+          });
+        }
+      } else if (channel === 'chef_agent') {
+        if (decl.agent_id) {
+          await notify(req.app, {
+            userId: decl.agent_id,
+            type: TYPES.INTERNAL_COMMENT || 'INTERNAL_COMMENT',
+            title: 'Nouveau message de votre Chef',
+            body: `${chefName}: ${content.trim().substring(0, 80)}`,
+            declarationId: id,
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.error('[Chef] addComment notification error:', notifErr);
+    }
+
+    return res.status(201).json({ comment: finalComment });
   } catch (err) {
     console.error('[Chef] addComment error:', err);
     return res.status(500).json({ error: 'Erreur serveur.' });
   }
 };
-exports.assignAgents = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-    const { id } = req.params;
-    const { agent_ids } = req.body;
-    const deptId = req.user.department_id;
 
-    // Fetch the declaration and verify it belongs to this chef's department
-    const { data: decl, error: declErr } = await supabase
-      .from('declarations')
-      .select('id, status, department_id, citizen_id, ref_citoyen, title')
-      .eq('id', id)
-      .or('is_deleted.eq.false,is_deleted.is.null')
-      .single();
-    if (declErr || !decl) {
-      return res.status(404).json({ error: 'Déclaration introuvable.' });
-    }
-    if (decl.department_id !== deptId) {
-      return res.status(403).json({ error: 'Hors département.' });
-    }
-    if (decl.status !== 'assignee_chef') {
-      return res.status(400).json({ error: `Statut "${decl.status}" — impossible d'assigner des agents.` });
-    }
-
-    // Validate agents
-    const { data: agents, error: agentErr } = await supabase
-      .from('users')
-      .select('id, first_name, last_name, is_active, department_id')
-      .in('id', agent_ids)
-      .eq('role', 'agent')
-      .eq('department_id', deptId)
-      .eq('is_active', true);
-    if (agentErr || !agents || agents.length !== agent_ids.length) {
-      return res.status(400).json({ error: 'Un ou plusieurs agents invalides ou hors département.' });
-    }
-
-    // Check workload warnings
-    const warnings = [];
-    for (const agent of agents) {
-      const { count } = await supabase
-        .from('declarations')
-        .select('id', { count: 'exact', head: true })
-        .eq('agent_id', agent.id)
-        .in('status', ['assignee_agent', 'en_cours'])
-        .or('is_deleted.eq.false,is_deleted.is.null');
-      if ((count || 0) >= 3) {
-        warnings.push(`${agent.first_name} ${agent.last_name} a déjà ${count} missions actives.`);
-      }
-    }
-
-    // Primary agent goes on declarations.agent_id, status → assignee_agent
-    const primaryAgentId = agent_ids[0];
-    const { data: updated, error: updateErr } = await supabase
-      .from('declarations')
-      .update({
-        agent_id: primaryAgentId,
-        status: 'assignee_agent',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select('id, citizen_id, ref_citoyen, title, status')
-      .single();
-    if (updateErr) throw updateErr;
-
-    await logStatusChange(id, 'assignee_chef', 'assignee_agent', req.user.id,
-      `Assigné à ${agents.map(a => `${a.first_name} ${a.last_name}`).join(', ')}`);
-    if (updated?.citizen_id) {
-      await notifyStatusChange(req.app, updated, updated.citizen_id, 'assignee_agent');
-    }
-    for (const agent of agents) {
-      await notifyAgentAssigned(req.app, updated, agent.id);
-    }
-
-    return res.status(200).json({
-      message: `${agents.length} agent(s) assigné(s) avec succès.`,
-      declaration: updated,
-      agents_assigned: agents.map(a => ({ id: a.id, name: `${a.first_name} ${a.last_name}` })),
-      warnings: warnings.length > 0 ? warnings : null,
-    });
-  } catch (err) {
-    console.error('[Chef] assignAgents error:', err);
-    return res.status(500).json({ error: 'Erreur serveur.' });
-  }
-};
 
 /* ──────────── POST /api/chef/declarations/:id/secondary-departments ──────────── */
 exports.addSecondaryDepartment = async (req, res) => {

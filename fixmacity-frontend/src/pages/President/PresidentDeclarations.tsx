@@ -3,9 +3,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import PresidentLayout from '../../layouts/PresidentLayout'
 import DeclarationDetailDrawer from './Declarationdetaildrawer'
-import { 
-  Search, MapPin, X, AlertTriangle, ChevronDown, List, Map, 
-  BrainCircuit, MessageSquare, ChevronRight, CheckCircle2, 
+import {
+  Search, MapPin, X, AlertTriangle, ChevronDown, List, Map,
+  BrainCircuit, MessageSquare, ChevronRight, CheckCircle2,
   Filter, Calendar, Users, ArrowUpRight, BarChart3, Clock, LayoutGrid, FileText, Smartphone, Flame,
   Zap, Shield, School, Hospital, ArrowUpDown, ThumbsUp, Activity,
   Check, RotateCcw, ArrowLeft, Share2, Building2, Mail, Trash2,
@@ -38,7 +38,7 @@ const DANGEROUS_CATEGORIES = new Set([
   'Voirie', 'Réseaux', 'Éclairage public', 'Signalisation'
 ])
 
-export function computePriority(d: {
+function computePriority(d: {
   sensitive_type?: string
   category?: string
   votes?: number
@@ -54,7 +54,7 @@ export function computePriority(d: {
   const v = d.votes || 0
   if (v >= 20) score += 3
   else if (v >= 10) score += 2
-  else if (v >= 3)  score += 1
+  else if (v >= 3) score += 1
   // Legacy priority field
   if (['haute', 'high', 'urgent', 'urgente'].includes(d.priority || '')) score += 2
   else if (['basse', 'low'].includes(d.priority || '')) score -= 1
@@ -67,9 +67,9 @@ export function computePriority(d: {
 const COMPUTED_PRIORITY_CONFIG: Record<'critical' | 'normal' | 'low', {
   label: string; color: string; bg: string; border: string; icon: string
 }> = {
-  critical: { label: 'Urgent',  color: '#dc2626', bg: '#fee2e2', border: '#fca5a5', icon: '🔴' },
-  normal:   { label: 'Normal',  color: '#d97706', bg: '#fef3c7', border: '#fcd34d', icon: '🟡' },
-  low:      { label: 'Faible', color: '#16a34a', bg: '#dcfce7', border: '#86efac', icon: '🟢' },
+  critical: { label: 'Urgent', color: '#dc2626', bg: '#fee2e2', border: '#fca5a5', icon: '🔴' },
+  normal: { label: 'Normal', color: '#d97706', bg: '#fef3c7', border: '#fcd34d', icon: '🟡' },
+  low: { label: 'Faible', color: '#16a34a', bg: '#dcfce7', border: '#86efac', icon: '🟢' },
 }
 
 const ARRONDISSEMENTS = ['Sousse Riadh', 'Sousse Nord', 'Sousse Sud', 'Sousse Médina']
@@ -97,13 +97,13 @@ const FacetedFilter: React.FC<FacetedFilterProps> = ({ title, options, selected,
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const filteredOptions = options.filter(opt => 
+  const filteredOptions = options.filter(opt =>
     opt.label.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
     <div className="relative" ref={ref}>
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "flex items-center gap-2 px-3 py-1.5 rounded-full border border-dashed border-slate-300 dark:border-slate-700 text-xs font-medium hover:border-slate-400 dark:hover:border-slate-600 transition-all bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300",
@@ -135,7 +135,7 @@ const FacetedFilter: React.FC<FacetedFilterProps> = ({ title, options, selected,
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -143,7 +143,7 @@ const FacetedFilter: React.FC<FacetedFilterProps> = ({ title, options, selected,
           >
             <div className="p-2 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
               <Search className="w-3.5 h-3.5 text-slate-400" />
-              <input 
+              <input
                 autoFocus
                 placeholder={`Filtrer ${title.toLowerCase()}...`}
                 value={search}
@@ -183,7 +183,7 @@ const FacetedFilter: React.FC<FacetedFilterProps> = ({ title, options, selected,
             </div>
             {selected.length > 0 && (
               <div className="p-1 border-t border-slate-100">
-                <button 
+                <button
                   onClick={() => { onChange([]); setIsOpen(false); }}
                   className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-500 transition-colors flex items-center justify-center gap-2"
                 >
@@ -199,13 +199,13 @@ const FacetedFilter: React.FC<FacetedFilterProps> = ({ title, options, selected,
 }
 
 interface Decl {
-  id:string; ref_citoyen:string; ref_service:string|null
+  id: string; ref_citoyen: string; ref_service: string | null
   department_id?: string | null
-  title:string; category:string; status:string; priority:string
+  title: string; category: string; status: string; priority: string
   computed_priority: 'critical' | 'normal' | 'low'
   ai_priority_confirmed?: boolean
   priority_score?: number
-  arrondissement:string; address?:string; agent:string|null; votes:number; date:string
+  arrondissement: string; address?: string; agent: string | null; votes: number; date: string
   lat: number | null; lng: number | null; image?: string;
   resolution_image?: string;
   description: string;
@@ -222,10 +222,10 @@ interface Decl {
 
 const createCustomIcon = (color: string, isUrgent: boolean = false, sensitive?: string) => {
   if (sensitive && sensitive !== 'none') {
-    const iconHtml = sensitive === 'school' 
+    const iconHtml = sensitive === 'school'
       ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"></path></svg>'
       : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49 0 2.87.47 4 1.26V8c0-1.1-.9-2-2-2h-8V4c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2v-2"></path><path d="M18 7v4"></path><path d="M16 9h4"></path></svg>';
-    
+
     return L.divIcon({
       className: 'custom-map-marker',
       html: `<div style="background-color: #6366F1; width: 36px; height: 36px; border-radius: 12px; border: 3px solid white; box-shadow: 0 8px 16px rgba(99, 102, 241, 0.4); display: flex; align-items: center; justify-content: center;">
@@ -265,20 +265,20 @@ const MapController = () => {
   const map = useMap();
   return (
     <div className="absolute bottom-6 right-6 z-[1000] flex flex-col gap-2">
-      <button 
+      <button
         onClick={() => map.locate({ setView: true, maxZoom: 15 })}
         className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl shadow-lg flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-[#1557FF] dark:hover:text-[#1557FF] transition-colors border border-slate-200 dark:border-slate-700"
       >
         <LocateFixed className="w-5 h-5" />
       </button>
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
-        <button 
+        <button
           onClick={() => map.zoomIn()}
           className="w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-[#1557FF] dark:hover:text-[#1557FF] hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
         >
           <ZoomIn className="w-5 h-5" />
         </button>
-        <button 
+        <button
           onClick={() => map.zoomOut()}
           className="w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-[#1557FF] dark:hover:text-[#1557FF] hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
         >
@@ -320,18 +320,19 @@ const getPriorityBadgeConfig = (priority: string) => {
 }
 
 const PresidentDeclarations: React.FC = () => {
-  const [decls, setDecls]         = useState<Decl[]>([])
+  const [decls, setDecls] = useState<Decl[]>([])
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([])
-  const [search, setSearch]       = useState('')
-  const [statusF, setStatusF]     = useState<string[]>([])
+  const [search, setSearch] = useState('')
+  const [statusF, setStatusF] = useState<string[]>([])
   const [categoryF, setCategoryF] = useState<string[]>([])
   const [priorityF, setPriorityF] = useState<string[]>([])
   const [arrondissementF, setArrondissementF] = useState<string[]>([])
+  const [dateFilter, setDateFilter] = useState<string[]>([])
   const [dateOrder, setDateOrder] = useState<'newest' | 'oldest'>('newest')
-  const [sortBy, setSortBy]       = useState<'votes' | 'priority' | 'sensitive'>('priority')
-  
+  const [sortBy, setSortBy] = useState<'votes' | 'priority' | 'sensitive'>('priority')
+
   const [viewMode, setViewMode] = useState<'map' | 'list'>('list')
-  const [selectedDecl, setSelectedDecl] = useState<Decl|null>(null)
+  const [selectedDecl, setSelectedDecl] = useState<Decl | null>(null)
   const [showComments, setShowComments] = useState(false)
   const [mode, setMode] = useState<'all' | 'soumise' | 'refusee' | 'urgent'>('all')
   const [loading, setLoading] = useState(true)
@@ -356,7 +357,7 @@ const PresidentDeclarations: React.FC = () => {
     try {
       const res = await fetch(`${API}/president/declarations/bulk-delete`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token()}`
         },
@@ -404,8 +405,8 @@ const PresidentDeclarations: React.FC = () => {
           // Priority 3: computePriority heuristic fallback
           const overrideToLevel: Record<string, 'critical' | 'normal' | 'low'> = {
             urgent: 'critical', critical: 'critical',
-            normal: 'normal',   moyenne: 'normal', medium: 'normal',
-            faible: 'low',      basse: 'low',   low: 'low',
+            normal: 'normal', moyenne: 'normal', medium: 'normal',
+            faible: 'low', basse: 'low', low: 'low',
           }
           const dbToLevel: Record<string, 'critical' | 'normal' | 'low'> = {
             haute: 'critical', high: 'critical',
@@ -455,7 +456,7 @@ const PresidentDeclarations: React.FC = () => {
           }
         }))
       }
-    } catch (_) {} finally {
+    } catch (_) { } finally {
       setLoading(false)
     }
   }, [])
@@ -482,7 +483,7 @@ const PresidentDeclarations: React.FC = () => {
           const data = await res.json()
           setDepartments((data.departments || []).map((d: any) => ({ id: d.id, name: d.name_fr || d.name })))
         }
-      } catch (_) {}
+      } catch (_) { }
     }
     loadDepts()
     load()
@@ -491,11 +492,21 @@ const PresidentDeclarations: React.FC = () => {
 
   const filtered = useMemo(() => {
     let result = decls.filter(d => {
-      if (search && !d.title.toLowerCase().includes(search.toLowerCase()) && !d.ref_citoyen.toLowerCase().includes(search.toLowerCase())) return false
+      if (search && !d.title.toLowerCase().includes(search.toLowerCase()) && !d.ref_citoyen.toLowerCase().includes(search.toLowerCase()) && !(d.ref_service || '').toLowerCase().includes(search.toLowerCase())) return false
       if (categoryF.length > 0 && !categoryF.includes(d.category)) return false
       if (priorityF.length > 0 && !priorityF.includes(d.computed_priority)) return false
       if (arrondissementF.length > 0 && !arrondissementF.includes(d.arrondissement)) return false
       if (statusF.length > 0 && !statusF.includes(d.status)) return false
+
+      if (dateFilter.length > 0) {
+        const dDate = new Date(d.created_at)
+        const now = new Date()
+        let match = false
+        if (dateFilter.includes('today') && dDate.toDateString() === now.toDateString()) match = true
+        if (dateFilter.includes('week') && (now.getTime() - dDate.getTime()) <= 7 * 24 * 3600 * 1000) match = true
+        if (dateFilter.includes('month') && (now.getTime() - dDate.getTime()) <= 30 * 24 * 3600 * 1000) match = true
+        if (!match) return false
+      }
 
       if (mode === 'soumise') {
         if (d.status !== 'soumise') return false
@@ -529,7 +540,59 @@ const PresidentDeclarations: React.FC = () => {
     })
 
     return result
-  }, [decls, search, categoryF, priorityF, arrondissementF, statusF, mode, sortBy, dateOrder])
+  }, [decls, search, categoryF, priorityF, arrondissementF, statusF, dateFilter, mode, sortBy, dateOrder])
+
+  const [searchResult, setSearchResult] = useState<Decl | null>(null)
+
+  useEffect(() => {
+    setSearchResult(null)
+    const q = search.trim()
+    if (q.length < 4) return
+
+    const hasLocalMatch = decls.some(d =>
+      d.title.toLowerCase().includes(q.toLowerCase()) ||
+      d.ref_citoyen.toLowerCase().includes(q.toLowerCase())
+    )
+    if (hasLocalMatch) return
+
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API}/president/declarations?search=${encodeURIComponent(q)}&limit=5`, {
+          headers: { Authorization: `Bearer ${token()}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          const row = (data.declarations || [])[0]
+          if (row) {
+            setSearchResult({
+              id: row.id, ref_citoyen: row.ref_citoyen || '—',
+              ref_service: row.ref_service || null,
+              department_id: row.department_id || null,
+              title: row.title, category: row.category || 'Voirie',
+              status: row.status, priority: row.priority || 'moyenne',
+              computed_priority: computePriority({
+                sensitive_type: row.sensitive_type || 'none',
+                category: row.category || 'Voirie',
+                votes: row.votes_count || 0,
+                priority: row.priority || 'moyenne',
+              }),
+              arrondissement: row.delegation_name || 'Sousse Riadh',
+              agent: row.agent_name || null, votes: row.votes_count || 0,
+              date: new Date(row.created_at).toLocaleDateString('fr-FR'),
+              created_at: row.created_at,
+              lat: row.latitude ? parseFloat(row.latitude) : null,
+              lng: row.longitude ? parseFloat(row.longitude) : null,
+              description: row.description ?? '',
+              citizen_name: row.users ? [row.users.first_name, row.users.last_name].filter(Boolean).join(' ') : `Réf. ${row.ref_citoyen}`,
+              citizen_email: row.users?.email || '—',
+            } as Decl)
+          }
+        }
+      } catch { }
+    }, 400)
+
+    return () => clearTimeout(t)
+  }, [search, decls])
 
   if (loading) return (
     <PresidentLayout title="Gestion des Signalements">
@@ -543,7 +606,7 @@ const PresidentDeclarations: React.FC = () => {
   return (
     <PresidentLayout title="Gestion des Signalements">
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-        
+
         {/* Header Section */}
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12">
           <div>
@@ -553,10 +616,10 @@ const PresidentDeclarations: React.FC = () => {
           <div className="flex items-center gap-4">
             <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 rounded-2xl p-1.5 shadow-sm flex items-center gap-1">
               <button onClick={() => setViewMode('list')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'bg-[#1557FF] text-white shadow-lg' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
-                <List className="w-5 h-5"/>
+                <List className="w-5 h-5" />
               </button>
               <button onClick={() => setViewMode('map')} className={`p-2.5 rounded-xl transition-all ${viewMode === 'map' ? 'bg-[#1557FF] text-white shadow-lg' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}>
-                <Map className="w-5 h-5"/>
+                <Map className="w-5 h-5" />
               </button>
             </div>
             <div className="flex bg-slate-50/50 dark:bg-slate-800/50 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 rounded-2xl p-1 shadow-sm">
@@ -566,13 +629,13 @@ const PresidentDeclarations: React.FC = () => {
                 { id: 'refusee', label: 'Refusé', icon: AlertTriangle },
                 { id: 'urgent', label: 'Critique', icon: Flame }
               ].map((tab) => (
-                <button 
+                <button
                   key={tab.id}
-                  onClick={() => setMode(tab.id as any)} 
+                  onClick={() => setMode(tab.id as any)}
                   className={cn(
                     "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
-                    mode === tab.id 
-                      ? "bg-white dark:bg-slate-700 text-[#1557FF] shadow-sm border border-slate-200/60 dark:border-slate-600" 
+                    mode === tab.id
+                      ? "bg-white dark:bg-slate-700 text-[#1557FF] shadow-sm border border-slate-200/60 dark:border-slate-600"
                       : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                   )}
                 >
@@ -588,16 +651,16 @@ const PresidentDeclarations: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2 mb-8 bg-slate-50/50 dark:bg-slate-800/30 p-2 rounded-2xl border border-slate-100 dark:border-slate-800">
           <div className="relative group flex-1 min-w-[200px] max-w-xs">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-[#1557FF] transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Rechercher..." 
+            <input
+              type="text"
+              placeholder="Rechercher..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full h-9 pl-10 pr-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-[#0A1628] dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500/5 focus:border-[#1557FF] outline-none transition-all shadow-sm"
             />
           </div>
 
-          <FacetedFilter 
+          <FacetedFilter
             title={statusF.length === 0 ? "Tous les statuts" : "Statut"}
             icon={Activity}
             options={Object.entries(STATUS_CONFIG)
@@ -607,7 +670,7 @@ const PresidentDeclarations: React.FC = () => {
             onChange={setStatusF}
           />
 
-          <FacetedFilter 
+          <FacetedFilter
             title="Catégorie"
             icon={LayoutGrid}
             options={CATEGORIES.map(c => ({ value: c, label: c, icon: Filter }))}
@@ -619,15 +682,15 @@ const PresidentDeclarations: React.FC = () => {
             title={priorityF.length === 0 ? 'Priorité' : 'Priorité'}
             icon={Zap}
             options={[
-              { value: 'critical', label: '🔴 Critique',  icon: AlertTriangle },
-              { value: 'normal',   label: '🟡 Normal',    icon: Activity },
-              { value: 'low',      label: '🟢 Faible',    icon: CheckCircle2 },
+              { value: 'critical', label: '🔴 Critique', icon: AlertTriangle },
+              { value: 'normal', label: '🟡 Normal', icon: Activity },
+              { value: 'low', label: '🟢 Faible', icon: CheckCircle2 },
             ]}
             selected={priorityF}
             onChange={setPriorityF}
           />
 
-          <FacetedFilter 
+          <FacetedFilter
             title="Arrondissement"
             icon={MapPin}
             options={ARRONDISSEMENTS.map(a => ({ value: a, label: a, icon: MapPin }))}
@@ -635,7 +698,19 @@ const PresidentDeclarations: React.FC = () => {
             onChange={setArrondissementF}
           />
 
-          <FacetedFilter 
+          <FacetedFilter
+            title="Période"
+            icon={Calendar}
+            options={[
+              { value: 'today', label: "Aujourd'hui", icon: Calendar },
+              { value: 'week', label: '7 derniers jours', icon: Calendar },
+              { value: 'month', label: '30 derniers jours', icon: Calendar }
+            ]}
+            selected={dateFilter}
+            onChange={setDateFilter}
+          />
+
+          <FacetedFilter
             title="Trier par"
             icon={ArrowUpDown}
             options={[
@@ -647,13 +722,14 @@ const PresidentDeclarations: React.FC = () => {
             onChange={(vals) => vals.length > 0 && setSortBy(vals[vals.length - 1] as any)}
           />
 
-          {(statusF.length > 0 || categoryF.length > 0 || priorityF.length > 0 || arrondissementF.length > 0 || search) && (
-            <button 
+          {(statusF.length > 0 || categoryF.length > 0 || priorityF.length > 0 || arrondissementF.length > 0 || dateFilter.length > 0 || search) && (
+            <button
               onClick={() => {
                 setStatusF([])
                 setCategoryF([])
                 setPriorityF([])
                 setArrondissementF([])
+                setDateFilter([])
                 setSearch('')
                 setSortBy('priority')
               }}
@@ -664,13 +740,13 @@ const PresidentDeclarations: React.FC = () => {
           )}
 
           <div className="ml-auto flex gap-2">
-             <button 
-                onClick={() => setDateOrder(dateOrder === 'newest' ? 'oldest' : 'newest')}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:border-[#1557FF] hover:text-[#1557FF] transition-all shadow-sm"
-              >
-                <Calendar className="w-3 h-3"/> 
-                {dateOrder === 'newest' ? 'Récents' : 'Anciens'}
-              </button>
+            <button
+              onClick={() => setDateOrder(dateOrder === 'newest' ? 'oldest' : 'newest')}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:border-[#1557FF] hover:text-[#1557FF] transition-all shadow-sm"
+            >
+              <Calendar className="w-3 h-3" />
+              {dateOrder === 'newest' ? 'Récents' : 'Anciens'}
+            </button>
           </div>
         </div>
 
@@ -684,13 +760,13 @@ const PresidentDeclarations: React.FC = () => {
               <p className="text-xs font-black uppercase tracking-[0.2em]">Éléments sélectionnés</p>
             </div>
             <div className="flex items-center gap-3 pr-2">
-              <button 
+              <button
                 onClick={() => handleDelete(selectedIds)}
                 className="px-6 py-2 bg-rose-500 hover:bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2"
               >
                 <Trash2 className="w-3.5 h-3.5" /> Supprimer la sélection
               </button>
-              <button 
+              <button
                 onClick={() => setSelectedIds([])}
                 className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
               >
@@ -705,14 +781,14 @@ const PresidentDeclarations: React.FC = () => {
 
           {viewMode === 'list' ? (
             <div className="bg-white dark:bg-slate-900 rounded-[1.75rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-x-auto">
-              
+
               {/* Grid Header */}
               <div className="grid items-center gap-3 px-5 py-4 bg-[#0A1628] dark:bg-slate-900 border-b border-slate-700 dark:border-slate-800"
                 style={{ gridTemplateColumns: '40px 80px minmax(120px,1.2fr) minmax(100px,1fr) minmax(90px,0.9fr) 95px 100px 80px 100px minmax(140px,auto)', minWidth: '900px' }}>
-                
+
                 {/* Checkbox column */}
                 <div className="pl-5">
-                  <div 
+                  <div
                     onClick={(e) => {
                       e.stopPropagation();
                       if (selectedIds.length === filtered.length) setSelectedIds([])
@@ -721,7 +797,7 @@ const PresidentDeclarations: React.FC = () => {
                     className={cn(
                       "w-5 h-5 rounded-md border flex items-center justify-center cursor-pointer transition-all",
                       selectedIds.length === filtered.length && filtered.length > 0
-                        ? "bg-[#1557FF] border-[#1557FF]" 
+                        ? "bg-[#1557FF] border-[#1557FF]"
                         : "border-slate-400 bg-white/10 hover:border-white"
                     )}
                   >
@@ -743,9 +819,9 @@ const PresidentDeclarations: React.FC = () => {
                   filtered.map((d, index) => {
                     const isRowSelected = selectedIds.includes(d.id)
                     const dept = departments.find(dep => dep.id === d.department_id)
-                    
+
                     return (
-                      <div 
+                      <div
                         key={d.id}
                         onClick={() => setSelectedDecl(d)}
                         className={cn(
@@ -757,15 +833,15 @@ const PresidentDeclarations: React.FC = () => {
                       >
                         {/* Checkbox */}
                         <div className="pl-5" onClick={(e) => e.stopPropagation()}>
-                          <div 
+                          <div
                             onClick={() => {
                               if (isRowSelected) setSelectedIds(selectedIds.filter(id => id !== d.id))
                               else setSelectedIds([...selectedIds, d.id])
                             }}
                             className={cn(
                               "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
-                              isRowSelected 
-                                ? "bg-[#1557FF] border-[#1557FF]" 
+                              isRowSelected
+                                ? "bg-[#1557FF] border-[#1557FF]"
                                 : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-600"
                             )}
                           >
@@ -853,16 +929,16 @@ const PresidentDeclarations: React.FC = () => {
 
                         {/* Action */}
                         <div className="flex items-center justify-start gap-1.5" onClick={(e) => e.stopPropagation()}>
-                          <button 
+                          <button
                             onClick={() => setSelectedDecl(d)}
                             title="Voir les détails"
                             className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-300 hover:bg-[#1557FF] hover:text-white dark:hover:bg-[#1557FF] dark:hover:text-white transition-all shadow-sm"
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
-                          
+
                           {['soumise', 'soumis'].includes(d.status) && (
-                            <button 
+                            <button
                               onClick={() => setSelectedDecl(d)}
                               title="Affecter à un service"
                               className="p-1.5 rounded-lg bg-[#1557FF]/10 text-[#1557FF] hover:bg-[#1557FF] hover:text-white transition-all shadow-sm"
@@ -870,9 +946,9 @@ const PresidentDeclarations: React.FC = () => {
                               <UserPlus className="w-3.5 h-3.5" />
                             </button>
                           )}
-                          
+
                           {['refusee_chef', 'refusee_agent', 'refusee'].includes(d.status) && (
-                            <button 
+                            <button
                               onClick={() => setSelectedDecl(d)}
                               title="Réassigner"
                               className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white transition-all shadow-sm"
@@ -908,9 +984,9 @@ const PresidentDeclarations: React.FC = () => {
               <MapContainer center={[35.8256, 10.6369]} zoom={13} className="w-full h-full z-0" zoomControl={false}>
                 <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
                 {filtered.filter(d => d.lat && d.lng).map(d => (
-                  <Marker 
-                    key={d.id} 
-                    position={[d.lat!, d.lng!]} 
+                  <Marker
+                    key={d.id}
+                    position={[d.lat!, d.lng!]}
                     icon={createCustomIcon(STATUS_CONFIG[d.status]?.color || '#1557FF', d.priority === 'haute', d.sensitive_type)}
                     eventHandlers={{ click: () => setSelectedDecl(d) }}
                   />
@@ -933,7 +1009,7 @@ const PresidentDeclarations: React.FC = () => {
         {/* Floating Bulk Action Bar */}
         <AnimatePresence>
           {selectedIds.length > 0 && (
-            <motion.div 
+            <motion.div
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 100, opacity: 0 }}
@@ -949,24 +1025,24 @@ const PresidentDeclarations: React.FC = () => {
                     <p className="text-xs font-black text-white">Actions de groupe</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
-                   <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest transition-all">
-                     <Calendar size={14}/> Imprimer
-                   </button>
-                   <button 
-                     onClick={() => handleDelete(selectedIds)}
-                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-[10px] font-black uppercase tracking-widest transition-all"
-                   >
-                     <X size={14}/> Supprimer
-                   </button>
-                   <div className="w-px h-8 bg-white/10 mx-2" />
-                   <button 
-                     onClick={() => setSelectedIds([])}
-                     className="p-2 text-white/40 hover:text-white transition-colors"
-                   >
-                     <X size={20} />
-                   </button>
+                  <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest transition-all">
+                    <Calendar size={14} /> Imprimer
+                  </button>
+                  <button
+                    onClick={() => handleDelete(selectedIds)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    <X size={14} /> Supprimer
+                  </button>
+                  <div className="w-px h-8 bg-white/10 mx-2" />
+                  <button
+                    onClick={() => setSelectedIds([])}
+                    className="p-2 text-white/40 hover:text-white transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
                 </div>
               </div>
             </motion.div>

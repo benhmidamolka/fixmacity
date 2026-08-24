@@ -2,8 +2,16 @@
 // src/controllers/agent.controller.js
 const supabase = require('../config/db');
 const { logStatusChange } = require('../services/statusHistory.service');
-const { notifyStatusChange } = require('../services/notification.service');
+const { notifyStatusChange, notify, TYPES } = require('../services/notification.service');
 const { cloudinary } = require('../config/cloudinary');
+
+// Helper: find active chef for a department
+async function getChefForDept(deptId) {
+  if (!deptId) return null;
+  const { data } = await supabase.from('users')
+    .select('id').eq('department_id', deptId).eq('role', 'chef').eq('is_active', true).maybeSingle();
+  return data || null;
+}
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 const agentScope = (req) => req.user.department_id;
@@ -19,14 +27,37 @@ exports.getStats = async (req, res) => {
     const agentId = req.user.id;
     const deptId = agentScope(req);
 
+    // Fetch declaration IDs from multi-agent assignments in two steps
+    const { data: dsa } = await supabase
+      .from('declaration_service_agents')
+      .select('declaration_service_id')
+      .eq('agent_id', agentId);
+
+    let assignedIds = [];
+    if (dsa && dsa.length > 0) {
+      const dsIds = dsa.map(a => a.declaration_service_id).filter(Boolean);
+      if (dsIds.length > 0) {
+        const { data: ds } = await supabase
+          .from('declaration_services')
+          .select('declaration_id')
+          .in('id', dsIds);
+        if (ds) {
+          assignedIds = ds.map(d => d.declaration_id).filter(Boolean);
+        }
+      }
+    }
+
+    let orClauseMine = `agent_id.eq.${agentId}`;
+    if (assignedIds.length > 0) orClauseMine += `,id.in.(${assignedIds.join(',')})`;
+
     // Query 1: declarations assigned directly to this agent
     const { data: mine } = await supabase
       .from('declarations')
       .select('id, status, agent_id')
       .eq('department_id', deptId)
-      .eq('agent_id', agentId)
+      .or(orClauseMine)
       .is('deleted_at', null)
-      .eq('is_deleted', false);
+      .or('is_deleted.eq.false,is_deleted.is.null');
 
     // Query 2: unassigned declarations pending agent pick-up in this dept
     const { data: unassigned } = await supabase
@@ -36,7 +67,7 @@ exports.getStats = async (req, res) => {
       .eq('status', 'assignee_agent')
       .is('agent_id', null)
       .is('deleted_at', null)
-      .eq('is_deleted', false);
+      .or('is_deleted.eq.false,is_deleted.is.null');
 
     // Merge & deduplicate by id
     const seen = new Set();
@@ -87,25 +118,48 @@ exports.getDeclarations = async (req, res) => {
          delegations:delegation_id (name, code),
          citizen:citizen_id (id, first_name, last_name, email, phone)`;
 
+    // Fetch declaration IDs from multi-agent assignments in two steps
+    const { data: dsa } = await supabase
+      .from('declaration_service_agents')
+      .select('declaration_service_id')
+      .eq('agent_id', agentId);
+
+    let assignedIds = [];
+    if (dsa && dsa.length > 0) {
+      const dsIds = dsa.map(a => a.declaration_service_id).filter(Boolean);
+      if (dsIds.length > 0) {
+        const { data: ds } = await supabase
+          .from('declaration_services')
+          .select('declaration_id')
+          .in('id', dsIds);
+        if (ds) {
+          assignedIds = ds.map(d => d.declaration_id).filter(Boolean);
+        }
+      }
+    }
+
+    let orClauseA = `agent_id.eq.${agentId}`;
+    if (assignedIds.length > 0) orClauseA += `,id.in.(${assignedIds.join(',')})`;
+
     // Run two separate queries to avoid broken compound .or() syntax
     // Query A: declarations explicitly assigned to this agent
-    let qA = supabase
-      .from('declarations')
-      .select(SELECT_FIELDS)
-      .eq('department_id', deptId)
-      .eq('agent_id', agentId)
-      .is('deleted_at', null)
-      .eq('is_deleted', false);
+ let qA = supabase
+  .from('declarations')
+  .select(SELECT_FIELDS)
+  .or(`department_id.eq.${deptId},service_id.eq.${deptId}`)
+  .eq('agent_id', agentId)
+  .is('deleted_at', null)
+  .eq('is_deleted', false);
 
     // Query B: unassigned declarations in pending state within this dept
-    let qB = supabase
-      .from('declarations')
-      .select(SELECT_FIELDS)
-      .eq('department_id', deptId)
-      .eq('status', 'assignee_agent')
-      .is('agent_id', null)
-      .is('deleted_at', null)
-      .eq('is_deleted', false);
+   let qB = supabase
+  .from('declarations')
+  .select(SELECT_FIELDS)
+  .or(`department_id.eq.${deptId},service_id.eq.${deptId}`)
+  .eq('status', 'assignee_agent')
+  .is('agent_id', null)
+  .is('deleted_at', null)
+  .or('is_deleted.eq.false,is_deleted.is.null');
 
     // ── Apply status filter ──
     if (status && VALID_STATUSES.includes(status)) {
@@ -346,8 +400,8 @@ exports.acceptDeclaration = async (req, res) => {
     const { data: decl, error: fetchErr } = await supabase
       .from('declarations')
       .select('id, ref_citoyen, title, status, citizen_id, agent_id')
-      .eq('id', id)
-      .eq('department_id', deptId)
+    .eq('id', id)
+.or(`department_id.eq.${deptId},service_id.eq.${deptId}`)
       .is('deleted_at', null)
       .single();
 
@@ -362,18 +416,29 @@ exports.acceptDeclaration = async (req, res) => {
 
     const { error: updateErr } = await supabase
       .from('declarations')
-      .update({
-        status: 'en_cours',
-        agent_id: agentId,
-        started_at: new Date().toISOString(),
-      })
+      .update({ status: 'en_cours', agent_id: agentId, started_at: new Date().toISOString() })
       .eq('id', id);
 
     if (updateErr) throw updateErr;
 
-    await logStatusChange(id, 'assignee_agent', 'en_cours', agentId, 'Acceptée par l\'agent');
+    await logStatusChange(id, 'assignee_agent', 'en_cours', agentId, "Acceptée par l'agent");
+
+    // Notify citizen
     if (decl.citizen_id) {
-      await notifyStatusChange(req.app, decl, decl.citizen_id, 'en_cours');
+      await notifyStatusChange(req.app, decl, decl.citizen_id, 'en_cours').catch(() => { });
+    }
+
+    // Notify chef de service
+    const chef = await getChefForDept(deptId);
+    if (chef?.id) {
+      const agentName = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Un agent';
+      await notify(req.app, {
+        userId: chef.id,
+        type: TYPES.DECLARATION_ACCEPTED,
+        title: 'Mission acceptée par un agent',
+        body: `Réf: ${decl.ref_citoyen} — ${agentName} a démarré l'intervention.`,
+        declarationId: id,
+      }).catch(() => { });
     }
 
     res.json({ message: 'Mission acceptée — intervention démarrée.', status: 'en_cours' });
@@ -400,7 +465,7 @@ exports.refuseDeclaration = async (req, res) => {
       .from('declarations')
       .select('id, ref_citoyen, title, status, citizen_id')
       .eq('id', id)
-      .eq('department_id', deptId)
+.or(`department_id.eq.${deptId},service_id.eq.${deptId}`)
       .single();
 
     if (fetchErr || !decl) {
@@ -420,20 +485,23 @@ exports.refuseDeclaration = async (req, res) => {
     if (updateErr) throw updateErr;
 
     await logStatusChange(id, 'assignee_agent', 'refusee_agent', agentId, refusalReason);
+
+    // Notify citizen
     if (decl.citizen_id) {
-      await notifyStatusChange(req.app, decl, decl.citizen_id, 'refusee_agent');
+      await notifyStatusChange(req.app, decl, decl.citizen_id, 'refusee_agent').catch(() => { });
     }
 
-    // Also notify chef de service so they can reassign
-    const chefEmit = req.app.get('emitToUser');
-    if (chefEmit && req.user.department_id) {
-      // Emit to department channel — chef will be listening
-      chefEmit(`dept_${req.user.department_id}`, {
-        type: 'DECLARATION_REFUSED_BY_AGENT',
+    // Notify chef de service via proper DB notification (not broken room emit)
+    const chef = await getChefForDept(deptId);
+    if (chef?.id) {
+      const agentName = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Un agent';
+      await notify(req.app, {
+        userId: chef.id,
+        type: TYPES.DECLARATION_REJECTED,
         title: 'Mission refusée par un agent',
-        body: `${decl.ref_citoyen} — Motif : ${refusalReason}`,
+        body: `Réf: ${decl.ref_citoyen} — ${agentName} a refusé. Motif: ${refusalReason}`,
         declarationId: id,
-      });
+      }).catch(() => { });
     }
 
     res.json({ message: 'Mission refusée — retour au Chef de Service.', status: 'refusee_agent' });
@@ -455,7 +523,7 @@ exports.uploadPhoto = async (req, res) => {
       .from('declarations')
       .select('id, status, agent_id, department_id')
       .eq('id', id)
-      .eq('department_id', agentScope(req))
+.or(`department_id.eq.${agentScope(req)},service_id.eq.${agentScope(req)}`)
       .single();
 
     if (fetchErr || !decl) return res.status(404).json({ error: 'Déclaration introuvable.' });
@@ -639,15 +707,17 @@ exports.addComment = async (req, res) => {
 
     if (error) throw error;
 
-    // Notify chef if the agent sends a comment
-    const chefEmit = req.app.get('emitToUser');
-    if (chefEmit) {
-      chefEmit(`dept_${req.user.department_id}`, {
-        type: 'NEW_AGENT_COMMENT',
+    // Notify chef de service via proper DB notification
+    const chef = await getChefForDept(req.user.department_id);
+    if (chef?.id) {
+      const agentName = `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || 'Un agent';
+      await notify(req.app, {
+        userId: chef.id,
+        type: 'INTERNAL_COMMENT',
         title: 'Nouveau commentaire d\'un agent',
-        body: content.trim().substring(0, 80),
+        body: `${agentName}: ${content.trim().substring(0, 80)}`,
         declarationId: id,
-      });
+      }).catch(() => { });
     }
 
     res.status(201).json(data);
@@ -667,8 +737,8 @@ exports.closeDeclaration = async (req, res) => {
       .from('declarations')
       .select('id, ref_citoyen, title, status, citizen_id, agent_id')
       .eq('id', id)
-      .eq('department_id', agentScope(req))
-      .eq('agent_id', agentId)
+      .or(`department_id.eq.${agentScope(req)},service_id.eq.${agentScope(req)}`)
+.eq('agent_id', agentId)
       .single();
 
     if (fetchErr || !decl) {

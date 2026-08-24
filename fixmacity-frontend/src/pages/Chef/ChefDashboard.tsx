@@ -93,13 +93,13 @@ const PRI_CFG: Record<string, { label: string; color: string; bg: string }> = {
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   soumise:        { label: 'Soumise',       color: '#D97706', bg: '#FFFBEB', dot: '#F59E0B' },
-  assignee_chef:  { label: 'À assigner',    color: '#7C3AED', bg: '#EDE9FE', dot: '#8B5CF6' },
-  assignee_agent: { label: 'Assignée',      color: '#1D4ED8', bg: '#DBEAFE', dot: '#3B82F6' },
-  en_cours:       { label: 'En cours',      color: '#C2410C', bg: '#FFEDD5', dot: '#F97316' },
+  assignee_chef:  { label: 'Assigné',       color: '#7C3AED', bg: '#EDE9FE', dot: '#8B5CF6' },
+  assignee_agent: { label: 'En attente',    color: '#D97706', bg: '#FFFBEB', dot: '#F59E0B' },
+  en_cours:       { label: 'En cours',      color: '#1D4ED8', bg: '#DBEAFE', dot: '#3B82F6' },
   resolue:        { label: 'Résolue',       color: '#15803D', bg: '#DCFCE7', dot: '#22C55E' },
   cloturee:       { label: 'Clôturée',      color: '#475569', bg: '#F1F5F9', dot: '#94A3B8' },
   refusee_chef:   { label: 'Refusée',       color: '#DC2626', bg: '#FEE2E2', dot: '#EF4444' },
-  refusee_agent:  { label: 'Renvoyée',      color: '#B91C1C', bg: '#FEE2E2', dot: '#EF4444' },
+  refusee_agent:  { label: 'Refusée',       color: '#DC2626', bg: '#FEE2E2', dot: '#EF4444' },
 }
 
 function timeAgo(iso?: string) {

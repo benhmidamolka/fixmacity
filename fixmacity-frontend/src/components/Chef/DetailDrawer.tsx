@@ -1,7 +1,8 @@
 // src/pages/Chef/ChefDeclarations.tsx
 // ── Rebuilt detail drawer: photos, inter-dept comments, priority, history ─────
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { createPortal } from 'react-dom'
+import { useParams } from 'react-router-dom'
 import {
   Search, Plus, X, ChevronUp, ChevronDown, ChevronsUpDown,
   ArrowUp, ArrowRight, ArrowDown, CheckCircle2, Clock,
@@ -30,6 +31,7 @@ interface Decl {
   citizen?: { first_name: string; last_name: string } | null
   ai_reasoning?: string | null; used_ai_vision?: boolean
   is_sensitive?: boolean; sensitive_type?: string | null; shared_departments?: any[]
+  refusal_reason?: string; agent_refusal_reason?: string; assigned_agents?: any[]; other_services?: any[]
 }
 interface Agent {
   id: string; first_name: string; last_name: string
@@ -41,9 +43,10 @@ const AGENT_COLORS = ['#6366f1','#3b82f6','#10b981','#f59e0b','#ec4899','#8b5cf6
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   soumise:        { label: 'Soumise',  color: '#d97706', bg: '#fffbeb', dot: '#f59e0b' },
-  assignee_chef:  { label: 'À traiter', color: '#7c3aed', bg: '#ede9fe', dot: '#8b5cf6' },
-  assignee_agent: { label: 'Assignée', color: '#1d4ed8', bg: '#dbeafe', dot: '#3b82f6' },
-  en_cours:       { label: 'Assignée', color: '#1d4ed8', bg: '#dbeafe', dot: '#3b82f6' },
+  assignee_chef:  { label: 'Assignée', color: '#7c3aed', bg: '#ede9fe', dot: '#8b5cf6' },
+  assignee_agent: { label: 'En attente', color: '#d97706', bg: '#fffbeb', dot: '#f59e0b' },
+  en_attente:     { label: 'En attente', color: '#d97706', bg: '#fffbeb', dot: '#f59e0b' },
+  en_cours:       { label: 'En cours', color: '#1d4ed8', bg: '#dbeafe', dot: '#3b82f6' },
   resolue:        { label: 'Résolue',  color: '#15803d', bg: '#dcfce7', dot: '#22c55e' },
   cloturee:       { label: 'Clôturée', color: '#475569', bg: '#f1f5f9', dot: '#94a3b8' },
   refusee_chef:   { label: 'Refusée',  color: '#dc2626', bg: '#fee2e2', dot: '#ef4444' },
@@ -124,10 +127,13 @@ export function AcceptModal({ decl, agents, onClose, onDone }: {
     .map(id => active.find(a => a.id === id))
     .filter((a): a is Agent => !!a && a.workload >= maxTasks)
 
+  const isAlreadyAccepted = !['assignee_chef', 'soumise'].includes(decl.status)
+
   const go = async () => {
     if (agentIds.length === 0) { setError('Sélectionnez au moins un agent.'); return }
     setLoading(true); setError(null)
-    const res = await fetch(`${API}/chef/declarations/${decl.id}/accept`, {
+    const endpoint = isAlreadyAccepted ? '/assign-agents' : '/accept';
+    const res = await fetch(`${API}/chef/declarations/${decl.id}${endpoint}`, {
       method: 'POST', headers: hjson(), body: JSON.stringify({ agent_ids: agentIds })
     }).catch(() => null)
     if (!res) { setLoading(false); setError('Erreur réseau.'); return }
@@ -225,10 +231,12 @@ export function AcceptModal({ decl, agents, onClose, onDone }: {
               {loading ? <Loader2 size={14} className="animate-spin" /> : <><UserCheck size={14} /> Assigner {agentIds.length > 1 ? `(${agentIds.length})` : ''}</>}
             </button>
           </div>
-          <button onClick={goLater} disabled={loading}
-            className="w-full py-2.5 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 text-xs font-black text-slate-400 dark:text-slate-500 hover:border-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all">
-            ⏳ Assigner plus tard
-          </button>
+          {!isAlreadyAccepted && (
+            <button onClick={goLater} disabled={loading}
+              className="w-full py-2.5 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 text-xs font-black text-slate-400 dark:text-slate-500 hover:border-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all">
+              ⏳ Assigner plus tard
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -300,7 +308,7 @@ export interface DetailDrawerProps {
 
 const STEPS = ['soumise', 'assignee_agent', 'en_cours', 'resolue', 'cloturee']
 const STEP_LABELS: Record<string, string> = {
-  soumise: 'Soumise', assignee_agent: 'Assignée', en_cours: 'En cours', resolue: 'Résolue', cloturee: 'Clôturée'
+  soumise: 'Soumise', assignee_agent: 'En attente', en_cours: 'En cours', resolue: 'Résolue', cloturee: 'Clôturée'
 }
 
 export function DetailDrawer({ declId, agents, onClose, onRefreshed }: DetailDrawerProps) {
@@ -316,6 +324,7 @@ export function DetailDrawer({ declId, agents, onClose, onRefreshed }: DetailDra
   const [showAccept, setShowAccept] = useState(false)
   const [showRefuse, setShowRefuse] = useState(false)
   const [showReassign, setShowReassign] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
   const endRef = useRef<HTMLDivElement>(null)
   const me = JSON.parse(localStorage.getItem('fmc_user') || '{}')
 
@@ -331,7 +340,7 @@ export function DetailDrawer({ declId, agents, onClose, onRefreshed }: DetailDra
         setComments(d.comments || [])
       })
       .finally(() => setLoading(false))
-  }, [declId])
+  }, [declId, refreshKey])
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [comments.length, channel])
 
@@ -359,11 +368,15 @@ export function DetailDrawer({ declId, agents, onClose, onRefreshed }: DetailDra
   }
 
   const isSoumise      = decl?.status === 'soumise'
-  const isIncoming     = isSoumise
+  const isIncoming     = isSoumise || decl?.status === 'assignee_chef'
+  const isAssigneeAgent= decl?.status === 'assignee_agent' || decl?.status === 'en_attente'
+  const isEnAttente    = decl?.status === 'en_attente'
   const isCloturee     = decl?.status === 'cloturee'
   const isRefuseeChef  = decl?.status === 'refusee_chef'
   const isRefuseeAgent = decl?.status === 'refusee_agent'
   const isRefused      = isRefuseeChef || isRefuseeAgent
+
+  const hasNoAgent = isEnAttente || (isAssigneeAgent && !decl?.assigned_agents?.length && !decl?.agent_id)
 
   // Separate photos by type
   const photoAvant  = photos.find(p => p.photo_type === 'photo_avant' || !p.photo_type) || (decl?.photo_avant ? { id: 'inline', url: decl.photo_avant, photo_type: 'photo_avant' } : null) || (decl?.image_url ? { id: 'inline2', url: decl.image_url, photo_type: 'photo_avant' } : null)
@@ -387,7 +400,7 @@ export function DetailDrawer({ declId, agents, onClose, onRefreshed }: DetailDra
     { key: 'messages', label: 'Commentaires internes',   icon: MessageSquare, locked: commentsLocked, badge: commentsLocked ? undefined : comments.length },
   ]
 
-  return (
+  return createPortal(
     <>
       <div className="fixed inset-0 z-[60] bg-slate-950/40 backdrop-blur-sm" onClick={onClose} />
 
@@ -414,6 +427,7 @@ export function DetailDrawer({ declId, agents, onClose, onRefreshed }: DetailDra
                 </button>
               </>
             )}
+
             {!loading && isRefuseeAgent && (
               <button onClick={() => setShowReassign(true)}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-black shadow-sm transition-all">
@@ -648,23 +662,37 @@ export function DetailDrawer({ declId, agents, onClose, onRefreshed }: DetailDra
                     </div>
                   )}
 
-                  {/* 4. Agent assigné */}
-                  {decl.assigned_agent && (
+                  {/* 4. Agents assignés */}
+                  {(decl.assigned_agents?.length > 0 || decl.assigned_agent) ? (
                     <div className="bg-emerald-50/50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 rounded-2xl p-5">
                       <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[.18em] mb-3 flex items-center gap-1.5">
-                        <UserCheck size={10} /> 4. Agent assigné
+                        <UserCheck size={10} /> 4. Agent(s) assigné(s)
                       </p>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center font-black text-sm text-emerald-700 dark:text-emerald-400">
-                          {decl.assigned_agent.first_name?.[0]}{decl.assigned_agent.last_name?.[0]}
-                        </div>
-                        <div>
-                          <p className="text-sm font-black text-slate-900 dark:text-white">{decl.assigned_agent.first_name} {decl.assigned_agent.last_name}</p>
-                          {decl.assigned_at && <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">Assigné le {fmtDate(decl.assigned_at)}</p>}
-                        </div>
+                      <div className="space-y-3">
+                        {(decl.assigned_agents?.length ? decl.assigned_agents : [decl.assigned_agent]).map((agent: any, idx: number) => (
+                          <div key={agent.id || idx} className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center font-black text-sm text-emerald-700 dark:text-emerald-400">
+                              {agent.first_name?.[0]}{agent.last_name?.[0]}
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-slate-900 dark:text-white">{agent.first_name} {agent.last_name}</p>
+                              {decl.assigned_at && <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">Assigné le {fmtDate(decl.assigned_at)}</p>}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  )}
+                  ) : hasNoAgent ? (
+                    <div className="bg-amber-50/50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 rounded-2xl p-5 text-center">
+                      <UserCheck size={24} className="mx-auto text-amber-500 mb-2" />
+                      <p className="text-sm font-black text-amber-700 dark:text-amber-400">Aucun agent assigné</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-500 mt-1 mb-4">Veuillez sélectionner les agents qui interviendront sur cette mission.</p>
+                      <button onClick={() => setShowAccept(true)}
+                        className="mx-auto flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-black shadow-sm transition-all">
+                        Assigner des agents
+                      </button>
+                    </div>
+                  ) : null}
 
                   {/* Résolution banner */}
                   {isCloturee && decl.resolved_at && (
@@ -959,17 +987,43 @@ export function DetailDrawer({ declId, agents, onClose, onRefreshed }: DetailDra
         )}
       </div>
 
-      {showAccept && decl && <AcceptModal decl={decl as Decl} agents={agents} onClose={() => setShowAccept(false)} onDone={() => { onRefreshed(); setShowAccept(false) }} />}
-      {showRefuse && decl && <RefuseModal decl={decl as Decl} onClose={() => setShowRefuse(false)} onDone={() => { onRefreshed(); setShowRefuse(false) }} />}
+      {showAccept && decl && (
+        <AcceptModal
+          decl={decl as Decl}
+          agents={agents}
+          onClose={() => setShowAccept(false)}
+          onDone={() => {
+            setShowAccept(false)
+            setRefreshKey(k => k + 1)  // re-fetch drawer data in place
+            onRefreshed()               // re-fetch the task grid
+          }}
+        />
+      )}
+      {showRefuse && decl && (
+        <RefuseModal
+          decl={decl as Decl}
+          onClose={() => setShowRefuse(false)}
+          onDone={() => {
+            setShowRefuse(false)
+            setRefreshKey(k => k + 1)
+            onRefreshed()
+          }}
+        />
+      )}
       {showReassign && decl && (
         <AcceptModal
           decl={decl as Decl}
           agents={agents.filter(a => a.id !== (decl as any).agent_id && a.id !== (decl as any).refusing_agent_id)}
           onClose={() => setShowReassign(false)}
-          onDone={() => { onRefreshed(); setShowReassign(false) }}
+          onDone={() => {
+            setShowReassign(false)
+            setRefreshKey(k => k + 1)
+            onRefreshed()
+          }}
         />
       )}
-    </>
+    </>,
+    document.body
   )
 }
 

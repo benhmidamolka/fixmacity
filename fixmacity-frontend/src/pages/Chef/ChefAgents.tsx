@@ -229,10 +229,13 @@ const ChefAgents: React.FC = () => {
     }
   }
 
-  const filtered = agents.filter(a => 
-    `${a.first_name} ${a.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
-    a.email.toLowerCase().includes(search.toLowerCase())
-  )
+  const normalize = (s?: any) => s ? String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : ""
+
+  const filtered = agents.filter(a => {
+    if (!search) return true
+    const q = normalize(search)
+    return normalize(`${a.first_name} ${a.last_name}`).includes(q) || normalize(a.email).includes(q)
+  })
 
   const STATS = [
     { label: 'Total Équipe', value: agents.length, icon: Users, color: '#6366F1', bg: '#EEF2FF' },
