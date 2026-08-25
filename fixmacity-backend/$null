@@ -1,8 +1,0 @@
-Cannot overwrite variable PID because it is read-only or constant.
-At line:1 char:67
-+ ... g ':5005.*LISTENING'); if ($p) { $pid = ($p -split '\s+')[-1]; taskki ...
-+                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : WriteError: (PID:String) [], SessionStateUnauthorizedAccess 
-   Exception
-    + FullyQualifiedErrorId : VariableNotWritable
- 
